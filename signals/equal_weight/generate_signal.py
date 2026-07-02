@@ -1,11 +1,17 @@
 """
 Generate an equal-weight style signal using configurable index-pair directions.
 
-The first CSV column is the date. Pair definitions live in style_factor_groups.csv.
-For each configured pair, this script follows the contrast implementation: daily
-relative return, 20-day rolling compound return, 40-day rolling z-score after the
-40-day window is available, tanh(z / 2), equal-weight average, then 5-day smoothing.
-The output keeps both the same-day unsmoothed value and the 5-day smoothed value.
+The first CSV column is the date. Pair definitions live in a config CSV
+(group,left_column,right_column,direction). For each configured pair: daily
+relative return, `lookback`-day rolling compound return, `z_window`-day rolling
+z-score after the window is available, tanh(z / 2), equal-weight average, then
+optional smoothing. The output keeps both the same-day unsmoothed value
+(factor_value_raw) and the smoothed value (factor_value); with --smoothing 0
+the two are identical.
+
+Presets (两个历史参数变体):
+  变体A (原 latest_equal_weight_signal):        --lookback 20 --z-window 40 --smoothing 5  (默认)
+  变体B (原 latest_equal_weight_signal_5d_20z): --lookback 5  --z-window 20 --smoothing 0
 """
 
 import argparse
@@ -16,12 +22,12 @@ import numpy as np
 import pandas as pd
 
 
-INPUT_FILE = "data.csv"
-OUTPUT_FILE = "equal_weight_signal_contrast.csv"
-CONFIG_FILE = "style_factor_groups.csv"
+ROOT = Path(__file__).resolve().parents[2]
+INPUT_FILE = ROOT / "data" / "成长价值指数_2019.csv"
+OUTPUT_FILE = ROOT / "output" / "equal_weight" / "equal_weight_signal_20d40z.csv"
+CONFIG_FILE = Path(__file__).resolve().parent / "config_6pairs.csv"
 LOOKBACK = 20
 SMOOTHING_WINDOW = 5
-OUTPUT_WINDOW_LABEL = 20
 STD_FLOOR = 1e-8
 VALID_DIRECTIONS = {"forward", "reverse"}
 
@@ -150,6 +156,7 @@ def _compute_pair_signal(
     left_price: pd.Series,
     right_price: pd.Series,
     lookback: int,
+    z_window: int | None = None,
 ) -> pd.Series:
     aligned = pd.DataFrame({"left": left_price, "right": right_price}).dropna()
     if aligned.empty:
@@ -163,7 +170,8 @@ def _compute_pair_signal(
         lambda x: x.prod() - 1,
         raw=False,
     )
-    z_window = z_window_for_lookback(lookback)
+    if z_window is None:
+        z_window = z_window_for_lookback(lookback)
     rolling_mean = cumulative.rolling(z_window, min_periods=z_window).mean()
     rolling_std = cumulative.rolling(z_window, min_periods=z_window).std()
     rolling_std = pd.Series(
@@ -179,14 +187,20 @@ def _compute_pair_signal(
 def calculate_contrast_equal_weight_signal(
     prices: pd.DataFrame,
     lookback: int = LOOKBACK,
+    z_window: int | None = None,
     smoothing_window: int = SMOOTHING_WINDOW,
     pair_configs: list[PairConfig] | None = None,
 ) -> pd.DataFrame:
-    """Calculate contrast-style pair signals, raw value, and smoothed factor value."""
+    """Calculate contrast-style pair signals, raw value, and smoothed factor value.
+
+    z_window=None -> lookback * 2; smoothing_window=0 -> factor_value 不平滑。
+    """
     if lookback <= 0:
         raise ValueError("lookback must be positive")
-    if smoothing_window <= 0:
-        raise ValueError("smoothing_window must be positive")
+    if z_window is not None and z_window <= 0:
+        raise ValueError("z_window must be positive")
+    if smoothing_window < 0:
+        raise ValueError("smoothing_window must be non-negative (0 = no smoothing)")
 
     price_columns = list(prices.columns)
     if pair_configs is None:
@@ -200,22 +214,24 @@ def calculate_contrast_equal_weight_signal(
 
     for pair in pair_configs:
         left_col, right_col = pair.effective_columns()
-        signal = _compute_pair_signal(prices[left_col], prices[right_col], lookback)
+        signal = _compute_pair_signal(prices[left_col], prices[right_col], lookback, z_window)
         pair_signals.append(signal)
-        output[f"pair_{pair.group:02d}_factor_{OUTPUT_WINDOW_LABEL}"] = signal
+        output[f"pair_{pair.group:02d}_factor_{lookback}"] = signal
 
     raw_signal = pd.Series(0.0, index=output.index)
     for signal in pair_signals:
         raw_signal += signal.reindex(output.index).fillna(0.0)
     raw_signal /= len(pair_signals)
 
-    raw_signal_col = f"raw_signal_{OUTPUT_WINDOW_LABEL}"
-    output[raw_signal_col] = raw_signal
+    output[f"raw_signal_{lookback}"] = raw_signal
     output["factor_value_raw"] = raw_signal
-    output["factor_value"] = output["factor_value_raw"].rolling(
-        smoothing_window,
-        min_periods=1,
-    ).mean()
+    if smoothing_window == 0:
+        output["factor_value"] = output["factor_value_raw"]
+    else:
+        output["factor_value"] = output["factor_value_raw"].rolling(
+            smoothing_window,
+            min_periods=1,
+        ).mean()
 
     return output
 
@@ -224,41 +240,75 @@ def generate_contrast_equal_weight_signal(
     input_file: str | Path = INPUT_FILE,
     output_file: str | Path = OUTPUT_FILE,
     config_file: str | Path = CONFIG_FILE,
+    lookback: int = LOOKBACK,
+    z_window: int | None = None,
+    smoothing_window: int = SMOOTHING_WINDOW,
 ) -> pd.DataFrame:
     prices = load_price_data(input_file)
     pair_configs = load_pair_configs(config_file, list(prices.columns))
-    result = calculate_contrast_equal_weight_signal(prices, pair_configs=pair_configs)
+    result = calculate_contrast_equal_weight_signal(
+        prices,
+        lookback=lookback,
+        z_window=z_window,
+        smoothing_window=smoothing_window,
+        pair_configs=pair_configs,
+    )
     result.round(4).to_csv(output_file, index_label="date")
     return result
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate contrast-style equal-weight signal")
-    parser.add_argument("--input", default=INPUT_FILE, help="input CSV path, default: data.csv")
+    parser = argparse.ArgumentParser(
+        description="Generate contrast-style equal-weight signal",
+        epilog=(
+            "presets: 变体A --lookback 20 --z-window 40 --smoothing 5 (default); "
+            "变体B --lookback 5 --z-window 20 --smoothing 0"
+        ),
+    )
+    parser.add_argument("--input", default=INPUT_FILE, help=f"input CSV path, default: {INPUT_FILE}")
     parser.add_argument(
         "--output",
         default=OUTPUT_FILE,
-        help="output CSV path, default: equal_weight_signal_contrast.csv",
+        help=f"output CSV path, default: {OUTPUT_FILE}",
     )
     parser.add_argument(
         "--config",
         default=CONFIG_FILE,
-        help="pair config CSV path, default: style_factor_groups.csv",
+        help=f"pair config CSV path, default: {CONFIG_FILE}",
+    )
+    parser.add_argument("--lookback", type=int, default=LOOKBACK, help="rolling compound return window, default: 20")
+    parser.add_argument(
+        "--z-window",
+        type=int,
+        default=None,
+        help="z-score window, default: lookback * 2",
+    )
+    parser.add_argument(
+        "--smoothing",
+        type=int,
+        default=SMOOTHING_WINDOW,
+        help="smoothing window for factor_value, 0 = no smoothing, default: 5",
     )
     args = parser.parse_args()
 
     prices = load_price_data(args.input)
     pair_configs = load_pair_configs(args.config, list(prices.columns))
-    output = calculate_contrast_equal_weight_signal(prices, pair_configs=pair_configs)
+    output = calculate_contrast_equal_weight_signal(
+        prices,
+        lookback=args.lookback,
+        z_window=args.z_window,
+        smoothing_window=args.smoothing,
+        pair_configs=pair_configs,
+    )
     output.round(4).to_csv(args.output, index_label="date")
 
     print(f"Input: {args.input}")
     print(f"Output: {args.output}")
     print(f"Config: {args.config}")
     print(f"Pairs: {len(pair_configs)}")
-    print(f"Lookback: {LOOKBACK}")
-    print(f"Z-window: {z_window_for_lookback(LOOKBACK)}")
-    print(f"Smoothing window: {SMOOTHING_WINDOW}")
+    print(f"Lookback: {args.lookback}")
+    print(f"Z-window: {args.z_window if args.z_window is not None else z_window_for_lookback(args.lookback)}")
+    print(f"Smoothing: {args.smoothing if args.smoothing > 0 else 'none'}")
 
     if output.empty:
         print("No valid rows after signal calculation")
