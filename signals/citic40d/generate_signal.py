@@ -27,8 +27,9 @@ import numpy as np
 import pandas as pd
 
 
-INPUT_FILE = "中信风格合并.csv"
-OUTPUT_FILE = "citic_style_signal_40d.csv"
+ROOT = Path(__file__).resolve().parents[2]
+INPUT_FILE = ROOT / "data" / "中信风格合并.csv"
+OUTPUT_FILE = ROOT / "output" / "citic40d" / "citic_style_signal_40d.csv"
 N_LIST = [20]
 Z_WINDOW = 40
 def load_style_data(input_file: str | Path = INPUT_FILE) -> pd.DataFrame:
