@@ -18,6 +18,8 @@
   状态机离散化
 """
 
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 from itertools import product
@@ -25,6 +27,7 @@ from itertools import product
 # ════════════════════════════════════════
 # 参数
 # ════════════════════════════════════════
+ROOT = Path(__file__).resolve().parents[2]
 N_LIST = [20, 60]
 M = 250  # z-score 滚动窗口
 
@@ -41,13 +44,13 @@ DEFAULT_THRESHOLDS = {
 # ════════════════════════════════════════
 def load_data():
     # 五大风格指数 (合并文件)
-    style = pd.read_csv("中信风格合并.csv", skiprows=5, usecols=[0, 1, 2, 3, 4, 5],
+    style = pd.read_csv(ROOT / "data" / "中信风格合并.csv", skiprows=5, usecols=[0, 1, 2, 3, 4, 5],
                          names=["date", "stability", "growth", "finance", "cycle", "consumption"],
                          parse_dates=["date"])
     style = style.dropna(subset=["date"]).set_index("date").sort_index().astype(float)
 
     # 沪深300
-    hs = pd.read_csv("沪深300.csv", skiprows=6, usecols=[0, 1],
+    hs = pd.read_csv(ROOT / "data" / "沪深300.csv", skiprows=6, usecols=[0, 1],
                       names=["date", "hs300"], parse_dates=["date"])
     hs = hs.dropna(subset=["date"]).set_index("date").sort_index().astype(float)
 
@@ -288,7 +291,7 @@ def main():
     print("与原始信号对比")
     print("=" * 60)
 
-    orig = pd.read_csv("growth_stability_signal.csv", parse_dates=["date"], index_col="date")
+    orig = pd.read_csv(ROOT / "output" / "hybrid20" / "growth_stability_signal.csv", parse_dates=["date"], index_col="date")
     for n in N_LIST:
         orig_sig = orig[f"signal_{n}"]
         orig_result = evaluate_signal(orig_sig, df["hs300"])
@@ -304,7 +307,7 @@ def main():
     for n in N_LIST:
         output[f"signal_{n}"] = output[f"signal_{n}"].astype(int)
 
-    output.to_csv("optimized_signal.csv")
+    output.to_csv(ROOT / "output" / "hybrid20" / "optimized_signal.csv")
     print(f"\n输出: optimized_signal.csv")
     print(f"区间: {output.index.min().date()} ~ {output.index.max().date()}, {len(output)} 行")
 

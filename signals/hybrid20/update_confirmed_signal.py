@@ -10,15 +10,18 @@
 依赖:   需先运行 update_growth_stability.py 生成 growth_stability_signal.csv
 """
 
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 
 # ════════════════════════════════════════
 # 参数 (与原始脚本一致)
 # ════════════════════════════════════════
-STYLE_FILE = "中信风格合并.csv"
-ORIG_SIGNAL_FILE = "growth_stability_signal.csv"
-OUTPUT_FILE = "confirmed_signal.csv"
+ROOT = Path(__file__).resolve().parents[2]
+STYLE_FILE = ROOT / "data" / "中信风格合并.csv"
+ORIG_SIGNAL_FILE = ROOT / "output" / "hybrid20" / "growth_stability_signal.csv"
+OUTPUT_FILE = ROOT / "output" / "hybrid20" / "confirmed_signal.csv"
 
 N_LIST = [20, 60]
 M = 250

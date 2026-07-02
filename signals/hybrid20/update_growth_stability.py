@@ -19,14 +19,17 @@
   2. python update_growth_stability.py
 """
 
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 
 # ════════════════════════════════════════
 # 参数
 # ════════════════════════════════════════
-INPUT_FILE = "中信风格合并.csv"
-OUTPUT_FILE = "growth_stability_signal.csv"
+ROOT = Path(__file__).resolve().parents[2]
+INPUT_FILE = ROOT / "data" / "中信风格合并.csv"
+OUTPUT_FILE = ROOT / "output" / "hybrid20" / "growth_stability_signal.csv"
 
 N_LIST = [20, 60]       # 收益率回看窗口
 M = 250                 # z-score标准化滚动窗口
