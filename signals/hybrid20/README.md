@@ -16,18 +16,19 @@
 
 ## 数据来源
 
-当前目录中的相关文件：
+相关文件（路径相对仓库根）：
 
-- `中信风格合并.csv`：风格指数原始数据，包含稳定、成长、金融、周期、消费。
-- `growth_stability_signal.csv`：成长/稳健原始信号输出。
-- `confirmed_signal.csv`：在原始信号基础上加入金融确认后的输出。
-- `update_growth_stability.py`：生成成长/稳健原始信号。
-- `update_confirmed_signal.py`：生成 `confirmed_20` 和 `hybrid_20`。
+- `data/中信风格合并.csv`：风格指数原始数据，包含稳定、成长、金融、周期、消费。
+- `output/hybrid20/growth_stability_signal.csv`：成长/稳健原始信号输出。
+- `output/hybrid20/confirmed_signal.csv`：在原始信号基础上加入金融确认后的输出。
+- `signals/hybrid20/update_growth_stability.py`：生成成长/稳健原始信号。
+- `signals/hybrid20/update_confirmed_signal.py`：生成 `confirmed_20` 和 `hybrid_20`。
+- `signals/hybrid20/optimize_signal.py`：五因子阈值优化研究脚本（另需 `data/沪深300.csv`，输出 `output/hybrid20/optimized_signal.csv`）。
 
 `hybrid_20` 位于：
 
 ```text
-confirmed_signal.csv -> hybrid_20
+output/hybrid20/confirmed_signal.csv -> hybrid_20
 ```
 
 ## 第一层：成长/稳健主信号 signal_20
@@ -167,34 +168,34 @@ hybrid_20 = -1 -> 空仓
 
 ## 运行顺序
 
-更新信号时建议按以下顺序：
+更新信号时建议按以下顺序（在仓库根执行）：
 
 ```bash
-python update_growth_stability.py
-python update_confirmed_signal.py
+python3 signals/hybrid20/update_growth_stability.py
+python3 signals/hybrid20/update_confirmed_signal.py
 ```
 
 第一步生成：
 
 ```text
-growth_stability_signal.csv
+output/hybrid20/growth_stability_signal.csv
 ```
 
 第二步生成：
 
 ```text
-confirmed_signal.csv
+output/hybrid20/confirmed_signal.csv
 ```
 
 最终使用：
 
 ```text
-confirmed_signal.csv 中的 hybrid_20
+output/hybrid20/confirmed_signal.csv 中的 hybrid_20
 ```
 
 ## 代码位置
 
-核心逻辑在 `update_confirmed_signal.py`：
+核心逻辑在 `signals/hybrid20/update_confirmed_signal.py`：
 
 ```python
 hybrid = pd.Series(0, index=main_sig.index, dtype=int)
