@@ -31,3 +31,14 @@ def test_load_db_config_missing_key_raises(tmp_path):
     f.write_text("database:\n  host: 1.2.3.4\n", encoding="utf-8")
     with pytest.raises(ValueError, match="port"):
         load_db_config(f)
+
+
+def test_load_db_config_empty_value_raises(tmp_path):
+    f = tmp_path / "settings.yaml"
+    f.write_text(
+        "database:\n  host: 1.2.3.4\n  port: 5432\n  name: market_monitor\n"
+        "  user: admin\n  password:\n  schema: stock_selector\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="password"):
+        load_db_config(f)

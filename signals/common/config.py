@@ -17,7 +17,7 @@ def load_db_config(config_file: str | Path = CONFIG_FILE) -> dict:
         )
     cfg = yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
     db = cfg.get("database") or {}
-    missing = [k for k in _REQUIRED if k not in db]
+    missing = [k for k in _REQUIRED if db.get(k) in (None, "")]
     if missing:
-        raise ValueError(f"settings.yaml database 段缺少字段: {missing}")
+        raise ValueError(f"settings.yaml database 段缺少字段或值为空: {missing}")
     return db

@@ -23,3 +23,17 @@ def test_code_map_rejects_duplicate_names(tmp_path):
     f.write_text("name,code\nA,X1\nA,X2\n", encoding="utf-8")
     with pytest.raises(ValueError, match="重复"):
         load_code_map(f)
+
+
+def test_code_map_rejects_duplicate_names_after_strip(tmp_path):
+    f = tmp_path / "codes.csv"
+    f.write_text("name,code\nA,X1\nA ,X2\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="重复"):
+        load_code_map(f)
+
+
+def test_code_map_rejects_duplicate_codes(tmp_path):
+    f = tmp_path / "codes.csv"
+    f.write_text("name,code\nA,X1\nB,X1\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="X1"):
+        load_code_map(f)
