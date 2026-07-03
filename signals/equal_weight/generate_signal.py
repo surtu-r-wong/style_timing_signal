@@ -289,10 +289,25 @@ def main() -> int:
         default=SMOOTHING_WINDOW,
         help="smoothing window for factor_value, 0 = no smoothing, default: 5",
     )
+    parser.add_argument("--source", choices=["csv", "pg"], default="csv",
+                        help="数据源: csv=--input 文件, pg=stock_selector.index_daily")
+    parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 CSV 首日）")
     args = parser.parse_args()
 
-    prices = load_price_data(args.input)
-    pair_configs = load_pair_configs(args.config, list(prices.columns))
+    pair_configs = load_pair_configs(args.config)
+    needed = list(dict.fromkeys(
+        c for p in pair_configs for c in (p.left_column, p.right_column)
+    ))
+
+    if args.source == "pg":
+        import sys
+        sys.path.insert(0, str(ROOT))
+        from signals.common.data_source import load_pg_closes
+
+        prices = load_pg_closes(needed, start=args.start)
+    else:
+        prices = load_price_data(args.input)
+
     output = calculate_contrast_equal_weight_signal(
         prices,
         lookback=args.lookback,
@@ -302,7 +317,8 @@ def main() -> int:
     )
     output.round(4).to_csv(args.output, index_label="date")
 
-    print(f"Input: {args.input}")
+    src_desc = "pg:stock_selector.index_daily" if args.source == "pg" else f"csv:{args.input}"
+    print(f"Input: {src_desc}")
     print(f"Output: {args.output}")
     print(f"Config: {args.config}")
     print(f"Pairs: {len(pair_configs)}")
