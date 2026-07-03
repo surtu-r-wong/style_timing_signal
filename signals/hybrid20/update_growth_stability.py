@@ -19,6 +19,8 @@
   2. python update_growth_stability.py
 """
 
+import argparse
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -41,18 +43,33 @@ CLOSE_SHORT = -0.1      # 平空阈值
 
 
 # ════════════════════════════════════════
-# 读取数据
+# 参数与数据源
 # ════════════════════════════════════════
-df = pd.read_csv(
-    INPUT_FILE,
-    skiprows=5,
-    usecols=[0, 1, 2],
-    names=["date", "stability", "growth"],
-    parse_dates=["date"],
-)
-df = df.dropna(subset=["date"]).set_index("date").sort_index()
-df["stability"] = df["stability"].astype(float)
-df["growth"] = df["growth"].astype(float)
+parser = argparse.ArgumentParser(description="成长/稳健相对强弱信号")
+parser.add_argument("--source", choices=["csv", "pg"], default="csv",
+                    help="数据源: csv=data/中信风格合并.csv, pg=stock_selector.index_daily")
+parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 CSV 首日）")
+parser.add_argument("--output", default=str(OUTPUT_FILE), help=f"输出路径, 默认 {OUTPUT_FILE}")
+args = parser.parse_args()
+
+if args.source == "pg":
+    sys.path.insert(0, str(ROOT))
+    from signals.common.data_source import load_pg_closes
+
+    df = load_pg_closes(["稳定", "成长"], start=args.start).rename(
+        columns={"稳定": "stability", "成长": "growth"}
+    )
+else:
+    df = pd.read_csv(
+        INPUT_FILE,
+        skiprows=5,
+        usecols=[0, 1, 2],
+        names=["date", "stability", "growth"],
+        parse_dates=["date"],
+    )
+    df = df.dropna(subset=["date"]).set_index("date").sort_index()
+    df["stability"] = df["stability"].astype(float)
+    df["growth"] = df["growth"].astype(float)
 
 
 # ════════════════════════════════════════
@@ -106,11 +123,12 @@ out["signal_60"] = out["signal_60"].astype(int)
 # ════════════════════════════════════════
 # 输出
 # ════════════════════════════════════════
-out.to_csv(OUTPUT_FILE)
+out.to_csv(args.output)
 
 # 打印摘要
-print(f"输入: {INPUT_FILE}")
-print(f"输出: {OUTPUT_FILE}")
+src_desc = "pg:stock_selector.index_daily" if args.source == "pg" else f"csv:{INPUT_FILE}"
+print(f"输入: {src_desc}")
+print(f"输出: {args.output}")
 print(f"区间: {out.index.min().date()} ~ {out.index.max().date()}, 共 {len(out)} 行")
 print(f"阈值: 开多>{OPEN_LONG}, 平多<{CLOSE_LONG}, 开空<{OPEN_SHORT}, 平空>{CLOSE_SHORT}")
 print()

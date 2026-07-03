@@ -10,6 +10,8 @@
 依赖:   需先运行 update_growth_stability.py 生成 growth_stability_signal.csv
 """
 
+import argparse
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -34,19 +36,36 @@ CLOSE_SHORT = -0.1
 
 
 # ════════════════════════════════════════
-# 读取数据
+# 参数与数据源
 # ════════════════════════════════════════
+parser = argparse.ArgumentParser(description="成长/稳健 + 金融确认信号")
+parser.add_argument("--source", choices=["csv", "pg"], default="csv",
+                    help="数据源: csv=data/中信风格合并.csv, pg=stock_selector.index_daily")
+parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 CSV 首日）")
+parser.add_argument("--orig-signal", default=str(ORIG_SIGNAL_FILE),
+                    help=f"原始信号路径, 默认 {ORIG_SIGNAL_FILE}")
+parser.add_argument("--output", default=str(OUTPUT_FILE), help=f"输出路径, 默认 {OUTPUT_FILE}")
+args = parser.parse_args()
+
 # 稳定 & 金融指数
-df = pd.read_csv(
-    STYLE_FILE, skiprows=5, usecols=[0, 1, 3],
-    names=["date", "stability", "finance"], parse_dates=["date"],
-)
-df = df.dropna(subset=["date"]).set_index("date").sort_index()
-df["stability"] = df["stability"].astype(float)
-df["finance"] = df["finance"].astype(float)
+if args.source == "pg":
+    sys.path.insert(0, str(ROOT))
+    from signals.common.data_source import load_pg_closes
+
+    df = load_pg_closes(["稳定", "金融"], start=args.start).rename(
+        columns={"稳定": "stability", "金融": "finance"}
+    )
+else:
+    df = pd.read_csv(
+        STYLE_FILE, skiprows=5, usecols=[0, 1, 3],
+        names=["date", "stability", "finance"], parse_dates=["date"],
+    )
+    df = df.dropna(subset=["date"]).set_index("date").sort_index()
+    df["stability"] = df["stability"].astype(float)
+    df["finance"] = df["finance"].astype(float)
 
 # 原始信号
-orig = pd.read_csv(ORIG_SIGNAL_FILE, parse_dates=["date"], index_col="date")
+orig = pd.read_csv(args.orig_signal, parse_dates=["date"], index_col="date")
 
 
 # ════════════════════════════════════════
@@ -132,10 +151,11 @@ for n in N_LIST:
     col_order.append(f"confirmed_{n}")
     col_order.append(f"hybrid_{n}")
 out = out[col_order]
-out.to_csv(OUTPUT_FILE)
+out.to_csv(args.output)
 
-print(f"输入: {ORIG_SIGNAL_FILE} + {STYLE_FILE}")
-print(f"输出: {OUTPUT_FILE}")
+src_desc = "pg:stock_selector.index_daily" if args.source == "pg" else f"csv:{STYLE_FILE}"
+print(f"输入: {args.orig_signal} + {src_desc}")
+print(f"输出: {args.output}")
 print(f"区间: {out.index.min().date()} ~ {out.index.max().date()}, 共 {len(out)} 行")
 print()
 
