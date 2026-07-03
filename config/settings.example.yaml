@@ -1,0 +1,9 @@
+# 复制为 config/settings.yaml（gitignored）并填入真实值。
+# 与 stock_selector/config/settings.yaml 的 database 段同库同凭据，schema 固定 stock_selector。
+database:
+  host: 100.65.111.79
+  port: 5432
+  name: market_monitor
+  user: admin
+  password: replace_me
+  schema: stock_selector
