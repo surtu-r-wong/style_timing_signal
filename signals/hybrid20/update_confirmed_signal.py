@@ -42,17 +42,21 @@ parser = argparse.ArgumentParser(description="成长/稳健 + 金融确认信号
 parser.add_argument("--source", choices=["csv", "pg"], default="csv",
                     help="数据源: csv=data/中信风格合并.csv, pg=stock_selector.index_daily")
 parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 CSV 首日）")
+parser.add_argument("--end", default=None, help="pg 模式截止日 YYYY-MM-DD（复现验证时对齐 CSV 尾日）")
 parser.add_argument("--orig-signal", default=str(ORIG_SIGNAL_FILE),
                     help=f"原始信号路径, 默认 {ORIG_SIGNAL_FILE}")
 parser.add_argument("--output", default=str(OUTPUT_FILE), help=f"输出路径, 默认 {OUTPUT_FILE}")
 args = parser.parse_args()
+
+if args.source == "csv" and (args.start is not None or args.end is not None):
+    parser.error("--start/--end 仅在 --source pg 模式下有效")
 
 # 稳定 & 金融指数
 if args.source == "pg":
     sys.path.insert(0, str(ROOT))
     from signals.common.data_source import load_pg_closes
 
-    df = load_pg_closes(["稳定", "金融"], start=args.start).rename(
+    df = load_pg_closes(["稳定", "金融"], start=args.start, end=args.end, trim_ragged_tail=True).rename(
         columns={"稳定": "stability", "金融": "finance"}
     )
 else:

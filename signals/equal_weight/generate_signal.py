@@ -265,7 +265,7 @@ def main() -> int:
             "变体B --lookback 5 --z-window 20 --smoothing 0"
         ),
     )
-    parser.add_argument("--input", default=INPUT_FILE, help=f"input CSV path, default: {INPUT_FILE}")
+    parser.add_argument("--input", default=INPUT_FILE, help=f"input CSV path（--source pg 时忽略）, default: {INPUT_FILE}")
     parser.add_argument(
         "--output",
         default=OUTPUT_FILE,
@@ -292,7 +292,11 @@ def main() -> int:
     parser.add_argument("--source", choices=["csv", "pg"], default="csv",
                         help="数据源: csv=--input 文件, pg=stock_selector.index_daily")
     parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 CSV 首日）")
+    parser.add_argument("--end", default=None, help="pg 模式截止日 YYYY-MM-DD（复现验证时对齐 CSV 尾日）")
     args = parser.parse_args()
+
+    if args.source == "csv" and (args.start is not None or args.end is not None):
+        parser.error("--start/--end 仅在 --source pg 模式下有效")
 
     pair_configs = load_pair_configs(args.config)
     needed = list(dict.fromkeys(
@@ -304,7 +308,7 @@ def main() -> int:
         sys.path.insert(0, str(ROOT))
         from signals.common.data_source import load_pg_closes
 
-        prices = load_pg_closes(needed, start=args.start)
+        prices = load_pg_closes(needed, start=args.start, end=args.end, trim_ragged_tail=True)
     else:
         prices = load_price_data(args.input)
 
