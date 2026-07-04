@@ -44,11 +44,41 @@ def _check_nan_policy(wide: pd.DataFrame) -> None:
         print(f"警告: 各指数最新有效日不一致（尾部参差，通常为更新时点差异）: {detail}", file=sys.stderr)
 
 
-def rows_to_frame(rows, name_by_code: dict[str, str]) -> pd.DataFrame:
+def _trim_ragged_tail(wide: pd.DataFrame) -> pd.DataFrame:
+    """尾部参差时裁到各列 last_valid 的最小值；对齐或全 NaN 时原样返回。
+
+    - 任一列整列 NaN（last_valid 为 None）：不裁剪，交回 _check_nan_policy 报错。
+    - min_last < 帧末日：裁到 wide.loc[:min_last]，并向 stderr 警告
+      （点名各列最新有效日 + 被剔除的日期跨度），保持 stdout 干净。
+    - min_last == 帧末日：静默 no-op。
+    """
+    last_valid = {col: wide[col].last_valid_index() for col in wide.columns}
+    if any(v is None for v in last_valid.values()):
+        return wide
+    min_last = min(last_valid.values())
+    frame_last = wide.index.max()
+    if min_last >= frame_last:
+        return wide
+    detail = ", ".join(f"{c}:{d.strftime('%Y-%m-%d')}" for c, d in last_valid.items())
+    kept = min_last.strftime("%Y-%m-%d")
+    dropped_last = frame_last.strftime("%Y-%m-%d")
+    print(
+        f"警告: 尾部参差已裁剪，保留至各列最新有效日的最小值 {kept}"
+        f"（各列最新有效日: {detail}；剔除 {kept} 之后至 {dropped_last} 的行）",
+        file=sys.stderr,
+    )
+    return wide.loc[:min_last]
+
+
+def rows_to_frame(
+    rows, name_by_code: dict[str, str], trim_ragged_tail: bool = False
+) -> pd.DataFrame:
     """(index_code, trade_date, close) 行集 → date 索引 × 中文列名宽表。
 
     列顺序跟随 name_by_code 的插入顺序；任一代码零行则报错列出。
     NaN 三级策略：列内部缺口 ValueError；尾部参差 stderr 警告；起始缺失放行。
+    trim_ragged_tail=True：先裁到各列 last_valid 最小值（尾部参差场景），
+    再跑 NaN 策略——内部缺口/起始缺失语义不变，仅去掉最新一行被稀释/污染的风险。
     """
     df = pd.DataFrame(rows, columns=["index_code", "trade_date", "close"])
     codes_present = set(df["index_code"])
@@ -62,12 +92,23 @@ def rows_to_frame(rows, name_by_code: dict[str, str]) -> pd.DataFrame:
     wide.index.name = "date"
     wide.columns.name = None
     wide = wide.astype(float)
+    if trim_ragged_tail:
+        wide = _trim_ragged_tail(wide)
     _check_nan_policy(wide)
     return wide
 
 
-def load_pg_closes(names: list[str], start=None, end=None, db: dict | None = None) -> pd.DataFrame:
-    """按中文名列表读收盘价宽表。start/end 为 'YYYY-MM-DD' 或 None（全历史）。"""
+def load_pg_closes(
+    names: list[str],
+    start=None,
+    end=None,
+    db: dict | None = None,
+    trim_ragged_tail: bool = False,
+) -> pd.DataFrame:
+    """按中文名列表读收盘价宽表。start/end 为 'YYYY-MM-DD' 或 None（全历史）。
+
+    trim_ragged_tail 透传给 rows_to_frame（True 时裁掉尾部参差的最新一行）。
+    """
     import psycopg2
     from psycopg2 import sql
 
@@ -96,4 +137,4 @@ def load_pg_closes(names: list[str], start=None, end=None, db: dict | None = Non
             rows = cur.fetchall()
     finally:
         conn.close()
-    return rows_to_frame(rows, dict(zip(codes, names)))
+    return rows_to_frame(rows, dict(zip(codes, names)), trim_ragged_tail=trim_ragged_tail)
