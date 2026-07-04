@@ -2,3 +2,4 @@ __pycache__/
 .pytest_cache/
 *.pyc
 config/settings.yaml
+output/phase1_diff/
