@@ -71,8 +71,8 @@ def test_defaults_match_variant_a_configuration():
 
     assert module.LOOKBACK == 20
     assert module.SMOOTHING_WINDOW == 5
-    assert Path(module.CONFIG_FILE).name == "config_6pairs.csv"
-    assert Path(module.INPUT_FILE).name == "成长价值指数_2019.csv"
+    assert Path(module.CONFIG_FILE).name == "config_4pairs.csv"
+    assert Path(module.INPUT_FILE).name == "成长价值指数_2014.csv"
     assert module.z_window_for_lookback(module.LOOKBACK) == 40
 
 
@@ -203,6 +203,12 @@ def test_bundled_preset_configs_are_valid():
     module = _load_module()
     config_dir = MODULE_PATH.parent
 
+    # config_4pairs 为当前默认（去创业板/科创后的四对有效对）
+    four = module.load_pair_configs(config_dir / "config_4pairs.csv")
+    assert len(four) == 4
+    assert all(pair.direction == "forward" for pair in four)
+
+    # 旧 5/6pairs 配置保留待定稿（含创业板/科创），仍应可解析
     six = module.load_pair_configs(config_dir / "config_6pairs.csv")
     assert len(six) == 6
     assert all(pair.direction == "forward" for pair in six)

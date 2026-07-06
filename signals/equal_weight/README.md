@@ -4,9 +4,9 @@
 
 ## 文件
 
-- `generate_signal.py` — 主脚本（参数化：`--lookback` / `--z-window` / `--smoothing`）
-- `config_6pairs.csv` — 6 组配置（沪深300/中证500/中证1000/中证2000/创业板/科创 成长vs价值），配 `data/成长价值指数_2019.csv`
-- `config_5pairs.csv` — 5 组配置（不含科创），配 `data/成长价值指数_2014.csv`（历史更长）
+- `generate_signal.py` — 主脚本（参数化：`--lookback` / `--z-window` / `--smoothing`；默认 `--source pg` 读 `stock_selector.index_daily`）
+- `config_4pairs.csv` — **当前默认** 4 组配置（沪深300/中证500/中证1000/中证2000 成长vs价值）。2026-07-06 起去掉创业板/科创两对（逻辑性存疑）
+- `config_6pairs.csv` / `config_5pairs.csv` — 旧 6 组（含创业板/科创）/ 5 组（含创业板）配置，**留档待定稿**，仅 `--source csv` 可用（PG 未载这两对）
 
 ## 计算逻辑
 
@@ -21,21 +21,21 @@
 
 ## 两套预设参数
 
-| | 复合收益窗口 | z 窗口 | 平滑 | 数据 | 配置 |
+| | 复合收益窗口 | z 窗口 | 平滑 | 数据源 | 配置 |
 |---|---|---|---|---|---|
-| **变体 A**（默认值） | 20 | 40 | 5 | `成长价值指数_2019.csv` | `config_6pairs.csv` |
-| **变体 B** | 5 | 20 | 无 | `成长价值指数_2014.csv` | `config_5pairs.csv` |
+| **变体 A**（默认值） | 20 | 40 | 5 | PG（默认）/ `成长价值指数_2014.csv` | `config_4pairs.csv` |
+| **变体 B** | 5 | 20 | 无 | PG（默认）/ `成长价值指数_2014.csv` | `config_4pairs.csv` |
+
+> 2026-07-06 起两变体均为 4 对（去创业板/科创），仅参数不同；起点 2014-01-02。`--source pg` 与 `--source csv`（`成长价值指数_2014.csv`）输出逐字节一致。
 
 ## 运行（仓库根执行）
 
 ```bash
-# 变体 A：全部默认值
+# 变体 A：全部默认值（--source pg + config_4pairs + 20/40/5）
 python3 signals/equal_weight/generate_signal.py
 
-# 变体 B
+# 变体 B（同 4 对，仅参数不同）
 python3 signals/equal_weight/generate_signal.py \
-  --input data/成长价值指数_2014.csv \
-  --config signals/equal_weight/config_5pairs.csv \
   --lookback 5 --z-window 20 --smoothing 0 \
   --output output/equal_weight/equal_weight_signal_5d20z.csv
 ```

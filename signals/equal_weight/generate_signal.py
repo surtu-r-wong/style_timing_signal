@@ -23,9 +23,9 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[2]
-INPUT_FILE = ROOT / "data" / "成长价值指数_2019.csv"
+INPUT_FILE = ROOT / "data" / "成长价值指数_2014.csv"
 OUTPUT_FILE = ROOT / "output" / "equal_weight" / "equal_weight_signal_20d40z.csv"
-CONFIG_FILE = Path(__file__).resolve().parent / "config_6pairs.csv"
+CONFIG_FILE = Path(__file__).resolve().parent / "config_4pairs.csv"
 LOOKBACK = 20
 SMOOTHING_WINDOW = 5
 STD_FLOOR = 1e-8
@@ -289,8 +289,8 @@ def main() -> int:
         default=SMOOTHING_WINDOW,
         help="smoothing window for factor_value, 0 = no smoothing, default: 5",
     )
-    parser.add_argument("--source", choices=["csv", "pg"], default="csv",
-                        help="数据源: csv=--input 文件, pg=stock_selector.index_daily")
+    parser.add_argument("--source", choices=["csv", "pg"], default="pg",
+                        help="数据源: pg=stock_selector.index_daily（默认）, csv=--input 文件（备份/审计）")
     parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 CSV 首日）")
     parser.add_argument("--end", default=None, help="pg 模式截止日 YYYY-MM-DD（复现验证时对齐 CSV 尾日）")
     args = parser.parse_args()
