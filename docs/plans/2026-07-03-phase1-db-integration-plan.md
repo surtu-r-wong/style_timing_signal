@@ -2,6 +2,8 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
+> **执行后记（2026-07-06 落地）**：Task 1–4 / 7–9 按计划完成提交。Task 5（wsd 回填）因 Wind 会话层报 **-103（终端会话挂掉，非额度）** 受阻 → 改用**磁盘现成 Wind 导出 CSV 直接 seed PG**（13 条已确认指数，走 `stock_selector.write_index_daily` 幂等 upsert；wsd 恢复后同值覆盖，再补数据源级校验 + 日更 topup）。Task 10 默认源翻转已落地：**三线全默认 `pg`**，逐字节复现通过、27 测试过。**两处偏离原计划**：① equal_weight 未按原 5/6pairs 复现，而是按用户 7-06 决定**去掉创业板/科创两对、收敛为四对**（新 `config_4pairs`，输出值改变、变体A 起点回到 2014）；② 15 条中 `932000`/沪深300 历史段未 seed（信号线不用，延后）。详见 commit `6d32f76` / `dcb291f`。
+
 **Goal:** 把三条信号线的输入数据从人工维护的 CSV 切到 market_monitor PG（`stock_selector.index_daily`），信号输出数值不变。
 
 **Architecture:** 数据入库复用 stock_selector 现成基础设施（Wind gateway + `backfill.cli date-range --table index_daily`，断点续跑、upsert 幂等）；style_timing_signal 侧新增薄读取层 `signals/common/data_source.py`（psycopg2 只读 + 中文名↔代码映射），四个信号脚本加 `--source {csv,pg}`，先默认 csv 验证零差异后翻转默认为 pg。CSV 降级为备份/复现口径。
