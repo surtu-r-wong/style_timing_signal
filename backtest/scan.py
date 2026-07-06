@@ -95,7 +95,7 @@ def main() -> int:
     out_dir = ROOT / "backtest" / "output"
     out_dir.mkdir(parents=True, exist_ok=True)
     rep.to_csv(out_dir / "scan_equal_weight.csv", index=False)
-    rep_show = rep.round(2).sort_values("holdout_24_26", ascending=False)
+    rep_show = rep.round(2).sort_values("sharpe_holdout_24_26", ascending=False)
     print(rep_show.to_string(index=False))
     print(f"\n当前默认参数=lookback20/z40/smooth5。→ {out_dir / 'scan_equal_weight.csv'}")
     return 0
