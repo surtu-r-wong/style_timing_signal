@@ -50,3 +50,14 @@ def test_hedge_value_no_down_month_gives_nan_hit():
     hv = hedge_value(underlying, underlying, underlying, down_threshold=-0.05)
     assert hv["n_down_months"] == 0
     assert np.isnan(hv["down_month_hit"])
+
+
+def test_assemble_dual_gates_short_keeps_long():
+    """非对称映射 → carry 门控空头 → 合成。深贴水那天的空头被禁，多头与浅贴水空头留。"""
+    from backtest.dual import assemble_dual
+    idx = pd.RangeIndex(5)
+    factor = pd.Series([0.5, -0.5, -0.5, 0.05, -0.05], index=idx)
+    carry = pd.Series([0.0, 0.10, 0.0, 0.0, 0.0], index=idx)
+    net = assemble_dual(factor, carry, long_theta=0.1, short_theta=0.3, carry_theta=0.06)
+    # asym=[+1,-1,-1,0,0]; idx1 深贴水禁空→0; idx2 浅贴水留 -1
+    assert list(net) == [1, 0, -1, 0, 0]
