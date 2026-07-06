@@ -80,24 +80,56 @@ def equal_weight_factor_fn(start=None):
     return fn
 
 
+def citic40d_factor_fn(start=None):
+    """返回 fn(lookback, z_window, smoothing) → factor_value（读 PG 5 条中信风格）。"""
+    from signals.common.data_source import load_pg_closes
+    from signals.citic40d.generate_signal import compute_mean_factor
+    style = load_pg_closes(
+        ["稳定", "成长", "金融", "周期", "消费"], start=start, trim_ragged_tail=True,
+    ).rename(columns={"稳定": "stability", "成长": "growth", "金融": "finance",
+                      "周期": "cycle", "消费": "consumption"})
+
+    def fn(lookback, z_window, smoothing):
+        return compute_mean_factor(style, n=lookback, z_window=z_window, smoothing=smoothing)
+
+    return fn
+
+
+# signal → (因子函数, 输出文件名, 现默认参数标注)
+SIGNALS = {
+    "equal_weight": (equal_weight_factor_fn, "scan_equal_weight.csv", "lookback20/z40/smooth5"),
+    "citic40d": (citic40d_factor_fn, "scan_citic40d.csv", "lookback20/z40/smooth0"),
+}
+
+
 def main() -> int:
+    import argparse
     from backtest.data import load_carry, load_underlying_returns
-    kj = "blend"
+
+    parser = argparse.ArgumentParser(description="walk-forward 参数扫描（设计稿 §3.2）")
+    parser.add_argument("--signal", choices=list(SIGNALS), default="equal_weight",
+                        help="扫描哪条信号线，默认 equal_weight")
+    parser.add_argument("--kj", choices=["500", "1000", "blend"], default="blend",
+                        help="回测口径，默认 blend（500+1000 等权，与基线对齐）")
+    args = parser.parse_args()
+
+    factory, out_name, default_note = SIGNALS[args.signal]
     windows = {
         "train_14_20": ("2014-01-01", "2020-12-31"),
         "val_21_23": ("2021-01-01", "2023-12-31"),
         "holdout_24_26": ("2024-01-01", "2026-12-31"),
     }
-    fn = equal_weight_factor_fn()
-    und = load_underlying_returns(kj)
-    car = load_carry(kj)
+    fn = factory()
+    und = load_underlying_returns(args.kj)
+    car = load_carry(args.kj)
     rep = scan_grid(fn, default_grid(), und, car, windows)
     out_dir = ROOT / "backtest" / "output"
     out_dir.mkdir(parents=True, exist_ok=True)
-    rep.to_csv(out_dir / "scan_equal_weight.csv", index=False)
+    out_path = out_dir / out_name
+    rep.to_csv(out_path, index=False)
     rep_show = rep.round(2).sort_values("sharpe_holdout_24_26", ascending=False)
     print(rep_show.to_string(index=False))
-    print(f"\n当前默认参数=lookback20/z40/smooth5。→ {out_dir / 'scan_equal_weight.csv'}")
+    print(f"\n[{args.signal} · {args.kj}] 现默认参数={default_note}。→ {out_path}")
     return 0
 
 

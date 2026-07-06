@@ -25,3 +25,32 @@ def test_scan_grid_one_row_per_combo_with_window_sharpes():
     assert len(df) == 2
     assert {"lookback", "smoothing", "sharpe_a", "sharpe_b"} <= set(df.columns)
     assert df["sharpe_a"].notna().all()
+
+
+def test_citic40d_factor_fn_renames_style_columns_and_passes_params(monkeypatch):
+    """citic40d 因子函数：把 PG 中文列名映射到英文并透传 lookback/z_window/smoothing。"""
+    import signals.common.data_source as ds
+    import signals.citic40d.generate_signal as cs
+    from backtest import scan
+
+    idx = pd.bdate_range("2015-01-01", periods=90)
+    rng = np.random.default_rng(1)
+    cn_cols = ["稳定", "成长", "金融", "周期", "消费"]
+    raw = pd.DataFrame(
+        {c: 100.0 * np.exp(np.cumsum(rng.normal(0.0003, 0.012, 90))) for c in cn_cols},
+        index=idx,
+    )
+
+    def fake_load(names, start=None, end=None, trim_ragged_tail=False):
+        assert names == cn_cols
+        return raw[names].copy()
+
+    monkeypatch.setattr(ds, "load_pg_closes", fake_load)
+
+    fn = scan.citic40d_factor_fn()
+    got = fn(lookback=5, z_window=10, smoothing=3)
+
+    renamed = raw.rename(columns={"稳定": "stability", "成长": "growth", "金融": "finance",
+                                  "周期": "cycle", "消费": "consumption"})
+    expected = cs.compute_mean_factor(renamed, n=5, z_window=10, smoothing=3)
+    pd.testing.assert_series_equal(got, expected, check_names=False)

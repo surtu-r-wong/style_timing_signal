@@ -57,7 +57,17 @@ def build_basket(df: pd.DataFrame, cols: list[str]) -> pd.Series:
     return normed.mean(axis=1)
 
 
-def build_all_factors(df: pd.DataFrame) -> pd.DataFrame:
+def build_all_factors(
+    df: pd.DataFrame,
+    n_list: list[int] | None = None,
+    z_window: int = Z_WINDOW,
+) -> pd.DataFrame:
+    """5 个因子的 tanh(z)。
+
+    n_list / z_window 默认 = 模块常数 N_LIST / Z_WINDOW（无参调用产出与生产默认一致）；
+    参数扫描（§3.2）时传入自定义 lookback / z 窗口。
+    """
+    n_list = list(N_LIST if n_list is None else n_list)
     offensive = build_basket(df, ["growth", "cycle"])
     defensive = build_basket(df, ["stability", "consumption"])
     wide_offensive = build_basket(df, ["growth", "cycle", "finance"])
@@ -72,10 +82,28 @@ def build_all_factors(df: pd.DataFrame) -> pd.DataFrame:
 
     factors = {}
     for name, (long_leg, short_leg) in factor_defs.items():
-        for n in N_LIST:
-            factors[f"{name}_{n}"] = compute_spread_factor(long_leg, short_leg, n)
+        for n in n_list:
+            factors[f"{name}_{n}"] = compute_spread_factor(long_leg, short_leg, n, z_window)
 
     return pd.DataFrame(factors, index=df.index)
+
+
+def compute_mean_factor(
+    style: pd.DataFrame,
+    n: int = N_LIST[0],
+    z_window: int = Z_WINDOW,
+    smoothing: int = 0,
+) -> pd.Series:
+    """5 因子等权均值（单一 lookback n），可选 smoothing 日滚动平滑。
+
+    walk-forward 参数扫描（§3.2）的因子入口。smoothing=0 时不平滑，
+    默认参数复现生产默认信号的 factor_20（未 round/dropna）。
+    """
+    factors = build_all_factors(style, n_list=[n], z_window=z_window)
+    mean = factors.mean(axis=1)
+    if smoothing and smoothing > 0:
+        mean = mean.rolling(smoothing, min_periods=1).mean()
+    return mean
 
 
 def build_output(style: pd.DataFrame) -> pd.DataFrame:
