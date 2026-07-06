@@ -30,3 +30,14 @@ def to_position_asym(signal: pd.Series, long_theta: float, short_theta: float) -
     pos[signal > long_theta] = 1
     pos[signal < -short_theta] = -1
     return pos
+
+
+def production_position(signal: pd.Series, threshold: float = 0.0) -> pd.Series:
+    """推荐 production 持仓口径 = **long-flat**：signal>threshold→+1，否则 0（砍空头）。
+
+    Phase 3 双引擎 v1 实证：复用风格信号的空头段【无独立盈利 + 无避险价值】——
+    equal_weight long-flat Sharpe 1.42 vs 对称 1.39、MaxDD −13.9% vs −30.2%；
+    CITIC 轴 T6 阈值扫描 short_sharpe≈0（全 16 组 −0.07~+0.04）独立佐证。
+    → 交易这些信号时砍掉空头优于对称多空。连续因子与已离散带空信号皆适用。
+    """
+    return (signal > threshold).astype(int)

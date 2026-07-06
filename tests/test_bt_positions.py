@@ -38,6 +38,26 @@ def test_asym_negative_theta_raises():
         to_position_asym(pd.Series([0.1]), long_theta=-0.1, short_theta=0.3)
 
 
+def test_production_position_long_flat_drops_shorts():
+    """推荐 production 口径 = long-flat：signal>0→+1，空头/平仓段一律 0。"""
+    from backtest.positions import production_position
+    s = pd.Series([-0.5, 0.0, 0.3, -0.1, 0.05])
+    assert list(production_position(s)) == [0, 0, 1, 0, 1]
+
+
+def test_production_position_threshold():
+    from backtest.positions import production_position
+    s = pd.Series([0.05, 0.2, -0.5])
+    assert list(production_position(s, threshold=0.1)) == [0, 1, 0]
+
+
+def test_production_position_clips_discrete_short_signal():
+    """对已离散的带空信号（hybrid_20 ∈ {−1,0,+1}）等价于砍掉 −1。"""
+    from backtest.positions import production_position
+    s = pd.Series([-1, 0, 1, -1, 1])
+    assert list(production_position(s)) == [0, 0, 1, 0, 1]
+
+
 def test_discrete_sign_default():
     s = pd.Series([-0.5, 0.0, 0.3])
     assert list(to_position(s)) == [-1, 0, 1]

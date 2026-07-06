@@ -10,6 +10,25 @@
 | ② citic40d 连续信号 | `signals/citic40d/` | 五因子（成长/稳定、周期/消费、金融/稳定、进攻/防御篮子×2）40d z 等权连续值 | **PG `index_daily`**（中信5风格，默认）· CSV 备份 | `output/citic40d/citic_style_signal_40d.csv` 的 **factor_20** 列 |
 | ③ equal_weight 配对信号 | `signals/equal_weight/` | 配置驱动的成长/价值配对相对强弱，等权平均连续值，参数可调 | **PG `index_daily`**（4对成长价值，默认）· CSV 备份 | `output/equal_weight/equal_weight_signal_{20d40z,5d20z}.csv` 的 **factor_value** 列 |
 
+## 推荐持仓口径（production = long-flat）⭐
+
+**交易这三条信号时，砍掉空头、只做多/空仓（long-flat）。** Phase 3 双引擎 v1 实证结论（equal_weight blend · full）：
+
+| 持仓口径 | Sharpe | MaxDD |
+|---|---|---|
+| **long-flat（推荐）** | **1.42** | **−13.9%** |
+| 对称多空（原口径） | 1.39 | −30.2% |
+| buy & hold | 0.37 | −68.9% |
+
+复用风格信号的**空头段无独立盈利、也无避险价值**（加空头腿反让回撤更深、跌月命中仅 31.8%）；CITIC 轴阈值扫描独立佐证（16 组阈值 `short_sharpe ∈ [−0.07,+0.04]`，无一让空头盈利）。空头引擎真正的解须喂专属脆弱性/触发信号（Phase 4，见 `docs/plans/2026-07-03-optimization-roadmap-design.md` §1）。
+
+信号 CSV 输出不变（仍是连续因子 / 带空状态机信号）；推荐持仓是**下游口径**，用 `backtest.positions.production_position(factor)`（`signal>0 → +1，否则 0`）得到。一键生成三条线推荐持仓：
+
+```bash
+python3 -m backtest.production          # → output/recommended/<signal>_longflat.csv
+python3 -m backtest.dual --signal equal_weight   # 复现上表（dual_engine_metrics.csv）
+```
+
 ## 数据源（2026-07 起：PG 优先）
 
 信号输入的指数收盘价现默认读 **PostgreSQL `stock_selector.index_daily`**（Market Monitor 库），CSV 降级为备份/审计口径（加 `--source csv` 回退）。
