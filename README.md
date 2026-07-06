@@ -6,9 +6,17 @@
 
 | 信号线 | 目录 | 一句话逻辑 | 输入 | 输出 |
 |---|---|---|---|---|
-| ① hybrid20 状态机信号 | `signals/hybrid20/` | 成长/稳健 20d 强弱定方向（250d z + tanh + 状态机），金融/稳定信号只用于阻止做空 | `data/中信风格合并.csv` | `output/hybrid20/confirmed_signal.csv` 的 **hybrid_20** 列 |
-| ② citic40d 连续信号 | `signals/citic40d/` | 五因子（成长/稳定、周期/消费、金融/稳定、进攻/防御篮子×2）40d z 等权连续值 | `data/中信风格合并.csv` | `output/citic40d/citic_style_signal_40d.csv` 的 **factor_20** 列 |
-| ③ equal_weight 配对信号 | `signals/equal_weight/` | 配置驱动的成长/价值配对相对强弱，等权平均连续值，参数可调 | `data/成长价值指数_2019.csv` 或 `_2014.csv` | `output/equal_weight/equal_weight_signal_{20d40z,5d20z}.csv` 的 **factor_value** 列 |
+| ① hybrid20 状态机信号 | `signals/hybrid20/` | 成长/稳健 20d 强弱定方向（250d z + tanh + 状态机），金融/稳定信号只用于阻止做空 | **PG `index_daily`**（中信5风格，默认）· CSV 备份 | `output/hybrid20/confirmed_signal.csv` 的 **hybrid_20** 列 |
+| ② citic40d 连续信号 | `signals/citic40d/` | 五因子（成长/稳定、周期/消费、金融/稳定、进攻/防御篮子×2）40d z 等权连续值 | **PG `index_daily`**（中信5风格，默认）· CSV 备份 | `output/citic40d/citic_style_signal_40d.csv` 的 **factor_20** 列 |
+| ③ equal_weight 配对信号 | `signals/equal_weight/` | 配置驱动的成长/价值配对相对强弱，等权平均连续值，参数可调 | CSV `成长价值指数_2019/_2014`（PG 待切） | `output/equal_weight/equal_weight_signal_{20d40z,5d20z}.csv` 的 **factor_value** 列 |
+
+## 数据源（2026-07 起：PG 优先）
+
+信号输入的指数收盘价现默认读 **PostgreSQL `stock_selector.index_daily`**（Market Monitor 库），CSV 降级为备份/审计口径（加 `--source csv` 回退）。
+
+- **① hybrid20 / ② citic40d**：默认 `--source pg`（读中信 5 风格 CI005917–21）。已验证 PG 与 CSV 输出**逐字节一致**。
+- **③ equal_weight**：暂仍默认 `--source csv`。其配置含创业板/科创两对（逻辑性存疑、暂缓），定稿后再切 PG。
+- PG 由 Wind gateway 日更 topup 保鲜（`tools/topup_index_daily.sh`，wsd 额度恢复后接管）；本仓库**只读 PG**，从不直连 gateway。连接配置见 `config/settings.yaml`（gitignored，模板 `config/settings.example.yaml`）。
 
 ## 运行（均在仓库根执行）
 
@@ -37,15 +45,18 @@ python3 -m pytest tests/ -q
 ## 数据流
 
 ```
-data/  (输入，人工更新，见 data/README.md)
-  ├── 中信风格合并.csv ──→ signals/hybrid20/  ──→ output/hybrid20/
-  │                  └──→ signals/citic40d/ ──→ output/citic40d/
-  ├── 成长价值指数_2019.csv ──→ signals/equal_weight/ ──→ output/equal_weight/
-  ├── 成长价值指数_2014.csv ──┘
+PG stock_selector.index_daily（默认源）
+  ├── 中信5风格 CI005917–21 ──→ signals/hybrid20/  ──→ output/hybrid20/
+  │                        └──→ signals/citic40d/ ──→ output/citic40d/
+  └──（成长价值指数：待 equal_weight 切 PG 后启用）
+
+data/  (备份/审计口径，--source csv；不再逐日人工维护)
+  ├── 中信风格合并.csv ──────────→ ①② 的 --source csv 回退
+  ├── 成长价值指数_2019/_2014.csv ──→ signals/equal_weight/ ──→ output/equal_weight/（③ 暂默认）
   └── 沪深300.csv 、 指数.xlsx（研究/备查）
 ```
 
-日常更新流程：更新 `data/` 中对应 CSV（追加最新行）→ 跑上面的命令 → 看 `output/` 对应文件最后一行。
+日常更新流程：①② 输入由 PG 日更（`tools/topup_index_daily.sh`，wsd 额度恢复后接管），直接跑命令即可；③ 待切 PG。CSV 不再需要逐日人工维护，仅作 `--source csv` 备份/审计口径。
 
 ## 目录说明
 

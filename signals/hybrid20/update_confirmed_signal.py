@@ -39,8 +39,8 @@ CLOSE_SHORT = -0.1
 # 参数与数据源
 # ════════════════════════════════════════
 parser = argparse.ArgumentParser(description="成长/稳健 + 金融确认信号")
-parser.add_argument("--source", choices=["csv", "pg"], default="csv",
-                    help="数据源: csv=data/中信风格合并.csv, pg=stock_selector.index_daily")
+parser.add_argument("--source", choices=["csv", "pg"], default="pg",
+                    help="数据源: pg=stock_selector.index_daily（默认）, csv=data/中信风格合并.csv（备份/审计）")
 parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 CSV 首日）")
 parser.add_argument("--end", default=None, help="pg 模式截止日 YYYY-MM-DD（复现验证时对齐 CSV 尾日）")
 parser.add_argument("--orig-signal", default=str(ORIG_SIGNAL_FILE),

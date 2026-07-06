@@ -93,8 +93,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate CITIC style signal with 40-day z-score")
     parser.add_argument("--input", default=INPUT_FILE, help="input CSV path（--source pg 时忽略）")
     parser.add_argument("--output", default=OUTPUT_FILE, help="output CSV path")
-    parser.add_argument("--source", choices=["csv", "pg"], default="csv",
-                        help="数据源: csv=--input 文件, pg=stock_selector.index_daily")
+    parser.add_argument("--source", choices=["csv", "pg"], default="pg",
+                        help="数据源: pg=stock_selector.index_daily（默认）, csv=--input 文件（备份/审计）")
     parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 2010-01-04）")
     parser.add_argument("--end", default=None, help="pg 模式截止日 YYYY-MM-DD（复现验证时对齐 CSV 尾日）")
     args = parser.parse_args()

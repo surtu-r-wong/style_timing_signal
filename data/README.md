@@ -1,6 +1,8 @@
 # data/ — 输入数据说明
 
-所有输入均为人工从 Wind 导出的 CSV/Excel。**更新方式：向对应 CSV 追加最新行（保持原格式），脚本会自动解析日期并升序排序。** 编码 UTF-8（带不带 BOM 均可，脚本用 utf-8-sig 读取）。
+所有输入均为人工从 Wind 导出的 CSV/Excel。编码 UTF-8（带不带 BOM 均可，脚本用 utf-8-sig 读取）。
+
+> **2026-07 起（Phase 1 数据库直连）**：hybrid20 / citic40d 已默认改读 PG `stock_selector.index_daily`（见根 README「数据源」段），本目录 CSV 转为**备份/审计与复现对照**口径，**不再要求逐日人工维护**；`--source csv` 仍可回退。equal_weight 暂仍读本目录 CSV（待创业板/科创两对定稿后切 PG）。历史更新方式（追加最新行、脚本自动解析升序）对 `--source csv` 回退仍适用。
 
 ## 中信风格合并.csv
 
