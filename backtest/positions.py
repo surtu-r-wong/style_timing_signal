@@ -17,3 +17,16 @@ def to_position(signal: pd.Series, mode: str = "discrete", threshold: float = 0.
         gated = signal.where(signal.abs() > threshold, 0.0)
         return pd.Series(np.sign(gated), index=signal.index).astype(int)
     raise ValueError(f"unknown mode: {mode!r} (expected 'discrete' or 'proportional')")
+
+
+def to_position_asym(signal: pd.Series, long_theta: float, short_theta: float) -> pd.Series:
+    """非对称离散映射（双引擎 §1.3）：signal>long_theta→+1；signal<−short_theta→−1；否则 0。
+
+    long_theta / short_theta 均为非负绝对阈值。short_theta>long_theta 即"空头门槛更高"。
+    """
+    if long_theta < 0 or short_theta < 0:
+        raise ValueError("long_theta / short_theta must be non-negative")
+    pos = pd.Series(0, index=signal.index, dtype=int)
+    pos[signal > long_theta] = 1
+    pos[signal < -short_theta] = -1
+    return pos
