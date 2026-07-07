@@ -52,6 +52,20 @@ def test_hedge_value_no_down_month_gives_nan_hit():
     assert np.isnan(hv["down_month_hit"])
 
 
+def test_dual_legs_external_short_long_from_factor_short_from_signal():
+    """专属空头信号装配：多头来自基因子(long_theta)，空头来自外部信号(carry 门控)，synthesize 合成。"""
+    from backtest.dual import dual_legs_external_short
+    idx = pd.RangeIndex(4)
+    factor = pd.Series([0.5, -0.5, 0.05, 0.5], index=idx)
+    short_signal = pd.Series([0, -1, -1, -1], index=idx)
+    carry = pd.Series([0.0, 0.0, 0.10, 0.0], index=idx)
+    long_leg, short_leg, net = dual_legs_external_short(
+        factor, short_signal, carry, long_theta=0.1, carry_theta=0.06)
+    assert list(long_leg) == [1, 0, 0, 1]      # factor>0.1 → +1，long-only
+    assert list(short_leg) == [0, -1, 0, -1]   # idx2 深贴水(0.10≥0.06)禁空→0
+    assert list(net) == [1, -1, 0, 0]          # idx3 多空同触发→0
+
+
 def test_assemble_dual_gates_short_keeps_long():
     """非对称映射 → carry 门控空头 → 合成。深贴水那天的空头被禁，多头与浅贴水空头留。"""
     from backtest.dual import assemble_dual

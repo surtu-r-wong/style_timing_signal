@@ -68,6 +68,20 @@ def assemble_dual(factor: pd.Series, carry: pd.Series, long_theta: float,
     return dual_legs(factor, carry, long_theta, short_theta, carry_theta)[2]
 
 
+def dual_legs_external_short(long_factor: pd.Series, short_signal: pd.Series, carry: pd.Series,
+                            long_theta: float, carry_theta: float):
+    """专属空头信号装配（Phase 4）：多头来自基因子(long_theta 门槛, long-only)，
+    空头来自【外部信号】(carry 保护层门控)，执行层 synthesize 合成。
+
+    与 dual_legs 的区别：空头腿不再从基因子空头段派生，而是喂外部脆弱性信号（如广度背离），
+    检验专属信号能否补上共享风格短腿缺的避险价值（v1 已证共享短腿无用）。
+    """
+    long_leg = to_position_asym(long_factor, long_theta, long_theta).clip(lower=0)
+    short_leg = carry_protection(short_signal.astype(float), carry, carry_theta)
+    net = synthesize(long_leg, short_leg)
+    return long_leg, short_leg, net
+
+
 # ---------------- 编排 + CLI ----------------
 DEFAULTS = {"long_theta": 0.10, "short_theta": 0.30, "carry_theta": 0.06}
 
