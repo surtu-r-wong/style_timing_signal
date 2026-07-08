@@ -75,16 +75,20 @@ def _slice(s, start, end):
     return s
 
 
-def load_signal(name, mode="discrete"):
-    path, col = SIGNALS[name]
+def load_signal(name, mode="discrete", signals=None):
+    path, col = (signals or SIGNALS)[name]
     df = pd.read_csv(ROOT / path, parse_dates=["date"]).set_index("date").sort_index()
     return to_position(df[col], mode=mode)
 
 
-def build_report(mode="discrete", bootstrap_n=500, seed=0, cost_bps=3.0, db=None) -> pd.DataFrame:
+def build_report(mode="discrete", bootstrap_n=500, seed=0, cost_bps=3.0, db=None,
+                 signals=None, positions=None) -> pd.DataFrame:
+    """signals: {name: (path, col)}，默认三条生产线；positions: 直接传已映射仓位
+    dict（跳过文件加载，供外部信号同秤评估）。两者都给时 positions 优先。"""
     und_all = {kj: load_underlying_returns(kj, db=db) for kj in KOU_JING}
     car_all = {kj: load_carry(kj, db=db) for kj in KOU_JING}
-    sig_all = {name: load_signal(name, mode) for name in SIGNALS}
+    signals = signals or SIGNALS
+    sig_all = positions or {name: load_signal(name, mode, signals) for name in signals}
 
     rows = []
     for name, pos_full in sig_all.items():
