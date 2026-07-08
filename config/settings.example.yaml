@@ -7,3 +7,9 @@ database:
   user: admin
   password: replace_me
   schema: stock_selector
+
+# Wind gateway（Windows 侧 FastAPI；tools/backfill_edb.py 用）。
+# url/token 与 stock_selector/config/settings.yaml 的 wind_gateway 段同值即可。
+wind_gateway:
+  url: http://100.120.152.1:8080
+  token: replace_me
