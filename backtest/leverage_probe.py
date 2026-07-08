@@ -185,15 +185,15 @@ def build_market_turnover(db=None, force: bool = False) -> pd.Series:
 
 
 # ---------------------------------------------------------------- 编排（逐族三关裁决）
-def run_probe(families: tuple[str, ...] = ("L1", "L2", "L3p"), n_perm: int = 1000,
-              cost_bps: float = 3.0, db=None) -> tuple[pd.DataFrame, pd.DataFrame]:
+def run_families_probe(sigs_all: dict[str, dict[str, pd.Series]],
+                       families: tuple[str, ...], grid_k: tuple[int, ...],
+                       n_perm: int = 1000, cost_bps: float = 3.0, db=None
+                       ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """通用逐族三关裁决（杠杆/温度计等任意轴共用）：IC 面板 + 同号代表 + 三关。"""
     from backtest.data import load_carry, load_underlying_returns
     from backtest.engine import run_strategy
     from backtest.metrics import ann_return, sharpe, turnover
 
-    bal, buy = _load_margin(db)
-    amt = build_market_turnover(db)
-    sigs_all = build_signals(bal, buy, amt)
     und = {kj: load_underlying_returns(kj, db=db) for kj in ["500", "1000", "blend"]}
     carry_blend = load_carry("blend", db=db)
     ew = _load_ew_signal()
@@ -202,7 +202,7 @@ def run_probe(families: tuple[str, ...] = ("L1", "L2", "L3p"), n_perm: int = 100
     rows = []
     for fam in families:
         for form, sig in sigs_all[fam].items():
-            for k in GRID_K:
+            for k in grid_k:
                 for kj, u in und.items():
                     row = {"family": fam, "form": form, "k": k, "kou_jing": kj}
                     row["ic"], row["n_windows"] = nonoverlap_ic(sig, u, k)
@@ -246,6 +246,14 @@ def run_probe(families: tuple[str, ...] = ("L1", "L2", "L3p"), n_perm: int = 100
             "PASS": gate1 and gate2 and gate3,
         })
     return panel, pd.DataFrame(verdicts)
+
+
+def run_probe(families: tuple[str, ...] = ("L1", "L2", "L3p"), n_perm: int = 1000,
+              cost_bps: float = 3.0, db=None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    bal, buy = _load_margin(db)
+    amt = build_market_turnover(db)
+    sigs_all = build_signals(bal, buy, amt)
+    return run_families_probe(sigs_all, families, GRID_K, n_perm, cost_bps, db)
 
 
 def main() -> int:
