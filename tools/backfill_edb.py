@@ -87,6 +87,8 @@ def main() -> int:
     ap.add_argument("--start", required=True)
     ap.add_argument("--end", required=True)
     ap.add_argument("--options", default="Fill=Previous")
+    ap.add_argument("--gateway-url", default=None,
+                    help="覆盖 settings.yaml 的 gateway url（如 ssh 隧道 http://localhost:18080）")
     args = ap.parse_args()
 
     code_list = [c.strip() for c in args.codes.split(",") if c.strip()]
@@ -96,6 +98,8 @@ def main() -> int:
     names = dict(zip(code_list, name_list)) if name_list else {}
 
     gw = load_gateway_config()
+    if args.gateway_url:
+        gw = {**gw, "url": args.gateway_url}
     rows = fetch_edb(gw, args.codes, args.start, args.end, args.options)
     n = upsert_edb_daily(rows, names)
     print(f"[backfill_edb] gateway 返回 {len(rows)} 行 → upsert {n} 行"
