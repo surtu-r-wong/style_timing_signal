@@ -155,6 +155,91 @@ def test_ticker_financial_rows_builds_pools_with_wind_cfo_splice():
     assert (ttm["ts_code"] == "X1").all() and (slope["ts_code"] == "X1").all()
 
 
+# ---------------------------------------------------------------- B2 行业中性
+def test_industry_neutral_selects_top_bottom_within_each_industry():
+    """每行业内 Top/Bottom pct 各选 → 两篮行业分布相同（行业暴露=0 构造保证）。"""
+    from signals.style_basket.scoring import select_baskets_industry_neutral
+
+    # 两个行业各 10 只：行业 A 分数 10..19、行业 B 分数 0..9（行业间水平差大）
+    scores = pd.Series(
+        {f"a{i}": 10.0 + i for i in range(10)} | {f"b{i}": float(i) for i in range(10)}
+    )
+    industries = pd.Series(
+        {f"a{i}": "医药" for i in range(10)} | {f"b{i}": "银行" for i in range(10)}
+    )
+    growth, value = select_baskets_industry_neutral(scores, industries, pct=0.3)
+    # 每行业各出 3 只 top / 3 只 bottom——全市场 Top30% 会全选医药，行业内则各出各的
+    assert set(growth) == {"a9", "a8", "a7", "b9", "b8", "b7"}
+    assert set(value) == {"a0", "a1", "a2", "b0", "b1", "b2"}
+
+
+def test_industry_neutral_pools_small_and_unknown_industries():
+    """小行业（<min_industry）与缺失/NaN 行业并入一个 pooled 桶再选样。"""
+    from signals.style_basket.scoring import select_baskets_industry_neutral
+
+    scores = pd.Series(
+        {f"a{i}": 10.0 + i for i in range(10)}  # 大行业
+        | {"s1": 5.0, "s2": 6.0, "s3": 7.0}  # 小行业（3 只 < 5）
+        | {"u1": 1.0, "u2": 2.0, "u3": 3.0, "u4": 4.0}  # 无行业标签
+    )
+    industries = pd.Series(
+        {f"a{i}": "医药" for i in range(10)} | {"s1": "综合", "s2": "综合", "s3": "综合"}
+    )  # u1-u4 不在 industries 里
+    growth, value = select_baskets_industry_neutral(
+        scores, industries, pct=0.3, min_industry=5
+    )
+    # 并桶 = {s1,s2,s3,u1..u4} 7 只 → top2 = s3(7),s2(6)；bottom2 = u1(1),u2(2)
+    assert set(growth) == {"a9", "a8", "a7", "s3", "s2"}
+    assert set(value) == {"a0", "a1", "a2", "u1", "u2"}
+
+
+def test_industry_neutral_equals_plain_select_when_single_industry():
+    """单一行业退化：与 v1 select_baskets 完全一致（对照锚）。"""
+    from signals.style_basket.scoring import select_baskets_industry_neutral
+
+    scores = pd.Series({f"s{i}": float(i) for i in range(1, 11)})
+    industries = pd.Series({f"s{i}": "电子" for i in range(1, 11)})
+    growth, value = select_baskets_industry_neutral(scores, industries, pct=0.3)
+    g0, v0 = select_baskets(scores, pct=0.3)
+    assert set(growth) == set(g0) and set(value) == set(v0)
+
+
+def test_industry_neutral_drops_nan_scores():
+    """NaN 分数不入篮（行业内与并桶同规则）。"""
+    from signals.style_basket.scoring import select_baskets_industry_neutral
+
+    scores = pd.Series({"a1": 1.0, "a2": np.nan, "a3": 3.0, "a4": 4.0, "a5": 5.0,
+                        "a6": 6.0, "a7": 7.0})
+    industries = pd.Series({k: "机械" for k in scores.index})
+    growth, value = select_baskets_industry_neutral(scores, industries, pct=0.34)
+    assert "a2" not in set(growth) | set(value)
+    assert set(growth) == {"a7", "a6"} and set(value) == {"a1", "a3"}
+
+
+def test_extend_earliest_to_past_enables_static_approximation():
+    """2021 前行业静态近似：每股最早快照外推到远古 → asof_latest 统一处理。"""
+    from signals.common.factors import asof_latest
+    from signals.style_basket.scoring import extend_earliest_to_past
+
+    pool = pd.DataFrame(
+        {
+            "ts_code": ["X", "X", "Y"],
+            "end_date": pd.to_datetime(["2021-01-04", "2023-06-01", "2021-01-04"]),
+            "known_date": pd.to_datetime(["2021-01-04", "2023-06-01", "2021-01-04"]),
+            "industry": ["医药", "化工", "银行"],  # X 在 2023 换行业
+        }
+    )
+    ext = extend_earliest_to_past(pool)
+    # 2020-06（早于最早快照）→ 用最早标签（静态近似）
+    got = asof_latest(ext, pd.Timestamp("2020-06-30")).set_index("ts_code")["industry"]
+    assert got["X"] == "医药" and got["Y"] == "银行"
+    # 2022-06 → X 仍是 2021 标签；2024-01 → X 已换化工
+    assert asof_latest(ext, pd.Timestamp("2022-06-30")).set_index("ts_code")["industry"]["X"] == "医药"
+    assert asof_latest(ext, pd.Timestamp("2024-01-31")).set_index("ts_code")["industry"]["X"] == "化工"
+    # 原 pool 未被修改（纯函数）
+    assert len(pool) == 3
+
+
 def test_basket_spread_returns_equal_weight_and_schedule_switch():
     """formation 收盘建仓：次日起等权日收益计入，至下一 formation（含）；停牌 NaN 跳过。"""
     dates = pd.date_range("2020-01-01", periods=6, freq="B")

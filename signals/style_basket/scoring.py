@@ -63,6 +63,51 @@ def select_baskets(scores: pd.Series, pct: float = 0.3) -> tuple[list, list]:
     return list(valid.index[:k]), list(valid.index[-k:])
 
 
+def extend_earliest_to_past(pool: pd.DataFrame) -> pd.DataFrame:
+    """行业快照 2021 前静态近似：每股最早行复制一条 end/known=1900-01-01 的行。
+
+    industry_classification 仅 2021-01 起有月度快照（设计稿定调：更早期间用最早
+    快照近似）。外推后统一走 asof_latest——早于最早快照的评估日自然落到近似行。
+    """
+    earliest = (
+        pool.sort_values(["ts_code", "end_date"]).groupby("ts_code", as_index=False).first()
+    )
+    ancient = pd.Timestamp("1900-01-01")
+    earliest = earliest.assign(end_date=ancient, known_date=ancient)
+    return pd.concat([earliest, pool], ignore_index=True)
+
+
+def select_baskets_industry_neutral(
+    scores: pd.Series,
+    industries: pd.Series,
+    pct: float = 0.3,
+    min_industry: int = 5,
+) -> tuple[list, list]:
+    """B2 行业中性选样：**每行业内** Top/Bottom pct 再汇总（设计稿 §2.4 v2）。
+
+    两篮从每个行业取相同只数（k_i = floor(n_i×pct)）且桶内等权 → 两腿行业分布
+    恒等、行业暴露=0 由构造保证；打分复用 v1 全市场 style_score（同一分数、只改
+    选样 → v1−v2 之差即纯行业配置分量）。
+    小行业（有效样本 < min_industry）与无行业标签的票并入一个 pooled 桶同规则选样。
+    """
+    valid = scores.dropna()
+    ind = industries.reindex(valid.index)
+    counts = ind.value_counts()
+    small = set(counts[counts < min_industry].index)
+    ind = ind.where(~ind.isin(small)).fillna("_pooled")
+
+    growth: list = []
+    value: list = []
+    for _, grp in valid.groupby(ind):
+        k = int(len(grp) * pct)
+        if k < 1:
+            continue
+        ranked = grp.sort_values(ascending=False)
+        growth += list(ranked.index[:k])
+        value += list(ranked.index[-k:])
+    return growth, value
+
+
 def universe_mask(rank: pd.Series, name: str) -> pd.Series:
     """市值排名（1=最大）→ universe 成员掩码（UNIVERSE_BANDS 定义的排名带）。"""
     lo, hi = UNIVERSE_BANDS[name]

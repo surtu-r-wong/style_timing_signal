@@ -33,7 +33,9 @@ from signals.common.financial_reader import _connect, fetch_financial_facts  # n
 from signals.style_basket.scoring import (  # noqa: E402
     UNIVERSE_BANDS,
     basket_spread_returns,
+    extend_earliest_to_past,
     select_baskets,
+    select_baskets_industry_neutral,
     style_scores,
     universe_mask,
 )
@@ -352,6 +354,24 @@ def build_scores(db=None, start: str = "2013-05-01", end: str | None = None) -> 
 
 
 # ---------------------------------------------------------------- baskets
+def _fetch_industry_pool(db) -> pd.DataFrame:
+    """CITIC 一级行业快照池（非 NULL 标签行）→ asof 事件表 + 2021 前静态外推。"""
+    conn = _connect(db)
+    try:
+        df = pd.read_sql(
+            f"""SELECT ts_code, effective_date AS end_date,
+                       effective_date AS known_date, level_1_name AS industry
+                FROM {db['schema']}.industry_classification
+                WHERE classification_type='CITIC' AND level_1_name IS NOT NULL""",
+            conn,
+        )
+    finally:
+        conn.close()
+    df["end_date"] = pd.to_datetime(df["end_date"])
+    df["known_date"] = pd.to_datetime(df["known_date"])
+    return extend_earliest_to_past(df)
+
+
 def _fetch_qfq_returns(db, start: str) -> pd.DataFrame:
     """全市场前复权日收益矩阵（date × ts_code）。停牌 ffill≤20 日（指数口径）。"""
     conn = _connect(db)
@@ -378,12 +398,18 @@ def _fetch_qfq_returns(db, start: str) -> pd.DataFrame:
 
 def build_baskets(db=None, pct: float = 0.3,
                   universes: tuple[str, ...] = ("U0", "U1", "U2", "U3", "U4"),
-                  ret_start: str = "2013-01-01") -> None:
-    """阶段 3：读 scores 缓存 → 各 universe 分桶 → 日度两腿/价差 → output CSV。"""
+                  ret_start: str = "2013-01-01", neutral: bool = False) -> None:
+    """阶段 3：读 scores 缓存 → 各 universe 分桶 → 日度两腿/价差 → output CSV。
+
+    neutral=True（B2）：每行业内 Top/Bottom pct 选样（行业暴露=0），输出
+    spread_<U>_neutral.csv；打分复用同一 scores 缓存（v1−v2 之差=纯行业配置分量）。
+    """
     db = db or load_db_config()
     scores = pd.read_csv(CACHE_DIR / "scores.csv", parse_dates=["date"])
     returns = _fetch_qfq_returns(db, ret_start)
-    print(f"[baskets] returns matrix {returns.shape}, scores {len(scores)} rows")
+    industry_pool = _fetch_industry_pool(db) if neutral else None
+    print(f"[baskets] returns matrix {returns.shape}, scores {len(scores)} rows, "
+          f"neutral={neutral}")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     for uni in universes:
@@ -391,7 +417,17 @@ def build_baskets(db=None, pct: float = 0.3,
         for d, snap in scores.groupby("date"):
             snap = snap.set_index("ts_code")
             mask = universe_mask(snap["mv_rank"], uni)
-            growth, value = select_baskets(snap.loc[mask, "style_score"], pct=pct)
+            eligible = snap.loc[mask, "style_score"]
+            if neutral:
+                ind_d = asof_latest(industry_pool, d)
+                industries = pd.Series(
+                    ind_d["industry"].to_numpy(), index=ind_d["ts_code"]
+                )
+                growth, value = select_baskets_industry_neutral(
+                    eligible, industries, pct=pct
+                )
+            else:
+                growth, value = select_baskets(eligible, pct=pct)
             if growth and value:
                 schedule.append((d, growth, value))
         if not schedule:
@@ -403,9 +439,10 @@ def build_baskets(db=None, pct: float = 0.3,
         spread["growth_index"] = (1.0 + spread["growth_ret"].fillna(0)).cumprod()
         spread["value_index"] = (1.0 + spread["value_ret"].fillna(0)).cumprod()
         n_members = int(np.mean([len(g) for _, g, _ in schedule]))
-        out_file = OUT_DIR / f"spread_{uni}.csv"
+        suffix = "_neutral" if neutral else ""
+        out_file = OUT_DIR / f"spread_{uni}{suffix}.csv"
         spread.to_csv(out_file, index_label="date")
-        print(f"[baskets] {uni}: {len(schedule)} rebalances, ~{n_members}/basket, "
+        print(f"[baskets] {uni}{suffix}: {len(schedule)} rebalances, ~{n_members}/basket, "
               f"{len(spread)} days -> {out_file.name}")
 
 
@@ -417,13 +454,15 @@ def main() -> int:
     parser.add_argument("--start", default="2013-05-01", help="打分起点（月末评估）")
     parser.add_argument("--end", default=None)
     parser.add_argument("--pct", type=float, default=0.3)
+    parser.add_argument("--neutral", action="store_true",
+                        help="B2 行业中性选样（输出 spread_<U>_neutral.csv）")
     args = parser.parse_args()
     if args.stage in ("pool", "all"):
         build_pool(chunk=args.chunk, end=args.end)
     if args.stage in ("scores", "all"):
         build_scores(start=args.start, end=args.end)
     if args.stage in ("baskets", "all"):
-        build_baskets(pct=args.pct)
+        build_baskets(pct=args.pct, neutral=args.neutral)
     return 0
 
 
