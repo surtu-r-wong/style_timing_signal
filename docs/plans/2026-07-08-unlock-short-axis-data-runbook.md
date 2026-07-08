@@ -47,6 +47,37 @@ curl -H "Authorization: Bearer <tok>" \
   "http://100.120.152.1:8080/fetch/edb?codes=<M码>&start=2026-06-01&end=2026-07-01"
 ```
 
+**✅ B 完成（2026-07-08 用户核对回传，顺序=沪,深）**：
+
+| 序列 | 沪 | 深 |
+|---|---|---|
+| 融资余额 | M0061606 | M0061610 |
+| 融资买入额 | M0061604 | M0061609 |
+| 融资融券余额 | M0061608 | M0061613 |
+| 融券余额 | M0061607 | M0061612 |
+| 中债国债到期收益率:10年 | M1000166 | — |
+
+ETF 份额 wsd 字段（E 用）：`unit_fundshare_total`（份额总额）+ `unit_floortrading`
+（场内流通份额），options `unit=1`；示例标的 510330.SH。
+
+**✅ C 完成（2026-07-08 AI 代跑）**：edb_daily 已建（安全卡判定=非同步对象，
+sync_state 0 行；回滚 SQL：`DROP TABLE IF EXISTS stock_selector.edb_daily;`）。
+
+**D 一键回填（gateway 通后执行）**：
+```bash
+python3 tools/backfill_edb.py \
+  --codes "M0061606,M0061610,M0061604,M0061609,M0061608,M0061613,M0061607,M0061612" \
+  --names "融资余额_沪,融资余额_深,融资买入额_沪,融资买入额_深,融资融券余额_沪,融资融券余额_深,融券余额_沪,融券余额_深" \
+  --start 2010-01-01 --end $(date +%F)
+python3 tools/backfill_edb.py --codes "M1000166" --names "中债10Y_YTM" \
+  --start 2010-01-01 --end $(date +%F)
+```
+回填后自洽校验：融资融券余额(沪) ≈ 融资余额(沪)+融券余额(沪)——验证沪/深分组
+标签是否正确（若恒等式跨组才成立则标签互换）。
+
+**⚠️ 当前卡点（2026-07-08 实测）**：gateway `/ping` 返回 502（Windows 侧进程
+未跑或新代码未部署）→ 待办 A 完成后 D 即可跑。
+
 ### C. 执行 edb_daily DDL（Debian 主端，~1 分钟）
 ```bash
 # 执行前过一遍 SCHEMA_CHANGES.md 安全卡 A 节（backup/同步健康/回滚/同步判定）
