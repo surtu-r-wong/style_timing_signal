@@ -1,0 +1,70 @@
+# 多头增强轴探针·第一批：基差率 + 广度多头向（2026-07-09，用户确认收官路径）
+
+> 前置：五轴空头证伪收官后 initiative 审计（2026-07-09 对话）发现**方向一的多头
+> 半边基本未测**——生产口径已是 long-flat 纯多头腿，增强它的候选（设计稿 §2
+> 标 ⭐ 的基差率、ERP，及广度多头向、ETF 申赎）一个没跑。本轮 = 零数据等待的
+> 前两轴合并一次探针；ERP（E/P 腿需构造）与 ETF 申赎（卡 gateway config）后置。
+> 探针机器全复用：`level_signal / pick_representative / run_families_probe`。
+
+## 1. 命题
+
+基差率与广度序列能否提供**独立于 equal_weight 的显著、稳健、成本后存活**的
+信息。双侧检验（与杠杆/温度轴同构）：方向由数据裁决——若过闸，正向信息进
+多头装配（叠加/确认/仓位维度，另开设计），反向信息按其语义归置。任一族
+不过 → 归档（多头增强第一批证伪，收窄 initiative 复盘结论）。
+
+## 2. 因子族（两轴五族）
+
+**基差率轴 C（面5 ⭐）**：`carry = 年化基差率`（`backtest.data.load_carry`，
+正=贴水；blend 口径，IC 2015-04 起 / IM 2022-07 起补入，止 2026-04-29——
+历史段验证不受日更断点影响）。当日收盘即知，无 PIT 滞后。
+
+| 族 | 定义 | 语义（设计稿） |
+|---|---|---|
+| C1 基差水平 | `level_signal(carry, lb, zw)` | 深贴水=避险需求高涨（方向双侧裁决） |
+| C2 基差 20d 变化 | `level_signal(carry.diff(20), lb, zw)` | 贴水收窄=对冲需求下降/情绪修复→多；急剧走深=避险爆发 |
+
+**广度多头向轴 B（面2）**：`backtest/output/breadth.csv` 缓存（2012-06 起，
+Phase4 已建；Phase4 只证伪了其**空头背离事件形态**，连续水平/变化的方向信息
+从未测过）。已知瑕疵：缓存尾部含 2026 年 6 月底的上游不完整日，3,400+ 样本
+中个别脏点对秩相关不敏感，不重建（重建依赖的 stock_daily_price 本身待补）。
+
+| 族 | 定义 | 语义 |
+|---|---|---|
+| B1 参与面水平 | `level_signal(pct_above_ma20, lb, zw)` | 广度高=普涨延续 vs 过热（双侧） |
+| B2 扩张启动 | `level_signal(pct_above_ma20.diff(20), lb, zw)` | 设计稿"多（扩张启动）"本义：广度拐头向上 |
+| B3 新高新低差 | `level_signal(hi_lo_diff20, lb, zw)` | 参与面的强形态版本 |
+
+网格：全族 lb∈{5,20}×zw∈{60,250}（各 4 形态）；持有 k∈{5,10,20,40}
+（两轴皆偏慢频确认语义，沿杠杆轴网格）。
+
+## 3. 三关闸门
+
+与杠杆/温度轴完全同构（`run_families_probe` 原样）：族内同号代表 → 关1 置换
+p<0.05 + 偏 IC（控 equal_weight，**已保鲜至 07-08 的生产信号**）同号显著 →
+关2 两半窗同号 → 关3 sign-aligned 持有净 Sharpe>0。blend 口径裁决。
+
+多重比较照旧披露：5 族并测、族内选代表，probe 是廉价第一滤网，
+过闸后的多头装配测试才是入池终审。
+
+## 4. 实现
+
+`backtest/long_axes_probe.py`。新纯函数仅一个（TDD）：
+`build_long_signals(carry, breadth)` → 五族×4 形态装配（组合恒等测试，
+无 pit_lag——两轴皆当日收盘即知）。loader 走 `data.load_carry` +
+`breadth_dual.load_breadth_cache`（均现成）。
+
+CLI：`python3 -m backtest.long_axes_probe [--families C1,C2,B1,B2,B3]
+[--n-perm 1000]` → `backtest/output/long_axes_probe{,_verdicts}.csv`。
+
+**运行依赖**：需 PG 读（carry/标的收益）——Tailscale 链路抖动期（见
+ops-tailscale-blackhole-diagnosis）带 `PGCONNECT_TIMEOUT` 快速失败，
+碰可用窗口跑；模块与测试本身不依赖 PG。
+
+## 5. 判定后路径
+
+- **STOP（全族负）**：多头增强第一批归档 → 复盘结论升级为"库内零成本信息
+  面（空头五轴+多头两轴）均无独立于生产信号的增量"→ 转 ERP/ETF 申赎
+  （各有一个数据小依赖）或直接复盘收官；
+- **PASS（任一族过）**：进多头装配设计（叠加/门控确认/仓位维度三种形态的
+  增强测试，对照 = long-flat 基线 Sharpe 1.42），另开 brainstorm。
