@@ -55,3 +55,33 @@ dashboard/
 - 不做日更调度（上游断点在运维侧，等 futures_daily/wsd 日更接通后另议）；
 - 不做信号历史回放/参数调节（是仪表盘不是研究台）；
 - carry 面板等数据保鲜后加（占位注释）。
+
+## 6. ★ 结果（2026-07-09 落地）——上线 localhost:8060，视觉验收两轮通过
+
+TDD 21 新测试（data 13 / figures 4 / app 2 + 守卫 2，全套 **182 过**）；
+headless Chrome 截图两轮视觉验收（dataviz 第 7 步）。色板 = dataviz 参考
+色板，`validate_palette.js` PASS（aqua 对比度 WARN 以图例+悬浮值缓解）。
+
+**性能**：PG 两融查询 ~7s 是页面瓶颈 → 进程内 TTL 缓存（300s），首载 ~2s、
+range 切换 **0.26s**。
+
+**第一轮截图抓出 3 个真问题（全部 TDD 修复）**：
+
+1. **尾部不完整日**：`stock_daily_price` 2026-07-01 只灌了 **11 只股票**
+   （正常 ~5,175）→ 成交额 130 亿垃圾值、占成交比飙 3000%、涨停占比归零。
+   修 = `trim_incomplete_tail`（尾部回走剔除 <0.3×近20日中位的日子，
+   中段真实低活跃日不受影响）；
+2. **测量仪切窗未归一**：两腿显示全历史累计（5.0 vs 1.5）近窗不可读。
+   修 = `rebase_indices`（切窗后归一窗口起点=1）；
+3. **图例混排**：单系列子图 trace 混入全局图例。修 = 子图标题即身份原则，
+   单系列 `showlegend=False`。
+
+**追加数据发现（运维级）**：`stock_daily_price_qfq` 的 2026-07-01 在
+style basket build 时点（07-08）是**前值复制占位行**（两腿收益精确 0），
+之后管线覆盖为真值（+0.94%/σ3.3%）——committed spread CSV 尾部即占位快照。
+修 = `trim_zero_return_tail`（尾部全腿 |ret|<1e-4 判占位剔除）。
+**测量仪 CSV 日常刷新 SOP**：`python3 -m signals.style_basket.build
+--stage baskets`（+ `--neutral`）——注意 qfq 全表重算会使全历史价差微 diff，
+刷新 commit 与研究 commit 分开。
+
+**留跑验收**：`python3 -m dashboard.app` → http://127.0.0.1:8060。

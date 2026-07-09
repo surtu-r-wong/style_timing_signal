@@ -57,7 +57,25 @@ python3 signals/equal_weight/generate_signal.py \
 
 # 测试
 python3 -m pytest tests/ -q
+
+# 风格仪表盘（Dash，展示层零新信号；需 pip install dash）
+python3 -m dashboard.app        # → http://127.0.0.1:8060
 ```
+
+## 风格仪表盘（dashboard/）
+
+五轴空头研究收官后的产品化产出（设计 `docs/plans/2026-07-08-style-dashboard-design.md`）：
+一屏回答"今天市场在哪"。五区 = ① 三线生产信号状态条（最新因子值 + long-flat
+推荐持仓 + 各源截止日）② 风格测量仪（U2 行业中性纯风格价差 + 信号化位置）
+③ 涨停温度计（占比/炸板率/溢价 + 250d 分位）④ 杠杆（两融余额/占成交比，读
+PG `edb_daily`，不可达自动降级）⑤ 能量+广度（成交额分位 + %>MA + 新高新低差）。
+数据来自 committed 研究产物（`output/`、`backtest/output/`），刷新即重读。
+
+尾部数据守卫（自动）：上游只灌了部分股票的日子（如 2026-07-01 仅 11 只）与
+qfq 前值复制占位日会被剔除不显示，"数据截至"行按剔除后口径。测量仪价差 CSV
+刷新：`python3 -m signals.style_basket.build --stage baskets`（+ `--neutral`）；
+温度计/成交额缓存刷新：`python3 -m backtest.thermo_probe --rebuild-thermometer` /
+`python3 -m backtest.leverage_probe --rebuild-turnover`。
 
 ## 数据流
 
