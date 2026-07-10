@@ -166,21 +166,23 @@ def test_classic20_skip0_correlates_with_production_above_099():
 
 # ---------- 网格与 PG 接线 ----------
 
-def test_momentum_grid_84_combos_families_and_ranges():
-    """设计 §2:14 形态(classic 3L×2skip + slope 4L + voladj 4L)× zw{40,120,250} × sm{0,5} = 84。"""
+def test_momentum_grid_120_combos_families_and_ranges():
+    """设计 §2 + 短窗补测(07-10 用户追加):20 形态(classic 5L 短窗只 skip0 + 3L×2skip
+    + slope 6L + voladj 6L)× zw{40,120,250} × sm{0,5} = 120。"""
     from backtest.momentum_scan import momentum_grid
 
     combos = momentum_grid()
-    assert len(combos) == 84
+    assert len(combos) == 120
 
     forms = {(c["family"], c["length"], c["skip"]) for c in combos}
-    assert len(forms) == 14
+    assert len(forms) == 20
     assert {f for f, _, _ in forms} == {"classic", "slope", "voladj"}
     assert {(l, s) for f, l, s in forms if f == "classic"} == {
+        (5, 0), (10, 0),
         (60, 0), (60, 20), (120, 0), (120, 20), (250, 0), (250, 20)}
     for fam in ("slope", "voladj"):
         assert {(l, s) for f, l, s in forms if f == fam} == {
-            (20, 0), (60, 0), (120, 0), (250, 0)}
+            (5, 0), (10, 0), (20, 0), (60, 0), (120, 0), (250, 0)}
     assert {c["z_window"] for c in combos} == {40, 120, 250}
     assert {c["smoothing"] for c in combos} == {0, 5}
 

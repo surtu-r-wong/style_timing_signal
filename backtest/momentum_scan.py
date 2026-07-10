@@ -102,13 +102,16 @@ def momentum_pair_factor(
 # ---------- 网格与 PG 接线 ----------
 
 def momentum_grid() -> list[dict]:
-    """三族 14 形态 × z_window{40,120,250} × smoothing{0,5} = 84 组(设计 §2)。
+    """三族 20 形态 × z_window{40,120,250} × smoothing{0,5} = 120 组。
 
-    classic 不含 L=20(step-2 已扫收益差短窗;L20/skip0 只作恒等锚不进裁决)。
+    设计 §2 原 14 形态 + 短窗补测(07-10 用户追加 L∈{5,10}):短窗只 skip=0
+    (skip 已全灭且 skip≥L 无语义);classic 不含 L=20(step-2 已扫,
+    L20/skip0 只作恒等锚不进裁决),但含 5/10(zw 网格与 step-2 不同)。
     """
-    forms = [("classic", length, skip) for length in (60, 120, 250) for skip in (0, 20)]
+    forms = [("classic", length, 0) for length in (5, 10)]
+    forms += [("classic", length, skip) for length in (60, 120, 250) for skip in (0, 20)]
     forms += [(fam, length, 0) for fam in ("slope", "voladj")
-              for length in (20, 60, 120, 250)]
+              for length in (5, 10, 20, 60, 120, 250)]
     return [
         {"family": fam, "length": length, "skip": skip,
          "z_window": zw, "smoothing": sm}
