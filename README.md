@@ -20,7 +20,7 @@
 | 对称多空（原口径） | 1.39 | −30.2% |
 | buy & hold | 0.37 | −68.9% |
 
-复用风格信号的**空头段无独立盈利、也无避险价值**（加空头腿反让回撤更深、跌月命中仅 31.8%）；CITIC 轴阈值扫描独立佐证（16 组阈值 `short_sharpe ∈ [−0.07,+0.04]`，无一让空头盈利）。空头引擎真正的解须喂专属脆弱性/触发信号（Phase 4，见 `docs/plans/2026-07-03-optimization-roadmap-design.md` §1）。
+复用风格信号的**空头段无独立盈利、也无避险价值**（加空头腿反让回撤更深、跌月命中仅 31.8%）；CITIC 轴阈值扫描独立佐证（16 组阈值 `short_sharpe ∈ [−0.07,+0.04]`，无一让空头盈利）。此后专属信号方向也已测尽：**空头五轴 + 多头三轴共八个观察面全 STOP**——库内零成本公开信息面无一提供独立于 equal_weight 的增量（复盘 `docs/plans/2026-07-10-optimization-roadmap-retrospective.md`）。
 
 信号 CSV 输出不变（仍是连续因子 / 带空状态机信号）；推荐持仓是**下游口径**，用 `backtest.positions.production_position(factor)`（`signal>0 → +1，否则 0`）得到。一键生成三条线推荐持仓：
 
@@ -91,7 +91,7 @@ data/  (备份/审计口径，--source csv；不再逐日人工维护)
   └── 沪深300.csv 、 指数.xlsx（研究/备查）
 ```
 
-日常更新流程：①② 输入由 PG 日更（`tools/topup_index_daily.sh`，wsd 额度恢复后接管），直接跑命令即可；③ 待切 PG。CSV 不再需要逐日人工维护，仅作 `--source csv` 备份/审计口径。
+日常更新流程：三线输入均读 PG（`tools/topup_index_daily.sh` 保鲜后直接跑命令即可）。CSV 不再需要逐日人工维护，仅作 `--source csv` 备份/审计口径。
 
 ## 目录说明
 
@@ -104,4 +104,4 @@ data/  (备份/审计口径，--source csv；不再逐日人工维护)
 
 ## 历史沿革
 
-2026-03 hybrid_20 状态机信号 → 2026-05 对比/style_signal 每日系统 → 2026-06 等权配对信号两参数变体 + citic40d → 2026-07-02 本次整理（版本合并 + 数据输入输出规范化，全程数值零变化，见 `docs/plans/2026-07-02-reorganization-design.md`）。
+2026-03 hybrid_20 状态机信号 → 2026-05 对比/style_signal 每日系统 → 2026-06 等权配对信号两参数变体 + citic40d → 2026-07-02 本次整理（版本合并 + 数据输入输出规范化，全程数值零变化，见 `docs/plans/2026-07-02-reorganization-design.md`）→ 2026-07-03~09 三方向优化 initiative（PG 直连 / 修秤+参数重扫 / 双引擎证伪 / long-flat 采纳 / 自建风格篮子四步闭环 / 八轴信号探针全 STOP / 风格仪表盘上线，收官复盘 `docs/plans/2026-07-10-optimization-roadmap-retrospective.md`）。
