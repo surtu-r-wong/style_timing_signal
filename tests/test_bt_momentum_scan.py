@@ -95,6 +95,66 @@ def test_momentum_functions_are_causal():
         pd.testing.assert_series_equal(full.iloc[:80], prefix, check_names=False)
 
 
+# ---------- 配对级新家族(国信研报三候选,2026-07-10 用户确认) ----------
+
+def test_pair_winrate_hand_anchor():
+    """胜率动量 = 窗口内 sign(左腿日收益−右腿日收益) 的均值 ∈ [−1,1]。"""
+    from backtest.momentum_scan import pair_winrate
+
+    idx = pd.bdate_range("2020-01-01", periods=7)
+    # 左腿日收益恒 +1%,右腿:前 3 天 +2%(左输),后 3 天 0%(左赢)
+    left = pd.Series(100.0 * np.cumprod([1.0] + [1.01] * 6), index=idx)
+    right_rets = [1.02, 1.02, 1.02, 1.0, 1.0, 1.0]
+    right = pd.Series(100.0 * np.cumprod([1.0] + right_rets), index=idx)
+
+    got = pair_winrate(left, right, length=6)
+    assert np.isclose(got.iloc[6], 0.0)          # 3 赢 3 输
+    got4 = pair_winrate(left, right, length=4)
+    assert np.isclose(got4.iloc[6], 0.5)         # 近 4 天:3 赢 1 输 → (3−1)/4
+    assert got.iloc[:6].isna().all()
+
+
+def test_pair_smooth_hand_anchor():
+    """平滑动量 = 窗口内相对收益之和 / |相对收益| 之和(位移/路程,∈[−1,1])。"""
+    from backtest.momentum_scan import pair_smooth
+
+    idx = pd.bdate_range("2020-01-01", periods=6)
+    left = pd.Series(100.0 * np.cumprod([1.0, 1.01, 1.01, 1.01, 1.01, 1.01]), index=idx)
+    right = pd.Series(100.0, index=idx)
+    got = pair_smooth(left, right, length=5)
+    assert np.isclose(got.iloc[5], 1.0)          # 单边上行:位移=路程
+
+    # 交替 ±1%:位移≈0
+    alt = pd.Series(100.0 * np.cumprod([1.0, 1.01, 0.99, 1.01, 0.99, 1.01]), index=idx)
+    got_alt = pair_smooth(alt, right, length=4)
+    assert abs(got_alt.iloc[5]) < 0.2
+
+
+def test_pair_highdist_excludes_today_anchor():
+    """高点距离 = 相对价格 / 前 L 日(不含当日)最高 − 1;创新高日为正。"""
+    from backtest.momentum_scan import pair_highdist
+
+    idx = pd.bdate_range("2020-01-01", periods=6)
+    ratio_path = [1.0, 1.2, 1.1, 1.0, 0.9, 1.3]   # 用 right=const → ratio=left/100
+    left = pd.Series([100.0 * r for r in ratio_path], index=idx)
+    right = pd.Series(100.0, index=idx)
+
+    got = pair_highdist(left, right, length=3)
+    assert np.isclose(got.iloc[4], 0.9 / 1.2 - 1)   # 前3日 max(1.2,1.1,1.0)
+    assert np.isclose(got.iloc[5], 1.3 / 1.1 - 1)   # 前3日 max(1.1,1.0,0.9),创新高为正
+    assert got.iloc[:3].isna().all()
+
+
+def test_pair_level_functions_are_causal():
+    from backtest.momentum_scan import pair_winrate, pair_smooth, pair_highdist
+
+    left, right = _gbm(120, seed=30), _gbm(120, seed=31)
+    for fn in (pair_winrate, pair_smooth, pair_highdist):
+        full = fn(left, right, length=20)
+        prefix = fn(left.iloc[:80], right.iloc[:80], length=20)
+        pd.testing.assert_series_equal(full.iloc[:80], prefix, check_names=False)
+
+
 # ---------- 配对装配层 ----------
 
 def test_pair_factor_downstream_matches_production_exactly():
@@ -166,25 +226,43 @@ def test_classic20_skip0_correlates_with_production_above_099():
 
 # ---------- 网格与 PG 接线 ----------
 
-def test_momentum_grid_120_combos_families_and_ranges():
-    """设计 §2 + 短窗补测(07-10 用户追加):20 形态(classic 5L 短窗只 skip0 + 3L×2skip
-    + slope 6L + voladj 6L)× zw{40,120,250} × sm{0,5} = 120。"""
+def test_momentum_grid_174_combos_families_and_ranges():
+    """设计 §2 + 短窗补测 + 国信三候选:29 形态 × zw{40,120,250} × sm{0,5} = 174。"""
     from backtest.momentum_scan import momentum_grid
 
     combos = momentum_grid()
-    assert len(combos) == 120
+    assert len(combos) == 174
 
     forms = {(c["family"], c["length"], c["skip"]) for c in combos}
-    assert len(forms) == 20
-    assert {f for f, _, _ in forms} == {"classic", "slope", "voladj"}
+    assert len(forms) == 29
+    assert {f for f, _, _ in forms} == {
+        "classic", "slope", "voladj", "winrate", "smooth", "highdist"}
     assert {(l, s) for f, l, s in forms if f == "classic"} == {
         (5, 0), (10, 0),
         (60, 0), (60, 20), (120, 0), (120, 20), (250, 0), (250, 20)}
     for fam in ("slope", "voladj"):
         assert {(l, s) for f, l, s in forms if f == fam} == {
             (5, 0), (10, 0), (20, 0), (60, 0), (120, 0), (250, 0)}
+    for fam in ("winrate", "smooth"):
+        assert {(l, s) for f, l, s in forms if f == fam} == {(10, 0), (20, 0), (60, 0)}
+    assert {(l, s) for f, l, s in forms if f == "highdist"} == {
+        (60, 0), (120, 0), (250, 0)}
     assert {c["z_window"] for c in combos} == {40, 120, 250}
     assert {c["smoothing"] for c in combos} == {0, 5}
+
+
+def test_pair_factor_dispatches_pair_level_families():
+    """配对级家族走 pair 分派:winrate 装配 = _zscore_tanh(pair_winrate(左,右), zw)。"""
+    from backtest.momentum_scan import (
+        _zscore_tanh, momentum_pair_factor, pair_winrate,
+    )
+
+    panel = pd.DataFrame({"G": _gbm(200, seed=40), "V": _gbm(200, seed=41)})
+    got = momentum_pair_factor(panel, pairs=[("G", "V")], family="winrate",
+                               length=20, skip=0, z_window=40, smoothing=0)
+    expected = _zscore_tanh(pair_winrate(panel["G"], panel["V"], length=20), 40)
+    expected = expected.reindex(panel.index).fillna(0.0)
+    pd.testing.assert_series_equal(got, expected, check_names=False)
 
 
 def test_momentum_factor_fn_wires_pg_panel_and_pair_configs(monkeypatch):

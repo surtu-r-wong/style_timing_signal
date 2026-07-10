@@ -56,6 +56,42 @@ _MOMENTUM_FNS = {
 }
 
 
+# ---------- 配对级度量(国信动量研报三候选:作用在相对序列,非每腿差) ----------
+
+def _rel_returns(left: pd.Series, right: pd.Series) -> pd.Series:
+    aligned = pd.DataFrame({"left": left, "right": right}).dropna()
+    return aligned["left"].pct_change() - aligned["right"].pct_change()
+
+
+def pair_winrate(left: pd.Series, right: pd.Series, length: int) -> pd.Series:
+    """胜率动量:窗口内 sign(相对日收益) 均值 ∈ [−1,1](Rank 动量的两腿退化形式)。"""
+    rel = _rel_returns(left, right)
+    return np.sign(rel).rolling(length, min_periods=length).mean()
+
+
+def pair_smooth(left: pd.Series, right: pd.Series, length: int) -> pd.Series:
+    """平滑动量:相对收益位移/路程比 ∈ [−1,1](国信 SmoothM 的配对形式)。"""
+    rel = _rel_returns(left, right)
+    disp = rel.rolling(length, min_periods=length).sum()
+    path = rel.abs().rolling(length, min_periods=length).sum()
+    return (disp / path).replace([np.inf, -np.inf], np.nan)
+
+
+def pair_highdist(left: pd.Series, right: pd.Series, length: int) -> pd.Series:
+    """高点距离:相对价格 / 前 length 日(不含当日)最高 − 1(High250 的配对形式)。"""
+    aligned = pd.DataFrame({"left": left, "right": right}).dropna()
+    ratio = aligned["left"] / aligned["right"]
+    prior_max = ratio.shift(1).rolling(length, min_periods=length).max()
+    return ratio / prior_max - 1.0
+
+
+_PAIR_LEVEL_FNS = {
+    "winrate": pair_winrate,
+    "smooth": pair_smooth,
+    "highdist": pair_highdist,
+}
+
+
 def _zscore_tanh(series: pd.Series, z_window: int) -> pd.Series:
     """z→tanh 链,逐行镜像生产 _compute_pair_signal 的下游语义
     (min_periods=z_window、STD_FLOOR、inf→NaN→0、tanh(z/2))。"""
@@ -82,11 +118,14 @@ def momentum_pair_factor(
     smoothing: int,
 ) -> pd.Series:
     """每腿动量 → 配对差 → z→tanh → 等权 → 平滑(下游与生产逐步对齐)。"""
-    fn = _MOMENTUM_FNS[family]
     pair_signals = []
     for left_col, right_col in pairs:
         aligned = prices[[left_col, right_col]].dropna()
-        raw = fn(aligned[left_col], length, skip) - fn(aligned[right_col], length, skip)
+        if family in _PAIR_LEVEL_FNS:
+            raw = _PAIR_LEVEL_FNS[family](aligned[left_col], aligned[right_col], length)
+        else:
+            fn = _MOMENTUM_FNS[family]
+            raw = fn(aligned[left_col], length, skip) - fn(aligned[right_col], length, skip)
         pair_signals.append(_zscore_tanh(raw, z_window))
 
     combined = pd.Series(0.0, index=prices.index)
@@ -112,6 +151,10 @@ def momentum_grid() -> list[dict]:
     forms += [("classic", length, skip) for length in (60, 120, 250) for skip in (0, 20)]
     forms += [(fam, length, 0) for fam in ("slope", "voladj")
               for length in (5, 10, 20, 60, 120, 250)]
+    # 国信研报三候选(2026-07-10 用户确认):胜率/平滑=载频邻域,高点距离=锚窗
+    forms += [(fam, length, 0) for fam in ("winrate", "smooth")
+              for length in (10, 20, 60)]
+    forms += [("highdist", length, 0) for length in (60, 120, 250)]
     return [
         {"family": fam, "length": length, "skip": skip,
          "z_window": zw, "smoothing": sm}
