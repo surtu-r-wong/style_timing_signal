@@ -33,6 +33,37 @@ def test_build_layout_has_five_zones():
     assert {"range", "status", "g-style", "g-thermo", "g-margin", "g-energy"} <= set(ids)
 
 
+def _all_text(node, acc=None):
+    if acc is None:
+        acc = []
+    if isinstance(node, str):
+        acc.append(node)
+        return acc
+    children = getattr(node, "children", None)
+    if children is None:
+        return acc
+    if not isinstance(children, (list, tuple)):
+        children = [children]
+    for child in children:
+        _all_text(child, acc)
+    return acc
+
+
+def test_status_bar_flags_stale_position():
+    """持仓文件落后于信号文件（忘跑 backtest.production）→ chip 必须亮警示 + 显示持仓截止日。"""
+    signals = [
+        {"name": "equal_weight", "factor": -0.22, "date": pd.Timestamp("2026-07-08"),
+         "position": 1, "pos_date": pd.Timestamp("2026-06-30"), "series": None},
+    ]
+    text = " ".join(_all_text(html_root := status_bar(signals, {})[0]))
+    assert "2026-06-30" in text          # 旧持仓的真实截止日必须可见
+    assert "落后" in text                 # 警示语
+    # 日期一致时不出警示
+    signals[0]["pos_date"] = signals[0]["date"]
+    text_ok = " ".join(_all_text(status_bar(signals, {})[0]))
+    assert "落后" not in text_ok
+
+
 def test_status_bar_renders_chips_and_freshness():
     signals = [
         {"name": "equal_weight", "factor": -0.22, "date": pd.Timestamp("2026-06-18"),

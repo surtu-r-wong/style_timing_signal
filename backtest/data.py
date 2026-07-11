@@ -3,7 +3,7 @@
 口径（三口径 500 / 1000 / blend）：
 - 500 → 中证500 现货 000905.SH，期货 IC（2015-04+）
 - 1000 → 中证1000 现货 000852.SH，期货 IM（2022-07+）
-- blend → 两者日收益等权 / carry 等权（有一个用一个）
+- blend → 两者日收益等权 / carry 固定 50/50（缺腿按 0；IM 上市前单腿期不放大）
 
 carry = 当期主力合约（oi 最大）年化基差率 = (spot-futures)/spot × 365/到期天数（正=贴水）。
 无期货数据的日期（上市前 / futures_daily 止于 2026-04-29 之后）→ carry 缺失，引擎按 0 处理。
@@ -27,6 +27,16 @@ _FUT = {"500": "IC", "1000": "IM"}
 # ---------------- 纯函数 ----------------
 def blend_returns(a: pd.Series, b: pd.Series) -> pd.Series:
     return (a + b) / 2.0
+
+
+def blend_carry(a: pd.Series, b: pd.Series) -> pd.Series:
+    """固定 50/50，缺腿按 0（与引擎对无 carry 日期的处理一致）。
+
+    2015-04~2022-07 只有 IC 无 IM：该腿 carry 只能按半仓计，
+    skip-NaN 均值会把单腿 carry 放大一倍（2026-07-11 审查修正）。
+    """
+    both = pd.concat([a, b], axis=1)
+    return both.fillna(0.0).mean(axis=1)
 
 
 def pick_main_contract(day_df: pd.DataFrame) -> str:
@@ -94,9 +104,8 @@ def load_carry(kou_jing: str, start=None, db=None) -> pd.Series:
     """年化基差率序列（正=贴水）。缺期货的日期不在序列里。"""
     db = db or load_db_config()
     if kou_jing == "blend":
-        both = pd.concat([load_carry("500", start, db),
-                          load_carry("1000", start, db)], axis=1)
-        return both.mean(axis=1).dropna()  # 有一个用一个
+        return blend_carry(load_carry("500", start, db),
+                           load_carry("1000", start, db))
     spot = load_spot_close(kou_jing, start, db)
     conn = _connect(db)
     try:

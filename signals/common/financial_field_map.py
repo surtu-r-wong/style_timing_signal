@@ -124,16 +124,27 @@ def legal_disclosure_deadline(end_date: date) -> date:
     Q1 (3-31) 必须 4-30 前披露；H1 (6-30) → 8-31；
     Q3 (9-30) → 10-31；年报 (12-31) → 次年 4-30。
 
-    Used to cap stock_financial.ann_date so PIT calculations are
-    conservative (we never look-ahead beyond the legal deadline).
+    Used to cap stock_financial.ann_date at read time: MIN(stored, legal).
+
+    Why cap: stored ann_date is unreliable — CSMAR's DeclareDate is largely a
+    dataset batch/export date, not the first-disclosure date (2026-07-11
+    checked against prod stock_financial: 73% of CSMAR quarter-end rows have
+    ann_date > legal deadline, clustering on ~8 batch dates such as
+    2025-07-29 / 2024-01-28; max ~17 years "late"). Capping restores a
+    usable known-date.
+
+    ⚠️ NOT strictly PIT-safe: for genuinely late filers (reports disclosed
+    after the statutory deadline — a small, mostly ST/troubled minority,
+    ~1%/yr), MIN() marks data available at the deadline before it was
+    actually public → look-ahead on those names. A real fix needs true
+    first-announcement dates (e.g. Wind wss). Effective semantics for most
+    CSMAR history: known_date ≈ legal deadline (conservative for on-time
+    filers, look-ahead for the late tail).
 
     Caller must pass a quarter-end date. Non-quarter-end inputs (months
     1/2/4/5/7/8/10/11) return ``end_date + 120 days`` as a safety fallback;
     this path should be treated as a data-quality bug rather than a
     statutory deadline.
-
-    Real disclosure can be earlier than this; CSMAR's stored DeclareDate
-    or +120 fallback can be later. We take MIN(stored, legal) at read time.
     """
     y, m = end_date.year, end_date.month
     if m == 3:

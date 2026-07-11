@@ -170,7 +170,10 @@ def main() -> int:
                            breadth_grid(), SCAN_WINDOWS)
         out_path = out_dir / "scan_breadth.csv"
         rep.to_csv(out_path, index=False)
-        show = rep.round(3).sort_values("dual_sharpe_holdout_24_26", ascending=False)
+        show = rep.copy()
+        show["worst_tv"] = show[
+            ["dual_sharpe_train_14_20", "dual_sharpe_val_21_23"]].min(axis=1)
+        show = show.round(3).sort_values("worst_tv", ascending=False)  # 排序不看第二验证窗(24-26)
         print(show.head(20).to_string(index=False))
     else:
         rep = build_breadth_report(args.measure, args.form, args.P, args.Q, args.threshold,

@@ -12,15 +12,15 @@
 
 ## 推荐持仓口径（production = long-flat）⭐
 
-**交易这三条信号时，砍掉空头、只做多/空仓（long-flat）。** Phase 3 双引擎 v1 实证结论（equal_weight blend · full）：
+**交易这三条信号时，砍掉空头、只做多/空仓（long-flat）。** 部署口径 `production_position`（`signal>0 → +1，否则 0`）与阈值 0 对称多空同秤对比（equal_weight blend · full；**2026-07-11 blend carry 修正后重算**，勘误全记录 → `docs/plans/2026-07-11-external-review-fixes.md`）：
 
-| 持仓口径 | Sharpe | MaxDD |
-|---|---|---|
-| **long-flat（推荐）** | **1.42** | **−13.9%** |
-| 对称多空（原口径） | 1.39 | −30.2% |
-| buy & hold | 0.37 | −68.9% |
+| 持仓口径 | 年化 | Sharpe | MaxDD | Calmar |
+|---|---|---|---|---|
+| **long-flat（推荐）** | 26.4% | **1.62** | **−16.7%** | **1.58** |
+| 对称多空（原口径） | 35.6% | 1.41 | −29.3% | 1.22 |
+| buy & hold | 9.2% | 0.36 | −68.9% | 0.13 |
 
-复用风格信号的**空头段无独立盈利、也无避险价值**（加空头腿反让回撤更深、跌月命中仅 31.8%）；CITIC 轴阈值扫描独立佐证（16 组阈值 `short_sharpe ∈ [−0.07,+0.04]`，无一让空头盈利）。此后专属信号方向也已测尽：**空头五轴 + 多头三轴共八个观察面全 STOP**——库内零成本公开信息面无一提供独立于 equal_weight 的增量（复盘 `docs/plans/2026-07-10-optimization-roadmap-retrospective.md`）。
+carry 修正（IM 上市前单腿期不再按全额 IC carry 计）让多头少赚 ≈2pp/年、空头少付 ≈3pp/年：同秤下推荐**维持**（Sharpe 差距 0.41→0.20 收窄无翻转；修正前为 1.78 vs 1.37）。两点诚实降级：① "空头无价值"命题弱化为"**无显著独立价值**"——CITIC 轴 16 组阈值 `short_sharpe` 重算后全部转正（`∈[+0.11,+0.21]`，原 [−0.07,+0.04]"无一盈利"不再成立），equal_weight 空头段 Sharpe 0.48，但空头引擎（θ=0.30+carry 门控）单独 Sharpe 仍 0.01 / p=0.13，加空头腿 MaxDD 反差 6.5pp、跌月命中 43.5% < 50%；② Phase 3 双引擎表（θ=0.10 多头腿）修正后 1.28 < 对称 1.42，该评估口径下排序翻转——细节见勘误文档。此后专属信号方向已测尽：**空头五轴 + 多头三轴共八个观察面全 STOP**（p 值偏乐观下仍全灭，校正只会更 STOP）——库内零成本公开信息面无一提供独立于 equal_weight 的增量（复盘 `docs/plans/2026-07-10-optimization-roadmap-retrospective.md`）。
 
 信号 CSV 输出不变（仍是连续因子 / 带空状态机信号）；推荐持仓是**下游口径**，用 `backtest.positions.production_position(factor)`（`signal>0 → +1，否则 0`）得到。一键生成三条线推荐持仓：
 

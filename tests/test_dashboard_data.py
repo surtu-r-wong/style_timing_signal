@@ -86,6 +86,16 @@ def test_load_signals_status_three_lines():
         assert isinstance(r["date"], pd.Timestamp)
 
 
+def test_committed_signal_and_position_dates_in_sync():
+    """守卫：committed 信号 CSV 与 recommended 持仓 CSV 末日必须一致——
+    更新信号后忘跑 python3 -m backtest.production 时在这里挂掉，
+    别让仪表盘把旧仓位当现状展示（2026-07-11 审查修正）。"""
+    for r in load_signals_status():
+        assert r["pos_date"] == r["date"], (
+            f"{r['name']}: 持仓截至 {r['pos_date']:%Y-%m-%d} != "
+            f"信号截至 {r['date']:%Y-%m-%d}，重跑 python3 -m backtest.production")
+
+
 # ---------------------------------------------------------------- slice_range
 def test_slice_range_windows_anchor_on_last_date():
     """1y/3y/5y 按末日回溯，all 原样返回；Series 与 DataFrame 通吃。"""

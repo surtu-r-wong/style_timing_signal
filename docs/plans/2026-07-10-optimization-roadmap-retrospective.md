@@ -4,6 +4,12 @@
 > 八轴裁决全景、资产与教训沉淀、重开条件。细节链接到各 plan 文档，
 > 数字均取自 committed 产出（`backtest/output/*.csv`）。
 > 设计稿：`2026-07-03-optimization-roadmap-design.md`（v4 终版）。
+>
+> ⚠️ **2026-07-11 勘误**：外部审查后修正 blend carry 单腿放大 bug 并重算 headline
+> ——部署口径 long-flat 现为 **Sharpe 1.62 / MaxDD −16.7%**（本文的 1.42/−13.9%
+> 是 θ=0.10 双引擎多头腿的修正前口径）；"holdout/2024-26"一律降级为第二验证窗；
+> 第一替补变更为 slope L20 **zw120 sm0**。全記録 → `2026-07-11-external-review-fixes.md`，
+> 与本文冲突处以勘误为准。
 
 ---
 

@@ -29,7 +29,8 @@ def status_bar(signals: list[dict], fresh: dict) -> list:
     chips = []
     for sig in signals:
         long = sig["position"] == 1
-        chips.append(html.Div([
+        stale = sig["pos_date"] != sig["date"]
+        lines = [
             html.Div(_SIG_LABEL[sig["name"]],
                      style={"color": F.INK2, "fontSize": "12px"}),
             html.Div([
@@ -45,7 +46,13 @@ def status_bar(signals: list[dict], fresh: dict) -> list:
             ]),
             html.Div(f"信号截至 {sig['date']:%Y-%m-%d}",
                      style={"color": F.MUTED, "fontSize": "11px"}),
-        ], style={"flex": "1", "minWidth": "180px"}))
+        ]
+        if stale:
+            lines.append(html.Div(
+                f"⚠ 持仓截至 {sig['pos_date']:%Y-%m-%d}，落后信号——"
+                "重跑 python3 -m backtest.production",
+                style={"color": F.UP, "fontSize": "11px", "fontWeight": "600"}))
+        chips.append(html.Div(lines, style={"flex": "1", "minWidth": "180px"}))
     fresh_line = html.Div(
         "数据截至 — " + " · ".join(f"{k} {v:%m-%d}" for k, v in fresh.items()),
         style={"color": F.MUTED, "fontSize": "11px", "marginTop": "8px"})

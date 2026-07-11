@@ -27,7 +27,10 @@ def _connect(db):
 def fetch_financial_facts(tickers, start, end, db=None, statement_types=None) -> pd.DataFrame:
     """归一化财务事实：ts_code, end_date, statement_type, ann_date(PIT-capped), data(friendly dict)。
 
-    源切换：end_date ≤ CSMAR_END 取 csmar、之后取 wind。ann_date 取 min(实际, 法定披露上限)。
+    源切换：end_date ≤ CSMAR_END 取 csmar、之后取 wind。ann_date 取 min(库存, 法定披露上限)：
+    CSMAR 库存 ann_date 多为数据集批次日（73% 晚于法定截止），cap 后才可用；代价是真晚披的
+    少数个股（~1%/年，多 ST）被提前到法定日，非严格 PIT——详见
+    financial_field_map.legal_disclosure_deadline docstring（2026-07-11 审查修正）。
     statement_types 非 None 时只取列出的报表类型（批量管线省流量）。
     """
     db = db or load_db_config()

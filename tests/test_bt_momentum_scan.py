@@ -296,16 +296,18 @@ def test_momentum_factor_fn_wires_pg_panel_and_pair_configs(monkeypatch):
     pd.testing.assert_series_equal(got, expected, check_names=False)
 
 
-def test_pick_plateau_representatives_worst_window_argmax_per_family():
-    """高原代表 = 每族三窗最差值最大者(设计 §4:高原比较看 worst-window)。"""
+def test_pick_plateau_representatives_selects_on_train_val_only():
+    """高原代表 = 每族 train/val 两窗最差值最大者；holdout 只报告不进选择
+    (2026-07-11 审查修正:holdout 进选择会消耗 OOS)。"""
     from backtest.momentum_scan import pick_plateau_representatives
 
     rep = pd.DataFrame([
-        # classic:第二行 worst=0.8 胜(第一行 holdout 尖峰但 worst=−0.1)
+        # A:train/val 双高但 holdout 低——按旧三窗规则会落选,新规则必须选它
         {"family": "classic", "length": 120, "skip": 20, "z_window": 40, "smoothing": 0,
-         "sharpe_train_14_20": -0.1, "sharpe_val_21_23": 1.0, "sharpe_holdout_24_26": 2.5},
+         "sharpe_train_14_20": 1.0, "sharpe_val_21_23": 0.9, "sharpe_holdout_24_26": 0.1},
+        # B:两窗平庸但 holdout 不低——旧三窗规则的赢家(worst 0.5 > 0.1)
         {"family": "classic", "length": 60, "skip": 20, "z_window": 120, "smoothing": 5,
-         "sharpe_train_14_20": 0.9, "sharpe_val_21_23": 0.8, "sharpe_holdout_24_26": 1.1},
+         "sharpe_train_14_20": 0.5, "sharpe_val_21_23": 0.6, "sharpe_holdout_24_26": 0.7},
         # slope:单行
         {"family": "slope", "length": 60, "skip": 0, "z_window": 40, "smoothing": 5,
          "sharpe_train_14_20": 0.5, "sharpe_val_21_23": 0.6, "sharpe_holdout_24_26": 0.4},
@@ -314,6 +316,6 @@ def test_pick_plateau_representatives_worst_window_argmax_per_family():
 
     assert list(got["family"]) == ["classic", "slope"]
     classic = got[got["family"] == "classic"].iloc[0]
-    assert classic["length"] == 60 and classic["z_window"] == 120
-    assert np.isclose(classic["worst_window"], 0.8)
-    assert np.isclose(got[got["family"] == "slope"].iloc[0]["worst_window"], 0.4)
+    assert classic["length"] == 120 and classic["z_window"] == 40
+    assert np.isclose(classic["worst_window"], 0.9)   # min(train,val)，holdout 不参与
+    assert np.isclose(got[got["family"] == "slope"].iloc[0]["worst_window"], 0.5)

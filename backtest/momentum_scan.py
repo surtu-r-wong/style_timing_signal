@@ -192,12 +192,15 @@ def momentum_factor_fn(start=None):
 # ---------- 编排:扫描 + 同秤头对头 ----------
 
 _SHARPE_COLS = ["sharpe_train_14_20", "sharpe_val_21_23", "sharpe_holdout_24_26"]
+# 选择只看 train/val;holdout 仅报告不进任何选择键,否则 2024-26 被消耗、
+# 不能再当未触碰 OOS(2026-07-11 审查修正,原三窗 worst 含 holdout)
+_SELECT_COLS = ["sharpe_train_14_20", "sharpe_val_21_23"]
 
 
 def pick_plateau_representatives(rep: pd.DataFrame) -> pd.DataFrame:
-    """每族高原代表 = 三窗最差 Sharpe 最大者(拒绝尖峰,设计 §4)。"""
+    """每族高原代表 = train/val 两窗最差 Sharpe 最大者(拒绝尖峰,设计 §4)。"""
     rep = rep.copy()
-    rep["worst_window"] = rep[_SHARPE_COLS].min(axis=1)
+    rep["worst_window"] = rep[_SELECT_COLS].min(axis=1)
     idx = rep.groupby("family")["worst_window"].idxmax()
     return rep.loc[sorted(idx)].reset_index(drop=True)
 
@@ -277,9 +280,10 @@ def main() -> int:
     rep = scan_grid(fn, momentum_grid(), und, car, windows)
     rep.to_csv(scan_path, index=False)
     show = rep.copy()
-    show["worst"] = show[_SHARPE_COLS].min(axis=1)
-    print(show.round(2).sort_values("worst", ascending=False).head(20).to_string(index=False))
-    print(f"\n[momentum · {args.kj}] 现任=收益差 20d40z+sm5(holdout 1.69)。→ {scan_path}")
+    show["worst_tv"] = show[_SELECT_COLS].min(axis=1)   # 排序键不含 holdout
+    print(show.round(2).sort_values("worst_tv", ascending=False).head(20).to_string(index=False))
+    print(f"\n[momentum · {args.kj}] 现任=收益差 20d40z+sm5;排序=worst_tv(train/val),"
+          f"24-26 列=第二验证窗仅报告。→ {scan_path}")
     return 0
 
 

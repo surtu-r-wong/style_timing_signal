@@ -1,7 +1,9 @@
 """Walk-forward 参数扫描（设计稿 §3.2 Step 2/3）。
 
 对一组参数组合（combos），逐个用 factor_fn 生成因子 → 离散仓位 → 各评价窗口 Sharpe。
-"对外只认 OOS"：分 train/val/holdout 报，选 Sharpe 高原（跨窗口稳定）而非某窗尖峰。
+选参/排序只看 train/val 两窗的 Sharpe 高原（跨窗稳定而非某窗尖峰）；holdout 列
+仅报告，不作任何选择或排序键——一旦进选择，2024-26 就被消耗、不能再当 OOS
+（2026-07-11 审查修正，此前展示按 holdout 排序）。
 不做 bootstrap（扫描阶段控时长），显著性在锁定参数后单独复核。
 """
 import itertools
@@ -127,7 +129,9 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / out_name
     rep.to_csv(out_path, index=False)
-    rep_show = rep.round(2).sort_values("sharpe_holdout_24_26", ascending=False)
+    rep_show = rep.copy()
+    rep_show["worst_tv"] = rep_show[["sharpe_train_14_20", "sharpe_val_21_23"]].min(axis=1)
+    rep_show = rep_show.round(2).sort_values("worst_tv", ascending=False)
     print(rep_show.to_string(index=False))
     print(f"\n[{args.signal} · {args.kj}] 现默认参数={default_note}。→ {out_path}")
     return 0

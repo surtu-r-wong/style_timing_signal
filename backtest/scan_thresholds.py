@@ -83,7 +83,9 @@ def main() -> int:
     out_path = out_dir / "scan_hybrid20_thresholds.csv"
     rep.to_csv(out_path, index=False)
 
-    show = rep.round(2).sort_values("sharpe_holdout_24_26", ascending=False)
+    show = rep.copy()
+    show["worst_tv"] = show[["sharpe_train_14_20", "sharpe_val_21_23"]].min(axis=1)
+    show = show.round(2).sort_values("worst_tv", ascending=False)  # 排序不看 holdout
     print(show.to_string(index=False))
     print(f"\nhybrid20 现默认阈值: open_long .35 / close_long .1 / open_short −.15 / close_short −.1")
     print(f"→ {out_path}")
