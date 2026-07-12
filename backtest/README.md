@@ -10,6 +10,11 @@
 python3 -m backtest.baseline --source pg --bootstrap 500
 # → backtest/output/baseline_metrics.csv + console 表
 # --mode proportional 用比例仓位对照；--cost-bps 改成本
+
+python3 -m backtest.yearly
+# 年度集中度分解（"全窗胜出是不是个别大年撑的"）：逐自然年 lf/对称/bh 指标
+# + 剔最强年/最强两年 Sharpe + 滚动3年诊断
+# → yearly_decomposition.csv + yearly_concentration.csv；--kou-jing 切 500/1000
 ```
 
 ## 口径（对应设计稿 §0 / §3.2）
@@ -50,7 +55,7 @@ python3 -m backtest.baseline --source pg --bootstrap 500
 
 ## 模块
 
-`metrics.py` 指标（全日历）· `positions.py` 信号→仓位 · `engine.py` 全日历引擎（T+1/成本/carry/多空分段）· `data.py` 标的收益+主力基差carry · `significance.py` bootstrap · `baseline.py` 编排+CLI。测试 `tests/test_bt_*.py`。
+`metrics.py` 指标（全日历）· `positions.py` 信号→仓位 · `engine.py` 全日历引擎（T+1/成本/carry/多空分段）· `data.py` 标的收益+主力基差carry · `significance.py` bootstrap · `baseline.py` 编排+CLI · `yearly.py` 年度集中度分解（逐年表+剔强年/滚动3年诊断）。测试 `tests/test_bt_*.py`。
 
 ## 已知 & 后续
 
