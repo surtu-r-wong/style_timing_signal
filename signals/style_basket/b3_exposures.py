@@ -32,8 +32,9 @@ def _industry_design(industry: pd.Series) -> pd.DataFrame:
     labels = industry.fillna("UNKNOWN").astype(str)
     dummies = pd.get_dummies(labels, dtype=float)
     dummies = dummies.reindex(sorted(dummies.columns), axis=1)
-    if dummies.shape[1] > 1:
+    if dummies.shape[1] >= 1:
         dummies = dummies.iloc[:, 1:]
+    dummies.columns = [f"industry={label}" for label in dummies.columns]
     intercept = pd.Series(1.0, index=industry.index, name="intercept")
     return pd.concat([intercept, dummies], axis=1)
 
@@ -41,12 +42,21 @@ def _industry_design(industry: pd.Series) -> pd.DataFrame:
 def _residualize(
     y: pd.Series, controls: pd.DataFrame, label: str
 ) -> tuple[pd.Series, float]:
-    joined = pd.concat([y.rename("y"), controls], axis=1).dropna()
+    joined = pd.concat([y.rename("y"), controls], axis=1)
+    complete = joined.dropna()
+    if len(complete) != len(joined):
+        raise NumericalFailure(
+            f"{label} residualization has missing inputs for "
+            f"{len(joined) - len(complete)} rows"
+        )
+    joined = complete
     target = joined["y"].to_numpy(dtype=float)
     design = joined[controls.columns].to_numpy(dtype=float)
 
     if not np.isfinite(target).all() or not np.isfinite(design).all():
-        raise CoverageBlocked(f"{label} residualization contains non-finite values")
+        raise NumericalFailure(
+            f"{label} residualization contains non-finite inputs"
+        )
 
     rank = int(np.linalg.matrix_rank(design))
     if rank < design.shape[1]:
@@ -87,6 +97,13 @@ def _residualize(
 def _capped_weights(
     exposure: pd.Series, positive: bool, cap: float, min_members: int
 ) -> pd.Series:
+    try:
+        exposure_values = exposure.to_numpy(dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise NumericalFailure("leg exposure must be numeric and finite") from exc
+    if not np.isfinite(exposure_values).all():
+        raise NumericalFailure("leg exposure contains non-finite values")
+
     raw = exposure if positive else -exposure
     raw = raw.clip(lower=0.0)
     members = raw[raw > 0.0].sort_index().astype(float)
@@ -95,9 +112,6 @@ def _capped_weights(
         raise CoverageBlocked(
             f"leg has {member_count} members; minimum is {min_members}"
         )
-    if not np.isfinite(members.to_numpy()).all():
-        raise NumericalFailure("leg exposure contains non-finite positive mass")
-
     weights = pd.Series(0.0, index=exposure.index, dtype=float)
     remaining = members
     residual_mass = 1.0
@@ -182,8 +196,6 @@ def _eligibility_masks(
             "eligibility contract is missing columns: " + ", ".join(missing)
         )
 
-    size_mask = frame["size_eligible"].fillna(False).astype(bool)
-    model_mask = frame["model_eligible"].fillna(False).astype(bool)
     size_reasons = frame["size_exclusion_reason"].fillna("").astype(str)
     model_reasons = frame["model_exclusion_reason"].fillna("").astype(str)
 
@@ -199,6 +211,22 @@ def _eligibility_masks(
     if data_codes:
         raise DataBlocked("data-blocked exclusion reasons: " + ", ".join(data_codes))
 
+    for column in ("size_eligible", "model_eligible"):
+        valid_flags = frame[column].map(
+            lambda value: isinstance(value, (bool, np.bool_))
+        )
+        if not valid_flags.all():
+            invalid_tickers = ", ".join(
+                map(str, frame.index[~valid_flags][:5])
+            )
+            raise DataBlocked(
+                f"{column} must contain only non-null bool values; "
+                f"invalid tickers: {invalid_tickers}"
+            )
+
+    size_mask = frame["size_eligible"].astype(bool)
+    model_mask = frame["model_eligible"].astype(bool)
+
     valid_size_reasons = {"", "LISTED_LT_180D"}
     unknown_size = sorted(set(size_reasons).difference(valid_size_reasons))
     if unknown_size:
@@ -213,6 +241,10 @@ def _eligibility_masks(
             "unknown model exclusion reasons: " + ", ".join(unknown_model)
         )
 
+    if (size_mask & size_reasons.ne("")).any():
+        raise DataBlocked("size-eligible names require a blank exclusion reason")
+    if (model_mask & model_reasons.ne("")).any():
+        raise DataBlocked("model-eligible names require a blank exclusion reason")
     if ((~size_mask) & size_reasons.eq("")).any():
         raise DataBlocked("size exclusion is unexplained by an allowed reason")
     if ((~model_mask) & model_reasons.eq("")).any():
@@ -253,6 +285,15 @@ def compute_month_exposures(
     size = frame.loc[size_mask].copy()
     model = frame.loc[model_mask].copy()
 
+    numeric_style = pd.to_numeric(model["style_score"], errors="coerce")
+    valid_style = np.isfinite(numeric_style.to_numpy(dtype=float))
+    if not valid_style.all():
+        invalid_tickers = ", ".join(map(str, model.index[~valid_style][:5]))
+        raise DataBlocked(
+            "model-universe style_score must be numeric and finite; "
+            f"invalid tickers: {invalid_tickers}"
+        )
+
     market_value = pd.to_numeric(size["total_market_value"], errors="coerce")
     market_values = market_value.to_numpy(dtype=float)
     if not (
@@ -285,7 +326,6 @@ def compute_month_exposures(
 
     model["m"] = size["m"].reindex(model.index)
     model["m_perp"] = size["m_perp"].reindex(model.index)
-    numeric_style = pd.to_numeric(model["style_score"], errors="coerce")
     model["style_z"] = cross_section_zscore(
         winsorize(numeric_style, lower=lower, upper=upper)
     )
