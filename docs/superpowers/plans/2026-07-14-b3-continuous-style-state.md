@@ -665,7 +665,7 @@ Run:
 python3 -m pytest tests/test_b3_exposures.py -q
 ```
 
-Expected: 9 passed.
+Expected: 25 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -673,6 +673,61 @@ Expected: 9 passed.
 git add signals/style_basket/b3_exposures.py tests/test_b3_exposures.py
 git commit -m "feat(b3): add orthogonal exposure engine"
 ```
+
+#### Task 2 implementation-review corrections
+
+This subsection supersedes any conflicting Task 2 line-level pseudocode above.
+
+- `_industry_design(industry)` fills missing labels with `UNKNOWN`, converts labels
+  to strings, and creates float dummy columns in sorted-label order. Whenever at
+  least one dummy exists, it drops the sorted reference dummy. A single-industry
+  universe therefore uses the intercept only. Retained columns are named
+  `industry=<label>` so real industry labels cannot collide with reserved controls
+  such as `intercept`, `m`, `s_perp`, or `m_perp`.
+
+  ```python
+  labels = industry.fillna("UNKNOWN").astype(str)
+  dummies = pd.get_dummies(labels, dtype=float)
+  dummies = dummies.reindex(sorted(dummies.columns), axis=1)
+  if dummies.shape[1] >= 1:
+      dummies = dummies.iloc[:, 1:]
+  dummies.columns = [f"industry={label}" for label in dummies.columns]
+  intercept = pd.Series(1.0, index=industry.index, name="intercept")
+  return pd.concat([intercept, dummies], axis=1)
+  ```
+
+- `_residualize(y, controls, label)` concatenates `y` and the controls and rejects
+  any row containing a missing input with `NumericalFailure`; accepted compute
+  inputs must already satisfy the source-data contract. It likewise rejects
+  nonfinite inputs with `NumericalFailure`, then performs the existing full-rank
+  OLS, sample-standardization, and normalized orthogonality checks unchanged.
+  Malformed source-level `style_score` values are classified as `DataBlocked`
+  before this internal helper is called.
+
+- `_capped_weights` validates that the complete exposure vector is numeric and
+  finite before clipping or sign filtering. An internally generated nonfinite
+  exposure raises `NumericalFailure`; the existing deterministic water-filling,
+  membership, cap, and normalization rules remain unchanged.
+
+- Presence of `size_eligible` continues to activate the explicit four-column
+  eligibility contract. Explicit size/model flags must be non-null instances of
+  `bool` or `np.bool_`. `DATA_*` reason codes retain first precedence. Eligible
+  rows require blank reasons; ineligible rows require registered nonblank reasons;
+  and the model universe must remain a subset of the size universe.
+
+- Every model-universe `style_score` must coerce to a finite numeric value before
+  winsorization. Invalid explicitly eligible values and invalid non-null legacy
+  values raise `DataBlocked` with the affected ticker(s).
+
+Regression coverage includes the single-industry case, reserved industry labels,
+explicit `None`/text/positive-infinity/negative-infinity styles, legacy nonnumeric
+style, residual and weight nonfinite invariants, string/null eligibility flags,
+eligible rows carrying exclusion reasons, and accepted NumPy boolean flags.
+
+These are correctness corrections found during implementation review. They affect
+only malformed-input and single-industry boundary behavior; they do not change the
+pre-registered economic signal, formulas, q bands, universe rules, weight names, or
+exception inheritance.
 
 ## Task 3: Implement the two PIT policies and monthly style snapshots
 
