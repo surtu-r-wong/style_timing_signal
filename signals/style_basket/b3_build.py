@@ -35,6 +35,101 @@ POLICY_MAIN = "legal_deadline"
 POLICY_LAG = "legal_deadline_plus_one_month_end"
 
 
+def _require_columns(
+    frame: pd.DataFrame,
+    required: set[str],
+    label: str,
+) -> None:
+    missing = sorted(required.difference(frame.columns))
+    if missing:
+        raise DataBlocked(
+            f"{label} is missing columns: " + ", ".join(missing)
+        )
+
+
+def _validate_string_keys(values, label: str) -> None:
+    invalid = [
+        value
+        for value in values
+        if not isinstance(value, str) or not value.strip()
+    ]
+    if invalid:
+        raise DataBlocked(f"{label} must contain nonempty string keys")
+
+
+def _validate_allowed_values(
+    values: pd.Series,
+    allowed: set[str],
+    label: str,
+) -> None:
+    invalid = ~values.map(
+        lambda value: isinstance(value, str) and value in allowed
+    )
+    if invalid.any():
+        rendered = sorted({repr(value) for value in values[invalid]})
+        raise DataBlocked(
+            f"{label} contains unsupported values: " + ", ".join(rendered)
+        )
+
+
+def _validate_datetime_columns(
+    frame: pd.DataFrame,
+    columns: tuple[str, ...],
+    label: str,
+    *,
+    nullable: set[str] | None = None,
+) -> pd.DataFrame:
+    nullable = nullable or set()
+    out = frame.copy()
+    for column in columns:
+        original = out[column]
+        parsed = pd.to_datetime(
+            original,
+            errors="coerce",
+            format="mixed",
+        )
+        invalid = original.notna() & parsed.isna()
+        if column not in nullable:
+            invalid |= parsed.isna()
+        if invalid.any():
+            raise DataBlocked(f"{label}.{column} contains invalid dates")
+        out[column] = parsed
+    return out
+
+
+def _deduplicate_or_block(
+    frame: pd.DataFrame,
+    key_columns: tuple[str, ...],
+    label: str,
+) -> pd.DataFrame:
+    deduplicated = frame.drop_duplicates().copy()
+    conflicting = deduplicated.duplicated(
+        subset=list(key_columns),
+        keep=False,
+    )
+    if conflicting.any():
+        raise DataBlocked(f"{label} contains conflicting duplicate keys")
+    return deduplicated.reset_index(drop=True)
+
+
+def _validated_close_matrix(closes: pd.DataFrame) -> pd.DataFrame:
+    matrix = closes.copy()
+    _validate_string_keys(matrix.columns, "close columns")
+    if matrix.columns.duplicated().any():
+        raise DataBlocked("close matrix contains duplicate ticker columns")
+
+    dates = pd.DataFrame({"formation_date": list(matrix.index)})
+    dates = _validate_datetime_columns(
+        dates,
+        ("formation_date",),
+        "close matrix",
+    )
+    if dates["formation_date"].duplicated().any():
+        raise DataBlocked("close matrix contains duplicate formation dates")
+    matrix.index = pd.DatetimeIndex(dates["formation_date"])
+    return matrix
+
+
 def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
     """Apply one of B3's two disclosure-date policies without losing provenance."""
     if policy not in {POLICY_MAIN, POLICY_LAG}:
@@ -43,17 +138,40 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
             f"{POLICY_MAIN!r} or {POLICY_LAG!r}"
         )
 
+    required = {
+        "ts_code",
+        "end_date",
+        "stored_ann_date",
+        "statement_type",
+        "data",
+        "data_source",
+    }
+    _require_columns(raw, required, "raw financial facts")
     out = raw.copy()
-    out["end_date"] = pd.to_datetime(out["end_date"])
-    out["stored_ann_date"] = pd.to_datetime(out["stored_ann_date"])
+    _validate_string_keys(out["ts_code"], "raw financial ts_code")
+    _validate_allowed_values(
+        out["data_source"],
+        {"csmar", "wind"},
+        "raw financial data_source",
+    )
+    out = _validate_datetime_columns(
+        out,
+        ("end_date", "stored_ann_date"),
+        "raw financial facts",
+        nullable={"stored_ann_date"},
+    )
 
-    unknown_source = ~out["data_source"].isin({"csmar", "wind"})
-    if unknown_source.any():
-        values = sorted(
-            {repr(value) for value in out.loc[unknown_source, "data_source"]}
-        )
+    wind = out["data_source"].eq("wind")
+    if (wind & out["stored_ann_date"].isna()).any():
+        raise DataBlocked("Wind facts require stored announcement dates")
+
+    before_period_end = (
+        out["stored_ann_date"].notna()
+        & out["stored_ann_date"].lt(out["end_date"])
+    )
+    if before_period_end.any():
         raise DataBlocked(
-            "unknown financial data_source: " + ", ".join(values)
+            "stored announcement date cannot precede financial period end"
         )
 
     legal_dates = pd.Series(
@@ -65,7 +183,6 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
         dtype="datetime64[ns]",
     )
     csmar = out["data_source"].eq("csmar")
-    wind = out["data_source"].eq("wind")
 
     out["ann_date"] = pd.Series(
         pd.NaT, index=out.index, dtype="datetime64[ns]"
@@ -165,16 +282,21 @@ def _industry_snapshot(
         return empty
 
     required = {"ticker", "effective_date", "industry"}
-    missing = sorted(required.difference(pool.columns))
-    if missing:
-        raise DataBlocked(
-            "industry pool is missing columns: " + ", ".join(missing)
-        )
-
-    history = pool.copy()
-    history["ticker"] = history["ticker"].astype(str)
-    history["effective_date"] = pd.to_datetime(
-        history["effective_date"]
+    _require_columns(pool, required, "industry pool")
+    history = pool.loc[
+        :,
+        ["ticker", "effective_date", "industry"],
+    ].copy()
+    _validate_string_keys(history["ticker"], "industry ticker")
+    history = _validate_datetime_columns(
+        history,
+        ("effective_date",),
+        "industry pool",
+    )
+    history = _deduplicate_or_block(
+        history,
+        ("ticker", "effective_date"),
+        "industry pool",
     )
     history["_label_sort"] = (
         history["industry"].fillna("UNKNOWN").astype(str)
@@ -269,10 +391,33 @@ def build_policy_snapshots(
     for name, parts in pool_parts.items():
         if parts:
             pool = pd.concat(parts, ignore_index=True)
+            _require_columns(
+                pool,
+                set(empty_columns[name]),
+                f"derived {name} pool",
+            )
+            _validate_string_keys(
+                pool["ts_code"],
+                f"derived {name} ts_code",
+            )
+            _validate_string_keys(
+                pool["field"],
+                f"derived {name} field",
+            )
+            pool = _validate_datetime_columns(
+                pool,
+                ("end_date", "known_date"),
+                f"derived {name} pool",
+            )
+            pool = _deduplicate_or_block(
+                pool,
+                ("ts_code", "field", "end_date"),
+                f"derived {name} pool",
+            )
         else:
             pool = pd.DataFrame(columns=empty_columns[name])
-        pool["end_date"] = pd.to_datetime(pool["end_date"])
-        pool["known_date"] = pd.to_datetime(pool["known_date"])
+            pool["end_date"] = pd.to_datetime(pool["end_date"])
+            pool["known_date"] = pd.to_datetime(pool["known_date"])
         pools[name] = pool
 
     def asof_selected(
@@ -298,24 +443,30 @@ def build_policy_snapshots(
         return selected[column].rename(column)
 
     required_meta = {"ticker", "list_date", "delist_date"}
-    missing_meta = sorted(required_meta.difference(stock_meta.columns))
-    if missing_meta:
-        raise DataBlocked(
-            "stock metadata is missing columns: " + ", ".join(missing_meta)
-        )
-    meta = stock_meta.copy()
-    meta["ticker"] = meta["ticker"].astype(str)
-    meta["list_date"] = pd.to_datetime(meta["list_date"])
-    meta["delist_date"] = pd.to_datetime(meta["delist_date"])
+    _require_columns(stock_meta, required_meta, "stock metadata")
+    meta = stock_meta.loc[
+        :,
+        ["ticker", "list_date", "delist_date"],
+    ].copy()
+    _validate_string_keys(meta["ticker"], "stock metadata ticker")
+    meta = _validate_datetime_columns(
+        meta,
+        ("list_date", "delist_date"),
+        "stock metadata",
+        nullable={"list_date", "delist_date"},
+    )
+    meta = _deduplicate_or_block(
+        meta,
+        ("ticker",),
+        "stock metadata",
+    )
     meta = (
         meta.sort_values("ticker", kind="mergesort")
-        .drop_duplicates("ticker", keep="last")
         .set_index("ticker")
         .sort_index()
     )
 
-    close_matrix = closes.copy()
-    close_matrix.index = pd.to_datetime(close_matrix.index)
+    close_matrix = _validated_close_matrix(closes)
 
     share_columns = {
         "ts_code",
@@ -326,19 +477,32 @@ def build_policy_snapshots(
     if shares_pool.empty:
         share_history = pd.DataFrame(columns=sorted(share_columns))
     else:
-        missing_shares = sorted(share_columns.difference(shares_pool.columns))
-        if missing_shares:
-            raise DataBlocked(
-                "shares pool is missing columns: "
-                + ", ".join(missing_shares)
-            )
-        share_history = shares_pool.copy()
-    share_history["end_date"] = pd.to_datetime(
-        share_history["end_date"]
-    )
-    share_history["known_date"] = pd.to_datetime(
-        share_history["known_date"]
-    )
+        _require_columns(shares_pool, share_columns, "shares pool")
+        share_history = shares_pool.loc[
+            :,
+            ["ts_code", "end_date", "known_date", "total_shares"],
+        ].copy()
+        _validate_string_keys(
+            share_history["ts_code"],
+            "shares pool ts_code",
+        )
+        share_history = _validate_datetime_columns(
+            share_history,
+            ("end_date", "known_date"),
+            "shares pool",
+        )
+        share_history = _deduplicate_or_block(
+            share_history,
+            ("ts_code", "end_date"),
+            "shares pool",
+        )
+    if share_history.empty:
+        share_history["end_date"] = pd.to_datetime(
+            share_history["end_date"]
+        )
+        share_history["known_date"] = pd.to_datetime(
+            share_history["known_date"]
+        )
 
     snapshots: dict[pd.Timestamp, pd.DataFrame] = {}
     formation_dates = sorted(

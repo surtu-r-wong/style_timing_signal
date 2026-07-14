@@ -488,6 +488,27 @@ def test_build_policy_snapshots_assembles_eligibility_and_provenance(
 
     def fake_style_scores(factors):
         assert list(factors.index) == ["A", "D"]
+        assert factors.loc["A"].to_dict() == pytest.approx(
+            {
+                "sal_g": 0.2,
+                "pro_g": 0.1,
+                "ep": 0.1,
+                "bp": 0.5,
+                "cfp": 0.08,
+                "dp": 0.05,
+            }
+        )
+        assert factors.loc[
+            "D", ["sal_g", "pro_g", "ep", "bp", "dp"]
+        ].to_dict() == pytest.approx(
+            {
+                "sal_g": 0.2,
+                "pro_g": 0.1,
+                "ep": 0.00625,
+                "bp": 0.03125,
+                "dp": 0.0125,
+            }
+        )
         assert pd.isna(factors.loc["D", "cfp"])
         out = factors.copy()
         out["style_score"] = [0.75, np.nan]
@@ -565,3 +586,525 @@ def test_build_policy_snapshots_assembles_eligibility_and_provenance(
         "A", "salg_source_end_date"
     ] == pd.Timestamp("2020-12-31")
     assert not got["true_first_disclosure_verified"].any()
+
+
+def _single_pit_fact(**overrides):
+    row = {
+        "ts_code": "X",
+        "end_date": "2020-03-31",
+        "stored_ann_date": "2020-04-15",
+        "statement_type": "income",
+        "data": {"revenue": 1.0},
+        "data_source": "csmar",
+    }
+    row.update(overrides)
+    return pd.DataFrame([row])
+
+
+@pytest.mark.parametrize(
+    "missing_column",
+    [
+        "ts_code",
+        "end_date",
+        "stored_ann_date",
+        "statement_type",
+        "data",
+        "data_source",
+    ],
+)
+def test_pit_policy_requires_complete_raw_schema(missing_column):
+    raw = _single_pit_fact().drop(columns=missing_column)
+
+    with pytest.raises(DataBlocked):
+        apply_pit_policy(raw, POLICY_MAIN)
+
+
+@pytest.mark.parametrize(
+    "bad_end_date",
+    [
+        pytest.param(None, id="missing"),
+        pytest.param("not-a-date", id="unparsable"),
+    ],
+)
+def test_pit_policy_rejects_missing_or_invalid_end_date(bad_end_date):
+    raw = _single_pit_fact(end_date=bad_end_date)
+
+    with pytest.raises(DataBlocked):
+        apply_pit_policy(raw, POLICY_MAIN)
+
+
+def test_pit_policy_rejects_unparsable_stored_announcement_date():
+    raw = _single_pit_fact(stored_ann_date="not-a-date")
+
+    with pytest.raises(DataBlocked):
+        apply_pit_policy(raw, POLICY_MAIN)
+
+
+@pytest.mark.parametrize("policy", [POLICY_MAIN, POLICY_LAG])
+def test_wind_requires_a_stored_announcement_date(policy):
+    raw = _single_pit_fact(
+        end_date="2025-06-30",
+        stored_ann_date=None,
+        data_source="wind",
+    )
+
+    with pytest.raises(DataBlocked):
+        apply_pit_policy(raw, policy)
+
+
+@pytest.mark.parametrize("policy", [POLICY_MAIN, POLICY_LAG])
+@pytest.mark.parametrize(
+    ("source", "end_date", "stored_ann_date"),
+    [
+        pytest.param(
+            "csmar",
+            "2020-03-31",
+            "2020-03-30",
+            id="csmar",
+        ),
+        pytest.param(
+            "wind",
+            "2025-06-30",
+            "2025-06-29",
+            id="wind",
+        ),
+    ],
+)
+def test_pit_policy_rejects_announcement_before_period_end(
+    policy,
+    source,
+    end_date,
+    stored_ann_date,
+):
+    raw = _single_pit_fact(
+        end_date=end_date,
+        stored_ann_date=stored_ann_date,
+        data_source=source,
+    )
+
+    with pytest.raises(DataBlocked):
+        apply_pit_policy(raw, policy)
+
+
+def test_csmar_missing_stored_announcement_falls_back_to_legal_deadline():
+    got = apply_pit_policy(
+        _single_pit_fact(stored_ann_date=None),
+        POLICY_MAIN,
+    )
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp("2020-04-30")
+    assert got.loc[0, "known_date_source"] == POLICY_MAIN
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+
+
+def test_pit_policy_rejects_unknown_policy_with_value_error():
+    with pytest.raises(ValueError, match="unsupported PIT policy"):
+        apply_pit_policy(_single_pit_fact(), "unknown-policy")
+
+
+def _industry_history():
+    return pd.DataFrame(
+        {
+            "ticker": ["A", "A", "B"],
+            "effective_date": [
+                "2021-01-01",
+                "2022-01-01",
+                "2021-02-01",
+            ],
+            "industry": ["电子", "通信", "医药"],
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "bad_ticker",
+    [
+        pytest.param(None, id="null"),
+        pytest.param(7, id="non-string"),
+        pytest.param("   ", id="blank"),
+    ],
+)
+def test_industry_snapshot_rejects_invalid_ticker_keys(bad_ticker):
+    pool = _industry_history()
+    pool["ticker"] = pool["ticker"].astype(object)
+    pool.loc[0, "ticker"] = bad_ticker
+
+    with pytest.raises(DataBlocked):
+        _industry_snapshot(pool, pd.Timestamp("2022-06-30"))
+
+
+@pytest.mark.parametrize(
+    "bad_effective_date",
+    [
+        pytest.param(None, id="null"),
+        pytest.param("not-a-date", id="unparsable"),
+    ],
+)
+def test_industry_snapshot_rejects_invalid_effective_dates(
+    bad_effective_date,
+):
+    pool = _industry_history()
+    pool.loc[0, "effective_date"] = bad_effective_date
+
+    with pytest.raises(DataBlocked):
+        _industry_snapshot(pool, pd.Timestamp("2022-06-30"))
+
+
+def test_industry_snapshot_ignores_exact_duplicate_rows():
+    pool = _industry_history()
+    pool = pd.concat([pool, pool.iloc[[0]]], ignore_index=True)
+
+    got = _industry_snapshot(pool, pd.Timestamp("2022-06-30"))
+
+    assert got.to_dict() == {"A": "通信", "B": "医药"}
+
+
+def test_industry_snapshot_blocks_conflicting_same_date_labels():
+    pool = pd.DataFrame(
+        {
+            "ticker": ["A", "A"],
+            "effective_date": ["2021-01-01", "2021-01-01"],
+            "industry": ["电子", "通信"],
+        }
+    )
+
+    with pytest.raises(DataBlocked):
+        _industry_snapshot(pool, pd.Timestamp("2022-06-30"))
+
+
+def _minimal_assembly_inputs():
+    formation = pd.Timestamp("2021-06-30")
+    return {
+        "raw_facts": pd.DataFrame(
+            {
+                "ts_code": ["A", "B"],
+                "end_date": ["2020-12-31", "2020-12-31"],
+                "stored_ann_date": ["2021-04-30", "2021-04-30"],
+                "statement_type": ["income", "income"],
+                "data": [{"revenue": 1.0}, {"revenue": 2.0}],
+                "data_source": ["csmar", "csmar"],
+            }
+        ),
+        "month_ends": [formation],
+        "closes": pd.DataFrame(
+            [[10.0, 20.0]],
+            index=[formation],
+            columns=["A", "B"],
+        ),
+        "shares_pool": pd.DataFrame(
+            {
+                "ts_code": ["A", "B"],
+                "end_date": ["2020-01-01", "2020-01-01"],
+                "known_date": ["2020-01-01", "2020-01-01"],
+                "total_shares": [100.0, 200.0],
+            }
+        ),
+        "industry_pool": pd.DataFrame(
+            {
+                "ticker": ["A", "B"],
+                "effective_date": ["2021-01-01", "2021-01-01"],
+                "industry": ["电子", "医药"],
+            }
+        ),
+        "stock_meta": pd.DataFrame(
+            {
+                "ticker": ["A", "B"],
+                "list_date": ["2010-01-01", "2011-01-01"],
+                "delist_date": [None, None],
+            }
+        ),
+        "policy": POLICY_MAIN,
+    }
+
+
+def _minimal_derived_rows(facts):
+    ticker = facts["ts_code"].iloc[0]
+    known_date = facts["ann_date"].max()
+    common = {
+        "ts_code": [ticker, ticker],
+        "end_date": [pd.Timestamp("2020-12-31")] * 2,
+        "known_date": [known_date] * 2,
+    }
+    return {
+        "ttm": pd.DataFrame(
+            {
+                **common,
+                "field": ["np", "cfo"],
+                "ttm": [100.0, 80.0],
+            }
+        ),
+        "slope": pd.DataFrame(
+            {
+                **common,
+                "field": ["rev", "np"],
+                "slope": [0.2, 0.1],
+            }
+        ),
+        "event": pd.DataFrame(
+            {
+                **common,
+                "field": ["equity", "dps"],
+                "value": [500.0, 0.5],
+            }
+        ),
+    }
+
+
+def _patch_minimal_assembly_dependencies(
+    monkeypatch,
+    rows_builder=_minimal_derived_rows,
+):
+    def fake_style_scores(factors):
+        out = factors.copy()
+        out["style_score"] = 0.0
+        return out
+
+    monkeypatch.setattr(
+        "signals.style_basket.build.ticker_financial_rows",
+        rows_builder,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.scoring.style_scores",
+        fake_style_scores,
+    )
+
+
+@pytest.mark.parametrize(
+    ("location", "bad_key"),
+    [
+        pytest.param(location, bad_key, id=f"{location}-{case_id}")
+        for location in [
+            "raw_facts",
+            "shares_pool",
+            "industry_pool",
+            "stock_meta",
+            "close_columns",
+        ]
+        for bad_key, case_id in [
+            (None, "null"),
+            (7, "mixed-non-string"),
+            ("   ", "blank"),
+        ]
+    ],
+)
+def test_snapshot_assembly_rejects_invalid_ticker_keys(
+    monkeypatch,
+    location,
+    bad_key,
+):
+    inputs = _minimal_assembly_inputs()
+    if location == "raw_facts":
+        inputs["raw_facts"]["ts_code"] = inputs["raw_facts"][
+            "ts_code"
+        ].astype(object)
+        inputs["raw_facts"].loc[1, "ts_code"] = bad_key
+    elif location == "shares_pool":
+        inputs["shares_pool"]["ts_code"] = inputs["shares_pool"][
+            "ts_code"
+        ].astype(object)
+        inputs["shares_pool"].loc[1, "ts_code"] = bad_key
+    elif location == "industry_pool":
+        inputs["industry_pool"]["ticker"] = inputs["industry_pool"][
+            "ticker"
+        ].astype(object)
+        inputs["industry_pool"].loc[1, "ticker"] = bad_key
+    elif location == "stock_meta":
+        inputs["stock_meta"]["ticker"] = inputs["stock_meta"][
+            "ticker"
+        ].astype(object)
+        inputs["stock_meta"].loc[1, "ticker"] = bad_key
+    else:
+        inputs["closes"].columns = ["A", bad_key]
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+def test_snapshot_assembly_rejects_invalid_derived_ticker_keys(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+
+    def invalid_rows(facts):
+        rows = _minimal_derived_rows(facts)
+        if facts["ts_code"].iloc[0] == "B":
+            for pool in rows.values():
+                pool["ts_code"] = 7
+        return rows
+
+    _patch_minimal_assembly_dependencies(monkeypatch, invalid_rows)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+def test_snapshot_assembly_deduplicates_exact_normalized_metadata(
+    monkeypatch,
+):
+    inputs = _minimal_assembly_inputs()
+    duplicate = inputs["stock_meta"].iloc[[0]].copy()
+    duplicate["list_date"] = pd.Timestamp("2010-01-01")
+    inputs["stock_meta"] = pd.concat(
+        [inputs["stock_meta"], duplicate],
+        ignore_index=True,
+    )
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    got = build_policy_snapshots(**inputs)
+
+    assert list(got[pd.Timestamp("2021-06-30")]["ticker"]) == ["A", "B"]
+
+
+def test_snapshot_assembly_blocks_conflicting_duplicate_metadata(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    conflict = inputs["stock_meta"].iloc[[0]].copy()
+    conflict["list_date"] = "2012-01-01"
+    inputs["stock_meta"] = pd.concat(
+        [inputs["stock_meta"], conflict],
+        ignore_index=True,
+    )
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+@pytest.mark.parametrize("date_column", ["list_date", "delist_date"])
+def test_snapshot_assembly_blocks_invalid_metadata_dates(
+    monkeypatch,
+    date_column,
+):
+    inputs = _minimal_assembly_inputs()
+    inputs["stock_meta"].loc[0, date_column] = "not-a-date"
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+def test_snapshot_assembly_blocks_duplicate_close_columns(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    inputs["closes"] = pd.DataFrame(
+        [[10.0, 10.0, 20.0]],
+        index=[formation],
+        columns=["A", "A", "B"],
+    )
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+def test_snapshot_assembly_blocks_duplicate_close_dates(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    inputs["closes"] = pd.concat(
+        [inputs["closes"], inputs["closes"]],
+    )
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+@pytest.mark.parametrize(
+    "bad_close_date",
+    [
+        pytest.param(None, id="null"),
+        pytest.param("not-a-date", id="unparsable"),
+    ],
+)
+def test_snapshot_assembly_blocks_invalid_close_dates(
+    monkeypatch,
+    bad_close_date,
+):
+    inputs = _minimal_assembly_inputs()
+    inputs["closes"].index = [bad_close_date]
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+def test_snapshot_assembly_deduplicates_exact_share_rows(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    inputs["shares_pool"] = pd.concat(
+        [inputs["shares_pool"], inputs["shares_pool"].iloc[[0]]],
+        ignore_index=True,
+    )
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    got = build_policy_snapshots(**inputs)
+    snapshot = got[pd.Timestamp("2021-06-30")].set_index("ticker")
+
+    assert snapshot.loc["A", "total_market_value"] == 1000.0
+
+
+def test_snapshot_assembly_blocks_conflicting_share_rows(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    conflict = inputs["shares_pool"].iloc[[0]].copy()
+    conflict["total_shares"] = 999.0
+    inputs["shares_pool"] = pd.concat(
+        [inputs["shares_pool"], conflict],
+        ignore_index=True,
+    )
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+@pytest.mark.parametrize("date_column", ["end_date", "known_date"])
+@pytest.mark.parametrize(
+    "bad_date",
+    [
+        pytest.param(None, id="null"),
+        pytest.param("not-a-date", id="unparsable"),
+    ],
+)
+def test_snapshot_assembly_blocks_invalid_share_dates(
+    monkeypatch,
+    date_column,
+    bad_date,
+):
+    inputs = _minimal_assembly_inputs()
+    inputs["shares_pool"].loc[0, date_column] = bad_date
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+@pytest.mark.parametrize(
+    ("pool_name", "field", "value_column", "conflicting_value"),
+    [
+        pytest.param("ttm", "np", "ttm", 999.0, id="ttm"),
+        pytest.param("slope", "rev", "slope", 0.9, id="slope"),
+        pytest.param("event", "equity", "value", 999.0, id="event"),
+    ],
+)
+def test_snapshot_assembly_blocks_conflicting_derived_rows(
+    monkeypatch,
+    pool_name,
+    field,
+    value_column,
+    conflicting_value,
+):
+    inputs = _minimal_assembly_inputs()
+
+    def conflicting_rows(facts):
+        rows = _minimal_derived_rows(facts)
+        if facts["ts_code"].iloc[0] == "A":
+            duplicate = rows[pool_name][
+                rows[pool_name]["field"].eq(field)
+            ].copy()
+            duplicate[value_column] = conflicting_value
+            rows[pool_name] = pd.concat(
+                [rows[pool_name], duplicate],
+                ignore_index=True,
+            )
+        return rows
+
+    _patch_minimal_assembly_dependencies(monkeypatch, conflicting_rows)
+
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
