@@ -35,6 +35,107 @@ POLICY_MAIN = "legal_deadline"
 POLICY_LAG = "legal_deadline_plus_one_month_end"
 
 
+@dataclass(frozen=True)
+class B3Sources:
+    snapshots: Callable[..., dict[pd.Timestamp, pd.DataFrame]]
+    constituents: Callable[..., pd.DataFrame]
+    stock_returns: Callable[..., pd.DataFrame]
+    target_returns: Callable[..., pd.DataFrame]
+    carry: Callable[..., pd.DataFrame | pd.Series]
+
+
+@dataclass(frozen=True)
+class PreflightOutcome:
+    final_status: str
+    exposures: dict[str, dict[pd.Timestamp, ExposureResult]]
+    audit: pd.DataFrame
+    diagnostics: pd.DataFrame
+
+
+def _sha256(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_stage_manifest(
+    output_dir: str | Path,
+    stage: str,
+    cfg: dict,
+    data_end: pd.Timestamp,
+    outputs: list[str | Path],
+    status: str,
+    blockers: list[dict],
+) -> Path:
+    root = Path(output_dir)
+    manifest_dir = root / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+
+    output_hashes: dict[str, str] = {}
+    for output in outputs:
+        path = Path(output)
+        if not path.is_file():
+            continue
+        relative = path.relative_to(root)
+        output_hashes[str(relative)] = _sha256(path)
+
+    payload = {
+        "stage": stage,
+        "config_hash": config_hash(cfg),
+        "data_end": str(pd.Timestamp(data_end).date()),
+        "status": status,
+        "blockers": list(blockers),
+        "outputs": output_hashes,
+    }
+    manifest_path = manifest_dir / f"{stage}.json"
+    manifest_path.write_text(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        ),
+        encoding="utf-8",
+    )
+    return manifest_path
+
+
+def require_parent_manifest(
+    output_dir: str | Path,
+    parent: str,
+    cfg: dict,
+    data_end: pd.Timestamp,
+) -> dict:
+    root = Path(output_dir)
+    path = root / "manifests" / f"{parent}.json"
+    if not path.is_file():
+        raise DataBlocked(f"missing parent manifest: {parent}")
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError) as exc:
+        raise DataBlocked(f"invalid parent manifest: {parent}") from exc
+
+    if manifest.get("status") != "OK":
+        raise DataBlocked(f"parent stage is not OK: {parent}")
+    if manifest.get("config_hash") != config_hash(cfg):
+        raise DataBlocked(f"parent config hash mismatch: {parent}")
+    expected_end = str(pd.Timestamp(data_end).date())
+    if manifest.get("data_end") != expected_end:
+        raise DataBlocked(f"parent data_end mismatch: {parent}")
+
+    outputs = manifest.get("outputs")
+    if not isinstance(outputs, dict):
+        raise DataBlocked(f"parent outputs are missing: {parent}")
+    for relative, expected_hash in outputs.items():
+        output = root / relative
+        if not output.is_file() or _sha256(output) != expected_hash:
+            raise DataBlocked(f"parent output hash mismatch: {relative}")
+    return manifest
+
+
 def _require_columns(
     frame: pd.DataFrame,
     required: set[str],
@@ -264,6 +365,109 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def calibrate_target_coordinates(
+    exposures: dict[pd.Timestamp, ExposureResult],
+    constituents: pd.DataFrame,
+) -> dict[str, float]:
+    required = {"index_code", "effective_date", "ticker"}
+    _require_columns(constituents, required, "target constituents")
+    pool = constituents.loc[
+        :,
+        ["index_code", "effective_date", "ticker"],
+    ].copy()
+    _validate_string_keys(pool["index_code"], "constituent index_code")
+    _validate_string_keys(pool["ticker"], "constituent ticker")
+    pool = _validate_datetime_columns(
+        pool,
+        ("effective_date",),
+        "target constituents",
+    ).drop_duplicates()
+
+    targets = {
+        "q500": "000905.SH",
+        "q1000": "000852.SH",
+    }
+    available_codes = set(pool["index_code"])
+    for index_code in targets.values():
+        if index_code not in available_codes:
+            raise DataBlocked(f"missing constituents for {index_code}")
+
+    q500_errors: list[float] = []
+    q1000_errors: list[float] = []
+    ordered_months = 0
+    calibrated_months = 0
+    for formation_date, result in sorted(exposures.items()):
+        formation = pd.Timestamp(formation_date)
+        if formation < pd.Timestamp("2021-01-01"):
+            continue
+        if not {"ticker", "m_perp"}.issubset(result.size.columns):
+            raise DataBlocked("size exposure columns are missing")
+        size = pd.to_numeric(
+            result.size.set_index("ticker")["m_perp"],
+            errors="coerce",
+        )
+
+        actual: dict[str, float] = {}
+        for coordinate, index_code in targets.items():
+            history = pool[
+                pool["index_code"].eq(index_code)
+                & pool["effective_date"].le(formation)
+            ]
+            if history.empty:
+                raise DataBlocked(
+                    f"missing constituents for {index_code} "
+                    f"at {formation.date()}"
+                )
+            effective = history["effective_date"].max()
+            members = history.loc[
+                history["effective_date"].eq(effective),
+                "ticker",
+            ].drop_duplicates()
+            member_exposure = size.reindex(members).dropna()
+            if member_exposure.empty:
+                raise DataBlocked(
+                    f"missing constituent exposures for {index_code} "
+                    f"at {formation.date()}"
+                )
+            value = float(member_exposure.median())
+            if not np.isfinite(value):
+                raise DataBlocked(
+                    f"invalid constituent exposure for {index_code} "
+                    f"at {formation.date()}"
+                )
+            actual[coordinate] = value
+
+        q500_errors.append(
+            abs(actual["q500"] - float(result.q["q500"]))
+        )
+        q1000_errors.append(
+            abs(actual["q1000"] - float(result.q["q1000"]))
+        )
+        ordered_months += int(
+            float(result.q["q1000"]) > float(result.q["q500"])
+        )
+        calibrated_months += 1
+
+    if calibrated_months == 0:
+        raise DataBlocked("no 2021+ calibration months")
+
+    diagnostics = {
+        "q500_mean_abs_error": float(np.mean(q500_errors)),
+        "q1000_mean_abs_error": float(np.mean(q1000_errors)),
+        "q_order_share": float(ordered_months / calibrated_months),
+    }
+    if (
+        diagnostics["q500_mean_abs_error"] > 0.25
+        or diagnostics["q1000_mean_abs_error"] > 0.25
+        or diagnostics["q_order_share"] < 0.90
+    ):
+        raise DataBlocked(
+            "target-coordinate calibration thresholds failed: "
+            + json.dumps(diagnostics, sort_keys=True)
+        )
+    return diagnostics
+
+
 def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
     """Apply one of B3's two disclosure-date policies without losing provenance."""
     if policy not in {POLICY_MAIN, POLICY_LAG}:
@@ -371,6 +575,128 @@ def _fetch_raw_financial(
             ) from exc
     facts["data"] = translated
     return facts.reset_index(drop=True)
+
+
+def _read_sql(
+    db: dict,
+    sql: str,
+    params=None,
+) -> pd.DataFrame:
+    conn = _connect(db)
+    try:
+        return pd.read_sql(sql, conn, params=params)
+    finally:
+        conn.close()
+
+
+def _formation_inputs(
+    db: dict,
+    data_end: pd.Timestamp,
+) -> dict[str, object]:
+    data_end = pd.Timestamp(data_end)
+    schema = db["schema"]
+
+    calendar = _read_sql(
+        db,
+        f"""
+            SELECT DISTINCT trade_date
+            FROM {schema}.index_daily
+            WHERE index_code = '000905.SH'
+              AND trade_date BETWEEN '2013-05-01' AND %(end)s
+            ORDER BY trade_date
+        """,
+        {"end": data_end.date()},
+    )
+    if calendar.empty:
+        raise DataBlocked("formation trading calendar is empty")
+    trading = pd.DatetimeIndex(
+        pd.to_datetime(calendar["trade_date"], errors="raise")
+    )
+    month_ends = list(
+        pd.Series(trading, index=trading)
+        .groupby(trading.to_period("M"))
+        .max()
+    )
+
+    meta = _read_sql(
+        db,
+        f"""
+            SELECT ts_code AS ticker, list_date, delist_date
+            FROM {schema}.stock_meta
+            ORDER BY ts_code
+        """,
+    )
+    if meta.empty:
+        raise DataBlocked("stock metadata is empty")
+    tickers = meta["ticker"].tolist()
+
+    closes = _read_sql(
+        db,
+        f"""
+            SELECT ts_code AS ticker, trade_date, close
+            FROM {schema}.stock_daily_price
+            WHERE trade_date = ANY(%(dates)s)
+            ORDER BY trade_date, ts_code
+        """,
+        {"dates": [date.date() for date in month_ends]},
+    )
+    closes["trade_date"] = pd.to_datetime(
+        closes["trade_date"],
+        errors="raise",
+    )
+    close_wide = closes.pivot(
+        index="trade_date",
+        columns="ticker",
+        values="close",
+    )
+
+    shares = _read_sql(
+        db,
+        f"""
+            SELECT ts_code,
+                   effective_date AS end_date,
+                   available_date AS known_date,
+                   total_shares
+            FROM {schema}.stock_share_capital
+            WHERE total_shares IS NOT NULL AND total_shares > 0
+            ORDER BY ts_code, effective_date
+        """,
+    )
+    shares["end_date"] = pd.to_datetime(
+        shares["end_date"],
+        errors="raise",
+    )
+    shares["known_date"] = pd.to_datetime(
+        shares["known_date"],
+        errors="raise",
+    ).fillna(shares["end_date"])
+
+    industry = _read_sql(
+        db,
+        f"""
+            SELECT ts_code AS ticker,
+                   effective_date,
+                   level_1_name AS industry
+            FROM {schema}.industry_classification
+            WHERE classification_type = 'CITIC'
+            ORDER BY ts_code, effective_date
+        """,
+    )
+
+    facts = _fetch_raw_financial(
+        tickers,
+        "2003-01-01",
+        str(data_end.date()),
+        db,
+    )
+    return {
+        "month_ends": month_ends,
+        "meta": meta,
+        "closes": close_wide,
+        "shares": shares,
+        "industry": industry,
+        "facts": facts,
+    }
 
 
 def _industry_snapshot(
@@ -845,3 +1171,565 @@ def build_policy_snapshots(
         snapshots[formation_date] = snapshot
 
     return snapshots
+
+
+def default_sources(db: dict) -> B3Sources:
+    """Create the frozen lazy data-source bundle."""
+    from backtest.data import load_carry, load_underlying_returns
+
+    cached_inputs: dict[str, dict[str, object]] = {}
+
+    def inputs(data_end: pd.Timestamp) -> dict[str, object]:
+        key = str(pd.Timestamp(data_end).date())
+        if key not in cached_inputs:
+            cached_inputs[key] = _formation_inputs(
+                db,
+                pd.Timestamp(data_end),
+            )
+        return cached_inputs[key]
+
+    def snapshots(
+        policy: str,
+        data_end: pd.Timestamp,
+    ) -> dict[pd.Timestamp, pd.DataFrame]:
+        source = inputs(data_end)
+        return build_policy_snapshots(
+            source["facts"],
+            source["month_ends"],
+            source["closes"],
+            source["shares"],
+            source["industry"],
+            source["meta"],
+            policy,
+        )
+
+    def constituents() -> pd.DataFrame:
+        frame = _read_sql(
+            db,
+            f"""
+                SELECT index_code,
+                       ts_code AS ticker,
+                       effective_date
+                FROM {db['schema']}.index_constituent
+                WHERE effective_date >= '2021-01-01'
+                  AND index_code IN ('000905.SH', '000852.SH')
+                ORDER BY index_code, effective_date, ts_code
+            """,
+        )
+        if not frame.empty:
+            frame["effective_date"] = pd.to_datetime(
+                frame["effective_date"],
+                errors="raise",
+            )
+        return frame
+
+    def targets(data_end: pd.Timestamp) -> dict[str, pd.Series]:
+        end = pd.Timestamp(data_end)
+        return {
+            target: load_underlying_returns(
+                target,
+                start="2013-01-01",
+                db=db,
+            ).loc[:end]
+            for target in ["500", "1000", "blend"]
+        }
+
+    def carries(data_end: pd.Timestamp) -> dict[str, pd.Series]:
+        end = pd.Timestamp(data_end)
+        return {
+            target: load_carry(
+                target,
+                start="2013-01-01",
+                db=db,
+            ).loc[:end]
+            for target in ["500", "1000"]
+        }
+
+    return B3Sources(
+        snapshots=snapshots,
+        constituents=constituents,
+        stock_returns=lambda data_end: _fetch_stock_return_status(
+            db,
+            data_end,
+        ),
+        target_returns=targets,
+        carry=carries,
+    )
+
+
+def run_preflight(
+    cfg: dict,
+    sources: B3Sources,
+    data_end: pd.Timestamp,
+    output_dir: str | Path = DEFAULT_OUTPUT_DIR,
+) -> PreflightOutcome:
+    """Run return-blind data, coverage, and target-coordinate checks."""
+    output_root = Path(output_dir)
+    output_root.mkdir(parents=True, exist_ok=True)
+    data_end = pd.Timestamp(data_end)
+
+    required_start = pd.Timestamp(cfg["windows"]["discovery"][0])
+    required_end = pd.Timestamp(cfg["windows"]["confirmation"][1])
+    policies = list(cfg["pit"]["policies"])
+    axes = [
+        "style",
+        "size",
+        "interaction",
+        "qblend",
+        "q500",
+        "q1000",
+    ]
+    audit_columns = [
+        "pit_policy",
+        "formation_date",
+        "required_formation",
+        "affects_final",
+        "check",
+        "side",
+        "eligible_count",
+        "max_weight",
+        "status",
+        "reason_code",
+        "detail",
+    ]
+
+    exposures: dict[str, dict[pd.Timestamp, ExposureResult]] = {
+        policy: {} for policy in policies
+    }
+    audit_rows: list[dict] = []
+    diagnostic_rows: list[dict] = []
+    blockers: list[dict] = []
+
+    def add_audit(
+        *,
+        policy: str,
+        formation_date,
+        required: bool,
+        affects_final: bool | None = None,
+        check: str,
+        side: str = "",
+        eligible_count=np.nan,
+        max_weight=np.nan,
+        status: str = "OK",
+        reason_code: str = "",
+        detail: str = "",
+    ) -> None:
+        audit_rows.append(
+            {
+                "pit_policy": policy,
+                "formation_date": formation_date,
+                "required_formation": bool(required),
+                "affects_final": (
+                    bool(required)
+                    if affects_final is None
+                    else bool(affects_final)
+                ),
+                "check": check,
+                "side": side,
+                "eligible_count": eligible_count,
+                "max_weight": max_weight,
+                "status": status,
+                "reason_code": reason_code,
+                "detail": detail,
+            }
+        )
+
+    def add_blocker(
+        *,
+        policy: str,
+        formation_date,
+        status: str,
+        reason_code: str,
+        detail: str,
+    ) -> None:
+        blockers.append(
+            {
+                "pit_policy": policy,
+                "formation_date": formation_date,
+                "status": status,
+                "reason_code": reason_code,
+                "detail": detail,
+            }
+        )
+
+    def audit_exclusions(
+        policy: str,
+        formation_date: pd.Timestamp,
+        required: bool,
+        snapshot: pd.DataFrame,
+    ) -> None:
+        for role, column in (
+            ("size", "size_exclusion_reason"),
+            ("model", "model_exclusion_reason"),
+        ):
+            if column not in snapshot.columns:
+                continue
+            reasons = snapshot[column].fillna("").astype(str)
+            counts = reasons.value_counts().sort_index()
+            for reason, count in counts.items():
+                add_audit(
+                    policy=policy,
+                    formation_date=formation_date,
+                    required=required,
+                    affects_final=False,
+                    check=f"{role}_exclusion",
+                    side=str(reason) if reason else "ELIGIBLE",
+                    eligible_count=int(count),
+                    status="REPORT_ONLY",
+                    detail="exclusion distribution",
+                )
+
+    for policy in policies:
+        try:
+            snapshots = sources.snapshots(policy, data_end)
+            if not isinstance(snapshots, dict) or not snapshots:
+                raise DataBlocked("snapshot source returned no snapshots")
+        except DataBlocked as exc:
+            detail = str(exc)
+            add_audit(
+                policy=policy,
+                formation_date=pd.NaT,
+                required=True,
+                check="snapshot_source",
+                status="DATA_BLOCKED",
+                reason_code="DATA_CONTRACT",
+                detail=detail,
+            )
+            add_blocker(
+                policy=policy,
+                formation_date=pd.NaT,
+                status="DATA_BLOCKED",
+                reason_code="DATA_CONTRACT",
+                detail=detail,
+            )
+            continue
+        except CoverageBlocked as exc:
+            detail = str(exc)
+            add_audit(
+                policy=policy,
+                formation_date=pd.NaT,
+                required=True,
+                check="snapshot_source",
+                status="COVERAGE_BLOCKED",
+                reason_code="LEGAL_CROSS_SECTION_INFEASIBLE",
+                detail=detail,
+            )
+            add_blocker(
+                policy=policy,
+                formation_date=pd.NaT,
+                status="COVERAGE_BLOCKED",
+                reason_code="LEGAL_CROSS_SECTION_INFEASIBLE",
+                detail=detail,
+            )
+            continue
+
+        for raw_date, snapshot in sorted(
+            snapshots.items(),
+            key=lambda item: pd.Timestamp(item[0]),
+        ):
+            formation_date = pd.Timestamp(raw_date)
+            if formation_date > data_end:
+                continue
+            required = required_start <= formation_date <= required_end
+            audit_exclusions(
+                policy,
+                formation_date,
+                required,
+                snapshot,
+            )
+            try:
+                result = compute_month_exposures(snapshot, cfg)
+            except DataBlocked as exc:
+                detail = str(exc)
+                add_audit(
+                    policy=policy,
+                    formation_date=formation_date,
+                    required=required,
+                    check="monthly_exposure",
+                    status="DATA_BLOCKED",
+                    reason_code="DATA_CONTRACT",
+                    detail=detail,
+                )
+                if required:
+                    add_blocker(
+                        policy=policy,
+                        formation_date=formation_date,
+                        status="DATA_BLOCKED",
+                        reason_code="DATA_CONTRACT",
+                        detail=detail,
+                    )
+                continue
+            except CoverageBlocked as exc:
+                detail = str(exc)
+                add_audit(
+                    policy=policy,
+                    formation_date=formation_date,
+                    required=required,
+                    check="monthly_exposure",
+                    status="COVERAGE_BLOCKED",
+                    reason_code="LEGAL_CROSS_SECTION_INFEASIBLE",
+                    detail=detail,
+                )
+                if required:
+                    add_blocker(
+                        policy=policy,
+                        formation_date=formation_date,
+                        status="COVERAGE_BLOCKED",
+                        reason_code="LEGAL_CROSS_SECTION_INFEASIBLE",
+                        detail=detail,
+                    )
+                continue
+
+            exposures[policy][formation_date] = result
+            for axis in axes:
+                frame = result.size if axis == "size" else result.model
+                for side in ("plus", "minus"):
+                    weights = frame[f"w_{axis}_{side}"]
+                    add_audit(
+                        policy=policy,
+                        formation_date=formation_date,
+                        required=required,
+                        check=axis,
+                        side=side,
+                        eligible_count=int(weights.gt(0.0).sum()),
+                        max_weight=float(weights.max()),
+                    )
+            diagnostic_rows.append(
+                {
+                    "pit_policy": policy,
+                    "formation_date": formation_date,
+                    "scope": "exposure",
+                    **result.diagnostics,
+                }
+            )
+
+    if not blockers:
+        try:
+            constituents = sources.constituents()
+            for policy in policies:
+                calibration = calibrate_target_coordinates(
+                    exposures[policy],
+                    constituents,
+                )
+                diagnostic_rows.append(
+                    {
+                        "pit_policy": policy,
+                        "formation_date": pd.NaT,
+                        "scope": "target_calibration",
+                        **calibration,
+                    }
+                )
+        except (DataBlocked, CoverageBlocked) as exc:
+            status = (
+                "DATA_BLOCKED"
+                if isinstance(exc, DataBlocked)
+                else "COVERAGE_BLOCKED"
+            )
+            detail = str(exc)
+            add_audit(
+                policy="all",
+                formation_date=pd.NaT,
+                required=True,
+                check="target_coordinate_calibration",
+                status=status,
+                reason_code="TARGET_COORDINATE_CALIBRATION",
+                detail=detail,
+            )
+            add_blocker(
+                policy="all",
+                formation_date=pd.NaT,
+                status=status,
+                reason_code="TARGET_COORDINATE_CALIBRATION",
+                detail=detail,
+            )
+
+    statuses = {blocker["status"] for blocker in blockers}
+    if "DATA_BLOCKED" in statuses:
+        final_status = "DATA_BLOCKED"
+    elif "COVERAGE_BLOCKED" in statuses:
+        final_status = "COVERAGE_BLOCKED"
+    else:
+        final_status = "OK"
+
+    audit = pd.DataFrame(audit_rows).reindex(columns=audit_columns)
+    diagnostics = pd.DataFrame(diagnostic_rows)
+    if diagnostics.empty:
+        diagnostics = pd.DataFrame(
+            columns=["pit_policy", "formation_date", "scope"]
+        )
+
+    audit_path = output_root / "coverage_audit.csv"
+    diagnostics_path = output_root / "exposure_diagnostics.csv"
+    audit.to_csv(audit_path, index=False)
+    diagnostics.to_csv(diagnostics_path, index=False)
+    _write_stage_manifest(
+        output_root,
+        "preflight",
+        cfg,
+        data_end,
+        [audit_path, diagnostics_path],
+        final_status,
+        blockers,
+    )
+
+    return PreflightOutcome(
+        final_status=final_status,
+        exposures=exposures,
+        audit=audit,
+        diagnostics=diagnostics,
+    )
+
+
+def flatten_exposures(
+    exposures: dict[str, dict[pd.Timestamp, ExposureResult]],
+) -> pd.DataFrame:
+    model_columns = [
+        "s_perp",
+        "h_perp",
+        "x_qblend",
+        "x_q500",
+        "x_q1000",
+        "w_style_plus",
+        "w_style_minus",
+        "w_interaction_plus",
+        "w_interaction_minus",
+        "w_qblend_plus",
+        "w_qblend_minus",
+        "w_q500_plus",
+        "w_q500_minus",
+        "w_q1000_plus",
+        "w_q1000_minus",
+    ]
+    rows: list[pd.DataFrame] = []
+    for policy, months in exposures.items():
+        for formation_date, result in sorted(months.items()):
+            missing = sorted(
+                set(model_columns).difference(result.model.columns)
+            )
+            if missing:
+                raise DataBlocked(
+                    "model exposure columns are missing: "
+                    + ", ".join(missing)
+                )
+
+            frame = result.size.copy()
+            frame["universe_role"] = np.where(
+                frame.index.isin(result.model.index),
+                "model",
+                "size_only",
+            )
+            for column in model_columns:
+                frame[column] = result.model[column].reindex(frame.index)
+            frame.insert(0, "pit_policy", policy)
+            frame["formation_date"] = pd.Timestamp(formation_date)
+            rows.append(frame.reset_index(drop=True))
+
+    if not rows:
+        raise DataBlocked("no monthly exposures to flatten")
+    return pd.concat(rows, ignore_index=True)
+
+
+def run_exposures_stage(
+    cfg: dict,
+    data_end: pd.Timestamp,
+    output_dir: str | Path,
+    outcome: PreflightOutcome,
+) -> Path:
+    output_root = Path(output_dir)
+    require_parent_manifest(
+        output_root,
+        "preflight",
+        cfg,
+        data_end,
+    )
+    if outcome.final_status != "OK":
+        raise DataBlocked(
+            f"preflight outcome is not OK: {outcome.final_status}"
+        )
+
+    frame = flatten_exposures(outcome.exposures)
+    path = output_root / "monthly_exposures.csv.gz"
+    frame.to_csv(
+        path,
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    _write_stage_manifest(
+        output_root,
+        "exposures",
+        cfg,
+        pd.Timestamp(data_end),
+        [path],
+        "OK",
+        [],
+    )
+    return path
+
+
+def run_post_preflight_stages(
+    stage: str,
+    cfg: dict,
+    sources: B3Sources,
+    data_end: pd.Timestamp,
+    output_dir: str | Path,
+    outcome: PreflightOutcome,
+) -> int:
+    del sources
+    if stage != "exposures":
+        raise DataBlocked(f"unsupported post-preflight stage: {stage}")
+    run_exposures_stage(
+        cfg,
+        data_end,
+        output_dir,
+        outcome,
+    )
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="B3 staged research builder"
+    )
+    parser.add_argument(
+        "--stage",
+        choices=["preflight", "exposures"],
+        default="exposures",
+    )
+    parser.add_argument(
+        "--data-end",
+        default="2026-12-31",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_OUTPUT_DIR,
+    )
+    args = parser.parse_args()
+
+    cfg = load_b3_config()
+    sources = default_sources(load_db_config())
+    data_end = pd.Timestamp(args.data_end)
+    outcome = run_preflight(
+        cfg,
+        sources,
+        data_end,
+        args.output_dir,
+    )
+    if outcome.final_status == "DATA_BLOCKED":
+        return 2
+    if outcome.final_status == "COVERAGE_BLOCKED":
+        return 3
+    if args.stage == "preflight":
+        return 0
+    return run_post_preflight_stages(
+        args.stage,
+        cfg,
+        sources,
+        data_end,
+        args.output_dir,
+        outcome,
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

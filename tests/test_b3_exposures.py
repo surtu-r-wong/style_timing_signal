@@ -1,5 +1,6 @@
 from copy import deepcopy
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
@@ -8,12 +9,19 @@ import yaml
 
 from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_build import (
+    B3Sources,
     POLICY_LAG,
     POLICY_MAIN,
+    default_sources,
     _fetch_raw_financial,
     _industry_snapshot,
     apply_pit_policy,
     build_policy_snapshots,
+    calibrate_target_coordinates,
+    flatten_exposures,
+    main,
+    run_preflight,
+    run_exposures_stage,
 )
 from signals.style_basket.b3_exposures import (
     CoverageBlocked,
@@ -1334,3 +1342,346 @@ def test_fetch_raw_financial_preserves_execute_error_and_closes_connection(
 
     assert caught.value is error
     assert connection.closed is True
+
+
+def _constituents_for_snapshot(snapshot):
+    ordered = snapshot.sort_values(
+        ["total_market_value", "ticker"],
+        ascending=[False, True],
+        kind="mergesort",
+    ).reset_index(drop=True)
+    effective_date = pd.Timestamp("2021-01-29")
+    q500 = pd.DataFrame(
+        {
+            "index_code": "000905.SH",
+            "effective_date": effective_date,
+            "ticker": ordered.iloc[300:800]["ticker"].to_numpy(),
+        }
+    )
+    q1000 = pd.DataFrame(
+        {
+            "index_code": "000852.SH",
+            "effective_date": effective_date,
+            "ticker": ordered.iloc[800:1800]["ticker"].to_numpy(),
+        }
+    )
+    return pd.concat([q500, q1000], ignore_index=True)
+
+
+def test_target_coordinate_calibration_matches_synthetic_constituents():
+    cfg = load_b3_config()
+    formation = pd.Timestamp("2021-01-29")
+    snapshot = _synthetic_snapshot()
+    exposures = {
+        formation: compute_month_exposures(snapshot, cfg),
+    }
+
+    got = calibrate_target_coordinates(
+        exposures,
+        _constituents_for_snapshot(snapshot),
+    )
+
+    assert got["q500_mean_abs_error"] <= 0.25
+    assert got["q1000_mean_abs_error"] <= 0.25
+    assert got["q_order_share"] >= 0.90
+
+
+def test_target_coordinate_calibration_blocks_missing_q1000_constituents():
+    cfg = load_b3_config()
+    formation = pd.Timestamp("2021-01-29")
+    snapshot = _synthetic_snapshot()
+    exposures = {
+        formation: compute_month_exposures(snapshot, cfg),
+    }
+    constituents = _constituents_for_snapshot(snapshot)
+    constituents = constituents[
+        constituents["index_code"].ne("000852.SH")
+    ]
+
+    with pytest.raises(DataBlocked, match="000852.SH"):
+        calibrate_target_coordinates(exposures, constituents)
+
+
+def _preflight_sources(snapshot, constituents, *, snapshot_error=None):
+    def snapshots(*args, **kwargs):
+        if snapshot_error is not None:
+            raise snapshot_error
+        return {pd.Timestamp("2021-01-29"): snapshot.copy()}
+
+    def constituent_source(*args, **kwargs):
+        return constituents.copy()
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError(
+            "preflight must not access returns or carry inputs"
+        )
+
+    return B3Sources(
+        snapshots=snapshots,
+        constituents=constituent_source,
+        stock_returns=forbidden,
+        target_returns=forbidden,
+        carry=forbidden,
+    )
+
+
+def test_preflight_is_return_blind_and_writes_ok_artifacts(tmp_path):
+    cfg = load_b3_config()
+    snapshot = _synthetic_snapshot()
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+    )
+
+    got = run_preflight(
+        cfg,
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "OK"
+    assert (tmp_path / "coverage_audit.csv").is_file()
+    assert (tmp_path / "manifests" / "preflight.json").is_file()
+
+
+def test_preflight_writes_blocked_artifacts_when_snapshots_are_blocked(
+    tmp_path,
+):
+    cfg = load_b3_config()
+    snapshot = _synthetic_snapshot()
+    output_dir = tmp_path / "blocked"
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        snapshot_error=DataBlocked("DATA_TEST_SNAPSHOT_BLOCK"),
+    )
+
+    got = run_preflight(
+        cfg,
+        sources,
+        pd.Timestamp("2023-12-31"),
+        output_dir,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    assert (output_dir / "coverage_audit.csv").is_file()
+    assert (output_dir / "manifests" / "preflight.json").is_file()
+
+
+def test_flatten_exposures_preserves_size_and_model_universes():
+    cfg = load_b3_config()
+    formation = pd.Timestamp("2021-01-29")
+    snapshot = _synthetic_snapshot()
+    size_only_ticker = snapshot.iloc[-1]["ticker"]
+    snapshot.loc[
+        snapshot["ticker"].eq(size_only_ticker),
+        "style_score",
+    ] = np.nan
+    result = compute_month_exposures(snapshot, cfg)
+    exposures = {
+        POLICY_MAIN: {formation: result},
+        POLICY_LAG: {formation: result},
+    }
+
+    got = flatten_exposures(exposures)
+
+    for policy in (POLICY_MAIN, POLICY_LAG):
+        policy_rows = got[got["pit_policy"].eq(policy)]
+        assert len(policy_rows) == result.diagnostics["size_n"]
+        assert policy_rows["ticker"].is_unique
+        roles = policy_rows.set_index("ticker")["universe_role"]
+        assert roles.loc[size_only_ticker] == "size_only"
+        assert roles.drop(index=size_only_ticker).eq("model").all()
+
+    required_columns = {
+        "s_perp",
+        "h_perp",
+        "x_qblend",
+        "x_q500",
+        "x_q1000",
+        "w_size_plus",
+        "w_size_minus",
+    }
+    for axis in (
+        "style",
+        "interaction",
+        "qblend",
+        "q500",
+        "q1000",
+    ):
+        for side in ("plus", "minus"):
+            required_columns.add(f"w_{axis}_{side}")
+    assert required_columns.issubset(got.columns)
+
+
+def test_exposures_stage_writes_artifacts_and_requires_untampered_preflight(
+    tmp_path,
+):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2023-12-31")
+    snapshot = _synthetic_snapshot()
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+    )
+    preflight = run_preflight(cfg, sources, data_end, tmp_path)
+    assert preflight.final_status == "OK"
+
+    run_exposures_stage(
+        cfg,
+        data_end,
+        tmp_path,
+        preflight,
+    )
+
+    assert (tmp_path / "monthly_exposures.csv.gz").is_file()
+    assert (tmp_path / "manifests" / "exposures.json").is_file()
+
+    (tmp_path / "coverage_audit.csv").write_text(
+        "tampered\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(DataBlocked, match="hash"):
+        run_exposures_stage(
+            cfg,
+            data_end,
+            tmp_path,
+            preflight,
+        )
+
+
+def test_default_sources_cache_formation_inputs_across_pit_policies(
+    monkeypatch,
+):
+    data_end = pd.Timestamp("2023-12-31")
+    db = object()
+    sentinel = {
+        "facts": object(),
+        "month_ends": object(),
+        "closes": object(),
+        "shares": object(),
+        "industry": object(),
+        "meta": object(),
+    }
+    formation_calls = []
+    build_calls = []
+
+    def fake_formation_inputs(*args, **kwargs):
+        formation_calls.append((args, kwargs))
+        return sentinel
+
+    def fake_build_policy_snapshots(
+        facts,
+        month_ends,
+        closes,
+        shares,
+        industry,
+        meta,
+        policy,
+    ):
+        build_calls.append(
+            {
+                "policy": policy,
+                "facts": facts,
+                "month_ends": month_ends,
+                "closes": closes,
+                "shares": shares,
+                "industry": industry,
+                "meta": meta,
+            }
+        )
+        return {pd.Timestamp("2021-01-29"): pd.DataFrame()}
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._formation_inputs",
+        fake_formation_inputs,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.build_policy_snapshots",
+        fake_build_policy_snapshots,
+    )
+
+    sources = default_sources(db)
+    sources.snapshots(POLICY_MAIN, data_end)
+    sources.snapshots(POLICY_LAG, data_end)
+
+    assert len(formation_calls) == 1
+    assert [call["policy"] for call in build_calls] == [
+        POLICY_MAIN,
+        POLICY_LAG,
+    ]
+    for key, value in sentinel.items():
+        assert build_calls[0][key] is value
+        assert build_calls[1][key] is value
+
+
+def test_cli_rejects_unfrozen_config_override(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["b3_build.py", "--config", "x"],
+    )
+
+    with pytest.raises(SystemExit) as caught:
+        main()
+
+    assert caught.value.code == 2
+
+
+def test_cli_preflight_stage_does_not_run_exposures(
+    monkeypatch,
+    tmp_path,
+):
+    calls = {"preflight": 0, "exposures": 0}
+    db = object()
+    source_sentinel = object()
+
+    class Outcome:
+        final_status = "OK"
+
+    def fake_default_sources(got_db):
+        assert got_db is db
+        return source_sentinel
+
+    def fake_run_preflight(cfg, sources, data_end, output_dir):
+        assert sources is source_sentinel
+        calls["preflight"] += 1
+        return Outcome()
+
+    def forbidden_exposures(*args, **kwargs):
+        calls["exposures"] += 1
+        raise AssertionError("preflight CLI stage must not run exposures")
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.load_db_config",
+        lambda: db,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.default_sources",
+        fake_default_sources,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.run_preflight",
+        fake_run_preflight,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.run_exposures_stage",
+        forbidden_exposures,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "b3_build.py",
+            "--stage",
+            "preflight",
+            "--data-end",
+            "2023-12-31",
+            "--output-dir",
+            str(tmp_path),
+        ],
+    )
+
+    assert main() == 0
+    assert calls == {"preflight": 1, "exposures": 0}
