@@ -1,0 +1,50 @@
+version: 1
+candidates:
+  - B3_unified
+  - B3_dual_target
+windows:
+  discovery: ["2014-01-01", "2020-12-31"]
+  confirmation: ["2021-01-01", "2023-12-31"]
+  report_only: ["2024-01-01", "2026-12-31"]
+pit:
+  policies: ["legal_deadline", "legal_deadline_plus_one_month_end"]
+  industry_pit_start: "2021-01-01"
+exposure:
+  winsor_lower: 0.05
+  winsor_upper: 0.95
+  orthogonality_tolerance: 1.0e-8
+  identity_tolerance: 1.0e-12
+portfolio:
+  weight_cap: 0.01
+  min_leg_size: 100
+  q_bands:
+    q500: [301, 800]
+    q1000: [801, 1800]
+signal:
+  raw_window: 20
+  z_window: 40
+  tanh_scale: 2.0
+  smoothing_window: 5
+model:
+  newey_west_lag: 3
+  state_min_coverage: 0.10
+  stability_score_spearman_min: 0.50
+  interaction_axis_corr_max: 0.80
+execution:
+  annualization: 245
+  cost_bps: 3.0
+  im_launch_date: "2022-07-22"
+  ic_launch_date: "2015-04-16"
+production_gates:
+  sharpe_improvement: 0.10
+  maxdd_worsening: 0.02
+  turnover_multiple: 1.50
+  post_im_min_days: 252
+shadow:
+  unified_min_days: 120
+  dual_target_min_days: 252
+bootstrap:
+  block_days: 20
+  draws: 5000
+  seed: 20260713
+  adjusted_tail_max: 0.10
