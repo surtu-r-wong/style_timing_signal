@@ -7,6 +7,13 @@ import pytest
 import yaml
 
 from signals.style_basket.b3_config import config_hash, load_b3_config
+from signals.style_basket.b3_build import (
+    POLICY_LAG,
+    POLICY_MAIN,
+    _industry_snapshot,
+    apply_pit_policy,
+    build_policy_snapshots,
+)
 from signals.style_basket.b3_exposures import (
     CoverageBlocked,
     DataBlocked,
@@ -325,3 +332,236 @@ def test_numpy_boolean_eligibility_flags_are_accepted():
 
     assert got.diagnostics["size_n"] == len(snapshot)
     assert got.diagnostics["model_n"] == len(snapshot)
+
+
+def test_csmar_pit_policies_use_legal_deadlines_and_flag_approximation():
+    raw = pd.DataFrame(
+        {
+            "ts_code": ["X", "X"],
+            "end_date": ["2020-03-31", "2020-06-30"],
+            "stored_ann_date": ["2023-07-29", "2023-07-29"],
+            "statement_type": ["income", "income"],
+            "data": [{"revenue": 1.0}, {"revenue": 2.0}],
+            "data_source": ["csmar", "csmar"],
+        }
+    )
+
+    main = apply_pit_policy(raw, POLICY_MAIN)
+    lag = apply_pit_policy(raw, POLICY_LAG)
+
+    assert list(main["ann_date"]) == [
+        pd.Timestamp("2020-04-30"),
+        pd.Timestamp("2020-08-31"),
+    ]
+    assert list(lag["ann_date"]) == [
+        pd.Timestamp("2020-05-31"),
+        pd.Timestamp("2020-09-30"),
+    ]
+    assert main["known_date_source"].eq(POLICY_MAIN).all()
+    assert lag["known_date_source"].eq(POLICY_LAG).all()
+    assert not main["true_first_disclosure_verified"].any()
+    assert not lag["true_first_disclosure_verified"].any()
+
+
+def test_wind_pit_date_is_preserved_and_verified_under_both_policies():
+    raw = pd.DataFrame(
+        {
+            "ts_code": ["X"],
+            "end_date": ["2025-06-30"],
+            "stored_ann_date": ["2025-08-20"],
+            "statement_type": ["income"],
+            "data": [{"revenue": 1.0}],
+            "data_source": ["wind"],
+        }
+    )
+
+    for policy in (POLICY_MAIN, POLICY_LAG):
+        got = apply_pit_policy(raw, policy)
+
+        assert got.loc[0, "ann_date"] == pd.Timestamp("2025-08-20")
+        assert got.loc[0, "known_date_source"] == "wind_first_disclosure"
+        assert bool(got.loc[0, "true_first_disclosure_verified"])
+
+
+def test_industry_snapshot_extends_earliest_label_and_applies_later_update():
+    pool = pd.DataFrame(
+        {
+            "ticker": ["B", "A", "A", "B"],
+            "effective_date": [
+                "2021-02-01",
+                "2021-01-01",
+                "2022-01-01",
+                "2022-03-01",
+            ],
+            "industry": ["医药", "电子", "通信", "食品饮料"],
+        }
+    )
+
+    early = _industry_snapshot(pool, pd.Timestamp("2020-06-30"))
+    later = _industry_snapshot(pool, pd.Timestamp("2022-02-28"))
+
+    assert list(early.index) == ["A", "B"]
+    assert early.to_dict() == {"A": "电子", "B": "医药"}
+    assert list(later.index) == ["A", "B"]
+    assert later.to_dict() == {"A": "通信", "B": "医药"}
+
+
+def test_build_policy_snapshots_assembles_eligibility_and_provenance(
+    monkeypatch,
+):
+    formation = pd.Timestamp("2021-06-30")
+    tickers = ["A", "B", "C", "D"]
+    raw_facts = pd.DataFrame(
+        {
+            "ts_code": tickers,
+            "end_date": ["2020-12-31"] * 4,
+            "stored_ann_date": ["2023-07-29"] * 4,
+            "statement_type": ["income"] * 4,
+            "data": [{"revenue": float(i)} for i in range(1, 5)],
+            "data_source": ["csmar"] * 4,
+        }
+    )
+    closes = pd.DataFrame(
+        [[40.0, 20.0, 10.0, 30.0]],
+        index=[formation],
+        columns=["D", "B", "A", "C"],
+    )
+    shares_pool = pd.DataFrame(
+        {
+            "ts_code": ["C", "A", "D", "B"],
+            "end_date": ["2020-01-01"] * 4,
+            "known_date": ["2020-01-01"] * 4,
+            "total_shares": [300.0, 100.0, 400.0, 200.0],
+        }
+    )
+    industry_pool = pd.DataFrame(
+        {
+            "ticker": ["D", "B", "A"],
+            "effective_date": ["2021-01-01"] * 3,
+            "industry": ["银行", "医药", "电子"],
+        }
+    )
+    stock_meta = pd.DataFrame(
+        {
+            "ticker": ["C", "A", "D", "B"],
+            "list_date": [
+                "2021-03-01",
+                "2010-01-01",
+                "2012-01-01",
+                None,
+            ],
+            "delist_date": [None, None, None, None],
+        }
+    )
+
+    def fake_ticker_financial_rows(facts):
+        ticker = facts["ts_code"].iloc[0]
+        known_date = facts["ann_date"].max()
+        common = {
+            "ts_code": [ticker, ticker],
+            "end_date": [pd.Timestamp("2020-12-31")] * 2,
+            "known_date": [known_date] * 2,
+        }
+        return {
+            "ttm": pd.DataFrame(
+                {
+                    **common,
+                    "field": ["np", "cfo"],
+                    "ttm": [100.0, 80.0],
+                }
+            ),
+            "slope": pd.DataFrame(
+                {
+                    **common,
+                    "field": ["rev", "np"],
+                    "slope": [0.2, 0.1],
+                }
+            ),
+            "event": pd.DataFrame(
+                {
+                    **common,
+                    "field": ["equity", "dps"],
+                    "value": [500.0, 0.5],
+                }
+            ),
+        }
+
+    def fake_style_scores(factors):
+        assert list(factors.index) == ["A", "D"]
+        assert pd.isna(factors.loc["D", "cfp"])
+        out = factors.copy()
+        out["style_score"] = [0.75, np.nan]
+        return out
+
+    monkeypatch.setattr(
+        "signals.style_basket.build.ticker_financial_rows",
+        fake_ticker_financial_rows,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.scoring.style_scores",
+        fake_style_scores,
+    )
+
+    snapshots = build_policy_snapshots(
+        raw_facts,
+        [formation],
+        closes,
+        shares_pool,
+        industry_pool,
+        stock_meta,
+        POLICY_MAIN,
+    )
+
+    assert list(snapshots) == [formation]
+    got = snapshots[formation]
+    assert list(got["ticker"]) == tickers
+    assert got["ticker"].is_unique
+    assert got["formation_date"].eq(formation).all()
+    assert {
+        "size_eligible",
+        "model_eligible",
+        "size_exclusion_reason",
+        "model_exclusion_reason",
+    }.issubset(got.columns)
+    assert got.set_index("ticker")["total_market_value"].to_dict() == {
+        "A": 1000.0,
+        "B": 4000.0,
+        "C": 9000.0,
+        "D": 16000.0,
+    }
+    assert got.set_index("ticker")["industry"].to_dict() == {
+        "A": "电子",
+        "B": "医药",
+        "C": "UNKNOWN",
+        "D": "银行",
+    }
+    assert got.set_index("ticker")["size_eligible"].to_dict() == {
+        "A": True,
+        "B": False,
+        "C": False,
+        "D": True,
+    }
+    assert got.set_index("ticker")["model_eligible"].to_dict() == {
+        "A": True,
+        "B": False,
+        "C": False,
+        "D": False,
+    }
+    assert got.set_index("ticker")["size_exclusion_reason"].to_dict() == {
+        "A": "",
+        "B": "DATA_MISSING_LIST_DATE",
+        "C": "LISTED_LT_180D",
+        "D": "",
+    }
+    assert got.set_index("ticker")["model_exclusion_reason"].to_dict() == {
+        "A": "",
+        "B": "DATA_MISSING_LIST_DATE",
+        "C": "LISTED_LT_180D",
+        "D": "MISSING_STYLE_SCORE",
+    }
+    assert got.set_index("ticker").loc["A", "style_score"] == 0.75
+    assert pd.isna(got.set_index("ticker").loc["D", "style_score"])
+    assert got.set_index("ticker").loc[
+        "A", "salg_source_end_date"
+    ] == pd.Timestamp("2020-12-31")
+    assert not got["true_first_disclosure_verified"].any()
