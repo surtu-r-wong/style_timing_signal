@@ -130,14 +130,56 @@ def _validated_close_matrix(closes: pd.DataFrame) -> pd.DataFrame:
     return matrix
 
 
-def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
-    """Apply one of B3's two disclosure-date policies without losing provenance."""
-    if policy not in {POLICY_MAIN, POLICY_LAG}:
-        raise ValueError(
-            f"unsupported PIT policy {policy!r}; expected "
-            f"{POLICY_MAIN!r} or {POLICY_LAG!r}"
-        )
+def _strict_datetime_series(
+    values: pd.Series,
+    label: str,
+    *,
+    nullable: bool,
+) -> pd.Series:
+    missing = values.isna()
+    if not nullable and missing.any():
+        raise DataBlocked(f"{label} contains missing dates")
 
+    parsed = []
+    try:
+        for is_missing, value in zip(missing, values):
+            if is_missing:
+                parsed.append(pd.NaT)
+            else:
+                if isinstance(value, (bool, int, float, np.number)):
+                    raise TypeError(
+                        f"{label} requires date-like values, got {value!r}"
+                    )
+                parsed.append(pd.Timestamp(value))
+        return pd.Series(
+            parsed,
+            index=values.index,
+            dtype="datetime64[ns]",
+            name=values.name,
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise DataBlocked(f"{label} contains invalid dates") from exc
+
+
+def _canonical_payload(payload, label: str) -> str:
+    if not isinstance(payload, dict):
+        exc = TypeError(
+            f"{label} must be a dict, got {type(payload).__name__}"
+        )
+        raise DataBlocked(f"{label} must be a canonicalizable dict") from exc
+    try:
+        return json.dumps(
+            payload,
+            sort_keys=True,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        )
+    except (TypeError, ValueError) as exc:
+        raise DataBlocked(f"{label} must be a canonicalizable dict") from exc
+
+
+def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
     required = {
         "ts_code",
         "end_date",
@@ -147,19 +189,65 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
         "data_source",
     }
     _require_columns(raw, required, "raw financial facts")
+
     out = raw.copy()
     _validate_string_keys(out["ts_code"], "raw financial ts_code")
+    _validate_string_keys(
+        out["statement_type"],
+        "raw financial statement_type",
+    )
     _validate_allowed_values(
         out["data_source"],
         {"csmar", "wind"},
         "raw financial data_source",
     )
-    out = _validate_datetime_columns(
-        out,
-        ("end_date", "stored_ann_date"),
-        "raw financial facts",
-        nullable={"stored_ann_date"},
+    out["end_date"] = _strict_datetime_series(
+        out["end_date"],
+        "raw financial facts.end_date",
+        nullable=False,
     )
+    out["stored_ann_date"] = _strict_datetime_series(
+        out["stored_ann_date"],
+        "raw financial facts.stored_ann_date",
+        nullable=True,
+    )
+
+    canonical_payloads = pd.Series(
+        [
+            _canonical_payload(payload, "raw financial facts.data")
+            for payload in out["data"]
+        ],
+        index=out.index,
+        name="_canonical_payload",
+        dtype=object,
+    )
+
+    semantic_key = [
+        "ts_code",
+        "end_date",
+        "stored_ann_date",
+        "statement_type",
+        "data_source",
+    ]
+    identity = out[semantic_key].copy()
+    identity["_canonical_payload"] = canonical_payloads
+    unique_identities = identity.drop_duplicates(
+        subset=semantic_key + ["_canonical_payload"]
+    )
+    if unique_identities.duplicated(
+        subset=semantic_key,
+        keep=False,
+    ).any():
+        raise DataBlocked(
+            "raw financial facts contain conflicting payloads "
+            "for the same semantic key"
+        )
+
+    keep = ~identity.duplicated(
+        subset=semantic_key + ["_canonical_payload"],
+        keep="first",
+    )
+    out = out.loc[keep].reset_index(drop=True)
 
     wind = out["data_source"].eq("wind")
     if (wind & out["stored_ann_date"].isna()).any():
@@ -173,6 +261,18 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
         raise DataBlocked(
             "stored announcement date cannot precede financial period end"
         )
+    return out
+
+
+def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
+    """Apply one of B3's two disclosure-date policies without losing provenance."""
+    if policy not in {POLICY_MAIN, POLICY_LAG}:
+        raise ValueError(
+            f"unsupported PIT policy {policy!r}; expected "
+            f"{POLICY_MAIN!r} or {POLICY_LAG!r}"
+        )
+
+    out = _validate_raw_financial_facts(raw)
 
     legal_dates = pd.Series(
         [
@@ -183,6 +283,7 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
         dtype="datetime64[ns]",
     )
     csmar = out["data_source"].eq("csmar")
+    wind = out["data_source"].eq("wind")
 
     out["ann_date"] = pd.Series(
         pd.NaT, index=out.index, dtype="datetime64[ns]"
@@ -255,16 +356,20 @@ def _fetch_raw_financial(
             f"no financial facts for requested window {start}..{end}"
         )
 
-    facts["end_date"] = pd.to_datetime(facts["end_date"])
-    facts["stored_ann_date"] = pd.to_datetime(facts["stored_ann_date"])
-    facts["data"] = [
-        translate_data(data, source, statement)
-        for data, source, statement in zip(
-            facts["data"],
-            facts["data_source"],
-            facts["statement_type"],
-        )
-    ]
+    facts = _validate_raw_financial_facts(facts)
+    translated = []
+    for data, source, statement in zip(
+        facts["data"],
+        facts["data_source"],
+        facts["statement_type"],
+    ):
+        try:
+            translated.append(translate_data(data, source, statement))
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise DataBlocked(
+                "failed to translate raw financial payload"
+            ) from exc
+    facts["data"] = translated
     return facts.reset_index(drop=True)
 
 

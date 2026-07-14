@@ -1065,7 +1065,7 @@ Run:
 python3 -m pytest tests/test_b3_exposures.py -q
 ```
 
-Expected at the Task 3 boundary: 86 passed.
+Expected at the Task 3 boundary: 95 passed.
 
 #### Task 3 implementation-review corrections
 
@@ -1077,13 +1077,23 @@ the frozen PIT policy or factor economics:
   first-disclosure date, and any stored disclosure before its period end.
   A genuinely missing CSMAR stored date still falls back to the legal
   deadline under the main policy and remains unverified.
+- Canonicalize the JSON payload before factor derivation. Deduplicate an
+  identical raw semantic key and payload, block the same ticker/period/
+  announcement/statement/source key with conflicting payloads, and retain
+  legitimate restatements whose announcement dates differ. The direct SQL
+  reader must classify malformed source dates or payloads as
+  `DataBlocked` with their cause, while connection and execution errors
+  retain their original exception type.
 - Require nonempty string ticker keys consistently across raw facts,
   metadata, industry history, closes, shares and derived factor pools.
   Do not stringify missing or numeric keys.
-- Drop exact duplicate contract rows, but classify conflicting duplicate
-  industry, metadata, share, close or derived-factor keys as
-  `DataBlocked`. Metadata list/delist dates retain their documented
-  nullable semantics; malformed non-null dates are blocked.
+- Drop exact duplicate industry, metadata, share and derived-factor
+  contract rows, but classify their conflicting duplicate keys as
+  `DataBlocked`. A close matrix is different: duplicate ticker columns
+  or formation-date axis labels are structurally ambiguous and always
+  `DataBlocked`, even when their visible values match. Metadata
+  list/delist dates retain their documented nullable semantics; malformed
+  non-null dates are blocked.
 - Keep the earliest-industry-label extension to 1900, eligibility reason
   precedence, EP/BP/CFP/DP formulas, financial-industry CFP suppression,
   SalG source date and conservative CSMAR provenance unchanged.

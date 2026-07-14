@@ -10,6 +10,7 @@ from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_build import (
     POLICY_LAG,
     POLICY_MAIN,
+    _fetch_raw_financial,
     _industry_snapshot,
     apply_pit_policy,
     build_policy_snapshots,
@@ -1108,3 +1109,228 @@ def test_snapshot_assembly_blocks_conflicting_derived_rows(
 
     with pytest.raises(DataBlocked):
         build_policy_snapshots(**inputs)
+
+
+@pytest.mark.parametrize(
+    "reverse_rows",
+    [
+        pytest.param(False, id="original-order"),
+        pytest.param(True, id="reversed-order"),
+    ],
+)
+def test_pit_policy_blocks_conflicting_raw_payloads_regardless_of_order(
+    reverse_rows,
+):
+    first = _single_pit_fact(
+        data={"revenue": 1.0, "net_profit_parent_ytd": 2.0}
+    ).iloc[0].to_dict()
+    second = {
+        **first,
+        "data": {"revenue": 9.0, "net_profit_parent_ytd": 2.0},
+    }
+    rows = [first, second]
+    if reverse_rows:
+        rows.reverse()
+
+    with pytest.raises(DataBlocked):
+        apply_pit_policy(pd.DataFrame(rows), POLICY_MAIN)
+
+
+def test_pit_policy_deduplicates_semantically_identical_raw_payloads():
+    first = _single_pit_fact(
+        data={"revenue": 1.0, "net_profit_parent_ytd": 2.0}
+    ).iloc[0].to_dict()
+    second = {
+        **first,
+        "data": {"net_profit_parent_ytd": 2.0, "revenue": 1.0},
+    }
+
+    got = apply_pit_policy(pd.DataFrame([first, second]), POLICY_MAIN)
+
+    assert len(got) == 1
+    assert got.iloc[0]["data"] == {
+        "revenue": 1.0,
+        "net_profit_parent_ytd": 2.0,
+    }
+
+
+def test_pit_policy_preserves_legal_restatements_with_different_announcements():
+    first = _single_pit_fact(
+        stored_ann_date="2020-04-15",
+        data={"revenue": 1.0},
+    ).iloc[0].to_dict()
+    second = {
+        **first,
+        "stored_ann_date": "2020-04-20",
+        "data": {"revenue": 2.0},
+    }
+
+    got = apply_pit_policy(pd.DataFrame([first, second]), POLICY_MAIN)
+
+    assert len(got) == 2
+    assert list(got["ann_date"]) == [
+        pd.Timestamp("2020-04-15"),
+        pd.Timestamp("2020-04-20"),
+    ]
+
+
+_RAW_FINANCIAL_COLUMNS = [
+    "ts_code",
+    "end_date",
+    "stored_ann_date",
+    "statement_type",
+    "data",
+    "data_source",
+]
+
+
+class _RawFinancialCursor:
+    def __init__(self, rows, execute_error=None):
+        self._rows = rows
+        self._execute_error = execute_error
+        self.description = [
+            (column, None, None, None, None, None, None)
+            for column in _RAW_FINANCIAL_COLUMNS
+        ]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def execute(self, sql, params):
+        if self._execute_error is not None:
+            raise self._execute_error
+
+    def fetchall(self):
+        return self._rows
+
+
+class _RawFinancialConnection:
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self.closed = False
+
+    def cursor(self):
+        return self._cursor
+
+    def close(self):
+        self.closed = True
+
+
+def _raw_db_row(**overrides):
+    row = {
+        "ts_code": "X",
+        "end_date": "2020-03-31",
+        "stored_ann_date": "2020-04-15",
+        "statement_type": "income",
+        "data": {"B001100000": 1.0},
+        "data_source": "csmar",
+    }
+    row.update(overrides)
+    return tuple(row[column] for column in _RAW_FINANCIAL_COLUMNS)
+
+
+def _patch_raw_financial_connection(
+    monkeypatch,
+    rows,
+    *,
+    execute_error=None,
+):
+    cursor = _RawFinancialCursor(rows, execute_error=execute_error)
+    connection = _RawFinancialConnection(cursor)
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._connect",
+        lambda db: connection,
+    )
+    return connection
+
+
+@pytest.mark.parametrize(
+    ("date_column", "bad_date"),
+    [
+        pytest.param("end_date", "not-a-date", id="end-date"),
+        pytest.param(
+            "stored_ann_date",
+            "not-a-date",
+            id="stored-announcement-date",
+        ),
+    ],
+)
+def test_fetch_raw_financial_wraps_bad_database_dates(
+    monkeypatch,
+    date_column,
+    bad_date,
+):
+    connection = _patch_raw_financial_connection(
+        monkeypatch,
+        [_raw_db_row(**{date_column: bad_date})],
+    )
+
+    with pytest.raises(DataBlocked) as caught:
+        _fetch_raw_financial(
+            ["X"],
+            "2020-01-01",
+            "2020-12-31",
+            {"schema": "public"},
+        )
+
+    assert caught.value.__cause__ is not None
+    assert connection.closed is True
+
+
+@pytest.mark.parametrize(
+    "bad_payload",
+    [
+        pytest.param("not-a-dict", id="non-dict"),
+        pytest.param(
+            {"B001100000": object()},
+            id="not-canonicalizable",
+        ),
+    ],
+)
+def test_fetch_raw_financial_wraps_invalid_payloads(
+    monkeypatch,
+    bad_payload,
+):
+    connection = _patch_raw_financial_connection(
+        monkeypatch,
+        [_raw_db_row(data=bad_payload)],
+    )
+
+    with pytest.raises(DataBlocked) as caught:
+        _fetch_raw_financial(
+            ["X"],
+            "2020-01-01",
+            "2020-12-31",
+            {"schema": "public"},
+        )
+
+    assert caught.value.__cause__ is not None
+    assert connection.closed is True
+
+
+def test_fetch_raw_financial_preserves_execute_error_and_closes_connection(
+    monkeypatch,
+):
+    class QueryFailure(RuntimeError):
+        pass
+
+    error = QueryFailure("database query failed")
+    connection = _patch_raw_financial_connection(
+        monkeypatch,
+        [],
+        execute_error=error,
+    )
+
+    with pytest.raises(QueryFailure) as caught:
+        _fetch_raw_financial(
+            ["X"],
+            "2020-01-01",
+            "2020-12-31",
+            {"schema": "public"},
+        )
+
+    assert caught.value is error
+    assert connection.closed is True
