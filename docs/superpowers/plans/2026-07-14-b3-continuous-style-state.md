@@ -1065,7 +1065,28 @@ Run:
 python3 -m pytest tests/test_b3_exposures.py -q
 ```
 
-Expected: 11 passed.
+Expected at the Task 3 boundary: 86 passed.
+
+#### Task 3 implementation-review corrections
+
+The implementation review tightened source-data handling without changing
+the frozen PIT policy or factor economics:
+
+- Treat raw financial facts as a schema boundary. Require all six source
+  columns; reject malformed period/disclosure dates, Wind rows without a
+  first-disclosure date, and any stored disclosure before its period end.
+  A genuinely missing CSMAR stored date still falls back to the legal
+  deadline under the main policy and remains unverified.
+- Require nonempty string ticker keys consistently across raw facts,
+  metadata, industry history, closes, shares and derived factor pools.
+  Do not stringify missing or numeric keys.
+- Drop exact duplicate contract rows, but classify conflicting duplicate
+  industry, metadata, share, close or derived-factor keys as
+  `DataBlocked`. Metadata list/delist dates retain their documented
+  nullable semantics; malformed non-null dates are blocked.
+- Keep the earliest-industry-label extension to 1900, eligibility reason
+  precedence, EP/BP/CFP/DP formulas, financial-industry CFP suppression,
+  SalG source date and conservative CSMAR provenance unchanged.
 
 - [ ] **Step 5: Commit**
 
