@@ -1,4 +1,6 @@
 from copy import deepcopy
+import hashlib
+import json
 from pathlib import Path
 import sys
 
@@ -12,20 +14,24 @@ from signals.style_basket.b3_build import (
     B3Sources,
     POLICY_LAG,
     POLICY_MAIN,
+    _formation_inputs,
     default_sources,
     _fetch_raw_financial,
     _industry_snapshot,
+    _write_stage_manifest,
     apply_pit_policy,
     build_policy_snapshots,
     calibrate_target_coordinates,
     flatten_exposures,
     main,
+    require_parent_manifest,
     run_preflight,
     run_exposures_stage,
 )
 from signals.style_basket.b3_exposures import (
     CoverageBlocked,
     DataBlocked,
+    ExposureResult,
     NumericalFailure,
     _capped_weights,
     _industry_design,
@@ -1425,8 +1431,15 @@ def _preflight_sources(snapshot, constituents, *, snapshot_error=None):
     )
 
 
+def _single_month_preflight_config():
+    cfg = deepcopy(load_b3_config())
+    cfg["windows"]["discovery"] = ["2021-01-01", "2021-01-31"]
+    cfg["windows"]["confirmation"] = ["2021-01-01", "2021-01-31"]
+    return cfg
+
+
 def test_preflight_is_return_blind_and_writes_ok_artifacts(tmp_path):
-    cfg = load_b3_config()
+    cfg = _single_month_preflight_config()
     snapshot = _synthetic_snapshot()
     sources = _preflight_sources(
         snapshot,
@@ -1518,7 +1531,7 @@ def test_flatten_exposures_preserves_size_and_model_universes():
 def test_exposures_stage_writes_artifacts_and_requires_untampered_preflight(
     tmp_path,
 ):
-    cfg = load_b3_config()
+    cfg = _single_month_preflight_config()
     data_end = pd.Timestamp("2023-12-31")
     snapshot = _synthetic_snapshot()
     sources = _preflight_sources(
@@ -1685,3 +1698,742 @@ def test_cli_preflight_stage_does_not_run_exposures(
 
     assert main() == 0
     assert calls == {"preflight": 1, "exposures": 0}
+
+
+def _required_formation_grid():
+    return list(
+        pd.period_range(
+            "2014-01",
+            "2023-12",
+            freq="M",
+        ).to_timestamp("M")
+    )
+
+
+def _lightweight_exposure_result():
+    index = pd.Index(["A", "B"], name="ticker_index")
+    size = pd.DataFrame(
+        {
+            "ticker": ["A", "B"],
+            "m_perp": [-1.0, 1.0],
+            "w_size_plus": [0.0, 1.0],
+            "w_size_minus": [1.0, 0.0],
+        },
+        index=index,
+    )
+    model = pd.DataFrame(
+        {
+            "ticker": ["A", "B"],
+            "s_perp": [-1.0, 1.0],
+            "h_perp": [-1.0, 1.0],
+            "x_qblend": [-1.0, 1.0],
+            "x_q500": [-1.0, 1.0],
+            "x_q1000": [-1.0, 1.0],
+        },
+        index=index,
+    )
+    for axis in (
+        "style",
+        "interaction",
+        "qblend",
+        "q500",
+        "q1000",
+    ):
+        model[f"w_{axis}_plus"] = [0.0, 1.0]
+        model[f"w_{axis}_minus"] = [1.0, 0.0]
+    return ExposureResult(
+        size=size,
+        model=model,
+        q={"q500": -1.0, "q1000": 1.0, "qblend": 0.0},
+        diagnostics={
+            "size_n": 2,
+            "model_n": 2,
+            "max_orthogonality_error": 0.0,
+        },
+    )
+
+
+def _two_target_constituents():
+    return pd.DataFrame(
+        {
+            "index_code": ["000905.SH", "000852.SH"],
+            "effective_date": ["2021-01-01", "2021-01-01"],
+            "ticker": ["A", "B"],
+        }
+    )
+
+
+def _grid_preflight_sources(policy_snapshots):
+    def snapshots(policy, data_end):
+        return policy_snapshots[policy]
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preflight must not load returns")
+
+    return B3Sources(
+        snapshots=snapshots,
+        constituents=_two_target_constituents,
+        stock_returns=forbidden,
+        target_returns=forbidden,
+        carry=forbidden,
+    )
+
+
+def _snapshot_map(dates):
+    return {
+        pd.Timestamp(date): pd.DataFrame({"ticker": ["A", "B"]})
+        for date in dates
+    }
+
+
+def _patch_lightweight_exposures(monkeypatch):
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.compute_month_exposures",
+        lambda snapshot, cfg: _lightweight_exposure_result(),
+    )
+
+
+def test_preflight_blocks_data_end_before_confirmation_end(
+    monkeypatch,
+    tmp_path,
+):
+    grid = _required_formation_grid()
+    snapshots = _snapshot_map(grid)
+    sources = _grid_preflight_sources(
+        {
+            POLICY_MAIN: snapshots,
+            POLICY_LAG: snapshots,
+        }
+    )
+    _patch_lightweight_exposures(monkeypatch)
+
+    got = run_preflight(
+        load_b3_config(),
+        sources,
+        pd.Timestamp("2023-11-30"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+
+
+@pytest.mark.parametrize(
+    "missing_position",
+    [
+        pytest.param(0, id="first-month"),
+        pytest.param(60, id="middle-month"),
+        pytest.param(-1, id="last-month"),
+    ],
+)
+def test_preflight_blocks_any_missing_required_month(
+    monkeypatch,
+    tmp_path,
+    missing_position,
+):
+    grid = _required_formation_grid()
+    missing_date = grid[missing_position]
+    incomplete = _snapshot_map(
+        date for date in grid if date != missing_date
+    )
+    sources = _grid_preflight_sources(
+        {
+            POLICY_MAIN: incomplete,
+            POLICY_LAG: incomplete,
+        }
+    )
+    _patch_lightweight_exposures(monkeypatch)
+
+    got = run_preflight(
+        load_b3_config(),
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+
+
+def test_preflight_blocks_mismatched_required_keys_between_pit_policies(
+    monkeypatch,
+    tmp_path,
+):
+    grid = _required_formation_grid()
+    main_snapshots = _snapshot_map(grid)
+    lag_dates = list(grid)
+    midpoint = len(lag_dates) // 2
+    lag_dates[midpoint] = lag_dates[midpoint] - pd.Timedelta(days=1)
+    lag_snapshots = _snapshot_map(lag_dates)
+    sources = _grid_preflight_sources(
+        {
+            POLICY_MAIN: main_snapshots,
+            POLICY_LAG: lag_snapshots,
+        }
+    )
+    _patch_lightweight_exposures(monkeypatch)
+
+    got = run_preflight(
+        load_b3_config(),
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+
+
+def test_blocked_manifest_blockers_use_complete_audit_schema(tmp_path):
+    snapshot = _synthetic_snapshot()
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        snapshot_error=DataBlocked("DATA_TEST_SNAPSHOT_BLOCK"),
+    )
+
+    got = run_preflight(
+        load_b3_config(),
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    manifest = json.loads(
+        (tmp_path / "manifests" / "preflight.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    expected_columns = {
+        "pit_policy",
+        "formation_date",
+        "required_formation",
+        "affects_final",
+        "check",
+        "side",
+        "eligible_count",
+        "max_weight",
+        "status",
+        "reason_code",
+        "detail",
+    }
+    assert manifest["blockers"]
+    assert set(manifest["blockers"][0]) == expected_columns
+
+
+def test_exclusion_audit_copies_reason_into_reason_code(
+    monkeypatch,
+    tmp_path,
+):
+    cfg = _single_month_preflight_config()
+    formation = pd.Timestamp("2021-01-29")
+    snapshot = pd.DataFrame(
+        {
+            "ticker": ["A", "B"],
+            "style_score": [0.0, 0.0],
+            "size_exclusion_reason": ["", "LISTED_LT_180D"],
+            "model_exclusion_reason": ["", "MISSING_STYLE_SCORE"],
+        }
+    )
+    snapshots = {formation: snapshot}
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preflight must remain return-blind")
+
+    sources = B3Sources(
+        snapshots=lambda policy, data_end: snapshots,
+        constituents=_two_target_constituents,
+        stock_returns=forbidden,
+        target_returns=forbidden,
+        carry=forbidden,
+    )
+    _patch_lightweight_exposures(monkeypatch)
+
+    got = run_preflight(
+        cfg,
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "OK"
+    excluded = got.audit[
+        got.audit["side"].isin(
+            ["LISTED_LT_180D", "MISSING_STYLE_SCORE"]
+        )
+    ]
+    assert not excluded.empty
+    assert excluded["reason_code"].to_list() == excluded["side"].to_list()
+
+
+def _file_digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _valid_parent_manifest(tmp_path, cfg):
+    coverage = tmp_path / "coverage_audit.csv"
+    diagnostics = tmp_path / "exposure_diagnostics.csv"
+    coverage.write_text("coverage\n", encoding="utf-8")
+    diagnostics.write_text("diagnostics\n", encoding="utf-8")
+    return {
+        "stage": "preflight",
+        "config_hash": config_hash(cfg),
+        "data_end": "2023-12-31",
+        "status": "OK",
+        "blockers": [],
+        "outputs": {
+            "coverage_audit.csv": _file_digest(coverage),
+            "exposure_diagnostics.csv": _file_digest(diagnostics),
+        },
+    }
+
+
+def _write_parent_manifest(tmp_path, payload):
+    manifest_dir = tmp_path / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    (manifest_dir / "preflight.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+
+
+def test_parent_manifest_rejects_non_mapping_root(tmp_path):
+    _write_parent_manifest(tmp_path, [])
+
+    with pytest.raises(DataBlocked, match="object"):
+        require_parent_manifest(
+            tmp_path,
+            "preflight",
+            load_b3_config(),
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+def test_parent_manifest_rejects_stage_mismatch(tmp_path):
+    cfg = load_b3_config()
+    payload = _valid_parent_manifest(tmp_path, cfg)
+    payload["stage"] = "not-preflight"
+    _write_parent_manifest(tmp_path, payload)
+
+    with pytest.raises(DataBlocked, match="stage"):
+        require_parent_manifest(
+            tmp_path,
+            "preflight",
+            cfg,
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+def test_parent_manifest_rejects_empty_outputs(tmp_path):
+    cfg = load_b3_config()
+    payload = _valid_parent_manifest(tmp_path, cfg)
+    payload["outputs"] = {}
+    _write_parent_manifest(tmp_path, payload)
+
+    with pytest.raises(DataBlocked, match="outputs"):
+        require_parent_manifest(
+            tmp_path,
+            "preflight",
+            cfg,
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+def test_parent_manifest_requires_every_preflight_output(tmp_path):
+    cfg = load_b3_config()
+    payload = _valid_parent_manifest(tmp_path, cfg)
+    payload["outputs"].pop("exposure_diagnostics.csv")
+    _write_parent_manifest(tmp_path, payload)
+
+    with pytest.raises(DataBlocked, match="output set"):
+        require_parent_manifest(
+            tmp_path,
+            "preflight",
+            cfg,
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+@pytest.mark.parametrize(
+    "bad_hash",
+    [
+        pytest.param("0" * 63, id="wrong-length"),
+        pytest.param("g" * 64, id="non-hex"),
+    ],
+)
+def test_parent_manifest_rejects_invalid_output_hashes(
+    tmp_path,
+    bad_hash,
+):
+    cfg = load_b3_config()
+    payload = _valid_parent_manifest(tmp_path, cfg)
+    payload["outputs"]["coverage_audit.csv"] = bad_hash
+    _write_parent_manifest(tmp_path, payload)
+
+    with pytest.raises(DataBlocked, match="hash"):
+        require_parent_manifest(
+            tmp_path,
+            "preflight",
+            cfg,
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+@pytest.mark.parametrize(
+    "unsafe_path",
+    [
+        pytest.param("/tmp/coverage_audit.csv", id="absolute"),
+        pytest.param("../coverage_audit.csv", id="parent-traversal"),
+    ],
+)
+def test_parent_manifest_rejects_unsafe_output_paths(
+    tmp_path,
+    unsafe_path,
+):
+    cfg = load_b3_config()
+    payload = _valid_parent_manifest(tmp_path, cfg)
+    digest = payload["outputs"].pop("coverage_audit.csv")
+    payload["outputs"][unsafe_path] = digest
+    _write_parent_manifest(tmp_path, payload)
+
+    with pytest.raises(DataBlocked, match="unsafe"):
+        require_parent_manifest(
+            tmp_path,
+            "preflight",
+            cfg,
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+def test_parent_manifest_rejects_symlink_escape(tmp_path):
+    cfg = load_b3_config()
+    payload = _valid_parent_manifest(tmp_path, cfg)
+    coverage = tmp_path / "coverage_audit.csv"
+    coverage.unlink()
+    outside = tmp_path.parent / f"{tmp_path.name}-outside.csv"
+    outside.write_text("coverage\n", encoding="utf-8")
+    coverage.symlink_to(outside)
+    payload["outputs"]["coverage_audit.csv"] = _file_digest(outside)
+    _write_parent_manifest(tmp_path, payload)
+
+    with pytest.raises(DataBlocked, match="escape"):
+        require_parent_manifest(
+            tmp_path,
+            "preflight",
+            cfg,
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+@pytest.mark.parametrize(
+    "bad_snapshots",
+    [
+        pytest.param(
+            {"not-a-date": pd.DataFrame()},
+            id="invalid-formation-key",
+        ),
+        pytest.param(
+            {pd.Timestamp("2021-01-29"): object()},
+            id="non-dataframe-snapshot",
+        ),
+    ],
+)
+def test_preflight_turns_invalid_snapshot_contract_into_manifested_block(
+    tmp_path,
+    bad_snapshots,
+):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preflight must not load returns")
+
+    sources = B3Sources(
+        snapshots=lambda policy, data_end: bad_snapshots,
+        constituents=_two_target_constituents,
+        stock_returns=forbidden,
+        target_returns=forbidden,
+        carry=forbidden,
+    )
+
+    got = run_preflight(
+        load_b3_config(),
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    assert (tmp_path / "manifests" / "preflight.json").is_file()
+
+
+def test_flatten_exposures_is_policy_insertion_order_invariant():
+    result = compute_month_exposures(
+        _synthetic_snapshot(),
+        load_b3_config(),
+    )
+    first_date = pd.Timestamp("2021-01-29")
+    second_date = pd.Timestamp("2021-02-26")
+    forward = {
+        POLICY_MAIN: {
+            first_date: result,
+            second_date: result,
+        },
+        POLICY_LAG: {
+            first_date: result,
+            second_date: result,
+        },
+    }
+    reversed_order = {
+        POLICY_LAG: {
+            second_date: result,
+            first_date: result,
+        },
+        POLICY_MAIN: {
+            second_date: result,
+            first_date: result,
+        },
+    }
+
+    left = flatten_exposures(forward)
+    right = flatten_exposures(reversed_order)
+
+    pd.testing.assert_frame_equal(left, right)
+    ordering = list(
+        left[["pit_policy", "formation_date", "ticker"]]
+        .itertuples(index=False, name=None)
+    )
+    assert ordering == sorted(ordering)
+
+
+def test_cli_rejects_invalid_data_end_with_argparse(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["b3_build.py", "--data-end", "not-a-date"],
+    )
+
+    with pytest.raises(SystemExit) as caught:
+        main()
+
+    assert caught.value.code == 2
+
+
+def test_preflight_missing_q1000_fails_before_snapshot_loading(tmp_path):
+    def snapshots(*args, **kwargs):
+        raise AssertionError(
+            "known target absence must block before heavy snapshots"
+        )
+
+    def constituents():
+        return pd.DataFrame(
+            {
+                "index_code": ["000905.SH"],
+                "effective_date": ["2021-01-01"],
+                "ticker": ["A"],
+            }
+        )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preflight must not load returns")
+
+    sources = B3Sources(
+        snapshots=snapshots,
+        constituents=constituents,
+        stock_returns=forbidden,
+        target_returns=forbidden,
+        carry=forbidden,
+    )
+
+    got = run_preflight(
+        load_b3_config(),
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    assert got.audit["detail"].str.contains("000852.SH").any()
+    assert (tmp_path / "manifests" / "preflight.json").is_file()
+
+
+def test_preflight_invalidates_stale_manifest_before_source_failure(
+    tmp_path,
+):
+    manifest_dir = tmp_path / "manifests"
+    manifest_dir.mkdir(parents=True)
+    stale = manifest_dir / "preflight.json"
+    stale.write_text('{"status":"OK"}', encoding="utf-8")
+
+    def constituents():
+        return _two_target_constituents()
+
+    def broken_snapshots(*args, **kwargs):
+        raise RuntimeError("database transport failed")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preflight must not load returns")
+
+    sources = B3Sources(
+        snapshots=broken_snapshots,
+        constituents=constituents,
+        stock_returns=forbidden,
+        target_returns=forbidden,
+        carry=forbidden,
+    )
+
+    with pytest.raises(RuntimeError, match="transport"):
+        run_preflight(
+            load_b3_config(),
+            sources,
+            pd.Timestamp("2023-12-31"),
+            tmp_path,
+        )
+
+    assert not stale.exists()
+
+
+def test_stage_manifest_writer_rejects_missing_declared_output(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        _write_stage_manifest(
+            tmp_path,
+            "preflight",
+            load_b3_config(),
+            pd.Timestamp("2023-12-31"),
+            [tmp_path / "missing.csv"],
+            "OK",
+            [],
+        )
+    assert not (tmp_path / "manifests" / "preflight.json").exists()
+
+
+def _formation_sql_source(overrides):
+    def fake_read_sql(db, sql, params=None):
+        for marker, frame in overrides:
+            if marker in sql:
+                return frame.copy()
+        raise AssertionError(f"unexpected SQL: {sql}")
+
+    return fake_read_sql
+
+
+def _valid_formation_sql_frames():
+    formation = pd.Timestamp("2021-01-29")
+    return {
+        "index_daily": pd.DataFrame({"trade_date": [formation]}),
+        "stock_meta": pd.DataFrame(
+            {
+                "ticker": ["A"],
+                "list_date": ["2010-01-01"],
+                "delist_date": [None],
+            }
+        ),
+        "stock_daily_price": pd.DataFrame(
+            {
+                "ticker": ["A"],
+                "trade_date": [formation],
+                "close": [10.0],
+            }
+        ),
+        "stock_share_capital": pd.DataFrame(
+            {
+                "ts_code": ["A"],
+                "end_date": ["2020-12-31"],
+                "known_date": ["2020-12-31"],
+                "total_shares": [100.0],
+            }
+        ),
+        "industry_classification": pd.DataFrame(
+            {
+                "ticker": ["A"],
+                "effective_date": ["2020-01-01"],
+                "industry": ["电子"],
+            }
+        ),
+    }
+
+
+def test_formation_inputs_classifies_malformed_calendar_as_data_blocked(
+    monkeypatch,
+):
+    frames = _valid_formation_sql_frames()
+    frames["index_daily"]["trade_date"] = frames["index_daily"][
+        "trade_date"
+    ].astype(object)
+    frames["index_daily"].loc[0, "trade_date"] = "not-a-date"
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+
+    with pytest.raises(DataBlocked, match="calendar"):
+        _formation_inputs(
+            {"schema": "public"},
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+def test_formation_inputs_classifies_duplicate_closes_as_data_blocked(
+    monkeypatch,
+):
+    frames = _valid_formation_sql_frames()
+    frames["stock_daily_price"] = pd.concat(
+        [
+            frames["stock_daily_price"],
+            frames["stock_daily_price"],
+        ],
+        ignore_index=True,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+
+    with pytest.raises(DataBlocked, match="close"):
+        _formation_inputs(
+            {"schema": "public"},
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+def test_formation_inputs_classifies_malformed_share_date_as_data_blocked(
+    monkeypatch,
+):
+    frames = _valid_formation_sql_frames()
+    frames["stock_share_capital"].loc[0, "known_date"] = "not-a-date"
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+
+    with pytest.raises(DataBlocked, match="share"):
+        _formation_inputs(
+            {"schema": "public"},
+            pd.Timestamp("2023-12-31"),
+        )
+
+
+def test_preflight_classifies_invalid_constituent_dates_and_writes_manifest(
+    tmp_path,
+):
+    constituents = _two_target_constituents()
+    constituents.loc[0, "effective_date"] = "not-a-date"
+
+    def snapshots(*args, **kwargs):
+        raise AssertionError("invalid constituents must fail first")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preflight must not load returns")
+
+    sources = B3Sources(
+        snapshots=snapshots,
+        constituents=lambda: constituents,
+        stock_returns=forbidden,
+        target_returns=forbidden,
+        carry=forbidden,
+    )
+
+    got = run_preflight(
+        load_b3_config(),
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    assert (tmp_path / "manifests" / "preflight.json").is_file()

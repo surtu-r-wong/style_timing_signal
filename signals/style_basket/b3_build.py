@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -33,6 +34,14 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT_DIR = ROOT / "output" / "style_basket" / "b3"
 POLICY_MAIN = "legal_deadline"
 POLICY_LAG = "legal_deadline_plus_one_month_end"
+STAGE_OUTPUTS = {
+    "preflight": {
+        "coverage_audit.csv",
+        "exposure_diagnostics.csv",
+    },
+    "exposures": {"monthly_exposures.csv.gz"},
+}
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
 
 @dataclass(frozen=True)
@@ -77,9 +86,28 @@ def _write_stage_manifest(
     for output in outputs:
         path = Path(output)
         if not path.is_file():
-            continue
-        relative = path.relative_to(root)
-        output_hashes[str(relative)] = _sha256(path)
+            raise FileNotFoundError(f"declared stage output is missing: {path}")
+        root_resolved = root.resolve()
+        path_resolved = path.resolve()
+        if not path_resolved.is_relative_to(root_resolved):
+            raise ValueError(f"stage output escapes output root: {path}")
+        try:
+            relative = path.absolute().relative_to(root.absolute())
+        except ValueError as exc:
+            raise ValueError(
+                f"stage output is outside output root: {path}"
+            ) from exc
+        output_hashes[relative.as_posix()] = _sha256(path_resolved)
+
+    expected_outputs = STAGE_OUTPUTS.get(stage)
+    if expected_outputs is None:
+        raise ValueError(f"unknown manifest stage: {stage}")
+    if set(output_hashes) != expected_outputs:
+        raise ValueError(
+            f"{stage} manifest output set mismatch: "
+            f"expected {sorted(expected_outputs)}, "
+            f"got {sorted(output_hashes)}"
+        )
 
     payload = {
         "stage": stage,
@@ -90,17 +118,72 @@ def _write_stage_manifest(
         "outputs": output_hashes,
     }
     manifest_path = manifest_dir / f"{stage}.json"
-    manifest_path.write_text(
-        json.dumps(
-            payload,
-            sort_keys=True,
-            ensure_ascii=False,
-            indent=2,
-            default=str,
-        ),
-        encoding="utf-8",
+    temp_path = manifest_dir / f".{stage}.json.tmp"
+    rendered = json.dumps(
+        payload,
+        sort_keys=True,
+        ensure_ascii=False,
+        indent=2,
+        default=str,
     )
+    try:
+        temp_path.write_text(rendered, encoding="utf-8")
+        temp_path.replace(manifest_path)
+    finally:
+        temp_path.unlink(missing_ok=True)
     return manifest_path
+
+
+def _invalidate_stage_manifest(
+    output_dir: str | Path,
+    stage: str,
+) -> None:
+    manifest_dir = Path(output_dir) / "manifests"
+    (manifest_dir / f"{stage}.json").unlink(missing_ok=True)
+    (manifest_dir / f".{stage}.json.tmp").unlink(missing_ok=True)
+
+
+def _write_csv_atomic(
+    frame: pd.DataFrame,
+    path: str | Path,
+    **kwargs,
+) -> Path:
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_name(f".{output.name}.tmp")
+    try:
+        frame.to_csv(temporary, **kwargs)
+        temporary.replace(output)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return output
+
+
+def _verified_manifest_output(
+    root: Path,
+    relative: object,
+    parent: str,
+) -> Path:
+    if not isinstance(relative, str) or not relative:
+        raise DataBlocked(f"parent output path is unsafe: {relative!r}")
+    path = Path(relative)
+    if path.is_absolute() or ".." in path.parts:
+        raise DataBlocked(f"parent output path is unsafe: {relative}")
+    candidate = root / path
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise DataBlocked(
+            f"parent output is missing: {relative}"
+        ) from exc
+    root_resolved = root.resolve()
+    if not resolved.is_relative_to(root_resolved):
+        raise DataBlocked(
+            f"parent output path escapes output root: {relative}"
+        )
+    if not resolved.is_file():
+        raise DataBlocked(f"parent output is not a file: {relative}")
+    return resolved
 
 
 def require_parent_manifest(
@@ -118,20 +201,50 @@ def require_parent_manifest(
     except (OSError, TypeError, ValueError) as exc:
         raise DataBlocked(f"invalid parent manifest: {parent}") from exc
 
-    if manifest.get("status") != "OK":
-        raise DataBlocked(f"parent stage is not OK: {parent}")
+    if not isinstance(manifest, dict):
+        raise DataBlocked(f"parent manifest must be a JSON object: {parent}")
+    if manifest.get("stage") != parent:
+        raise DataBlocked(f"parent manifest stage mismatch: {parent}")
     if manifest.get("config_hash") != config_hash(cfg):
         raise DataBlocked(f"parent config hash mismatch: {parent}")
     expected_end = str(pd.Timestamp(data_end).date())
     if manifest.get("data_end") != expected_end:
         raise DataBlocked(f"parent data_end mismatch: {parent}")
+    if manifest.get("status") != "OK":
+        raise DataBlocked(f"parent stage is not OK: {parent}")
 
     outputs = manifest.get("outputs")
-    if not isinstance(outputs, dict):
+    if not isinstance(outputs, dict) or not outputs:
         raise DataBlocked(f"parent outputs are missing: {parent}")
+    for relative in outputs:
+        if (
+            not isinstance(relative, str)
+            or not relative
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+        ):
+            raise DataBlocked(
+                f"parent output path is unsafe: {relative!r}"
+            )
+    expected_outputs = STAGE_OUTPUTS.get(parent)
+    if expected_outputs is None:
+        raise DataBlocked(f"unknown parent stage: {parent}")
+    if set(outputs) != expected_outputs:
+        raise DataBlocked(
+            f"parent output set mismatch: {parent}; "
+            f"expected {sorted(expected_outputs)}, "
+            f"got {sorted(outputs)}"
+        )
     for relative, expected_hash in outputs.items():
-        output = root / relative
-        if not output.is_file() or _sha256(output) != expected_hash:
+        if (
+            not isinstance(expected_hash, str)
+            or _SHA256_RE.fullmatch(expected_hash) is None
+        ):
+            raise DataBlocked(
+                f"parent output hash format is invalid: {relative}"
+            )
+        output = _verified_manifest_output(root, relative, parent)
+        if _sha256(output) != expected_hash:
             raise DataBlocked(f"parent output hash mismatch: {relative}")
     return manifest
 
@@ -365,10 +478,11 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def calibrate_target_coordinates(
-    exposures: dict[pd.Timestamp, ExposureResult],
+def _validated_constituents(
     constituents: pd.DataFrame,
-) -> dict[str, float]:
+) -> pd.DataFrame:
+    if not isinstance(constituents, pd.DataFrame):
+        raise DataBlocked("target constituents must be a DataFrame")
     required = {"index_code", "effective_date", "ticker"}
     _require_columns(constituents, required, "target constituents")
     pool = constituents.loc[
@@ -382,6 +496,14 @@ def calibrate_target_coordinates(
         ("effective_date",),
         "target constituents",
     ).drop_duplicates()
+    return pool
+
+
+def calibrate_target_coordinates(
+    exposures: dict[pd.Timestamp, ExposureResult],
+    constituents: pd.DataFrame,
+) -> dict[str, float]:
+    pool = _validated_constituents(constituents)
 
     targets = {
         "q500": "000905.SH",
@@ -609,9 +731,13 @@ def _formation_inputs(
     )
     if calendar.empty:
         raise DataBlocked("formation trading calendar is empty")
-    trading = pd.DatetimeIndex(
-        pd.to_datetime(calendar["trade_date"], errors="raise")
+    _require_columns(calendar, {"trade_date"}, "formation calendar")
+    calendar = _validate_datetime_columns(
+        calendar,
+        ("trade_date",),
+        "formation calendar",
     )
+    trading = pd.DatetimeIndex(calendar["trade_date"])
     month_ends = list(
         pd.Series(trading, index=trading)
         .groupby(trading.to_period("M"))
@@ -628,6 +754,12 @@ def _formation_inputs(
     )
     if meta.empty:
         raise DataBlocked("stock metadata is empty")
+    _require_columns(
+        meta,
+        {"ticker", "list_date", "delist_date"},
+        "stock metadata",
+    )
+    _validate_string_keys(meta["ticker"], "stock metadata ticker")
     tickers = meta["ticker"].tolist()
 
     closes = _read_sql(
@@ -640,10 +772,19 @@ def _formation_inputs(
         """,
         {"dates": [date.date() for date in month_ends]},
     )
-    closes["trade_date"] = pd.to_datetime(
-        closes["trade_date"],
-        errors="raise",
+    _require_columns(
+        closes,
+        {"ticker", "trade_date", "close"},
+        "formation closes",
     )
+    _validate_string_keys(closes["ticker"], "formation close ticker")
+    closes = _validate_datetime_columns(
+        closes,
+        ("trade_date",),
+        "formation closes",
+    )
+    if closes.duplicated(["trade_date", "ticker"]).any():
+        raise DataBlocked("formation closes contain duplicate close keys")
     close_wide = closes.pivot(
         index="trade_date",
         columns="ticker",
@@ -662,14 +803,19 @@ def _formation_inputs(
             ORDER BY ts_code, effective_date
         """,
     )
-    shares["end_date"] = pd.to_datetime(
-        shares["end_date"],
-        errors="raise",
+    _require_columns(
+        shares,
+        {"ts_code", "end_date", "known_date", "total_shares"},
+        "share capital",
     )
-    shares["known_date"] = pd.to_datetime(
-        shares["known_date"],
-        errors="raise",
-    ).fillna(shares["end_date"])
+    _validate_string_keys(shares["ts_code"], "share capital ticker")
+    shares = _validate_datetime_columns(
+        shares,
+        ("end_date", "known_date"),
+        "share capital",
+        nullable={"known_date"},
+    )
+    shares["known_date"] = shares["known_date"].fillna(shares["end_date"])
 
     industry = _read_sql(
         db,
@@ -681,6 +827,17 @@ def _formation_inputs(
             WHERE classification_type = 'CITIC'
             ORDER BY ts_code, effective_date
         """,
+    )
+    _require_columns(
+        industry,
+        {"ticker", "effective_date", "industry"},
+        "industry history",
+    )
+    _validate_string_keys(industry["ticker"], "industry ticker")
+    industry = _validate_datetime_columns(
+        industry,
+        ("effective_date",),
+        "industry history",
     )
 
     facts = _fetch_raw_financial(
@@ -1216,12 +1373,7 @@ def default_sources(db: dict) -> B3Sources:
                 ORDER BY index_code, effective_date, ts_code
             """,
         )
-        if not frame.empty:
-            frame["effective_date"] = pd.to_datetime(
-                frame["effective_date"],
-                errors="raise",
-            )
-        return frame
+        return _validated_constituents(frame)
 
     def targets(data_end: pd.Timestamp) -> dict[str, pd.Series]:
         end = pd.Timestamp(data_end)
@@ -1266,6 +1418,7 @@ def run_preflight(
     """Run return-blind data, coverage, and target-coordinate checks."""
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
+    _invalidate_stage_manifest(output_root, "preflight")
     data_end = pd.Timestamp(data_end)
 
     required_start = pd.Timestamp(cfg["windows"]["discovery"][0])
@@ -1308,47 +1461,37 @@ def run_preflight(
         affects_final: bool | None = None,
         check: str,
         side: str = "",
-        eligible_count=np.nan,
-        max_weight=np.nan,
+        eligible_count=None,
+        max_weight=None,
         status: str = "OK",
         reason_code: str = "",
         detail: str = "",
-    ) -> None:
-        audit_rows.append(
-            {
-                "pit_policy": policy,
-                "formation_date": formation_date,
-                "required_formation": bool(required),
-                "affects_final": (
-                    bool(required)
-                    if affects_final is None
-                    else bool(affects_final)
-                ),
-                "check": check,
-                "side": side,
-                "eligible_count": eligible_count,
-                "max_weight": max_weight,
-                "status": status,
-                "reason_code": reason_code,
-                "detail": detail,
-            }
-        )
+    ) -> dict:
+        row = {
+            "pit_policy": policy,
+            "formation_date": formation_date,
+            "required_formation": bool(required),
+            "affects_final": (
+                bool(required)
+                if affects_final is None
+                else bool(affects_final)
+            ),
+            "check": check,
+            "side": side,
+            "eligible_count": eligible_count,
+            "max_weight": max_weight,
+            "status": status,
+            "reason_code": reason_code,
+            "detail": detail,
+        }
+        audit_rows.append(row)
+        return row
 
-    def add_blocker(
-        *,
-        policy: str,
-        formation_date,
-        status: str,
-        reason_code: str,
-        detail: str,
-    ) -> None:
+    def add_blocker(row: dict) -> None:
         blockers.append(
             {
-                "pit_policy": policy,
-                "formation_date": formation_date,
-                "status": status,
-                "reason_code": reason_code,
-                "detail": detail,
+                column: row.get(column)
+                for column in audit_columns
             }
         )
 
@@ -1376,53 +1519,189 @@ def run_preflight(
                     side=str(reason) if reason else "ELIGIBLE",
                     eligible_count=int(count),
                     status="REPORT_ONLY",
+                    reason_code=str(reason),
                     detail="exclusion distribution",
                 )
 
-    for policy in policies:
-        try:
-            snapshots = sources.snapshots(policy, data_end)
-            if not isinstance(snapshots, dict) or not snapshots:
-                raise DataBlocked("snapshot source returned no snapshots")
-        except DataBlocked as exc:
-            detail = str(exc)
-            add_audit(
-                policy=policy,
-                formation_date=pd.NaT,
-                required=True,
-                check="snapshot_source",
-                status="DATA_BLOCKED",
-                reason_code="DATA_CONTRACT",
-                detail=detail,
-            )
-            add_blocker(
-                policy=policy,
-                formation_date=pd.NaT,
-                status="DATA_BLOCKED",
-                reason_code="DATA_CONTRACT",
-                detail=detail,
-            )
-            continue
-        except CoverageBlocked as exc:
-            detail = str(exc)
-            add_audit(
-                policy=policy,
-                formation_date=pd.NaT,
-                required=True,
-                check="snapshot_source",
-                status="COVERAGE_BLOCKED",
-                reason_code="LEGAL_CROSS_SECTION_INFEASIBLE",
-                detail=detail,
-            )
-            add_blocker(
-                policy=policy,
-                formation_date=pd.NaT,
-                status="COVERAGE_BLOCKED",
-                reason_code="LEGAL_CROSS_SECTION_INFEASIBLE",
-                detail=detail,
-            )
-            continue
+    required_periods = set(
+        pd.period_range(
+            required_start.to_period("M"),
+            required_end.to_period("M"),
+            freq="M",
+        )
+    )
+    constituents = pd.DataFrame()
+    normalized_by_policy: dict[
+        str,
+        dict[pd.Timestamp, pd.DataFrame],
+    ] = {}
+    required_keys: dict[str, set[pd.Timestamp]] = {}
 
+    if data_end < required_end:
+        row = add_audit(
+            policy="all",
+            formation_date=pd.NaT,
+            required=True,
+            check="required_calendar",
+            status="DATA_BLOCKED",
+            reason_code="DATA_CONTRACT",
+            detail=(
+                f"data_end {data_end.date()} precedes required end "
+                f"{required_end.date()}"
+            ),
+        )
+        add_blocker(row)
+
+    if not blockers:
+        try:
+            constituents = _validated_constituents(
+                sources.constituents()
+            )
+            available_codes = set(constituents["index_code"])
+            missing_codes = [
+                code
+                for code in ("000905.SH", "000852.SH")
+                if code not in available_codes
+            ]
+            if missing_codes:
+                raise DataBlocked(
+                    "missing constituents for "
+                    + ", ".join(missing_codes)
+                )
+        except (DataBlocked, CoverageBlocked) as exc:
+            status = (
+                "DATA_BLOCKED"
+                if isinstance(exc, DataBlocked)
+                else "COVERAGE_BLOCKED"
+            )
+            row = add_audit(
+                policy="all",
+                formation_date=pd.NaT,
+                required=True,
+                check="target_coordinate_calibration",
+                status=status,
+                reason_code="TARGET_COORDINATE_CALIBRATION",
+                detail=str(exc),
+            )
+            add_blocker(row)
+
+    if not blockers:
+        for policy in policies:
+            try:
+                supplied = sources.snapshots(policy, data_end)
+                if not isinstance(supplied, dict) or not supplied:
+                    raise DataBlocked(
+                        "snapshot source returned no snapshots"
+                    )
+                snapshots: dict[pd.Timestamp, pd.DataFrame] = {}
+                for raw_date, snapshot in supplied.items():
+                    try:
+                        formation_date = pd.Timestamp(raw_date)
+                    except (TypeError, ValueError, OverflowError) as exc:
+                        raise DataBlocked(
+                            f"invalid snapshot formation date: {raw_date!r}"
+                        ) from exc
+                    if (
+                        pd.isna(formation_date)
+                        or formation_date.tz is not None
+                        or formation_date != formation_date.normalize()
+                    ):
+                        raise DataBlocked(
+                            f"invalid snapshot formation date: {raw_date!r}"
+                        )
+                    if not isinstance(snapshot, pd.DataFrame):
+                        raise DataBlocked(
+                            f"snapshot for {formation_date.date()} "
+                            "must be a DataFrame"
+                        )
+                    if formation_date in snapshots:
+                        raise DataBlocked(
+                            "duplicate normalized snapshot date: "
+                            f"{formation_date.date()}"
+                        )
+                    if formation_date <= data_end:
+                        snapshots[formation_date] = snapshot
+
+                policy_required_keys = {
+                    date
+                    for date in snapshots
+                    if required_start <= date <= required_end
+                }
+                period_counts: dict[pd.Period, int] = {}
+                for date in policy_required_keys:
+                    period = date.to_period("M")
+                    period_counts[period] = (
+                        period_counts.get(period, 0) + 1
+                    )
+                missing_periods = sorted(
+                    required_periods.difference(period_counts)
+                )
+                duplicate_periods = sorted(
+                    period
+                    for period, count in period_counts.items()
+                    if count != 1
+                )
+                if missing_periods or duplicate_periods:
+                    details = []
+                    if missing_periods:
+                        details.append(
+                            "missing="
+                            + ",".join(map(str, missing_periods))
+                        )
+                    if duplicate_periods:
+                        details.append(
+                            "duplicate="
+                            + ",".join(map(str, duplicate_periods))
+                        )
+                    raise DataBlocked(
+                        "required monthly snapshot grid invalid: "
+                        + "; ".join(details)
+                    )
+                normalized_by_policy[policy] = snapshots
+                required_keys[policy] = policy_required_keys
+            except (DataBlocked, CoverageBlocked) as exc:
+                status = (
+                    "DATA_BLOCKED"
+                    if isinstance(exc, DataBlocked)
+                    else "COVERAGE_BLOCKED"
+                )
+                reason_code = (
+                    "DATA_CONTRACT"
+                    if status == "DATA_BLOCKED"
+                    else "LEGAL_CROSS_SECTION_INFEASIBLE"
+                )
+                row = add_audit(
+                    policy=policy,
+                    formation_date=pd.NaT,
+                    required=True,
+                    check="snapshot_source",
+                    status=status,
+                    reason_code=reason_code,
+                    detail=str(exc),
+                )
+                add_blocker(row)
+
+    if not blockers and policies:
+        reference = required_keys[policies[0]]
+        if any(
+            required_keys[policy] != reference
+            for policy in policies[1:]
+        ):
+            row = add_audit(
+                policy="all",
+                formation_date=pd.NaT,
+                required=True,
+                check="snapshot_alignment",
+                status="DATA_BLOCKED",
+                reason_code="DATA_CONTRACT",
+                detail=(
+                    "required formation keys differ across PIT policies"
+                ),
+            )
+            add_blocker(row)
+
+    for policy in policies if not blockers else []:
+        snapshots = normalized_by_policy[policy]
         for raw_date, snapshot in sorted(
             snapshots.items(),
             key=lambda item: pd.Timestamp(item[0]),
@@ -1441,7 +1720,7 @@ def run_preflight(
                 result = compute_month_exposures(snapshot, cfg)
             except DataBlocked as exc:
                 detail = str(exc)
-                add_audit(
+                row = add_audit(
                     policy=policy,
                     formation_date=formation_date,
                     required=required,
@@ -1451,17 +1730,11 @@ def run_preflight(
                     detail=detail,
                 )
                 if required:
-                    add_blocker(
-                        policy=policy,
-                        formation_date=formation_date,
-                        status="DATA_BLOCKED",
-                        reason_code="DATA_CONTRACT",
-                        detail=detail,
-                    )
+                    add_blocker(row)
                 continue
             except CoverageBlocked as exc:
                 detail = str(exc)
-                add_audit(
+                row = add_audit(
                     policy=policy,
                     formation_date=formation_date,
                     required=required,
@@ -1471,13 +1744,7 @@ def run_preflight(
                     detail=detail,
                 )
                 if required:
-                    add_blocker(
-                        policy=policy,
-                        formation_date=formation_date,
-                        status="COVERAGE_BLOCKED",
-                        reason_code="LEGAL_CROSS_SECTION_INFEASIBLE",
-                        detail=detail,
-                    )
+                    add_blocker(row)
                 continue
 
             exposures[policy][formation_date] = result
@@ -1505,7 +1772,6 @@ def run_preflight(
 
     if not blockers:
         try:
-            constituents = sources.constituents()
             for policy in policies:
                 calibration = calibrate_target_coordinates(
                     exposures[policy],
@@ -1526,7 +1792,7 @@ def run_preflight(
                 else "COVERAGE_BLOCKED"
             )
             detail = str(exc)
-            add_audit(
+            row = add_audit(
                 policy="all",
                 formation_date=pd.NaT,
                 required=True,
@@ -1535,13 +1801,7 @@ def run_preflight(
                 reason_code="TARGET_COORDINATE_CALIBRATION",
                 detail=detail,
             )
-            add_blocker(
-                policy="all",
-                formation_date=pd.NaT,
-                status=status,
-                reason_code="TARGET_COORDINATE_CALIBRATION",
-                detail=detail,
-            )
+            add_blocker(row)
 
     statuses = {blocker["status"] for blocker in blockers}
     if "DATA_BLOCKED" in statuses:
@@ -1560,8 +1820,8 @@ def run_preflight(
 
     audit_path = output_root / "coverage_audit.csv"
     diagnostics_path = output_root / "exposure_diagnostics.csv"
-    audit.to_csv(audit_path, index=False)
-    diagnostics.to_csv(diagnostics_path, index=False)
+    _write_csv_atomic(audit, audit_path, index=False)
+    _write_csv_atomic(diagnostics, diagnostics_path, index=False)
     _write_stage_manifest(
         output_root,
         "preflight",
@@ -1601,8 +1861,12 @@ def flatten_exposures(
         "w_q1000_minus",
     ]
     rows: list[pd.DataFrame] = []
-    for policy, months in exposures.items():
-        for formation_date, result in sorted(months.items()):
+    for policy in sorted(exposures):
+        months = exposures[policy]
+        for formation_date, result in sorted(
+            months.items(),
+            key=lambda item: pd.Timestamp(item[0]),
+        ):
             missing = sorted(
                 set(model_columns).difference(result.model.columns)
             )
@@ -1622,11 +1886,24 @@ def flatten_exposures(
                 frame[column] = result.model[column].reindex(frame.index)
             frame.insert(0, "pit_policy", policy)
             frame["formation_date"] = pd.Timestamp(formation_date)
-            rows.append(frame.reset_index(drop=True))
+            frame = frame.reset_index(drop=True)
+            rows.append(
+                frame.sort_values(
+                    "ticker",
+                    kind="mergesort",
+                ).reset_index(drop=True)
+            )
 
     if not rows:
         raise DataBlocked("no monthly exposures to flatten")
-    return pd.concat(rows, ignore_index=True)
+    return (
+        pd.concat(rows, ignore_index=True)
+        .sort_values(
+            ["pit_policy", "formation_date", "ticker"],
+            kind="mergesort",
+        )
+        .reset_index(drop=True)
+    )
 
 
 def run_exposures_stage(
@@ -1636,6 +1913,7 @@ def run_exposures_stage(
     outcome: PreflightOutcome,
 ) -> Path:
     output_root = Path(output_dir)
+    _invalidate_stage_manifest(output_root, "exposures")
     require_parent_manifest(
         output_root,
         "preflight",
@@ -1649,7 +1927,8 @@ def run_exposures_stage(
 
     frame = flatten_exposures(outcome.exposures)
     path = output_root / "monthly_exposures.csv.gz"
-    frame.to_csv(
+    _write_csv_atomic(
+        frame,
         path,
         index=False,
         compression={"method": "gzip", "mtime": 0},
@@ -1686,6 +1965,22 @@ def run_post_preflight_stages(
     return 0
 
 
+def _parse_cli_date(value: str) -> pd.Timestamp:
+    try:
+        parsed = pd.Timestamp(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise argparse.ArgumentTypeError(
+            f"invalid date: {value!r}"
+        ) from exc
+    if (
+        pd.isna(parsed)
+        or parsed.tz is not None
+        or parsed != parsed.normalize()
+    ):
+        raise argparse.ArgumentTypeError(f"invalid date: {value!r}")
+    return parsed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="B3 staged research builder"
@@ -1697,6 +1992,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--data-end",
+        type=_parse_cli_date,
         default="2026-12-31",
     )
     parser.add_argument(
@@ -1708,7 +2004,7 @@ def main() -> int:
 
     cfg = load_b3_config()
     sources = default_sources(load_db_config())
-    data_end = pd.Timestamp(args.data_end)
+    data_end = args.data_end
     outcome = run_preflight(
         cfg,
         sources,

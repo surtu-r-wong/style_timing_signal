@@ -1768,7 +1768,7 @@ Run:
 python3 -m pytest tests/test_b3_exposures.py -q
 ```
 
-Expected: 14 passed.
+Expected at the Task 4 boundary: 131 passed.
 
 - [ ] **Step 8: Exercise current real-data preflight**
 
@@ -1779,6 +1779,54 @@ python3 -m signals.style_basket.b3_build --stage preflight --data-end 2023-12-31
 ```
 
 Expected on the data snapshot verified 2026-07-14: exit 2; `coverage_audit.csv` and `manifests/preflight.json` exist; the manifest blocker includes missing `000852.SH`; no axis/state/backtest output exists. If the constituent table is repaired before execution, exit 0 is the correct outcome and the manifest must show both calibration errors at or below 0.25 and q-order share at or above 0.90.
+
+#### Task 4 implementation-review corrections
+
+This subsection supersedes conflicting Task 4 line-level pseudocode above.
+
+- A trusted preflight requires `data_end` to reach the confirmation-window
+  end, exactly one formation date in every discovery/confirmation calendar
+  month, and identical required formation-date keys under both frozen PIT
+  policies. Missing first, middle or last months, duplicate months, malformed
+  keys, non-DataFrame snapshots, or policy-key drift are
+  `DATA_BLOCKED`; a sparse unit-test fixture must narrow its configured
+  window explicitly rather than impersonating the full 2014–2023 panel.
+- Read and validate target constituent history before the expensive snapshot
+  build. The known absence of `000852.SH` is a return-blind prerequisite
+  failure and must write the full audit/manifest blocker without loading
+  financial snapshots, stock returns, target returns or carry. When both
+  target codes exist, the same validated constituent frame is reused for the
+  coordinate calibration after exposures are built.
+- Every manifest blocker is the complete canonical coverage-audit row,
+  including `required_formation`, `affects_final`, `check`, `side`,
+  counts and weights. Exclusion-distribution rows copy their exclusion reason
+  into `reason_code`.
+- Stage manifests require the exact frozen output set, a matching stage,
+  config hash, cutoff and `OK` parent status, lowercase 64-character
+  SHA-256 hashes, and relative paths that remain inside the resolved output
+  root. Empty output maps, missing files, absolute/traversal paths and
+  escaping symlinks are rejected. A stage invalidates its previous success
+  manifest before work begins; CSV/gzip artifacts and manifests use temporary
+  files plus atomic replacement.
+- Expected source-schema/date/duplicate failures are translated to
+  `DataBlocked` with their cause. Connection and SQL execution failures
+  retain their infrastructure exception type, after stale success state has
+  already been invalidated.
+- Exposure serialization sorts PIT policy, formation date and ticker and
+  fixes the gzip timestamp. The CLI parses `--data-end` through argparse and
+  rejects malformed, timezone-aware or non-midnight values before opening
+  data sources.
+
+Verification on 2026-07-14:
+
+- `python3 -m pytest tests/test_b3_exposures.py -q` → `131 passed`.
+- `python3 -m pytest -q` → `351 passed`.
+- The required real preflight exited 2 after the lightweight constituent
+  query. It produced only `coverage_audit.csv`,
+  `exposure_diagnostics.csv` and `manifests/preflight.json`; the blocker
+  is `missing constituents for 000852.SH`. The two manifest hashes matched
+  independently computed SHA-256 values. No exposure, axis, state or backtest
+  artifact was created.
 
 - [ ] **Step 9: Commit**
 
