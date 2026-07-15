@@ -29,6 +29,7 @@ from signals.style_basket.b3_exposures import (
     compute_month_exposures,
 )
 from signals.style_basket.b3_portfolios import build_portfolio_panels
+from signals.style_basket.b3_states import build_state_features
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +47,7 @@ STAGE_OUTPUTS = {
         "conditional_leg_returns.csv",
         "stock_period_returns.csv.gz",
     },
+    "states": {"state_components.csv"},
 }
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
@@ -2171,6 +2173,277 @@ def run_portfolios_stage(
     )
 
 
+def _validated_state_legs(
+    legs: pd.DataFrame,
+    cfg: dict,
+    data_end: pd.Timestamp,
+) -> pd.DataFrame:
+    if not isinstance(legs, pd.DataFrame) or legs.empty:
+        raise DataBlocked(
+            "conditional leg returns must be a nonempty DataFrame"
+        )
+    expected_columns = {
+        "date",
+        "pit_policy",
+        "q",
+        "growth_ret",
+        "value_ret",
+    }
+    if set(legs.columns) != expected_columns:
+        raise DataBlocked(
+            "conditional leg return schema mismatch: "
+            f"expected {sorted(expected_columns)}, "
+            f"got {sorted(legs.columns)}"
+        )
+    frame = legs.copy()
+    frame["date"] = _strict_datetime_series(
+        frame["date"],
+        "conditional leg returns.date",
+        nullable=False,
+    )
+    cutoff = _strict_datetime_series(
+        pd.Series([data_end]),
+        "states data_end",
+        nullable=False,
+    ).iloc[0]
+    if frame["date"].max() > cutoff:
+        raise DataBlocked(
+            "conditional leg returns contain dates after data_end"
+        )
+    _validate_string_keys(
+        frame["pit_policy"],
+        "conditional leg pit_policy",
+    )
+    _validate_string_keys(frame["q"], "conditional leg q")
+    if frame.duplicated(["date", "pit_policy", "q"]).any():
+        raise DataBlocked("conditional leg returns contain duplicate keys")
+    for column in ("growth_ret", "value_ret"):
+        if frame[column].map(
+            lambda value: isinstance(value, (bool, np.bool_))
+        ).any():
+            raise DataBlocked(
+                f"conditional leg returns.{column} cannot be boolean"
+            )
+        original = frame[column]
+        numeric = pd.to_numeric(original, errors="coerce")
+        if (original.notna() & numeric.isna()).any():
+            raise DataBlocked(
+                f"conditional leg returns.{column} must be numeric"
+            )
+        if numeric.isna().any() or not np.isfinite(numeric).all():
+            raise DataBlocked(
+                f"conditional leg returns.{column} must be finite"
+            )
+        if (numeric <= -1.0).any():
+            raise DataBlocked(
+                f"conditional leg returns.{column} must exceed -100%"
+            )
+        frame[column] = numeric.astype(float)
+
+    policies = list(cfg["pit"]["policies"])
+    q_values = ["qblend", "q500", "q1000"]
+    expected_groups = {
+        (policy, q)
+        for policy in policies
+        for q in q_values
+    }
+    observed_groups = set(
+        frame[["pit_policy", "q"]].itertuples(
+            index=False,
+            name=None,
+        )
+    )
+    if observed_groups != expected_groups:
+        raise DataBlocked(
+            "conditional leg policy/q groups are incomplete"
+        )
+    reference_dates: pd.DatetimeIndex | None = None
+    for policy, q in sorted(expected_groups):
+        dates = pd.DatetimeIndex(
+            frame.loc[
+                frame["pit_policy"].eq(policy) & frame["q"].eq(q),
+                "date",
+            ].sort_values(kind="mergesort")
+        )
+        if reference_dates is None:
+            reference_dates = dates
+        elif not dates.equals(reference_dates):
+            raise DataBlocked(
+                "conditional leg policy/q date grids do not match"
+            )
+    return frame.sort_values(
+        ["pit_policy", "q", "date"],
+        kind="mergesort",
+    ).reset_index(drop=True)
+
+
+def _validated_state_targets(
+    targets: object,
+    required_dates: pd.DatetimeIndex,
+    data_end: pd.Timestamp,
+) -> dict[str, pd.Series]:
+    expected = {"blend", "500", "1000"}
+    if not isinstance(targets, dict) or set(targets) != expected:
+        raise DataBlocked(
+            "state target returns must contain exactly blend, 500 and 1000"
+        )
+    cutoff = _strict_datetime_series(
+        pd.Series([data_end]),
+        "states data_end",
+        nullable=False,
+    ).iloc[0]
+    validated: dict[str, pd.Series] = {}
+    for name in sorted(expected):
+        series = targets[name]
+        if not isinstance(series, pd.Series) or series.empty:
+            raise DataBlocked(
+                f"state target {name} must be a nonempty Series"
+            )
+        if not isinstance(series.index, pd.DatetimeIndex):
+            raise DataBlocked(
+                f"state target {name} index must be a DatetimeIndex"
+            )
+        if series.index.tz is not None:
+            raise DataBlocked(
+                f"state target {name} dates must be timezone naive"
+            )
+        if not series.index.equals(series.index.normalize()):
+            raise DataBlocked(
+                f"state target {name} dates must be midnight dates"
+            )
+        if series.index.has_duplicates:
+            raise DataBlocked(
+                f"state target {name} dates must be unique"
+            )
+        if not series.index.is_monotonic_increasing:
+            raise DataBlocked(
+                f"state target {name} dates must be strictly increasing"
+            )
+        if series.index.max() > cutoff:
+            raise DataBlocked(
+                f"state target {name} contains dates after data_end"
+            )
+        if series.map(
+            lambda value: isinstance(value, (bool, np.bool_))
+        ).any():
+            raise DataBlocked(
+                f"state target {name} returns cannot be boolean"
+            )
+        original = series
+        numeric = pd.to_numeric(original, errors="coerce")
+        if (original.notna() & numeric.isna()).any():
+            raise DataBlocked(
+                f"state target {name} returns must be numeric"
+            )
+        if numeric.isna().any() or not np.isfinite(numeric).all():
+            raise DataBlocked(
+                f"state target {name} returns must be finite"
+            )
+        if (numeric <= -1.0).any():
+            raise DataBlocked(
+                f"state target {name} returns must exceed -100%"
+            )
+        missing_dates = required_dates.difference(series.index)
+        if len(missing_dates):
+            raise DataBlocked(
+                f"state target {name} is missing required dates"
+            )
+        validated[name] = numeric.astype(float)
+    return validated
+
+
+def run_states_stage(
+    cfg: dict,
+    sources: B3Sources,
+    data_end: pd.Timestamp,
+    output_dir: str | Path,
+) -> Path:
+    output_root = Path(output_dir)
+    _invalidate_stage_manifest(output_root, "states")
+    require_parent_manifest(
+        output_root,
+        "portfolios",
+        cfg,
+        data_end,
+    )
+    legs_path = output_root / "conditional_leg_returns.csv"
+    try:
+        legs = pd.read_csv(legs_path)
+    except (EOFError, OSError, ValueError) as exc:
+        raise DataBlocked(
+            "conditional leg return cache cannot be read"
+        ) from exc
+    legs = _validated_state_legs(legs, cfg, data_end)
+    required_dates = pd.DatetimeIndex(
+        legs["date"].drop_duplicates().sort_values()
+    )
+    targets = _validated_state_targets(
+        sources.target_returns(pd.Timestamp(data_end)),
+        required_dates,
+        pd.Timestamp(data_end),
+    )
+    target_by_q = {
+        "qblend": targets["blend"],
+        "q500": targets["500"],
+        "q1000": targets["1000"],
+    }
+
+    parts: list[pd.DataFrame] = []
+    for (policy, q), group in legs.groupby(
+        ["pit_policy", "q"],
+        sort=True,
+    ):
+        indexed = group.set_index("date")[[
+            "growth_ret",
+            "value_ret",
+        ]]
+        features = build_state_features(indexed, cfg)
+        target = target_by_q[q].reindex(features.index)
+        if target.isna().any():
+            raise DataBlocked(
+                f"state target for {q} is missing required dates"
+            )
+        features["external_market_direction"] = np.where(
+            target.to_numpy(dtype=float) > 0.0,
+            "up",
+            "non_positive",
+        )
+        features.insert(0, "q", q)
+        features.insert(0, "pit_policy", policy)
+        parts.append(
+            features.rename_axis("date").reset_index()
+        )
+    if not parts:
+        raise DataBlocked("state feature assembly returned no rows")
+    output = (
+        pd.concat(parts, ignore_index=True)
+        .sort_values(
+            ["pit_policy", "q", "date"],
+            kind="mergesort",
+        )
+        .reset_index(drop=True)
+    )
+    if output.empty:
+        raise DataBlocked("state feature assembly returned no rows")
+    if output.duplicated(["date", "pit_policy", "q"]).any():
+        raise DataBlocked("state feature output contains duplicate keys")
+
+    path = _write_csv_atomic(
+        output,
+        output_root / "state_components.csv",
+        index=False,
+    )
+    return _write_stage_manifest(
+        output_root,
+        "states",
+        cfg,
+        pd.Timestamp(data_end),
+        [path],
+        "OK",
+        [],
+    )
+
+
 def run_post_preflight_stages(
     stage: str,
     cfg: dict,
@@ -2179,7 +2452,7 @@ def run_post_preflight_stages(
     output_dir: str | Path,
     outcome: PreflightOutcome,
 ) -> int:
-    if stage not in {"exposures", "portfolios"}:
+    if stage not in {"exposures", "portfolios", "states", "all"}:
         raise DataBlocked(f"unsupported post-preflight stage: {stage}")
     run_exposures_stage(
         cfg,
@@ -2187,8 +2460,15 @@ def run_post_preflight_stages(
         output_dir,
         outcome,
     )
-    if stage == "portfolios":
+    if stage in {"portfolios", "states", "all"}:
         run_portfolios_stage(
+            cfg,
+            sources,
+            data_end,
+            output_dir,
+        )
+    if stage in {"states", "all"}:
+        run_states_stage(
             cfg,
             sources,
             data_end,
@@ -2219,7 +2499,13 @@ def main() -> int:
     )
     parser.add_argument(
         "--stage",
-        choices=["preflight", "exposures", "portfolios"],
+        choices=[
+            "preflight",
+            "exposures",
+            "portfolios",
+            "states",
+            "all",
+        ],
         default="exposures",
     )
     parser.add_argument(

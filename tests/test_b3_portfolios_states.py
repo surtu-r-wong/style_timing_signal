@@ -13,6 +13,7 @@ from signals.style_basket.b3_build import (
     main,
     run_portfolios_stage,
     run_post_preflight_stages,
+    run_states_stage,
 )
 from signals.style_basket.b3_config import load_b3_config
 from signals.style_basket.b3_exposures import DataBlocked
@@ -21,6 +22,10 @@ from signals.style_basket.b3_portfolios import (
     natural_drift_leg_returns,
     scheduled_portfolio_returns,
     stock_period_returns,
+)
+from signals.style_basket.b3_states import (
+    build_state_features,
+    decompose_states,
 )
 
 
@@ -878,3 +883,476 @@ def test_timezone_aware_exposure_formation_is_data_blocked():
             suspended,
             data_end=pd.Timestamp("2021-02-04"),
         )
+
+
+def test_state_decomposition_covers_uu_dd_div_and_zero_boundary():
+    legs = pd.DataFrame(
+        {
+            "growth_ret": [0.02, -0.01, 0.02, 0.00, -0.01],
+            "value_ret": [0.01, -0.03, -0.01, -0.02, 0.00],
+        }
+    )
+
+    got = decompose_states(legs, tolerance=1.0e-12)
+
+    assert list(got["state"]) == ["UU", "DD", "DIV", "DIV", "DIV"]
+    np.testing.assert_allclose(
+        got["d"],
+        got["d_UU"] + got["d_DD"] + got["d_DIV"],
+        atol=1.0e-12,
+    )
+
+
+def test_state_transform_uses_full_past_windows_and_never_future_data():
+    index = pd.bdate_range("2019-01-01", periods=120)
+    legs = pd.DataFrame(
+        {
+            "growth_ret": np.sin(np.arange(120) / 8.0) / 100.0,
+            "value_ret": np.cos(np.arange(120) / 9.0) / 120.0,
+        },
+        index=index,
+    )
+    cfg = load_b3_config()
+
+    original = build_state_features(legs, cfg)
+    mutated = legs.copy()
+    mutated.loc[index[100] :, "growth_ret"] = 0.20
+    changed = build_state_features(mutated, cfg)
+
+    pd.testing.assert_frame_equal(
+        original.loc[: index[99]],
+        changed.loc[: index[99]],
+    )
+    features = ["F_U", "F_D", "F_X", "F_T"]
+    assert original[features].iloc[:62].isna().all().all()
+
+
+def _state_leg_rows(cfg):
+    dates = pd.bdate_range("2019-01-01", periods=120)
+    rows = []
+    for policy in cfg["pit"]["policies"]:
+        for q_number, q in enumerate(("qblend", "q500", "q1000")):
+            for number, date in enumerate(dates):
+                rows.append(
+                    {
+                        "date": date,
+                        "pit_policy": policy,
+                        "q": q,
+                        "growth_ret": (
+                            np.sin(number / 8.0 + q_number) / 100.0
+                        ),
+                        "value_ret": (
+                            np.cos(number / 9.0 + q_number) / 120.0
+                        ),
+                    }
+                )
+    return dates, pd.DataFrame(rows)
+
+
+def _write_portfolios_parent(tmp_path, cfg, data_end, legs=None):
+    if legs is None:
+        _, legs = _state_leg_rows(cfg)
+    axis_path = tmp_path / "axis_returns.csv"
+    legs_path = tmp_path / "conditional_leg_returns.csv"
+    periods_path = tmp_path / "stock_period_returns.csv.gz"
+    pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2019-01-02"]),
+            "pit_policy": [cfg["pit"]["policies"][0]],
+            "style": [0.0],
+            "size": [0.0],
+            "interaction": [0.0],
+        }
+    ).to_csv(axis_path, index=False)
+    legs.to_csv(legs_path, index=False)
+    pd.DataFrame(
+        {
+            "pit_policy": [cfg["pit"]["policies"][0]],
+            "formation_date": pd.to_datetime(["2019-01-02"]),
+            "ticker": ["A"],
+            "forward_return": [0.0],
+        }
+    ).to_csv(
+        periods_path,
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    _write_stage_manifest(
+        tmp_path,
+        "portfolios",
+        cfg,
+        data_end,
+        [axis_path, legs_path, periods_path],
+        "OK",
+        [],
+    )
+    return legs_path
+
+
+def _state_targets(dates):
+    return {
+        "blend": pd.Series(0.01, index=dates, dtype=float),
+        "500": pd.Series(0.0, index=dates, dtype=float),
+        "1000": pd.Series(-0.01, index=dates, dtype=float),
+    }
+
+
+def _state_sources(targets):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("unexpected source access")
+
+    return B3Sources(
+        snapshots=forbidden,
+        constituents=forbidden,
+        stock_returns=forbidden,
+        target_returns=lambda data_end: targets,
+        carry=forbidden,
+    )
+
+
+def test_states_stage_writes_exact_artifact_schema_and_manifest(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2019-12-31")
+    dates, _ = _state_leg_rows(cfg)
+    _write_portfolios_parent(tmp_path, cfg, data_end)
+
+    run_states_stage(
+        cfg,
+        _state_sources(_state_targets(dates)),
+        data_end,
+        tmp_path,
+    )
+
+    path = tmp_path / "state_components.csv"
+    got = pd.read_csv(path, parse_dates=["date"])
+    assert list(got.columns) == [
+        "date",
+        "pit_policy",
+        "q",
+        "growth_ret",
+        "value_ret",
+        "g",
+        "v",
+        "d",
+        "d_UU",
+        "d_DD",
+        "d_DIV",
+        "state",
+        "raw_U",
+        "F_U",
+        "raw_D",
+        "F_D",
+        "raw_X",
+        "F_X",
+        "raw_T",
+        "F_T",
+        "external_market_direction",
+    ]
+    assert len(got) == len(cfg["pit"]["policies"]) * 3 * len(dates)
+    directions = got.groupby("q")["external_market_direction"].unique()
+    assert list(directions["qblend"]) == ["up"]
+    assert list(directions["q500"]) == ["non_positive"]
+    assert list(directions["q1000"]) == ["non_positive"]
+    manifest = json.loads(
+        (tmp_path / "manifests" / "states.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["stage"] == "states"
+    assert manifest["status"] == "OK"
+    assert set(manifest["outputs"]) == {"state_components.csv"}
+
+
+def test_states_stage_rejects_tampered_portfolios_parent(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2019-12-31")
+    dates, _ = _state_leg_rows(cfg)
+    path = _write_portfolios_parent(tmp_path, cfg, data_end)
+    path.write_bytes(path.read_bytes() + b"tampered")
+
+    with pytest.raises(DataBlocked, match="hash"):
+        run_states_stage(
+            cfg,
+            _state_sources(_state_targets(dates)),
+            data_end,
+            tmp_path,
+        )
+
+    assert not (tmp_path / "manifests" / "states.json").exists()
+
+
+def test_states_stage_blocks_missing_target_date_instead_of_mislabeling(
+    tmp_path,
+):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2019-12-31")
+    dates, _ = _state_leg_rows(cfg)
+    _write_portfolios_parent(tmp_path, cfg, data_end)
+    targets = _state_targets(dates)
+    targets["blend"] = targets["blend"].drop(dates[70])
+
+    with pytest.raises(DataBlocked, match="target.*missing"):
+        run_states_stage(
+            cfg,
+            _state_sources(targets),
+            data_end,
+            tmp_path,
+        )
+
+    assert not (tmp_path / "manifests" / "states.json").exists()
+
+
+@pytest.mark.parametrize("stage", ["states", "all"])
+def test_post_preflight_state_stages_dispatch_full_chain(
+    monkeypatch,
+    tmp_path,
+    stage,
+):
+    calls = []
+    outcome = PreflightOutcome(
+        final_status="OK",
+        exposures={},
+        audit=pd.DataFrame(),
+        diagnostics=pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.run_exposures_stage",
+        lambda *args: calls.append("exposures"),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.run_portfolios_stage",
+        lambda *args: calls.append("portfolios"),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.run_states_stage",
+        lambda *args: calls.append("states"),
+    )
+
+    got = run_post_preflight_stages(
+        stage,
+        load_b3_config(),
+        object(),
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+        outcome,
+    )
+
+    assert got == 0
+    assert calls == ["exposures", "portfolios", "states"]
+
+
+@pytest.mark.parametrize("stage", ["states", "all"])
+def test_cli_accepts_state_stages(monkeypatch, tmp_path, stage):
+    calls = []
+    sources = object()
+    outcome = PreflightOutcome(
+        final_status="OK",
+        exposures={},
+        audit=pd.DataFrame(),
+        diagnostics=pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.load_db_config",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.default_sources",
+        lambda db: sources,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.run_preflight",
+        lambda *args: outcome,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.run_post_preflight_stages",
+        lambda requested, *args: calls.append(requested) or 0,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "b3_build.py",
+            "--stage",
+            stage,
+            "--data-end",
+            "2023-12-31",
+            "--output-dir",
+            str(tmp_path),
+        ],
+    )
+
+    assert main() == 0
+    assert calls == [stage]
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    [np.nan, np.inf, -1.0, True],
+)
+def test_state_decomposition_rejects_illegal_leg_returns(bad_value):
+    legs = pd.DataFrame(
+        {
+            "growth_ret": [bad_value],
+            "value_ret": [0.01],
+        }
+    )
+
+    with pytest.raises(DataBlocked, match="leg return"):
+        decompose_states(legs)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["non_datetime", "reverse", "duplicate", "timezone"],
+)
+def test_state_features_require_canonical_causal_date_axis(mutation):
+    dates = pd.bdate_range("2019-01-01", periods=70)
+    legs = pd.DataFrame(
+        {
+            "growth_ret": np.sin(np.arange(70) / 8.0) / 100.0,
+            "value_ret": np.cos(np.arange(70) / 9.0) / 120.0,
+        },
+        index=dates,
+    )
+    if mutation == "non_datetime":
+        legs.index = pd.RangeIndex(len(legs))
+    elif mutation == "reverse":
+        legs = legs.iloc[::-1]
+    elif mutation == "duplicate":
+        legs = pd.concat([legs, legs.iloc[[-1]]])
+    else:
+        legs.index = legs.index.tz_localize("Asia/Shanghai")
+
+    with pytest.raises(DataBlocked, match="state feature"):
+        build_state_features(legs, load_b3_config())
+
+
+def test_state_raw_components_remain_additive():
+    dates = pd.bdate_range("2019-01-01", periods=120)
+    legs = pd.DataFrame(
+        {
+            "growth_ret": np.sin(np.arange(120) / 8.0) / 100.0,
+            "value_ret": np.cos(np.arange(120) / 9.0) / 120.0,
+        },
+        index=dates,
+    )
+
+    got = build_state_features(legs, load_b3_config())
+
+    np.testing.assert_allclose(
+        got["raw_T"],
+        got["raw_U"] + got["raw_D"] + got["raw_X"],
+        atol=1.0e-12,
+        equal_nan=True,
+    )
+
+
+def test_states_stage_rejects_policy_q_date_grid_drift(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2019-12-31")
+    dates, legs = _state_leg_rows(cfg)
+    drift = legs.drop(
+        legs[
+            legs["pit_policy"].eq(cfg["pit"]["policies"][0])
+            & legs["q"].eq("qblend")
+            & legs["date"].eq(dates[50])
+        ].index
+    )
+    _write_portfolios_parent(tmp_path, cfg, data_end, drift)
+
+    with pytest.raises(DataBlocked, match="date grids"):
+        run_states_stage(
+            cfg,
+            _state_sources(_state_targets(dates)),
+            data_end,
+            tmp_path,
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["future", "reverse", "duplicate", "nan"],
+)
+def test_states_stage_rejects_invalid_target_contract(tmp_path, mutation):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2019-12-31")
+    dates, _ = _state_leg_rows(cfg)
+    _write_portfolios_parent(tmp_path, cfg, data_end)
+    targets = _state_targets(dates)
+    blend = targets["blend"]
+    if mutation == "future":
+        blend = pd.concat(
+            [blend, pd.Series([0.01], index=[pd.Timestamp("2020-01-02")])]
+        )
+    elif mutation == "reverse":
+        blend = blend.iloc[::-1]
+    elif mutation == "duplicate":
+        blend = pd.concat([blend, blend.iloc[[0]]])
+    else:
+        blend = blend.copy()
+        blend.iloc[70] = np.nan
+    targets["blend"] = blend
+
+    with pytest.raises(DataBlocked, match="state target"):
+        run_states_stage(
+            cfg,
+            _state_sources(targets),
+            data_end,
+            tmp_path,
+        )
+
+
+def test_states_stage_preserves_target_source_error_and_invalidates_stale(
+    tmp_path,
+):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2019-12-31")
+    dates, _ = _state_leg_rows(cfg)
+    _write_portfolios_parent(tmp_path, cfg, data_end)
+    run_states_stage(
+        cfg,
+        _state_sources(_state_targets(dates)),
+        data_end,
+        tmp_path,
+    )
+    error = RuntimeError("target transport failed")
+
+    def broken(*args, **kwargs):
+        raise error
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("unexpected source access")
+
+    sources = B3Sources(
+        snapshots=forbidden,
+        constituents=forbidden,
+        stock_returns=forbidden,
+        target_returns=broken,
+        carry=forbidden,
+    )
+
+    with pytest.raises(RuntimeError) as caught:
+        run_states_stage(cfg, sources, data_end, tmp_path)
+
+    assert caught.value is error
+    assert not (tmp_path / "manifests" / "states.json").exists()
+
+
+def test_states_stage_is_byte_deterministic(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2019-12-31")
+    dates, _ = _state_leg_rows(cfg)
+    _write_portfolios_parent(tmp_path, cfg, data_end)
+    sources = _state_sources(_state_targets(dates))
+
+    run_states_stage(cfg, sources, data_end, tmp_path)
+    first_output = (tmp_path / "state_components.csv").read_bytes()
+    first_manifest = (
+        tmp_path / "manifests" / "states.json"
+    ).read_bytes()
+    run_states_stage(cfg, sources, data_end, tmp_path)
+
+    assert (tmp_path / "state_components.csv").read_bytes() == first_output
+    assert (
+        tmp_path / "manifests" / "states.json"
+    ).read_bytes() == first_manifest
