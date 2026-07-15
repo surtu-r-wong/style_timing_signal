@@ -10,6 +10,8 @@ from signals.style_basket.b3_exposures import DataBlocked
 
 
 def _validated_date(value, label: str) -> pd.Timestamp:
+    if isinstance(value, (bool, int, float, np.number)):
+        raise DataBlocked(f"{label} is not a valid date")
     try:
         date = pd.Timestamp(value)
     except (TypeError, ValueError, OverflowError) as exc:
@@ -112,13 +114,22 @@ def _validated_weights(initial_weights: pd.Series) -> pd.Series:
         raise DataBlocked(
             "initial leg weight tickers must be nonempty strings"
         )
+    if initial_weights.map(
+        lambda value: isinstance(value, (bool, np.bool_))
+    ).any():
+        raise DataBlocked("initial leg weights cannot be booleans")
     numeric = pd.to_numeric(initial_weights, errors="coerce")
     if numeric.isna().any() or not np.isfinite(numeric).all():
         raise DataBlocked("initial leg weights must be finite numbers")
     if (numeric < 0.0).any():
         raise DataBlocked("initial leg weights must be nonnegative")
     weights = numeric[numeric > 0.0].astype(float).sort_index()
-    if not np.isclose(weights.sum(), 1.0, atol=1.0e-10):
+    if not np.isclose(
+        weights.sum(),
+        1.0,
+        rtol=0.0,
+        atol=1.0e-10,
+    ):
         raise ValueError("initial leg weights must sum to one")
     return weights
 
@@ -387,15 +398,17 @@ def build_portfolio_panels(
         )
 
     frame = exposures.copy()
-    parsed_dates = pd.to_datetime(
-        frame["formation_date"],
-        errors="coerce",
-        format="mixed",
+    parsed_dates = pd.Series(
+        [
+            _validated_date(
+                value,
+                "monthly exposures formation_date",
+            )
+            for value in frame["formation_date"]
+        ],
+        index=frame.index,
+        dtype="datetime64[ns]",
     )
-    if parsed_dates.isna().any():
-        raise DataBlocked(
-            "monthly exposures contain invalid formation dates"
-        )
     frame["formation_date"] = parsed_dates
     for column in ("pit_policy", "ticker", "universe_role"):
         invalid = ~frame[column].map(
@@ -426,6 +439,12 @@ def build_portfolio_panels(
         for side in ("plus", "minus"):
             column = f"w_{axis}_{side}"
             original = frame[column]
+            if original.map(
+                lambda value: isinstance(value, (bool, np.bool_))
+            ).any():
+                raise DataBlocked(
+                    f"monthly exposures contain boolean {column} weights"
+                )
             numeric = pd.to_numeric(original, errors="coerce")
             invalid_numeric = original.notna() & numeric.isna()
             finite = numeric.notna() & np.isfinite(numeric)

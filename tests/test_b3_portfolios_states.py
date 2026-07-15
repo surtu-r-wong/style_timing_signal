@@ -581,6 +581,36 @@ def test_natural_drift_rejects_illegal_weights(bad_weight):
         )
 
 
+def test_natural_drift_rejects_boolean_and_loose_sum_weights():
+    dates = pd.bdate_range("2021-01-29", periods=2)
+    returns = pd.DataFrame(
+        {"A": [0.0, 0.01], "B": [0.0, 0.02]},
+        index=dates,
+    )
+    suspended = pd.DataFrame(
+        False,
+        index=dates,
+        columns=returns.columns,
+    )
+
+    with pytest.raises(DataBlocked, match="weight"):
+        natural_drift_leg_returns(
+            pd.Series({"A": True, "B": False}),
+            returns,
+            suspended,
+            dates[0],
+            dates[-1],
+        )
+    with pytest.raises(ValueError, match="sum to one"):
+        natural_drift_leg_returns(
+            pd.Series({"A": 0.5, "B": 0.500001}),
+            returns,
+            suspended,
+            dates[0],
+            dates[-1],
+        )
+
+
 def test_string_false_cannot_disguise_unexplained_gap_as_suspension():
     dates = pd.bdate_range("2021-01-29", periods=2)
     returns = pd.DataFrame(
@@ -831,4 +861,20 @@ def test_stock_period_members_must_be_unique():
             suspended,
             dates[0],
             dates[-1],
+        )
+
+
+def test_timezone_aware_exposure_formation_is_data_blocked():
+    dates, returns, suspended = _portfolio_daily_inputs()
+    exposures = _monthly_exposures()
+    exposures["formation_date"] = exposures["formation_date"].dt.tz_localize(
+        "Asia/Shanghai"
+    )
+
+    with pytest.raises(DataBlocked, match="formation"):
+        build_portfolio_panels(
+            exposures,
+            returns,
+            suspended,
+            data_end=pd.Timestamp("2021-02-04"),
         )
