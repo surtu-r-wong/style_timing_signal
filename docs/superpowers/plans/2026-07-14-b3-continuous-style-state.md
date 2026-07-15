@@ -2207,6 +2207,60 @@ python3 -m pytest tests/test_b3_portfolios_states.py -q
 
 Expected: 3 passed.
 
+#### Task 5 implementation-review corrections
+
+This subsection supersedes conflicting Task 5 line-level pseudocode above.
+
+- A zero-volume qfq row receives a zero return only when `close` or
+  `pre_close` was originally missing. Nonempty non-finite/non-positive
+  prices, negative volume and non-finite computed returns are
+  `DataBlocked`; invalid values are never converted to a suspension
+  exemption.
+- Returns and exact-date suspension panels must be nonempty DataFrames with
+  identical unique ticker/date axes, naive midnight dates in strictly
+  increasing order, numeric returns and real boolean flags. Observed returns
+  must be finite and strictly greater than -100%, and no return date may
+  exceed `data_end`.
+- Leg weights use exact formation weights and natural drift. Tickers and
+  weights are unique, weights are finite non-boolean nonnegative numbers,
+  and positive weights sum to one with `rtol=0, atol=1e-10`. Model-axis
+  schedules first restrict to `universe_role=model`, so the intentional NaN
+  weights on `size_only` rows remain legal non-members; the size axis still
+  uses the complete size universe. Unknown roles and nonzero model-axis
+  weights on size-only rows are blocked.
+- Every formation date must exist on the return calendar and the next
+  formation day's return remains owned by the old portfolio. A final
+  formation with no following trading day is omitted from the internal
+  stock-period labels instead of being encoded as a false 0% return. If all
+  portfolio returns are empty, or any published output has duplicate keys or
+  non-finite values, the stage is blocked and cannot publish an `OK`
+  manifest.
+- The portfolios stage hash-checks the exposures parent, invalidates stale
+  success state before work, atomically writes the exact three frozen
+  artifacts, fixes gzip `mtime=0`, and exposes only the executable
+  `preflight`, `exposures` and `portfolios` CLI branches at this boundary.
+
+Verification on 2026-07-14:
+
+- Red-green review coverage expanded the original three examples to 36
+  Task 5 tests, including illegal prices, negative/NaN/boolean weights,
+  non-boolean suspension flags, <=-100% and infinite returns, unknown roles,
+  duplicate/reversed/misaligned axes, future cutoff data, empty terminal
+  periods and timezone-aware formation dates.
+- `python3 -m pytest tests/test_b3_portfolios_states.py -q` → `36 passed`.
+- `python3 -m pytest tests/test_b3_exposures.py
+  tests/test_b3_portfolios_states.py -q` → `167 passed`.
+- `python3 -m pytest -q` → `387 passed`.
+- The real database loader passed a 39-trading-day by 2,446-ticker window
+  (`2013-05-02` through `2013-06-28`) under the same return/status contract.
+- The real `--stage portfolios --data-end 2023-12-31` entry point exited 2
+  at the known return-blind `missing constituents for 000852.SH` blocker and
+  produced only the preflight artifacts; it did not create exposures or
+  portfolio outputs.
+- Independent specification and quality re-reviews reported no Critical,
+  Important or Minor findings and both returned `Ready: Yes`.
+- Implementation checkpoints: `4aa5bc6`, `58b53e2`, `7f0bc34`.
+
 - [ ] **Step 7: Commit**
 
 ```bash
