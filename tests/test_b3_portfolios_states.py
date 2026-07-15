@@ -1201,6 +1201,16 @@ def test_state_decomposition_rejects_illegal_leg_returns(bad_value):
         decompose_states(legs)
 
 
+def test_state_decomposition_rejects_duplicate_required_columns():
+    legs = pd.DataFrame(
+        [[0.01, 0.02, 0.00]],
+        columns=["growth_ret", "growth_ret", "value_ret"],
+    )
+
+    with pytest.raises(DataBlocked, match="duplicate"):
+        decompose_states(legs)
+
+
 @pytest.mark.parametrize(
     "mutation",
     ["non_datetime", "reverse", "duplicate", "timezone"],
@@ -1267,6 +1277,52 @@ def test_states_stage_rejects_policy_q_date_grid_drift(tmp_path):
             data_end,
             tmp_path,
         )
+
+
+def test_states_stage_rejects_common_leg_gap_against_target_calendar(
+    tmp_path,
+):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2019-12-31")
+    dates, legs = _state_leg_rows(cfg)
+    missing_date = dates[50]
+    common_gap = legs[~legs["date"].eq(missing_date)].copy()
+    _write_portfolios_parent(tmp_path, cfg, data_end, common_gap)
+
+    with pytest.raises(DataBlocked, match="target.*date grid"):
+        run_states_stage(
+            cfg,
+            _state_sources(_state_targets(dates)),
+            data_end,
+            tmp_path,
+        )
+
+
+def test_portfolios_rerun_invalidates_stale_states_manifest(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2021-02-04")
+    state_dates, _ = _state_leg_rows(cfg)
+    _write_portfolios_parent(tmp_path, cfg, data_end)
+    run_states_stage(
+        cfg,
+        _state_sources(_state_targets(state_dates)),
+        data_end,
+        tmp_path,
+    )
+    assert (tmp_path / "manifests" / "states.json").is_file()
+
+    _write_exposures_parent(tmp_path, cfg, data_end)
+    dates, returns, suspended = _portfolio_daily_inputs()
+    returns = returns.copy()
+    returns.loc[dates[1], "A"] = 0.03
+    run_portfolios_stage(
+        cfg,
+        _portfolio_sources(returns, suspended),
+        data_end,
+        tmp_path,
+    )
+
+    assert not (tmp_path / "manifests" / "states.json").exists()
 
 
 @pytest.mark.parametrize(

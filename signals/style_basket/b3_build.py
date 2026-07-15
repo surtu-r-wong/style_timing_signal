@@ -59,7 +59,7 @@ class B3Sources:
     stock_returns: Callable[
         ..., tuple[pd.DataFrame, pd.DataFrame]
     ]
-    target_returns: Callable[..., pd.DataFrame]
+    target_returns: Callable[..., dict[str, pd.Series]]
     carry: Callable[..., pd.DataFrame | pd.Series]
 
 
@@ -149,8 +149,16 @@ def _invalidate_stage_manifest(
     stage: str,
 ) -> None:
     manifest_dir = Path(output_dir) / "manifests"
-    (manifest_dir / f"{stage}.json").unlink(missing_ok=True)
-    (manifest_dir / f".{stage}.json.tmp").unlink(missing_ok=True)
+    downstream = {
+        "preflight": ("exposures", "portfolios", "states"),
+        "exposures": ("portfolios", "states"),
+        "portfolios": ("states",),
+        "states": (),
+    }
+    invalidated = (stage, *downstream.get(stage, ()))
+    for name in invalidated:
+        (manifest_dir / f"{name}.json").unlink(missing_ok=True)
+        (manifest_dir / f".{name}.json.tmp").unlink(missing_ok=True)
 
 
 def _write_csv_atomic(
@@ -2347,6 +2355,15 @@ def _validated_state_targets(
         if len(missing_dates):
             raise DataBlocked(
                 f"state target {name} is missing required dates"
+            )
+        interval_dates = series.index[
+            (series.index >= required_dates.min())
+            & (series.index <= required_dates.max())
+        ]
+        if not interval_dates.equals(required_dates):
+            raise DataBlocked(
+                f"state target {name} date grid does not match "
+                "conditional leg returns"
             )
         validated[name] = numeric.astype(float)
     return validated

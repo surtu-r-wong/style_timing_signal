@@ -49,6 +49,8 @@ def _nonnegative_finite(value, label: str) -> float:
 def _validate_leg_returns(legs: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(legs, pd.DataFrame) or legs.empty:
         raise DataBlocked("state legs must be a nonempty DataFrame")
+    if legs.columns.has_duplicates:
+        raise DataBlocked("state legs contain duplicate columns")
     required = ["growth_ret", "value_ret"]
     missing = [column for column in required if column not in legs]
     if missing:
