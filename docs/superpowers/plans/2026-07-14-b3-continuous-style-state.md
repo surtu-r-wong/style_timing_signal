@@ -2447,6 +2447,57 @@ python3 -m pytest tests/test_b3_exposures.py tests/test_b3_portfolios_states.py 
 
 Expected: 19 passed.
 
+#### Task 6 implementation-review corrections
+
+This subsection supersedes conflicting Task 6 line-level pseudocode above.
+
+- State legs require the exact frozen schema, complete policy/q coverage and
+  one identical, unique, naive-midnight, strictly increasing date grid. The
+  grid must also exactly match each target cash-index calendar inside the
+  published leg interval; a date missing from every policy/q group is still
+  `DataBlocked` rather than silently lengthening the 20/40/5 trading-day
+  windows.
+- Growth and value returns must be finite numeric non-boolean values strictly
+  above -100%. Duplicate required columns are rejected as `DataBlocked`.
+  `g/v` use `log1p`; zero belongs to UU only when both legs are nonnegative,
+  DD requires both legs strictly negative, and DIV remains the exact residual
+  guarded at the configured `1e-12` tolerance.
+- Every component uses the frozen causal transform: 20-row rolling sum,
+  40-row historical z-score with `ddof=1` and standard deviation below
+  `1e-8` masked, `tanh(z/2)`, then a 5-row simple moving average. Raw
+  components remain additive; separately transformed features are not
+  required to add.
+- `qblend`, `q500` and `q1000` map only to the `blend`, `500` and `1000`
+  cash targets respectively. External direction is `up` only when the
+  corresponding target return is strictly positive; zero is
+  `non_positive`.
+- The states stage hash-checks the portfolios parent, invalidates stale state
+  success before work, atomically writes only `state_components.csv`, and
+  publishes its exact hash. Rerunning preflight, exposures or portfolios
+  now cascades manifest invalidation through every downstream signal-layer
+  stage, so an older state artifact cannot retain reusable `OK` lineage.
+- `states` and `all` execute the complete preflight → exposures → portfolios
+  → states chain. Source exceptions retain their original identity; malformed
+  materialized inputs fail closed without manufacturing a state artifact.
+
+Verification on 2026-07-14:
+
+- Red-green review coverage expanded the joint Task 5/6 file to 64 tests,
+  including state boundaries, causal warm-up, future mutation, raw identity,
+  malformed target axes, common missing trading dates, duplicate columns,
+  byte determinism and downstream-manifest invalidation.
+- `python3 -m pytest tests/test_b3_portfolios_states.py -q` → `64 passed`.
+- `python3 -m pytest tests/test_b3_exposures.py
+  tests/test_b3_portfolios_states.py -q` → `195 passed`.
+- `python3 -m pytest -q` → `415 passed`.
+- The real `--stage states --data-end 2023-12-31` entry point exited 2 at
+  the known return-blind `missing constituents for 000852.SH` blocker and
+  produced only preflight audit/diagnostic files and its manifest; it did
+  not create exposures, portfolios or state artifacts.
+- Independent specification and quality re-reviews reported no Critical,
+  Important or Minor findings and both returned `Ready: Yes`.
+- Implementation checkpoints: `a5d5471`, `86d6759`.
+
 - [ ] **Step 7: Commit**
 
 ```bash
