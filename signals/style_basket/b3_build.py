@@ -28,6 +28,7 @@ from signals.style_basket.b3_exposures import (
     ExposureResult,
     compute_month_exposures,
 )
+from signals.style_basket.b3_portfolios import build_portfolio_panels
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -40,6 +41,11 @@ STAGE_OUTPUTS = {
         "exposure_diagnostics.csv",
     },
     "exposures": {"monthly_exposures.csv.gz"},
+    "portfolios": {
+        "axis_returns.csv",
+        "conditional_leg_returns.csv",
+        "stock_period_returns.csv.gz",
+    },
 }
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
@@ -48,7 +54,9 @@ _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 class B3Sources:
     snapshots: Callable[..., dict[pd.Timestamp, pd.DataFrame]]
     constituents: Callable[..., pd.DataFrame]
-    stock_returns: Callable[..., pd.DataFrame]
+    stock_returns: Callable[
+        ..., tuple[pd.DataFrame, pd.DataFrame]
+    ]
     target_returns: Callable[..., pd.DataFrame]
     carry: Callable[..., pd.DataFrame | pd.Series]
 
@@ -709,6 +717,150 @@ def _read_sql(
         return pd.read_sql(sql, conn, params=params)
     finally:
         conn.close()
+
+
+def _fetch_stock_return_status(
+    db: dict,
+    data_end: pd.Timestamp,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Load qfq returns and exact-date suspension flags.
+
+    Missing qfq prices are converted to zero only on an explicit zero-volume
+    row.  Every other gap remains NaN so the holding-period engine can block
+    it if the affected stock is actually held.
+    """
+    end = pd.Timestamp(data_end)
+    prices = _read_sql(
+        db,
+        f"""SELECT ts_code AS ticker, trade_date, close, pre_close, volume
+            FROM {db['schema']}.stock_daily_price_qfq
+            WHERE trade_date BETWEEN '2013-05-01' AND %(end)s
+            ORDER BY trade_date, ts_code""",
+        {"end": end.date()},
+    )
+    _require_columns(
+        prices,
+        {"ticker", "trade_date", "close", "pre_close", "volume"},
+        "stock qfq prices",
+    )
+    if prices.empty:
+        raise DataBlocked("stock qfq prices are empty")
+    prices = _validate_datetime_columns(
+        prices,
+        ("trade_date",),
+        "stock qfq prices",
+    )
+    _validate_string_keys(prices["ticker"], "stock qfq ticker")
+    if prices.duplicated(["trade_date", "ticker"]).any():
+        raise DataBlocked("stock qfq prices contain duplicate keys")
+    for column in ("close", "pre_close", "volume"):
+        original = prices[column]
+        numeric = pd.to_numeric(original, errors="coerce")
+        if (original.notna() & numeric.isna()).any():
+            raise DataBlocked(
+                f"stock qfq prices.{column} contains invalid numeric values"
+            )
+        prices[column] = numeric.astype(float)
+
+    prices["return"] = prices["close"] / prices["pre_close"] - 1.0
+    prices.loc[~np.isfinite(prices["return"]), "return"] = np.nan
+    explicit_zero = prices["volume"].fillna(-1.0).eq(0.0)
+    prices.loc[
+        explicit_zero & prices["return"].isna(),
+        "return",
+    ] = 0.0
+    returns = prices.pivot(
+        index="trade_date",
+        columns="ticker",
+        values="return",
+    )
+    suspended_from_price = prices.assign(
+        is_suspended=explicit_zero
+    ).pivot(
+        index="trade_date",
+        columns="ticker",
+        values="is_suspended",
+    )
+
+    status = _read_sql(
+        db,
+        f"""SELECT ts_code AS ticker, trade_date, is_suspended
+            FROM {db['schema']}.stock_status
+            WHERE trade_date BETWEEN '2013-05-01' AND %(end)s
+            ORDER BY trade_date, ts_code""",
+        {"end": end.date()},
+    )
+    _require_columns(
+        status,
+        {"ticker", "trade_date", "is_suspended"},
+        "stock status",
+    )
+    status = _validate_datetime_columns(
+        status,
+        ("trade_date",),
+        "stock status",
+    )
+    _validate_string_keys(status["ticker"], "stock status ticker")
+    if status.duplicated(["trade_date", "ticker"]).any():
+        raise DataBlocked("stock status contains duplicate keys")
+    invalid_status = ~status["is_suspended"].map(
+        lambda value: isinstance(value, (bool, np.bool_))
+    )
+    if invalid_status.any():
+        raise DataBlocked(
+            "stock status.is_suspended must contain booleans"
+        )
+    status["is_suspended"] = status["is_suspended"].astype(bool)
+    status_wide = status.pivot(
+        index="trade_date",
+        columns="ticker",
+        values="is_suspended",
+    )
+
+    calendar_frame = _read_sql(
+        db,
+        f"""SELECT trade_date
+            FROM {db['schema']}.index_daily
+            WHERE index_code='000905.SH'
+              AND trade_date BETWEEN '2013-05-01' AND %(end)s
+            ORDER BY trade_date""",
+        {"end": end.date()},
+    )
+    _require_columns(
+        calendar_frame,
+        {"trade_date"},
+        "stock return calendar",
+    )
+    if calendar_frame.empty:
+        raise DataBlocked("stock return calendar is empty")
+    calendar_frame = _validate_datetime_columns(
+        calendar_frame,
+        ("trade_date",),
+        "stock return calendar",
+    )
+    if calendar_frame["trade_date"].duplicated().any():
+        raise DataBlocked("stock return calendar contains duplicate dates")
+    calendar = pd.DatetimeIndex(calendar_frame["trade_date"])
+    if not calendar.is_monotonic_increasing:
+        raise DataBlocked("stock return calendar is not sorted")
+
+    columns = returns.columns.union(status_wide.columns).sort_values()
+    returns = returns.reindex(index=calendar, columns=columns)
+    suspended = (
+        suspended_from_price.reindex(
+            index=calendar,
+            columns=columns,
+        ).fillna(False)
+        | status_wide.reindex(
+            index=calendar,
+            columns=columns,
+        ).fillna(False)
+    ).astype(bool)
+    returns.index.name = "trade_date"
+    suspended.index.name = "trade_date"
+    returns.columns.name = "ticker"
+    suspended.columns.name = "ticker"
+    return returns, suspended
 
 
 def _formation_inputs(
@@ -1945,6 +2097,62 @@ def run_exposures_stage(
     return path
 
 
+def run_portfolios_stage(
+    cfg: dict,
+    sources: B3Sources,
+    data_end: pd.Timestamp,
+    output_dir: str | Path,
+) -> Path:
+    output_root = Path(output_dir)
+    _invalidate_stage_manifest(output_root, "portfolios")
+    require_parent_manifest(
+        output_root,
+        "exposures",
+        cfg,
+        data_end,
+    )
+
+    exposures_path = output_root / "monthly_exposures.csv.gz"
+    try:
+        exposures = pd.read_csv(exposures_path)
+    except (EOFError, OSError, ValueError) as exc:
+        raise DataBlocked(
+            "monthly exposures cache cannot be read"
+        ) from exc
+    returns, suspended = sources.stock_returns(pd.Timestamp(data_end))
+    axis, legs, periods = build_portfolio_panels(
+        exposures,
+        returns,
+        suspended,
+    )
+
+    axis_path = _write_csv_atomic(
+        axis,
+        output_root / "axis_returns.csv",
+        index=False,
+    )
+    legs_path = _write_csv_atomic(
+        legs,
+        output_root / "conditional_leg_returns.csv",
+        index=False,
+    )
+    periods_path = _write_csv_atomic(
+        periods,
+        output_root / "stock_period_returns.csv.gz",
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    return _write_stage_manifest(
+        output_root,
+        "portfolios",
+        cfg,
+        pd.Timestamp(data_end),
+        [axis_path, legs_path, periods_path],
+        "OK",
+        [],
+    )
+
+
 def run_post_preflight_stages(
     stage: str,
     cfg: dict,
@@ -1953,8 +2161,7 @@ def run_post_preflight_stages(
     output_dir: str | Path,
     outcome: PreflightOutcome,
 ) -> int:
-    del sources
-    if stage != "exposures":
+    if stage not in {"exposures", "portfolios"}:
         raise DataBlocked(f"unsupported post-preflight stage: {stage}")
     run_exposures_stage(
         cfg,
@@ -1962,6 +2169,13 @@ def run_post_preflight_stages(
         output_dir,
         outcome,
     )
+    if stage == "portfolios":
+        run_portfolios_stage(
+            cfg,
+            sources,
+            data_end,
+            output_dir,
+        )
     return 0
 
 
@@ -1987,7 +2201,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--stage",
-        choices=["preflight", "exposures"],
+        choices=["preflight", "exposures", "portfolios"],
         default="exposures",
     )
     parser.add_argument(
