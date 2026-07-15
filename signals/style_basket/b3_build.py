@@ -760,13 +760,30 @@ def _fetch_stock_return_status(
             raise DataBlocked(
                 f"stock qfq prices.{column} contains invalid numeric values"
             )
+        nonfinite = numeric.notna() & ~np.isfinite(numeric)
+        if nonfinite.any():
+            raise DataBlocked(
+                f"stock qfq prices.{column} contains non-finite values"
+            )
         prices[column] = numeric.astype(float)
 
+    for column in ("close", "pre_close"):
+        invalid_price = prices[column].notna() & prices[column].le(0.0)
+        if invalid_price.any():
+            raise DataBlocked(
+                f"stock qfq prices.{column} must be positive when present"
+            )
+    if (prices["volume"].dropna() < 0.0).any():
+        raise DataBlocked("stock qfq prices.volume cannot be negative")
+
+    raw_price_missing = prices[["close", "pre_close"]].isna().any(axis=1)
     prices["return"] = prices["close"] / prices["pre_close"] - 1.0
-    prices.loc[~np.isfinite(prices["return"]), "return"] = np.nan
+    invalid_return = ~raw_price_missing & ~np.isfinite(prices["return"])
+    if invalid_return.any():
+        raise DataBlocked("stock qfq prices produce non-finite returns")
     explicit_zero = prices["volume"].fillna(-1.0).eq(0.0)
     prices.loc[
-        explicit_zero & prices["return"].isna(),
+        explicit_zero & raw_price_missing,
         "return",
     ] = 0.0
     returns = prices.pivot(
@@ -2124,6 +2141,7 @@ def run_portfolios_stage(
         exposures,
         returns,
         suspended,
+        data_end=pd.Timestamp(data_end),
     )
 
     axis_path = _write_csv_atomic(

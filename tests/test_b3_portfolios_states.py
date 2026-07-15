@@ -527,3 +527,308 @@ def test_cli_accepts_portfolios_without_exposing_future_stages(
 
     assert main() == 0
     assert calls == ["portfolios"]
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "message"),
+    [
+        ("pre_close", 0.0, "pre_close"),
+        ("close", np.inf, "close"),
+        ("volume", -1.0, "volume"),
+    ],
+)
+def test_stock_loader_blocks_nonmissing_illegal_price_rows(
+    monkeypatch,
+    column,
+    value,
+    message,
+):
+    prices, status, calendar = _stock_loader_frames()
+    prices.loc[2, "volume"] = 0.0
+    prices.loc[2, column] = value
+    _patch_stock_loader_sql(
+        monkeypatch,
+        (prices, status, calendar),
+    )
+
+    with pytest.raises(DataBlocked, match=message):
+        _fetch_stock_return_status(
+            {"schema": "public"},
+            pd.Timestamp("2021-02-02"),
+        )
+
+
+@pytest.mark.parametrize("bad_weight", [-0.25, np.nan])
+def test_natural_drift_rejects_illegal_weights(bad_weight):
+    dates = pd.bdate_range("2021-01-29", periods=2)
+    returns = pd.DataFrame(
+        {"A": [0.0, 0.01], "B": [0.0, 0.02]},
+        index=dates,
+    )
+    suspended = pd.DataFrame(
+        False,
+        index=dates,
+        columns=returns.columns,
+    )
+
+    with pytest.raises(DataBlocked, match="weight"):
+        natural_drift_leg_returns(
+            pd.Series({"A": 1.0, "B": bad_weight}),
+            returns,
+            suspended,
+            dates[0],
+            dates[-1],
+        )
+
+
+def test_string_false_cannot_disguise_unexplained_gap_as_suspension():
+    dates = pd.bdate_range("2021-01-29", periods=2)
+    returns = pd.DataFrame(
+        {"A": [0.0, np.nan]},
+        index=dates,
+    )
+    suspended = pd.DataFrame(
+        {"A": [False, "False"]},
+        index=dates,
+    )
+
+    with pytest.raises(DataBlocked, match="boolean"):
+        natural_drift_leg_returns(
+            pd.Series({"A": 1.0}),
+            returns,
+            suspended,
+            dates[0],
+            dates[-1],
+        )
+
+
+def test_natural_drift_blocks_stock_return_below_minus_one():
+    dates = pd.bdate_range("2021-01-29", periods=2)
+    returns = pd.DataFrame(
+        {
+            "A": [0.0, -2.0],
+            "B": [0.0, 0.0],
+        },
+        index=dates,
+    )
+    suspended = pd.DataFrame(
+        False,
+        index=dates,
+        columns=returns.columns,
+    )
+
+    with pytest.raises(DataBlocked, match="greater than -100%"):
+        natural_drift_leg_returns(
+            pd.Series({"A": 0.1, "B": 0.9}),
+            returns,
+            suspended,
+            dates[0],
+            dates[-1],
+        )
+
+
+def test_stock_period_returns_blocks_positive_infinity():
+    dates = pd.bdate_range("2021-01-29", periods=2)
+    returns = pd.DataFrame(
+        {"A": [0.0, np.inf]},
+        index=dates,
+    )
+    suspended = pd.DataFrame(
+        False,
+        index=dates,
+        columns=returns.columns,
+    )
+
+    with pytest.raises(DataBlocked, match="finite"):
+        stock_period_returns(
+            pd.Index(["A"]),
+            returns,
+            suspended,
+            dates[0],
+            dates[-1],
+        )
+
+
+def test_portfolio_panels_reject_unknown_universe_role():
+    dates, returns, suspended = _portfolio_daily_inputs()
+    exposures = _monthly_exposures()
+    exposures.loc[0, "universe_role"] = "modle"
+
+    with pytest.raises(DataBlocked, match="universe_role"):
+        build_portfolio_panels(exposures, returns, suspended)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "reverse_dates",
+        "status_columns",
+        "duplicate_dates",
+        "duplicate_columns",
+    ],
+)
+def test_portfolio_panels_reject_misaligned_return_panels(mutation):
+    dates, returns, suspended = _portfolio_daily_inputs()
+    if mutation == "reverse_dates":
+        returns = returns.iloc[::-1]
+        suspended = suspended.iloc[::-1]
+    elif mutation == "status_columns":
+        suspended = suspended.drop(columns="C")
+    elif mutation == "duplicate_dates":
+        returns = pd.concat([returns, returns.iloc[[-1]]])
+        suspended = pd.concat([suspended, suspended.iloc[[-1]]])
+    else:
+        returns.columns = ["A", "B", "B"]
+        suspended.columns = ["A", "B", "B"]
+
+    with pytest.raises(DataBlocked, match="return panel"):
+        build_portfolio_panels(
+            _monthly_exposures(),
+            returns,
+            suspended,
+        )
+
+
+def test_stock_period_returns_rejects_empty_holding_period():
+    dates, returns, suspended = _portfolio_daily_inputs()
+
+    with pytest.raises(DataBlocked, match="no return dates"):
+        stock_period_returns(
+            pd.Index(["A"]),
+            returns,
+            suspended,
+            dates[-1],
+            dates[-1],
+        )
+
+
+def test_portfolio_panels_do_not_publish_all_empty_periods():
+    dates, returns, suspended = _portfolio_daily_inputs()
+    exposures = _monthly_exposures()
+    exposures = exposures[
+        exposures["formation_date"].eq(
+            exposures["formation_date"].max()
+        )
+    ].copy()
+    exposures["formation_date"] = dates[-1]
+
+    with pytest.raises(DataBlocked, match="no portfolio return rows"):
+        build_portfolio_panels(exposures, returns, suspended)
+
+
+def test_final_empty_stock_period_is_omitted_not_encoded_as_zero():
+    dates, returns, suspended = _portfolio_daily_inputs()
+    exposures = _monthly_exposures()
+    returns = returns.loc[: dates[2]]
+    suspended = suspended.loc[: dates[2]]
+
+    axis, legs, periods = build_portfolio_panels(
+        exposures,
+        returns,
+        suspended,
+    )
+
+    assert not axis.empty
+    assert not legs.empty
+    assert set(periods["formation_date"]) == {dates[0]}
+    assert periods["forward_return"].ne(0.0).any()
+
+
+def test_portfolios_stage_rejects_returns_after_data_end(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2021-02-04")
+    _write_exposures_parent(tmp_path, cfg, data_end)
+    dates, returns, suspended = _portfolio_daily_inputs()
+    future = pd.Timestamp("2021-02-05")
+    returns.loc[future] = [0.01, 0.02, 0.00]
+    suspended.loc[future] = [False, False, False]
+
+    with pytest.raises(DataBlocked, match="data_end"):
+        run_portfolios_stage(
+            cfg,
+            _portfolio_sources(returns, suspended),
+            data_end,
+            tmp_path,
+        )
+
+    assert not (tmp_path / "manifests" / "portfolios.json").exists()
+
+
+def test_model_axes_legally_ignore_size_only_nan_weights():
+    dates, returns, suspended = _portfolio_daily_inputs()
+    exposures = _monthly_exposures()
+    extra = []
+    for formation in sorted(exposures["formation_date"].unique()):
+        row = {
+            "pit_policy": "legal_deadline",
+            "formation_date": formation,
+            "ticker": "D",
+            "universe_role": "size_only",
+        }
+        for axis in (
+            "style",
+            "size",
+            "interaction",
+            "qblend",
+            "q500",
+            "q1000",
+        ):
+            for side in ("plus", "minus"):
+                row[f"w_{axis}_{side}"] = (
+                    0.0 if axis == "size" else np.nan
+                )
+        extra.append(row)
+    exposures = pd.concat(
+        [exposures, pd.DataFrame(extra)],
+        ignore_index=True,
+    )
+    returns["D"] = 0.0
+    suspended["D"] = False
+
+    axis, legs, periods = build_portfolio_panels(
+        exposures,
+        returns,
+        suspended,
+    )
+
+    assert not axis.empty
+    assert not legs.empty
+    assert "D" not in set(periods["ticker"])
+
+
+def test_schedule_requires_each_next_formation_in_return_calendar():
+    dates = pd.to_datetime(
+        ["2021-01-29", "2021-02-01", "2021-02-03"]
+    )
+    returns = pd.DataFrame(
+        {"A": [0.0, 0.01, 0.02]},
+        index=dates,
+    )
+    suspended = pd.DataFrame(
+        False,
+        index=dates,
+        columns=returns.columns,
+    )
+
+    with pytest.raises(DataBlocked, match="formation date"):
+        scheduled_portfolio_returns(
+            [
+                (pd.Timestamp("2021-01-29"), pd.Series({"A": 1.0})),
+                (pd.Timestamp("2021-02-02"), pd.Series({"A": 1.0})),
+            ],
+            returns,
+            suspended,
+        )
+
+
+def test_stock_period_members_must_be_unique():
+    dates, returns, suspended = _portfolio_daily_inputs()
+
+    with pytest.raises(DataBlocked, match="members.*unique"):
+        stock_period_returns(
+            pd.Index(["A", "A"]),
+            returns,
+            suspended,
+            dates[0],
+            dates[-1],
+        )
