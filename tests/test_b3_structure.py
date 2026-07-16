@@ -6,14 +6,26 @@ import pandas as pd
 import pytest
 
 from backtest.b3_structure import (
+    MODEL_COMPARISON_COLUMNS,
+    MODEL_ROW_ID_COLUMNS,
+    ModelFit,
+    _closed_formation_window,
+    _load_equal_weight_control,
+    apply_model,
     assign_hard_sort_cells,
     build_hard_sort_surface,
+    build_model_comparison,
     build_structure_coefficients,
     fama_macbeth_coefficients,
+    fit_model,
     main,
     newey_west_mean_t,
+    next_formation_targets,
+    oos_r_squared,
     ordinary_mean_t,
     run_structure,
+    stability_gate,
+    state_coverage_gate,
 )
 from signals.style_basket.b3_build import _write_stage_manifest
 from signals.style_basket.b3_config import load_b3_config
@@ -567,6 +579,49 @@ def _write_structure_parents(tmp_path, cfg, data_end):
     }, exposures, returns
 
 
+def _stub_model_comparison(*args, **kwargs):
+    del args, kwargs
+    rows = []
+    for gate_name, gate_pass in (("", np.nan), ("PIT_POLICY_FLIP", True)):
+        row = {
+            column: np.nan for column in MODEL_COMPARISON_COLUMNS
+        }
+        row.update(
+            {
+                "pit_policy": "ALL" if gate_name else "legal_deadline",
+                "candidate": "" if gate_name else "B3_unified",
+                "q": "" if gate_name else "qblend",
+                "target": "" if gate_name else "blend",
+                "window": "run" if gate_name else "2021-2023",
+                "model": "" if gate_name else "M1",
+                "gate_name": gate_name,
+                "gate_pass": gate_pass,
+                "is_in_sample": False,
+                "affects_verdict": True,
+            }
+        )
+        rows.append(row)
+    return pd.DataFrame(rows, columns=MODEL_COMPARISON_COLUMNS)
+
+
+def _run_short_structure(cfg, data_end, research_dir, backtest_dir):
+    index = pd.DatetimeIndex([pd.Timestamp(data_end)])
+    targets = {
+        target: pd.Series(0.0, index=index)
+        for target in ("blend", "500", "1000")
+    }
+    control = pd.Series(0.0, index=index)
+    return run_structure(
+        cfg,
+        data_end,
+        research_dir,
+        backtest_dir,
+        target_returns=targets,
+        equal_weight_signal=control,
+        model_comparison_builder=_stub_model_comparison,
+    )
+
+
 def test_structure_runner_hash_checks_parents_and_writes_deterministic_outputs(
     tmp_path,
 ):
@@ -575,26 +630,31 @@ def test_structure_runner_hash_checks_parents_and_writes_deterministic_outputs(
     _write_structure_parents(tmp_path, cfg, data_end)
     compact_dir = tmp_path / "compact"
 
-    result = run_structure(cfg, data_end, tmp_path, compact_dir)
+    result = _run_short_structure(cfg, data_end, tmp_path, compact_dir)
 
     assert result.status == "OK"
     assert result.surface_path == tmp_path / "hard_sort_surface.csv"
     assert result.coefficients_path == compact_dir / "structure_coefficients.csv"
+    assert result.model_path == compact_dir / "model_comparison.csv"
     surface = pd.read_csv(result.surface_path, parse_dates=["formation_date"])
     coefficients = pd.read_csv(
         result.coefficients_path,
         parse_dates=["formation_date"],
     )
+    model = pd.read_csv(result.model_path)
     assert len(surface) == 2 * 1 * 45
     assert len(coefficients) == 2 * (1 + 4)
+    assert list(model.columns) == MODEL_COMPARISON_COLUMNS
     first_surface = result.surface_path.read_bytes()
     first_coefficients = result.coefficients_path.read_bytes()
+    first_model = result.model_path.read_bytes()
 
-    repeated = run_structure(cfg, data_end, tmp_path, compact_dir)
+    repeated = _run_short_structure(cfg, data_end, tmp_path, compact_dir)
 
     assert repeated.status == "OK"
     assert repeated.surface_path.read_bytes() == first_surface
     assert repeated.coefficients_path.read_bytes() == first_coefficients
+    assert repeated.model_path.read_bytes() == first_model
 
 
 @pytest.mark.parametrize("artifact", ["exposures", "periods", "states"])
@@ -606,14 +666,15 @@ def test_structure_runner_rejects_tampered_parent_and_removes_stale_outputs(
     data_end = pd.Timestamp("2014-03-31")
     paths, _, _ = _write_structure_parents(tmp_path, cfg, data_end)
     compact_dir = tmp_path / "compact"
-    run_structure(cfg, data_end, tmp_path, compact_dir)
+    _run_short_structure(cfg, data_end, tmp_path, compact_dir)
     paths[artifact].write_bytes(paths[artifact].read_bytes() + b"tampered")
 
     with pytest.raises(DataBlocked, match="hash"):
-        run_structure(cfg, data_end, tmp_path, compact_dir)
+        _run_short_structure(cfg, data_end, tmp_path, compact_dir)
 
     assert not (tmp_path / "hard_sort_surface.csv").exists()
     assert not (compact_dir / "structure_coefficients.csv").exists()
+    assert not (compact_dir / "model_comparison.csv").exists()
 
 
 def test_structure_runner_invalidates_outputs_before_config_validation(
@@ -623,25 +684,93 @@ def test_structure_runner_invalidates_outputs_before_config_validation(
     data_end = pd.Timestamp("2014-03-31")
     _write_structure_parents(tmp_path, cfg, data_end)
     compact_dir = tmp_path / "compact"
-    result = run_structure(cfg, data_end, tmp_path, compact_dir)
+    result = _run_short_structure(cfg, data_end, tmp_path, compact_dir)
     surface_temp = result.surface_path.with_name(
         f".{result.surface_path.name}.tmp"
     )
     coefficients_temp = result.coefficients_path.with_name(
         f".{result.coefficients_path.name}.tmp"
     )
+    model_temp = result.model_path.with_name(
+        f".{result.model_path.name}.tmp"
+    )
     surface_temp.write_text("stale", encoding="utf-8")
     coefficients_temp.write_text("stale", encoding="utf-8")
+    model_temp.write_text("stale", encoding="utf-8")
     invalid_cfg = deepcopy(cfg)
     invalid_cfg["model"]["newey_west_lag"] = 2
 
     with pytest.raises(DataBlocked, match="Newey-West"):
-        run_structure(invalid_cfg, data_end, tmp_path, compact_dir)
+        _run_short_structure(invalid_cfg, data_end, tmp_path, compact_dir)
 
     assert not result.surface_path.exists()
     assert not result.coefficients_path.exists()
+    assert not result.model_path.exists()
     assert not surface_temp.exists()
     assert not coefficients_temp.exists()
+    assert not model_temp.exists()
+
+
+def test_structure_runner_validates_injected_model_output_contract(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2014-03-31")
+    _write_structure_parents(tmp_path, cfg, data_end)
+    compact_dir = tmp_path / "compact"
+    index = pd.DatetimeIndex([data_end])
+    targets = {
+        target: pd.Series(0.0, index=index)
+        for target in ("blend", "500", "1000")
+    }
+
+    def invalid_builder(*args, **kwargs):
+        del args, kwargs
+        return _stub_model_comparison().drop(columns="gate_pass")
+
+    with pytest.raises(DataBlocked, match="model comparison.*schema"):
+        run_structure(
+            cfg,
+            data_end,
+            tmp_path,
+            compact_dir,
+            target_returns=targets,
+            equal_weight_signal=pd.Series(0.0, index=index),
+            model_comparison_builder=invalid_builder,
+        )
+
+    assert not (tmp_path / "hard_sort_surface.csv").exists()
+    assert not (compact_dir / "structure_coefficients.csv").exists()
+    assert not (compact_dir / "model_comparison.csv").exists()
+
+
+def test_structure_runner_third_write_failure_removes_all_outputs(
+    tmp_path,
+    monkeypatch,
+):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2014-03-31")
+    _write_structure_parents(tmp_path, cfg, data_end)
+    compact_dir = tmp_path / "compact"
+    original = pd.DataFrame.to_csv
+
+    def failing_to_csv(frame, path, *args, **kwargs):
+        if str(path).endswith(".model_comparison.csv.tmp"):
+            raise OSError("model write failed")
+        return original(frame, path, *args, **kwargs)
+
+    monkeypatch.setattr(pd.DataFrame, "to_csv", failing_to_csv)
+
+    with pytest.raises(OSError, match="model write failed"):
+        _run_short_structure(cfg, data_end, tmp_path, compact_dir)
+
+    for path in (
+        tmp_path / "hard_sort_surface.csv",
+        compact_dir / "structure_coefficients.csv",
+        compact_dir / "model_comparison.csv",
+        tmp_path / ".hard_sort_surface.csv.tmp",
+        compact_dir / ".structure_coefficients.csv.tmp",
+        compact_dir / ".model_comparison.csv.tmp",
+    ):
+        assert not path.exists()
 
 
 def test_structure_runner_rejects_incomplete_cutoff_month_formation(
@@ -689,25 +818,31 @@ def test_structure_runner_rejects_incomplete_cutoff_month_formation(
     compact_dir.mkdir()
     surface_path = tmp_path / "hard_sort_surface.csv"
     coefficients_path = compact_dir / "structure_coefficients.csv"
+    model_path = compact_dir / "model_comparison.csv"
     surface_temp = surface_path.with_name(f".{surface_path.name}.tmp")
     coefficients_temp = coefficients_path.with_name(
         f".{coefficients_path.name}.tmp"
     )
+    model_temp = model_path.with_name(f".{model_path.name}.tmp")
     for path in (
         surface_path,
         coefficients_path,
+        model_path,
         surface_temp,
         coefficients_temp,
+        model_temp,
     ):
         path.write_text("stale", encoding="utf-8")
 
     with pytest.raises(DataBlocked, match="incomplete.*formation"):
-        run_structure(cfg, data_end, tmp_path, compact_dir)
+        _run_short_structure(cfg, data_end, tmp_path, compact_dir)
 
     assert not surface_path.exists()
     assert not coefficients_path.exists()
+    assert not model_path.exists()
     assert not surface_temp.exists()
     assert not coefficients_temp.exists()
+    assert not model_temp.exists()
 
 
 @pytest.mark.parametrize("artifact", ["axis", "states"])
@@ -746,7 +881,7 @@ def test_structure_runner_reads_and_validates_auxiliary_caches(
         )
 
     with pytest.raises(DataBlocked, match=artifact):
-        run_structure(cfg, data_end, tmp_path, tmp_path / "compact")
+        _run_short_structure(cfg, data_end, tmp_path, tmp_path / "compact")
 
 
 def test_structure_runner_blocks_rehashed_primary_cache_with_missing_schema(
@@ -774,7 +909,7 @@ def test_structure_runner_blocks_rehashed_primary_cache_with_missing_schema(
     )
 
     with pytest.raises(DataBlocked, match="monthly exposures"):
-        run_structure(cfg, data_end, tmp_path, tmp_path / "compact")
+        _run_short_structure(cfg, data_end, tmp_path, tmp_path / "compact")
 
 
 def test_structure_runner_requires_axis_and_state_daily_grids_to_match(
@@ -801,7 +936,7 @@ def test_structure_runner_requires_axis_and_state_daily_grids_to_match(
     )
 
     with pytest.raises(DataBlocked, match="axis.*states|states.*axis"):
-        run_structure(cfg, data_end, tmp_path, tmp_path / "compact")
+        _run_short_structure(cfg, data_end, tmp_path, tmp_path / "compact")
 
 
 def test_structure_coefficients_require_both_frozen_pit_policies():
@@ -833,6 +968,81 @@ def test_structure_cli_returns_data_blocked_when_states_parent_is_absent(
     assert exit_code == 2
     assert not (tmp_path / "hard_sort_surface.csv").exists()
     assert not (compact_dir / "structure_coefficients.csv").exists()
+    assert not (compact_dir / "model_comparison.csv").exists()
+
+
+def test_equal_weight_control_file_freezes_schema_keys_and_cutoff(tmp_path):
+    path = tmp_path / "equal_weight_signal_20d40z.csv"
+    pd.DataFrame(
+        {
+            "date": ["2014-01-31", "2014-02-28", "2014-03-31"],
+            "factor_value": [0.1, -0.2, 0.3],
+        }
+    ).to_csv(path, index=False)
+
+    got = _load_equal_weight_control(path, pd.Timestamp("2014-02-28"))
+
+    assert list(got.index) == list(
+        pd.to_datetime(["2014-01-31", "2014-02-28"])
+    )
+    assert list(got) == pytest.approx([0.1, -0.2])
+    duplicated = pd.read_csv(path)
+    duplicated = pd.concat([duplicated, duplicated.iloc[[0]]])
+    duplicated.to_csv(path, index=False)
+    with pytest.raises(DataBlocked, match="duplicate"):
+        _load_equal_weight_control(path, pd.Timestamp("2014-03-31"))
+
+
+def test_structure_cli_uses_default_cash_loader_and_equal_weight_path(
+    tmp_path,
+    monkeypatch,
+):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2014-03-31")
+    _write_structure_parents(tmp_path, cfg, data_end)
+    index = pd.DatetimeIndex([data_end])
+    calls = []
+
+    def loader(target, start=None, db=None):
+        del start, db
+        calls.append(target)
+        return pd.Series(0.0, index=index)
+
+    control_paths = []
+
+    def load_control(path, cutoff):
+        control_paths.append((path, cutoff))
+        return pd.Series(0.0, index=index)
+
+    monkeypatch.setattr("backtest.data.load_underlying_returns", loader)
+    monkeypatch.setattr(
+        "backtest.b3_structure._load_equal_weight_control",
+        load_control,
+    )
+    monkeypatch.setattr(
+        "backtest.b3_structure.build_model_comparison",
+        _stub_model_comparison,
+    )
+
+    exit_code = main(
+        [
+            "--data-end",
+            str(data_end.date()),
+            "--research-output-dir",
+            str(tmp_path),
+            "--backtest-output-dir",
+            str(tmp_path / "compact"),
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls == ["blend", "500", "1000"]
+    assert len(control_paths) == 1
+    assert str(control_paths[0][0]).endswith(
+        "output/equal_weight/equal_weight_signal_20d40z.csv"
+    )
+    assert control_paths[0][1] == data_end
+    assert (tmp_path / "compact" / "model_comparison.csv").is_file()
 
 
 def test_structure_runner_reports_coverage_blocked_but_writes_full_audit(
@@ -857,7 +1067,7 @@ def test_structure_runner_reports_coverage_blocked_but_writes_full_audit(
         [],
     )
 
-    result = run_structure(
+    result = _run_short_structure(
         cfg,
         data_end,
         tmp_path,
@@ -868,3 +1078,853 @@ def test_structure_runner_reports_coverage_blocked_but_writes_full_audit(
     surface = pd.read_csv(result.surface_path)
     assert surface["status"].eq("COVERAGE_BLOCKED").any()
     assert result.coefficients_path.is_file()
+    assert result.model_path.is_file()
+
+
+def _monthly_model_frame() -> pd.DataFrame:
+    dates = pd.date_range("2014-01-31", "2026-12-31", freq="ME")
+    rng = np.random.default_rng(23)
+    frame = pd.DataFrame(index=dates)
+    frame["F_U"] = rng.normal(size=len(frame))
+    frame["F_D"] = rng.normal(size=len(frame))
+    frame["F_X"] = rng.normal(size=len(frame))
+    frame["F_T"] = rng.normal(size=len(frame))
+    frame["target"] = (
+        0.35 * frame["F_U"]
+        - 0.20 * frame["F_D"]
+        + 0.15 * frame["F_X"]
+        + rng.normal(scale=0.05, size=len(frame))
+    )
+    return frame
+
+
+def test_discovery_coefficients_are_frozen_and_m1_beats_m0_oos():
+    frame = _monthly_model_frame()
+    train = frame.loc[:"2020-12-31"]
+    confirm = frame.loc["2021-01-01":"2023-12-31"]
+
+    m0 = fit_model(train, ["F_T"], "target")
+    m1 = fit_model(train, ["F_U", "F_D", "F_X"], "target")
+    pred0 = apply_model(confirm, m0)
+    pred1 = apply_model(confirm, m1)
+
+    assert isinstance(m1, ModelFit)
+    assert m1.features == ("F_U", "F_D", "F_X")
+    assert oos_r_squared(
+        confirm["target"], pred1, m1.train_target_mean
+    ) > oos_r_squared(confirm["target"], pred0, m0.train_target_mean)
+    changed = confirm.copy()
+    changed["target"] *= -100.0
+    assert fit_model(train, ["F_U", "F_D", "F_X"], "target") == m1
+
+
+def test_model_fit_requires_full_rank_and_scores_without_intercept():
+    frame = pd.DataFrame(
+        {
+            "x": [-2.0, -1.0, 1.0, 2.0],
+            "target": [-3.0, -1.0, 3.0, 5.0],
+        }
+    )
+    model = fit_model(frame, ["x"], "target")
+
+    assert model.intercept == pytest.approx(1.0)
+    assert model.slopes == pytest.approx((2.0,))
+    assert list(apply_model(frame, model)) == pytest.approx(
+        [-4.0, -2.0, 2.0, 4.0]
+    )
+    assert list(
+        apply_model(frame, model, include_intercept=True)
+    ) == pytest.approx(frame["target"])
+    with pytest.raises(RuntimeError, match="insufficient"):
+        fit_model(frame.iloc[:2], ["x"], "target")
+    rank_deficient = frame.assign(copy=frame["x"])
+    with pytest.raises(RuntimeError, match="rank"):
+        fit_model(rank_deficient, ["x", "copy"], "target")
+
+
+def test_stability_and_three_window_state_coverage_are_hard_gates():
+    dates = pd.bdate_range("2021-01-01", periods=300)
+    features = pd.DataFrame(
+        {
+            "F_U": np.linspace(-1.0, 1.0, 300),
+            "F_D": np.sin(np.arange(300) / 20.0),
+            "F_X": np.cos(np.arange(300) / 25.0),
+        },
+        index=dates,
+    )
+    stable = stability_gate(
+        np.array([1.0, 0.5, -0.2]),
+        np.array([0.9, 0.4, -0.1]),
+        features,
+        min_score_spearman=0.50,
+    )
+    reversed_fit = stability_gate(
+        np.array([1.0, 0.5, -0.2]),
+        np.array([-1.0, -0.5, 0.2]),
+        features,
+        min_score_spearman=0.50,
+    )
+    assert stable["pass"]
+    assert stable["cosine"] > 0.0
+    assert stable["score_spearman"] >= 0.50
+    assert not reversed_fit["pass"]
+
+    coverage_dates = []
+    coverage_states = []
+    for year in (2014, 2018, 2021):
+        for number, state in enumerate(("UU", "DD", "DIV") * 4):
+            coverage_dates.append(
+                pd.Timestamp(year=year, month=1, day=number + 1)
+            )
+            coverage_states.append(state)
+    coverage = pd.Series(
+        coverage_states,
+        index=pd.DatetimeIndex(coverage_dates),
+        name="state",
+    )
+    passed = state_coverage_gate(coverage, 0.10)
+    failed = state_coverage_gate(
+        coverage[coverage.ne("DIV")],
+        0.10,
+    )
+
+    assert passed["pass"]
+    assert passed["2014-2017_DIV"] == pytest.approx(1.0 / 3.0)
+    assert not failed["pass"]
+
+
+def test_next_formation_targets_are_nonoverlapping_and_omit_final():
+    dates = pd.bdate_range("2021-01-29", "2021-02-05")
+    daily = pd.Series(
+        [0.0, 0.01, 0.02, 0.03, 0.04, 0.05],
+        index=dates,
+    )
+    formations = pd.DatetimeIndex([dates[0], dates[2], dates[5]])
+
+    got = next_formation_targets(daily, formations)
+
+    assert list(got.index) == list(formations[:-1])
+    assert got.iloc[0] == pytest.approx(1.01 * 1.02 - 1.0)
+    assert got.iloc[1] == pytest.approx(1.03 * 1.04 * 1.05 - 1.0)
+
+
+@pytest.mark.parametrize("mutation", ["duplicate", "missing", "nan"])
+def test_next_formation_targets_fail_closed_on_invalid_inputs(mutation):
+    dates = pd.bdate_range("2021-01-29", periods=5)
+    daily = pd.Series(0.01, index=dates)
+    formations = pd.DatetimeIndex([dates[0], dates[2], dates[4]])
+    if mutation == "duplicate":
+        formations = pd.DatetimeIndex([dates[0], dates[2], dates[2]])
+    elif mutation == "missing":
+        formations = pd.DatetimeIndex(
+            [dates[0], pd.Timestamp("2021-01-30"), dates[4]]
+        )
+    else:
+        daily.loc[dates[1]] = np.nan
+
+    with pytest.raises((DataBlocked, RuntimeError)):
+        next_formation_targets(daily, formations)
+
+
+def test_report_only_mutation_cannot_change_frozen_model():
+    frame = _monthly_model_frame()
+    train = frame.loc["2014-01-01":"2020-12-31"]
+    baseline = fit_model(train, ["F_U", "F_D", "F_X"], "target")
+    mutated = frame.copy()
+    report_dates = mutated.index >= pd.Timestamp("2024-01-01")
+    mutated.loc[
+        report_dates,
+        ["F_U", "F_D", "F_X", "F_T", "target"],
+    ] = 1.0e9
+
+    changed = fit_model(
+        mutated.loc["2014-01-01":"2020-12-31"],
+        ["F_U", "F_D", "F_X"],
+        "target",
+    )
+
+    assert baseline == changed
+
+
+def _model_comparison_inputs():
+    cfg = load_b3_config()
+    policies = tuple(cfg["pit"]["policies"])
+    calendar = pd.bdate_range("2014-01-01", "2026-12-31")
+    formations = pd.DatetimeIndex(
+        pd.Series(calendar, index=calendar)
+        .groupby(calendar.to_period("M"))
+        .max()
+    )
+    number = np.arange(len(calendar), dtype=float)
+    base = pd.DataFrame(
+        {
+            "F_U": np.sin(number / 17.0) + 0.2 * np.cos(number / 53.0),
+            "F_D": np.cos(number / 23.0) - 0.1 * np.sin(number / 41.0),
+            "F_X": np.sin(number / 31.0) + np.cos(number / 47.0),
+            "F_T": np.cos(number / 13.0) + 0.1 * np.sin(number / 7.0),
+        },
+        index=calendar,
+    )
+    q_scale = {"qblend": 1.0, "q500": 0.8, "q1000": 1.2}
+    features = {
+        q: base.mul(scale).assign(
+            F_T=base["F_T"] * (2.0 - scale / 2.0)
+        )
+        for q, scale in q_scale.items()
+    }
+    labels = np.asarray(["UU", "DD", "DIV"])[
+        np.arange(len(calendar)) % 3
+    ]
+    state_rows = []
+    for policy in policies:
+        for q in ("qblend", "q500", "q1000"):
+            q_features = features[q]
+            for offset, date in enumerate(calendar):
+                label = str(labels[offset])
+                d_uu = 0.01 if label == "UU" else 0.0
+                d_dd = -0.01 if label == "DD" else 0.0
+                d_div = 0.005 if label == "DIV" else 0.0
+                state_rows.append(
+                    {
+                        "date": date,
+                        "pit_policy": policy,
+                        "q": q,
+                        "growth_ret": 0.001,
+                        "value_ret": 0.0,
+                        "g": d_uu + d_dd + d_div,
+                        "v": 0.0,
+                        "d": d_uu + d_dd + d_div,
+                        "d_UU": d_uu,
+                        "d_DD": d_dd,
+                        "d_DIV": d_div,
+                        "state": label,
+                        "raw_U": float(q_features.loc[date, "F_U"]),
+                        "F_U": float(q_features.loc[date, "F_U"]),
+                        "raw_D": float(q_features.loc[date, "F_D"]),
+                        "F_D": float(q_features.loc[date, "F_D"]),
+                        "raw_X": float(q_features.loc[date, "F_X"]),
+                        "F_X": float(q_features.loc[date, "F_X"]),
+                        "raw_T": float(q_features.loc[date, "F_T"]),
+                        "F_T": float(q_features.loc[date, "F_T"]),
+                        "external_market_direction": "up",
+                    }
+                )
+    states = pd.DataFrame(state_rows)
+
+    target_returns = {}
+    target_q = {"blend": "qblend", "500": "q500", "1000": "q1000"}
+    for target, q in target_q.items():
+        daily = pd.Series(0.0, index=calendar, name=target)
+        formation_features = features[q].reindex(formations)
+        monthly = (
+            0.012 * formation_features["F_U"]
+            - 0.008 * formation_features["F_D"]
+            + 0.006 * formation_features["F_X"]
+        )
+        for start, end in zip(formations[:-1], formations[1:]):
+            daily.loc[end] = monthly.loc[start]
+        target_returns[target] = daily
+
+    style = pd.Series(0.0, index=calendar)
+    interaction = pd.Series(0.0, index=calendar)
+    for offset, (_, end) in enumerate(
+        zip(formations[:-1], formations[1:])
+    ):
+        style.loc[end] = 0.004 * np.sin(offset / 2.0)
+        interaction.loc[end] = 0.003 * np.cos(offset / 3.0)
+    axis = pd.concat(
+        [
+            pd.DataFrame(
+                {
+                    "date": calendar,
+                    "pit_policy": policy,
+                    "style": style.to_numpy(),
+                    "size": 0.0,
+                    "interaction": interaction.to_numpy(),
+                }
+            )
+            for policy in policies
+        ],
+        ignore_index=True,
+    )
+
+    coefficient_rows = []
+    for policy in policies:
+        for window in ("2014-2017", "2018-2020", "2021-2023"):
+            coefficient_rows.append(
+                {
+                    "pit_policy": policy,
+                    "row_type": "summary",
+                    "formation_date": pd.NaT,
+                    "window": window,
+                    "alpha": 0.0,
+                    "beta_s": 0.01,
+                    "beta_m": 0.02,
+                    "beta_h": 0.03,
+                    "n": 36,
+                    "ordinary_t_beta_h": 2.0,
+                    "nw_lag3_t_beta_h": 2.0,
+                    "affects_verdict": True,
+                }
+            )
+        for formation in formations[:-1]:
+            if formation <= pd.Timestamp("2017-12-31"):
+                window = "2014-2017"
+                affects_verdict = True
+            elif formation <= pd.Timestamp("2020-12-31"):
+                window = "2018-2020"
+                affects_verdict = True
+            elif formation <= pd.Timestamp("2023-12-31"):
+                window = "2021-2023"
+                affects_verdict = True
+            else:
+                window = "2024-2026-report-only"
+                affects_verdict = False
+            coefficient_rows.append(
+                {
+                    "pit_policy": policy,
+                    "row_type": "monthly",
+                    "formation_date": formation,
+                    "window": window,
+                    "alpha": 0.0,
+                    "beta_s": 0.01,
+                    "beta_m": 0.02,
+                    "beta_h": 0.03,
+                    "n": 100,
+                    "ordinary_t_beta_h": np.nan,
+                    "nw_lag3_t_beta_h": np.nan,
+                    "affects_verdict": affects_verdict,
+                }
+            )
+    coefficients = pd.DataFrame(coefficient_rows)
+
+    surface_rows = []
+    required_formations = formations[
+        (formations >= pd.Timestamp("2014-01-01"))
+        & (formations <= pd.Timestamp("2023-12-31"))
+    ]
+    cells = [("2x3", cell) for cell in (
+        "big_value",
+        "big_middle",
+        "big_growth",
+        "small_value",
+        "small_middle",
+        "small_growth",
+    )] + [
+        ("5x5", f"S{size}_V{style_number}")
+        for size in range(1, 6)
+        for style_number in range(1, 6)
+    ]
+    for policy in policies:
+        for formation in required_formations:
+            for grid, cell in cells:
+                surface_rows.append(
+                    {
+                        "pit_policy": policy,
+                        "formation_date": formation,
+                        "row_type": "cell",
+                        "grid": grid,
+                        "cell": cell,
+                        "diagnostic": "",
+                        "member_count": 4,
+                        "industry_distribution": "{}",
+                        "formation_coverage": 1.0,
+                        "holding_return": 0.0,
+                        "status": "OK",
+                    }
+                )
+    surface = pd.DataFrame(surface_rows)
+    control = pd.Series(
+        np.sin(number / 11.0),
+        index=calendar,
+        name="factor_value",
+    )
+    return (
+        states,
+        axis,
+        coefficients,
+        surface,
+        target_returns,
+        control,
+        formations,
+        cfg,
+    )
+
+
+def _build_synthetic_model_comparison(**overrides):
+    inputs = list(_model_comparison_inputs())
+    names = {
+        "state_components": 0,
+        "axis_returns": 1,
+        "structure_coefficients": 2,
+        "hard_sort_surface": 3,
+        "target_returns": 4,
+        "equal_weight_signal": 5,
+        "formation_dates": 6,
+        "cfg": 7,
+    }
+    for name, value in overrides.items():
+        inputs[names[name]] = value
+    return build_model_comparison(*inputs)
+
+
+def test_model_comparison_freezes_exact_schema_mapping_and_unique_rows():
+    got = _build_synthetic_model_comparison()
+
+    assert list(got.columns) == MODEL_COMPARISON_COLUMNS
+    assert not got.duplicated(MODEL_ROW_ID_COLUMNS).any()
+    diagnostic = got[got["q"].ne("")]
+    assert set(
+        diagnostic[["candidate", "q", "target"]]
+        .drop_duplicates()
+        .itertuples(index=False, name=None)
+    ) == {
+        ("B3_unified", "qblend", "blend"),
+        ("B3_dual_target", "q500", "500"),
+        ("B3_dual_target", "q1000", "1000"),
+    }
+    metric = got[got["gate_name"].eq("")]
+    assert set(metric["model"]) == {"M0", "M1"}
+    assert metric.loc[metric["model"].eq("M0"), "partial_ic"].isna().all()
+    assert not got.loc[
+        got["gate_name"].ne(""), "gate_pass"
+    ].isna().any()
+    assert got.loc[got["gate_name"].eq(""), "gate_pass"].isna().all()
+
+
+def test_model_comparison_emits_public_leg_and_dual_and_gates():
+    got = _build_synthetic_model_comparison()
+    policies = load_b3_config()["pit"]["policies"]
+
+    public = got[got["candidate"].eq("PUBLIC")]
+    assert set(public["gate_name"]) == {
+        "beta_h_same_sign",
+        "interaction_axis_corr",
+        "hard_sort_complete",
+    }
+    assert len(public) == len(policies) * 3
+    assert public["gate_pass"].eq(True).all()
+
+    candidate_gates = {"m1_increment", "partial_ic", "stability", "state_coverage"}
+    aggregate = got[
+        got["candidate"].isin({"B3_unified", "B3_dual_target"})
+        & got["q"].eq("")
+        & got["gate_name"].isin(candidate_gates)
+    ]
+    assert len(aggregate) == len(policies) * 2 * 4
+    assert aggregate["gate_pass"].eq(True).all()
+
+    states, axis, coefficients, surface, targets, control, formations, cfg = (
+        _model_comparison_inputs()
+    )
+    mask = (
+        states["q"].eq("q1000")
+        & states["date"].between("2021-01-01", "2023-12-31")
+    )
+    states.loc[mask, "state"] = "UU"
+    failed = build_model_comparison(
+        states,
+        axis,
+        coefficients,
+        surface,
+        targets,
+        control,
+        formations,
+        cfg,
+    )
+    q500 = failed[
+        failed["q"].eq("q500")
+        & failed["gate_name"].eq("state_coverage")
+        & failed["window"].eq("2021-2023")
+    ]
+    q1000 = failed[
+        failed["q"].eq("q1000")
+        & failed["gate_name"].eq("state_coverage")
+        & failed["window"].eq("2021-2023")
+    ]
+    dual = failed[
+        failed["candidate"].eq("B3_dual_target")
+        & failed["q"].eq("")
+        & failed["gate_name"].eq("state_coverage")
+    ]
+    assert q500["gate_pass"].eq(True).all()
+    assert q1000["gate_pass"].eq(False).all()
+    assert dual["gate_pass"].eq(False).all()
+
+
+def test_model_comparison_adds_one_run_level_pit_policy_flip_row():
+    baseline = _build_synthetic_model_comparison()
+    pit = baseline[baseline["gate_name"].eq("PIT_POLICY_FLIP")]
+    assert len(pit) == 1
+    assert pit.iloc[0]["pit_policy"] == "ALL"
+    assert bool(pit.iloc[0]["gate_pass"])
+
+    inputs = list(_model_comparison_inputs())
+    coefficients = inputs[2].copy()
+    policy = load_b3_config()["pit"]["policies"][1]
+    coefficients.loc[
+        coefficients["pit_policy"].eq(policy)
+        & coefficients["row_type"].eq("monthly")
+        & coefficients["formation_date"].between(
+            "2021-01-01", "2023-12-31"
+        ),
+        "beta_h",
+    ] = -0.03
+    inputs[2] = coefficients
+
+    changed = build_model_comparison(*inputs)
+    pit = changed[changed["gate_name"].eq("PIT_POLICY_FLIP")]
+
+    assert len(pit) == 1
+    assert not bool(pit.iloc[0]["gate_pass"])
+    assert bool(pit.iloc[0]["affects_verdict"])
+
+
+def test_model_comparison_report_mutation_cannot_change_verdict_rows():
+    inputs = list(_model_comparison_inputs())
+    baseline = build_model_comparison(*inputs)
+    states = inputs[0].copy()
+    report_state = states["date"].ge("2024-01-01")
+    state_sequence = np.arange(int(report_state.sum()), dtype=float)
+    states.loc[report_state, "F_U"] = 1.0e8 + state_sequence
+    states.loc[report_state, "F_D"] = -2.0e8 + state_sequence**2
+    states.loc[report_state, "F_X"] = 3.0e8 - state_sequence
+    states.loc[report_state, "F_T"] = -4.0e8 - state_sequence**2
+    targets = {name: series.copy() for name, series in inputs[4].items()}
+    for series in targets.values():
+        report_target = series.index >= pd.Timestamp("2024-01-01")
+        series.loc[report_target] = np.linspace(
+            0.40,
+            0.60,
+            int(report_target.sum()),
+        )
+    control = inputs[5].copy()
+    report_control = control.index >= pd.Timestamp("2024-01-01")
+    control.loc[report_control] = np.linspace(
+        -1.0e9,
+        1.0e9,
+        int(report_control.sum()),
+    )
+    axis = inputs[1].copy()
+    report_axis = axis["date"].ge("2024-01-01")
+    axis_sequence = np.arange(int(report_axis.sum()), dtype=float)
+    axis.loc[report_axis, "style"] = 1.0e8 + axis_sequence**2
+    axis.loc[report_axis, "interaction"] = 1.0e8 - axis_sequence
+    inputs[0] = states
+    inputs[1] = axis
+    inputs[4] = targets
+    inputs[5] = control
+
+    changed = build_model_comparison(*inputs)
+    baseline_verdict = baseline[baseline["affects_verdict"]].sort_values(
+        MODEL_ROW_ID_COLUMNS,
+        kind="mergesort",
+    ).reset_index(drop=True)
+    changed_verdict = changed[changed["affects_verdict"]].sort_values(
+        MODEL_ROW_ID_COLUMNS,
+        kind="mergesort",
+    ).reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(baseline_verdict, changed_verdict)
+    assert not baseline.loc[
+        baseline["window"].eq("2024-2026-report-only"),
+        "affects_verdict",
+    ].any()
+
+
+def test_closed_formation_window_excludes_cross_boundary_periods():
+    formations = pd.date_range("2020-10-31", "2021-02-28", freq="ME")
+    frame = pd.DataFrame(
+        {"value": np.arange(len(formations) - 1)},
+        index=formations[:-1],
+    )
+
+    got = _closed_formation_window(
+        frame,
+        formations,
+        "2020-01-01",
+        "2020-12-31",
+    )
+
+    assert list(got.index) == list(formations[:2])
+
+
+def test_post_2020_target_mutation_cannot_change_discovery_or_stability():
+    inputs = list(_model_comparison_inputs())
+    baseline = build_model_comparison(*inputs)
+    targets = {name: series.copy() for name, series in inputs[4].items()}
+    for series in targets.values():
+        series.loc[series.index >= pd.Timestamp("2021-01-01")] = 0.50
+    inputs[4] = targets
+
+    changed = build_model_comparison(*inputs)
+    protected = baseline["window"].isin(
+        {"2014-2017", "2018-2020", "2014-2020"}
+    ) | baseline["gate_name"].eq("stability")
+    baseline_protected = baseline[protected].reset_index(drop=True)
+    protected_keys = set(
+        baseline_protected[MODEL_ROW_ID_COLUMNS].itertuples(
+            index=False,
+            name=None,
+        )
+    )
+    changed_protected = changed[
+        changed[MODEL_ROW_ID_COLUMNS].apply(tuple, axis=1).isin(
+            protected_keys
+        )
+    ].reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(baseline_protected, changed_protected)
+
+
+def test_beta_h_gate_recomputes_complete_monthly_windows_not_summary_rows():
+    inputs = list(_model_comparison_inputs())
+    coefficients = inputs[2].copy()
+    policy = load_b3_config()["pit"]["policies"][1]
+    coefficients.loc[
+        coefficients["pit_policy"].eq(policy)
+        & coefficients["row_type"].eq("summary"),
+        "beta_h",
+    ] = -0.03
+    inputs[2] = coefficients
+
+    got = build_model_comparison(*inputs)
+    beta_gate = got[got["gate_name"].eq("beta_h_same_sign")]
+    pit_gate = got[got["gate_name"].eq("PIT_POLICY_FLIP")]
+
+    assert beta_gate["gate_pass"].eq(True).all()
+    assert pit_gate["gate_pass"].eq(True).all()
+
+
+@pytest.mark.parametrize(
+    ("source", "mutation"),
+    [
+        ("target", "missing"),
+        ("target", "duplicate"),
+        ("control", "missing"),
+        ("control", "duplicate"),
+    ],
+)
+def test_model_comparison_rejects_incomplete_target_or_control_keys(
+    source,
+    mutation,
+):
+    inputs = list(_model_comparison_inputs())
+    formation = inputs[6][10]
+    if source == "target":
+        targets = {name: series.copy() for name, series in inputs[4].items()}
+        series = targets["blend"]
+        if mutation == "missing":
+            targets["blend"] = series.drop(index=formation)
+        else:
+            targets["blend"] = pd.concat([series, series.loc[[formation]]])
+        inputs[4] = targets
+    else:
+        control = inputs[5]
+        if mutation == "missing":
+            control = control.drop(index=formation)
+        else:
+            control = pd.concat([control, control.loc[[formation]]])
+        inputs[5] = control
+
+    with pytest.raises(DataBlocked):
+        build_model_comparison(*inputs)
+
+
+def test_model_comparison_rejects_missing_nonformation_target_day():
+    inputs = list(_model_comparison_inputs())
+    targets = {name: series.copy() for name, series in inputs[4].items()}
+    formations = inputs[6]
+    between = targets["blend"].index[
+        (targets["blend"].index > formations[10])
+        & (targets["blend"].index < formations[11])
+    ]
+    targets["blend"] = targets["blend"].drop(index=between[0])
+    inputs[4] = targets
+
+    with pytest.raises(DataBlocked, match="daily grid"):
+        build_model_comparison(*inputs)
+
+
+def _write_full_model_parents(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2024-01-31")
+    (
+        states,
+        axis,
+        _,
+        _,
+        targets,
+        control,
+        formations,
+        _,
+    ) = _model_comparison_inputs()
+    formations = formations[formations <= data_end]
+    policies = tuple(cfg["pit"]["policies"])
+    exposures, periods = _surface_inputs(
+        dates=formations,
+        policies=policies,
+        names_per_cell=1,
+    )
+    exposure_path = tmp_path / "monthly_exposures.csv.gz"
+    exposures.to_csv(
+        exposure_path,
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    _write_stage_manifest(
+        tmp_path,
+        "exposures",
+        cfg,
+        data_end,
+        [exposure_path],
+        "OK",
+        [],
+    )
+
+    axis = axis[axis["date"].le(data_end)].copy()
+    axis_path = tmp_path / "axis_returns.csv"
+    axis.to_csv(axis_path, index=False)
+    states = states[states["date"].le(data_end)].copy()
+    leg_path = tmp_path / "conditional_leg_returns.csv"
+    states[
+        ["date", "pit_policy", "q", "growth_ret", "value_ret"]
+    ].to_csv(leg_path, index=False)
+    period_path = tmp_path / "stock_period_returns.csv.gz"
+    periods.to_csv(
+        period_path,
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    _write_stage_manifest(
+        tmp_path,
+        "portfolios",
+        cfg,
+        data_end,
+        [axis_path, leg_path, period_path],
+        "OK",
+        [],
+    )
+
+    state_path = tmp_path / "state_components.csv"
+    states.to_csv(state_path, index=False)
+    _write_stage_manifest(
+        tmp_path,
+        "states",
+        cfg,
+        data_end,
+        [state_path],
+        "OK",
+        [],
+    )
+    prepared_targets = {
+        target: series.loc[:data_end].copy()
+        for target, series in targets.items()
+    }
+    return (
+        cfg,
+        data_end,
+        prepared_targets,
+        control.loc[:data_end].copy(),
+        {
+            "exposures": exposure_path,
+            "axis": axis_path,
+            "legs": leg_path,
+            "periods": period_path,
+            "states": state_path,
+        },
+    )
+
+
+def test_structure_runner_real_builder_uses_loader_and_is_deterministic(
+    tmp_path,
+):
+    cfg, data_end, targets, control, _ = _write_full_model_parents(tmp_path)
+    compact_dir = tmp_path / "compact"
+    calls = []
+
+    def loader(target):
+        calls.append(target)
+        return targets[target]
+
+    result = run_structure(
+        cfg,
+        data_end,
+        tmp_path,
+        compact_dir,
+        underlying_return_loader=loader,
+        equal_weight_signal=control,
+    )
+
+    assert calls == ["blend", "500", "1000"]
+    model = pd.read_csv(result.model_path)
+    assert list(model.columns) == MODEL_COMPARISON_COLUMNS
+    assert model["gate_name"].eq("PIT_POLICY_FLIP").sum() == 1
+    first = tuple(
+        path.read_bytes()
+        for path in (
+            result.surface_path,
+            result.coefficients_path,
+            result.model_path,
+        )
+    )
+    calls.clear()
+
+    repeated = run_structure(
+        cfg,
+        data_end,
+        tmp_path,
+        compact_dir,
+        underlying_return_loader=loader,
+        equal_weight_signal=control,
+    )
+
+    assert calls == ["blend", "500", "1000"]
+    assert tuple(
+        path.read_bytes()
+        for path in (
+            repeated.surface_path,
+            repeated.coefficients_path,
+            repeated.model_path,
+        )
+    ) == first
+
+
+def test_structure_runner_real_builder_failure_removes_all_outputs(tmp_path):
+    cfg, data_end, targets, control, paths = _write_full_model_parents(tmp_path)
+    states = pd.read_csv(paths["states"])
+    states["F_X"] = states["F_U"]
+    states.to_csv(paths["states"], index=False)
+    _write_stage_manifest(
+        tmp_path,
+        "states",
+        cfg,
+        data_end,
+        [paths["states"]],
+        "OK",
+        [],
+    )
+    compact_dir = tmp_path / "compact"
+    compact_dir.mkdir()
+    stale_paths = (
+        tmp_path / "hard_sort_surface.csv",
+        compact_dir / "structure_coefficients.csv",
+        compact_dir / "model_comparison.csv",
+        tmp_path / ".hard_sort_surface.csv.tmp",
+        compact_dir / ".structure_coefficients.csv.tmp",
+        compact_dir / ".model_comparison.csv.tmp",
+    )
+    for path in stale_paths:
+        path.write_text("stale", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="rank"):
+        run_structure(
+            cfg,
+            data_end,
+            tmp_path,
+            compact_dir,
+            target_returns=targets,
+            equal_weight_signal=control,
+        )
+
+    assert not any(path.exists() for path in stale_paths)

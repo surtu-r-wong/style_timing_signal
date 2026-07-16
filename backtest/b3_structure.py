@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from backtest.rotation_probe import partial_rank_ic
 from signals.style_basket.b3_build import require_parent_manifest
 from signals.style_basket.b3_config import load_b3_config
 from signals.style_basket.b3_exposures import DataBlocked
@@ -19,6 +21,9 @@ from signals.style_basket.b3_exposures import DataBlocked
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RESEARCH_OUTPUT_DIR = ROOT / "output" / "style_basket" / "b3"
 DEFAULT_BACKTEST_OUTPUT_DIR = ROOT / "backtest" / "output" / "b3"
+DEFAULT_EQUAL_WEIGHT_SIGNAL_PATH = (
+    ROOT / "output" / "equal_weight" / "equal_weight_signal_20d40z.csv"
+)
 SURFACE_COLUMNS = [
     "pit_policy",
     "formation_date",
@@ -45,6 +50,36 @@ COEFFICIENT_COLUMNS = [
     "ordinary_t_beta_h",
     "nw_lag3_t_beta_h",
     "affects_verdict",
+]
+MODEL_COMPARISON_COLUMNS = [
+    "pit_policy",
+    "candidate",
+    "q",
+    "target",
+    "window",
+    "model",
+    "n",
+    "oos_r2",
+    "spearman_ic",
+    "partial_ic",
+    "cosine_early_late",
+    "confirmation_score_spearman",
+    "state_UU_share",
+    "state_DD_share",
+    "state_DIV_share",
+    "gate_name",
+    "gate_pass",
+    "is_in_sample",
+    "affects_verdict",
+]
+MODEL_ROW_ID_COLUMNS = [
+    "pit_policy",
+    "candidate",
+    "q",
+    "target",
+    "window",
+    "model",
+    "gate_name",
 ]
 CELLS_2X3 = [
     f"{size}_{style}"
@@ -148,6 +183,285 @@ def _finite_numeric(values: pd.Series, label: str) -> pd.Series:
     return numeric.astype(float)
 
 
+@dataclass(frozen=True)
+class ModelFit:
+    features: tuple[str, ...]
+    intercept: float
+    slopes: tuple[float, ...]
+    train_target_mean: float
+    n: int
+
+
+def fit_model(
+    frame: pd.DataFrame,
+    feature_columns: list[str],
+    target_column: str,
+) -> ModelFit:
+    """Fit one frozen OLS model using only the supplied training slice."""
+    if (
+        not isinstance(feature_columns, list)
+        or not feature_columns
+        or len(set(feature_columns)) != len(feature_columns)
+    ):
+        raise DataBlocked("model features must be a unique nonempty list")
+    if not isinstance(target_column, str) or not target_column.strip():
+        raise DataBlocked("model target must be a nonempty string")
+    if target_column in feature_columns:
+        raise DataBlocked("model target cannot also be a feature")
+    required = {target_column, *feature_columns}
+    source = _require_frame(frame, required, "model training frame")
+    clean = source[[target_column, *feature_columns]].dropna()
+    for column in (target_column, *feature_columns):
+        clean[column] = _finite_numeric(
+            clean[column],
+            f"model training frame.{column}",
+        )
+    parameter_count = len(feature_columns) + 1
+    if len(clean) <= parameter_count:
+        raise RuntimeError("model has insufficient observations")
+    design = np.column_stack(
+        [
+            np.ones(len(clean), dtype=float),
+            clean[feature_columns].to_numpy(dtype=float),
+        ]
+    )
+    if np.linalg.matrix_rank(design) != design.shape[1]:
+        raise RuntimeError("model design is rank deficient")
+    beta, _, _, _ = np.linalg.lstsq(
+        design,
+        clean[target_column].to_numpy(dtype=float),
+        rcond=None,
+    )
+    return ModelFit(
+        features=tuple(feature_columns),
+        intercept=float(beta[0]),
+        slopes=tuple(float(value) for value in beta[1:]),
+        train_target_mean=float(clean[target_column].mean()),
+        n=int(len(clean)),
+    )
+
+
+def apply_model(
+    frame: pd.DataFrame,
+    model: ModelFit,
+    include_intercept: bool = False,
+) -> pd.Series:
+    """Apply frozen slopes; the fitted intercept is diagnostic-only by default."""
+    if not isinstance(model, ModelFit):
+        raise DataBlocked("model must be a ModelFit")
+    if not isinstance(include_intercept, (bool, np.bool_)):
+        raise DataBlocked("include_intercept must be boolean")
+    source = _require_frame(
+        frame,
+        set(model.features),
+        "model scoring frame",
+    )
+    features = source[list(model.features)].copy()
+    for column in model.features:
+        features[column] = _finite_numeric(
+            features[column],
+            f"model scoring frame.{column}",
+        )
+    values = features.to_numpy(dtype=float) @ np.asarray(
+        model.slopes,
+        dtype=float,
+    )
+    if include_intercept:
+        values = values + model.intercept
+    return pd.Series(values, index=source.index, name="score", dtype=float)
+
+
+def oos_r_squared(
+    target: pd.Series,
+    prediction: pd.Series,
+    train_target_mean: float,
+) -> float:
+    """Return 1-SSE/SST where SST uses the frozen training target mean."""
+    if not isinstance(target, pd.Series) or not isinstance(
+        prediction, pd.Series
+    ):
+        raise DataBlocked("OOS target and prediction must be Series")
+    if target.index.has_duplicates or prediction.index.has_duplicates:
+        raise DataBlocked("OOS target and prediction keys must be unique")
+    if isinstance(train_target_mean, (bool, np.bool_)) or not np.isfinite(
+        train_target_mean
+    ):
+        raise DataBlocked("training target mean must be finite")
+    joint = pd.concat(
+        [target.rename("target"), prediction.rename("prediction")],
+        axis=1,
+        join="inner",
+    ).dropna()
+    if joint.empty:
+        raise DataBlocked("OOS target and prediction do not overlap")
+    joint["target"] = _finite_numeric(joint["target"], "OOS target")
+    joint["prediction"] = _finite_numeric(
+        joint["prediction"],
+        "OOS prediction",
+    )
+    sse = float(
+        ((joint["target"] - joint["prediction"]) ** 2).sum()
+    )
+    denominator = float(
+        ((joint["target"] - float(train_target_mean)) ** 2).sum()
+    )
+    if denominator == 0.0:
+        return float("nan")
+    return 1.0 - sse / denominator
+
+
+def stability_gate(
+    early_slopes: np.ndarray,
+    late_slopes: np.ndarray,
+    confirmation_daily_features: pd.DataFrame,
+    min_score_spearman: float,
+) -> dict[str, float | bool]:
+    """Evaluate the frozen subwindow slope and confirmation-score gate."""
+    early = np.asarray(early_slopes)
+    late = np.asarray(late_slopes)
+    if (
+        early.ndim != 1
+        or late.ndim != 1
+        or early.shape != late.shape
+        or len(early) == 0
+        or not np.issubdtype(early.dtype, np.number)
+        or not np.issubdtype(late.dtype, np.number)
+        or not np.isfinite(early).all()
+        or not np.isfinite(late).all()
+    ):
+        raise DataBlocked("stability slopes must be matching finite vectors")
+    if (
+        isinstance(min_score_spearman, (bool, np.bool_))
+        or not np.isfinite(min_score_spearman)
+        or not -1.0 <= float(min_score_spearman) <= 1.0
+    ):
+        raise DataBlocked("stability Spearman minimum is invalid")
+    features = _require_frame(
+        confirmation_daily_features,
+        set(confirmation_daily_features.columns),
+        "stability confirmation features",
+    )
+    if features.shape[1] != len(early):
+        raise DataBlocked("stability feature and slope dimensions differ")
+    for column in features.columns:
+        features[column] = _finite_numeric(
+            features[column],
+            f"stability confirmation features.{column}",
+        )
+    denominator = float(np.linalg.norm(early) * np.linalg.norm(late))
+    cosine = (
+        float(early @ late / denominator)
+        if denominator > 0.0
+        else float("nan")
+    )
+    values = features.to_numpy(dtype=float)
+    early_score = pd.Series(values @ early, index=features.index)
+    late_score = pd.Series(values @ late, index=features.index)
+    score_spearman = early_score.corr(late_score, method="spearman")
+    passed = bool(
+        np.isfinite(cosine)
+        and cosine > 0.0
+        and np.isfinite(score_spearman)
+        and score_spearman >= float(min_score_spearman)
+    )
+    return {
+        "cosine": cosine,
+        "score_spearman": float(score_spearman),
+        "pass": passed,
+    }
+
+
+def state_coverage_gate(
+    state: pd.Series,
+    minimum: float,
+) -> dict[str, float | bool]:
+    """Check all three states in each frozen gate subwindow."""
+    if not isinstance(state, pd.Series) or state.empty:
+        raise DataBlocked("state coverage input must be a nonempty Series")
+    if not isinstance(state.index, pd.DatetimeIndex):
+        raise DataBlocked("state coverage index must be a DatetimeIndex")
+    if (
+        state.index.tz is not None
+        or not state.index.equals(state.index.normalize())
+        or state.index.has_duplicates
+    ):
+        raise DataBlocked("state coverage dates must be unique naive dates")
+    if not state.dropna().isin({"UU", "DD", "DIV"}).all():
+        raise DataBlocked("state coverage contains unsupported labels")
+    if (
+        isinstance(minimum, (bool, np.bool_))
+        or not np.isfinite(minimum)
+        or not 0.0 <= float(minimum) <= 1.0
+    ):
+        raise DataBlocked("state coverage minimum is invalid")
+    windows = {
+        "2014-2017": ("2014-01-01", "2017-12-31", True),
+        "2018-2020": ("2018-01-01", "2020-12-31", True),
+        "2021-2023": ("2021-01-01", "2023-12-31", True),
+        "2014-2020": ("2014-01-01", "2020-12-31", False),
+    }
+    result: dict[str, float | bool] = {}
+    passed = True
+    for window, (start, end, affects_gate) in windows.items():
+        sample = state.loc[start:end].dropna()
+        for label in ("UU", "DD", "DIV"):
+            share = float(sample.eq(label).mean()) if len(sample) else 0.0
+            result[f"{window}_{label}"] = share
+            if affects_gate:
+                passed &= share >= float(minimum)
+    result["pass"] = bool(passed)
+    return result
+
+
+def next_formation_targets(
+    daily_return: pd.Series,
+    formations: pd.DatetimeIndex,
+) -> pd.Series:
+    """Compound exact non-overlapping (formation, next formation] targets."""
+    if not isinstance(daily_return, pd.Series) or daily_return.empty:
+        raise DataBlocked("daily target return must be a nonempty Series")
+    if not isinstance(daily_return.index, pd.DatetimeIndex):
+        raise DataBlocked("daily target return index must be a DatetimeIndex")
+    if (
+        daily_return.index.tz is not None
+        or not daily_return.index.equals(daily_return.index.normalize())
+        or daily_return.index.has_duplicates
+        or not daily_return.index.is_monotonic_increasing
+    ):
+        raise DataBlocked(
+            "daily target return dates must be unique increasing naive dates"
+        )
+    returns = _finite_numeric(daily_return, "daily target return")
+    if returns.le(-1.0).any():
+        raise DataBlocked("daily target returns must exceed -100%")
+    if not isinstance(formations, pd.DatetimeIndex) or len(formations) < 2:
+        raise DataBlocked("formation dates must contain at least two dates")
+    if (
+        formations.tz is not None
+        or not formations.equals(formations.normalize())
+        or formations.has_duplicates
+        or not formations.is_monotonic_increasing
+    ):
+        raise DataBlocked(
+            "formation dates must be unique increasing naive dates"
+        )
+    if not formations.isin(returns.index).all():
+        raise DataBlocked("formation dates are missing from target returns")
+    output: dict[pd.Timestamp, float] = {}
+    for start, end in zip(formations[:-1], formations[1:]):
+        sample = returns.loc[
+            returns.index.to_series().between(start, end, inclusive="right")
+        ]
+        if sample.empty:
+            raise RuntimeError(
+                f"invalid target holding period: {start.date()}"
+            )
+        output[pd.Timestamp(start)] = float(
+            (1.0 + sample).prod() - 1.0
+        )
+    return pd.Series(output, name="target", dtype=float)
+
+
 def _percentile_position(
     values: pd.Series,
     tickers: pd.Series,
@@ -163,7 +477,7 @@ def _percentile_position(
         ascending=[True, True],
         kind="mergesort",
     )
-    percentile = np.empty(len(order), dtype=float)
+    percentile: np.ndarray = np.empty(len(order), dtype=float)
     percentile[order["row_number"].to_numpy(dtype=int)] = (
         np.arange(len(order)) + 0.5
     ) / len(order)
@@ -832,6 +1146,22 @@ def _validate_structure_config(cfg: dict) -> None:
     model = cfg.get("model")
     if not isinstance(model, dict) or model.get("newey_west_lag") != 3:
         raise DataBlocked("B3 structure Newey-West lag must remain 3")
+    frozen_thresholds = {
+        "state_min_coverage": 0.10,
+        "stability_score_spearman_min": 0.50,
+        "interaction_axis_corr_max": 0.80,
+    }
+    for name, expected in frozen_thresholds.items():
+        value = model.get(name)
+        if (
+            isinstance(value, (bool, np.bool_))
+            or not isinstance(value, (int, float, np.number))
+            or not np.isfinite(value)
+            or float(value) != expected
+        ):
+            raise DataBlocked(
+                f"B3 structure {name} must remain {expected:.2f}"
+            )
 
 
 def build_structure_coefficients(
@@ -943,10 +1273,1072 @@ def build_structure_coefficients(
     return output.reset_index(drop=True)
 
 
+Q_MODEL_SPECS = {
+    "qblend": ("B3_unified", "blend"),
+    "q500": ("B3_dual_target", "500"),
+    "q1000": ("B3_dual_target", "1000"),
+}
+MODEL_FEATURES = ["F_U", "F_D", "F_X"]
+
+
+def _validated_daily_model_series(
+    values: pd.Series,
+    label: str,
+    formations: pd.DatetimeIndex,
+    *,
+    is_return: bool,
+) -> pd.Series:
+    if not isinstance(values, pd.Series) or values.empty:
+        raise DataBlocked(f"{label} must be a nonempty Series")
+    if not isinstance(values.index, pd.DatetimeIndex):
+        raise DataBlocked(f"{label} index must be a DatetimeIndex")
+    if (
+        values.index.tz is not None
+        or not values.index.equals(values.index.normalize())
+        or values.index.has_duplicates
+        or not values.index.is_monotonic_increasing
+    ):
+        raise DataBlocked(
+            f"{label} dates must be unique increasing naive dates"
+        )
+    sample = values.loc[formations.min() : formations.max()].copy()
+    sample = _finite_numeric(sample, label)
+    if not formations.isin(sample.index).all():
+        raise DataBlocked(f"{label} is missing required formation dates")
+    if is_return and sample.le(-1.0).any():
+        raise DataBlocked(f"{label} must exceed -100%")
+    return sample
+
+
+def _validated_model_comparison_inputs(
+    state_components: pd.DataFrame,
+    axis_returns: pd.DataFrame,
+    structure_coefficients: pd.DataFrame,
+    hard_sort_surface: pd.DataFrame,
+    target_returns: dict[str, pd.Series],
+    equal_weight_signal: pd.Series,
+    formation_dates: pd.DatetimeIndex,
+    cfg: dict,
+) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    dict[str, pd.Series],
+    pd.Series,
+    pd.DatetimeIndex,
+]:
+    _validate_structure_config(cfg)
+    if not isinstance(formation_dates, pd.DatetimeIndex):
+        raise DataBlocked("model formation dates must be a DatetimeIndex")
+    formations = formation_dates.copy()
+    if (
+        len(formations) < 2
+        or formations.tz is not None
+        or not formations.equals(formations.normalize())
+        or formations.has_duplicates
+        or not formations.is_monotonic_increasing
+    ):
+        raise DataBlocked(
+            "model formation dates must be unique increasing naive dates"
+        )
+    periods = formations.to_period("M")
+    if periods.has_duplicates or not periods.equals(
+        pd.period_range(periods[0], periods[-1], freq="M")
+    ):
+        raise DataBlocked("model formation dates must be monthly continuous")
+
+    state_required = {
+        "date",
+        "pit_policy",
+        "q",
+        "state",
+        "F_U",
+        "F_D",
+        "F_X",
+        "F_T",
+    }
+    states = _require_frame(
+        state_components,
+        state_required,
+        "model state components",
+    )
+    states["date"] = _strict_dates(
+        states["date"],
+        "model state components.date",
+    )
+    states = states[
+        states["date"].between(formations.min(), formations.max())
+    ].copy()
+    if states.empty:
+        raise DataBlocked("model state components miss the formation window")
+    _validate_strings(
+        states["pit_policy"],
+        "model state components.pit_policy",
+    )
+    _validate_strings(states["q"], "model state components.q")
+    if sorted(states["pit_policy"].unique()) != sorted(
+        cfg["pit"]["policies"]
+    ):
+        raise DataBlocked("model state policy set mismatch")
+    if set(states["q"]) != set(Q_MODEL_SPECS):
+        raise DataBlocked("model state q set mismatch")
+    if states.duplicated(["date", "pit_policy", "q"]).any():
+        raise DataBlocked("model state components contain duplicate keys")
+    if not states["state"].isin({"UU", "DD", "DIV"}).all():
+        raise DataBlocked("model state components contain invalid states")
+    for column in (*MODEL_FEATURES, "F_T"):
+        states[column] = _finite_numeric(
+            states[column],
+            f"model state components.{column}",
+        )
+
+    reference_dates: pd.DatetimeIndex | None = None
+    for policy in cfg["pit"]["policies"]:
+        for q in Q_MODEL_SPECS:
+            group_dates = pd.DatetimeIndex(
+                states.loc[
+                    states["pit_policy"].eq(policy)
+                    & states["q"].eq(q),
+                    "date",
+                ].sort_values(kind="mergesort")
+            )
+            if not formations.isin(group_dates).all():
+                raise DataBlocked(
+                    "model state components miss formation-date features"
+                )
+            if reference_dates is None:
+                reference_dates = group_dates
+            elif not group_dates.equals(reference_dates):
+                raise DataBlocked("model state daily grids differ")
+
+    axis = _require_frame(
+        axis_returns,
+        {"date", "pit_policy", "style", "interaction"},
+        "model axis returns",
+    )
+    axis["date"] = _strict_dates(axis["date"], "model axis returns.date")
+    axis = axis[
+        axis["date"].between(formations.min(), formations.max())
+    ].copy()
+    _validate_strings(axis["pit_policy"], "model axis returns.pit_policy")
+    if sorted(axis["pit_policy"].unique()) != sorted(
+        cfg["pit"]["policies"]
+    ):
+        raise DataBlocked("model axis policy set mismatch")
+    if axis.duplicated(["date", "pit_policy"]).any():
+        raise DataBlocked("model axis returns contain duplicate keys")
+    for column in ("style", "interaction"):
+        axis[column] = _finite_numeric(
+            axis[column],
+            f"model axis returns.{column}",
+        )
+    if reference_dates is None:
+        raise DataBlocked("model state daily grid is empty")
+    for policy in cfg["pit"]["policies"]:
+        policy_dates = pd.DatetimeIndex(
+            axis.loc[
+                axis["pit_policy"].eq(policy), "date"
+            ].sort_values(kind="mergesort")
+        )
+        if not policy_dates.equals(reference_dates):
+            raise DataBlocked("model state and axis daily grids differ")
+
+    coefficients = _require_frame(
+        structure_coefficients,
+        {
+            "pit_policy",
+            "row_type",
+            "formation_date",
+            "window",
+            "beta_h",
+        },
+        "model structure coefficients",
+    )
+    _validate_strings(
+        coefficients["pit_policy"],
+        "model structure coefficients.pit_policy",
+    )
+    _validate_strings(
+        coefficients["row_type"],
+        "model structure coefficients.row_type",
+    )
+    _validate_strings(
+        coefficients["window"],
+        "model structure coefficients.window",
+    )
+    coefficients["beta_h"] = _optional_finite_numeric(
+        coefficients["beta_h"],
+        "model structure coefficients.beta_h",
+    )
+    monthly_coefficients = coefficients["row_type"].eq("monthly")
+    if not monthly_coefficients.any():
+        raise DataBlocked("model structure coefficients lack monthly rows")
+    coefficients.loc[
+        monthly_coefficients,
+        "formation_date",
+    ] = _strict_dates(
+        coefficients.loc[monthly_coefficients, "formation_date"],
+        "model structure coefficients.formation_date",
+    )
+
+    surface = _require_frame(
+        hard_sort_surface,
+        {"pit_policy", "formation_date", "row_type", "grid", "cell", "status"},
+        "model hard-sort surface",
+    )
+    surface["formation_date"] = _strict_dates(
+        surface["formation_date"],
+        "model hard-sort surface.formation_date",
+    )
+    for column in ("pit_policy", "row_type", "grid", "cell", "status"):
+        _validate_strings(
+            surface[column],
+            f"model hard-sort surface.{column}",
+        )
+
+    if not isinstance(target_returns, dict) or set(target_returns) != {
+        "blend",
+        "500",
+        "1000",
+    }:
+        raise DataBlocked("model target return mapping must be blend/500/1000")
+    targets = {
+        target: _validated_daily_model_series(
+            target_returns[target],
+            f"model target returns.{target}",
+            formations,
+            is_return=True,
+        )
+        for target in ("blend", "500", "1000")
+    }
+    for target, series in targets.items():
+        if not series.index.equals(reference_dates):
+            raise DataBlocked(
+                f"model target returns.{target} daily grid mismatch"
+            )
+    control = _validated_daily_model_series(
+        equal_weight_signal,
+        "equal_weight control",
+        formations,
+        is_return=False,
+    )
+    return (
+        states,
+        axis,
+        coefficients,
+        surface,
+        targets,
+        control,
+        formations,
+    )
+
+
+def _model_comparison_row(**overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "pit_policy": "",
+        "candidate": "",
+        "q": "",
+        "target": "",
+        "window": "",
+        "model": "",
+        "n": float("nan"),
+        "oos_r2": float("nan"),
+        "spearman_ic": float("nan"),
+        "partial_ic": float("nan"),
+        "cosine_early_late": float("nan"),
+        "confirmation_score_spearman": float("nan"),
+        "state_UU_share": float("nan"),
+        "state_DD_share": float("nan"),
+        "state_DIV_share": float("nan"),
+        "gate_name": "",
+        "gate_pass": float("nan"),
+        "is_in_sample": False,
+        "affects_verdict": False,
+    }
+    row.update(overrides)
+    return row
+
+
+def _score_metrics(
+    sample: pd.DataFrame,
+    model: ModelFit,
+) -> tuple[pd.Series, float, float]:
+    if sample.empty:
+        raise DataBlocked("frozen model metric window is empty")
+    score = apply_model(sample, model, include_intercept=False)
+    oos = oos_r_squared(
+        sample["target"],
+        score,
+        model.train_target_mean,
+    )
+    spearman = score.corr(sample["target"], method="spearman")
+    return score, float(oos), float(spearman)
+
+
+def _closed_formation_window(
+    frame: pd.DataFrame,
+    formations: pd.DatetimeIndex,
+    start: str,
+    end: str,
+) -> pd.DataFrame:
+    period_end = pd.Series(
+        formations[1:],
+        index=formations[:-1],
+        dtype="datetime64[ns]",
+    ).reindex(frame.index)
+    if period_end.isna().any():
+        raise DataBlocked("model metric rows lack next-formation boundaries")
+    mask = (
+        frame.index.to_series().ge(pd.Timestamp(start))
+        & period_end.le(pd.Timestamp(end))
+    )
+    return frame.loc[mask.to_numpy()].copy()
+
+
+def _hard_sort_gate_passes(
+    surface: pd.DataFrame,
+    policy: str,
+    formations: pd.DatetimeIndex,
+) -> bool:
+    required_dates = formations[
+        (formations >= pd.Timestamp("2014-01-01"))
+        & (formations <= pd.Timestamp("2023-12-31"))
+    ]
+    cells = surface[
+        surface["pit_policy"].eq(policy)
+        & surface["row_type"].eq("cell")
+        & surface["formation_date"].isin(required_dates)
+    ]
+    if len(required_dates) == 0:
+        return False
+    if cells.duplicated(["formation_date", "grid", "cell"]).any():
+        return False
+    expected = {
+        (date, "2x3", cell)
+        for date in required_dates
+        for cell in CELLS_2X3
+    } | {
+        (date, "5x5", cell)
+        for date in required_dates
+        for cell in CELLS_5X5
+    }
+    actual = set(
+        cells[["formation_date", "grid", "cell"]].itertuples(
+            index=False,
+            name=None,
+        )
+    )
+    return actual == expected and cells["status"].eq("OK").all()
+
+
+def build_model_comparison(
+    state_components: pd.DataFrame,
+    axis_returns: pd.DataFrame,
+    structure_coefficients: pd.DataFrame,
+    hard_sort_surface: pd.DataFrame,
+    target_returns: dict[str, pd.Series],
+    equal_weight_signal: pd.Series,
+    formation_dates: pd.DatetimeIndex,
+    cfg: dict,
+) -> pd.DataFrame:
+    """Build frozen M0/M1 evidence and fixed structure-gate rows."""
+    (
+        states,
+        axis,
+        coefficients,
+        surface,
+        targets,
+        control,
+        formations,
+    ) = _validated_model_comparison_inputs(
+        state_components,
+        axis_returns,
+        structure_coefficients,
+        hard_sort_surface,
+        target_returns,
+        equal_weight_signal,
+        formation_dates,
+        cfg,
+    )
+    rows: list[dict[str, object]] = []
+    leg_gate_pass: dict[tuple[str, str, str], bool] = {}
+    aggregate_gate_pass: dict[tuple[str, str, str], bool] = {}
+    increment_signs: dict[tuple[str, str], int] = {}
+    beta_signs: dict[str, tuple[int, ...]] = {}
+    minimum_coverage = float(cfg["model"]["state_min_coverage"])
+    minimum_stability = float(
+        cfg["model"]["stability_score_spearman_min"]
+    )
+    maximum_axis_corr = float(
+        cfg["model"]["interaction_axis_corr_max"]
+    )
+    realized_formations = formations[:-1]
+
+    for policy in cfg["pit"]["policies"]:
+        policy_coefficients = coefficients[
+            coefficients["pit_policy"].eq(policy)
+            & coefficients["row_type"].eq("monthly")
+        ].copy()
+        if policy_coefficients.duplicated("formation_date").any():
+            raise DataBlocked("monthly beta_h rows contain duplicate dates")
+        policy_coefficients = policy_coefficients.set_index(
+            "formation_date"
+        ).sort_index()
+        beta_values_list: list[float] = []
+        for start, end in (
+            ("2014-01-01", "2017-12-31"),
+            ("2018-01-01", "2020-12-31"),
+            ("2021-01-01", "2023-12-31"),
+        ):
+            expected = _closed_formation_window(
+                pd.DataFrame(index=realized_formations),
+                formations,
+                start,
+                end,
+            ).index
+            sample = policy_coefficients.reindex(expected)
+            if (
+                len(sample) != len(expected)
+                or sample["beta_h"].isna().any()
+            ):
+                beta_values_list.append(float("nan"))
+            else:
+                beta_values_list.append(float(sample["beta_h"].mean()))
+        beta_values = np.asarray(beta_values_list, dtype=float)
+        beta_direction = tuple(
+            int(np.sign(value)) if np.isfinite(value) else 0
+            for value in beta_values
+        )
+        beta_signs[policy] = beta_direction
+        beta_pass = bool(
+            np.isfinite(beta_values).all()
+            and np.all(beta_values != 0.0)
+            and len(set(beta_direction)) == 1
+        )
+        rows.append(
+            _model_comparison_row(
+                pit_policy=policy,
+                candidate="PUBLIC",
+                window="structure",
+                n=3,
+                gate_name="beta_h_same_sign",
+                gate_pass=beta_pass,
+                affects_verdict=True,
+            )
+        )
+
+        policy_axis = (
+            axis[axis["pit_policy"].eq(policy)]
+            .sort_values("date", kind="mergesort")
+            .set_index("date")
+        )
+        style_monthly = next_formation_targets(
+            policy_axis["style"], formations
+        )
+        interaction_monthly = next_formation_targets(
+            policy_axis["interaction"], formations
+        )
+        axis_joint = pd.concat(
+            [
+                style_monthly.rename("style"),
+                interaction_monthly.rename("interaction"),
+            ],
+            axis=1,
+            join="inner",
+        )
+        axis_joint = _closed_formation_window(
+            axis_joint,
+            formations,
+            "2021-01-01",
+            "2023-12-31",
+        )
+        axis_corr = axis_joint["style"].corr(
+            axis_joint["interaction"],
+            method="pearson",
+        )
+        axis_pass = bool(
+            np.isfinite(axis_corr) and abs(axis_corr) < maximum_axis_corr
+        )
+        rows.append(
+            _model_comparison_row(
+                pit_policy=policy,
+                candidate="PUBLIC",
+                window="2021-2023",
+                n=int(len(axis_joint)),
+                gate_name="interaction_axis_corr",
+                gate_pass=axis_pass,
+                affects_verdict=True,
+            )
+        )
+        rows.append(
+            _model_comparison_row(
+                pit_policy=policy,
+                candidate="PUBLIC",
+                window="structure",
+                n=int(
+                    len(
+                        realized_formations[
+                            (realized_formations >= pd.Timestamp("2014-01-01"))
+                            & (
+                                realized_formations
+                                <= pd.Timestamp("2023-12-31")
+                            )
+                        ]
+                    )
+                ),
+                gate_name="hard_sort_complete",
+                gate_pass=_hard_sort_gate_passes(
+                    surface,
+                    policy,
+                    realized_formations,
+                ),
+                affects_verdict=True,
+            )
+        )
+
+        for q, (candidate, target_name) in Q_MODEL_SPECS.items():
+            q_state = (
+                states[
+                    states["pit_policy"].eq(policy)
+                    & states["q"].eq(q)
+                ]
+                .sort_values("date", kind="mergesort")
+                .set_index("date")
+            )
+            target = next_formation_targets(
+                targets[target_name],
+                formations,
+            )
+            monthly = q_state.reindex(target.index)[
+                [*MODEL_FEATURES, "F_T"]
+            ].copy()
+            if monthly.isna().any().any():
+                raise DataBlocked(
+                    f"model formation features are incomplete for {policy}/{q}"
+                )
+            monthly["target"] = target
+            monthly_control = control.reindex(monthly.index)
+            if monthly_control.isna().any():
+                raise DataBlocked(
+                    f"equal_weight control is incomplete for {policy}/{q}"
+                )
+            discovery = _closed_formation_window(
+                monthly,
+                formations,
+                "2014-01-01",
+                "2020-12-31",
+            )
+            early = _closed_formation_window(
+                monthly,
+                formations,
+                "2014-01-01",
+                "2017-12-31",
+            )
+            late = _closed_formation_window(
+                monthly,
+                formations,
+                "2018-01-01",
+                "2020-12-31",
+            )
+            confirmation = _closed_formation_window(
+                monthly,
+                formations,
+                "2021-01-01",
+                "2023-12-31",
+            )
+            report = _closed_formation_window(
+                monthly,
+                formations,
+                "2024-01-01",
+                "2026-12-31",
+            )
+            m0 = fit_model(discovery, ["F_T"], "target")
+            m1 = fit_model(discovery, MODEL_FEATURES, "target")
+            early_m1 = fit_model(early, MODEL_FEATURES, "target")
+            late_m1 = fit_model(late, MODEL_FEATURES, "target")
+
+            discovery_score = apply_model(
+                discovery,
+                m1,
+                include_intercept=False,
+            )
+            discovery_partial = partial_rank_ic(
+                discovery_score,
+                discovery["target"],
+                monthly_control.reindex(discovery.index),
+            )
+            rows.append(
+                _model_comparison_row(
+                    pit_policy=policy,
+                    candidate=candidate,
+                    q=q,
+                    target=target_name,
+                    window="2014-2020",
+                    model="M1",
+                    n=int(len(discovery)),
+                    spearman_ic=float(
+                        discovery_score.corr(
+                            discovery["target"],
+                            method="spearman",
+                        )
+                    ),
+                    partial_ic=float(discovery_partial),
+                    is_in_sample=True,
+                    affects_verdict=False,
+                )
+            )
+
+            m0_confirmation_score, m0_oos, m0_ic = _score_metrics(
+                confirmation,
+                m0,
+            )
+            m1_confirmation_score, m1_oos, m1_ic = _score_metrics(
+                confirmation,
+                m1,
+            )
+            del m0_confirmation_score
+            confirmation_partial = partial_rank_ic(
+                m1_confirmation_score,
+                confirmation["target"],
+                monthly_control.reindex(confirmation.index),
+            )
+            rows.extend(
+                [
+                    _model_comparison_row(
+                        pit_policy=policy,
+                        candidate=candidate,
+                        q=q,
+                        target=target_name,
+                        window="2021-2023",
+                        model="M0",
+                        n=int(len(confirmation)),
+                        oos_r2=m0_oos,
+                        spearman_ic=m0_ic,
+                        affects_verdict=True,
+                    ),
+                    _model_comparison_row(
+                        pit_policy=policy,
+                        candidate=candidate,
+                        q=q,
+                        target=target_name,
+                        window="2021-2023",
+                        model="M1",
+                        n=int(len(confirmation)),
+                        oos_r2=m1_oos,
+                        spearman_ic=m1_ic,
+                        partial_ic=float(confirmation_partial),
+                        affects_verdict=True,
+                    ),
+                ]
+            )
+
+            yearly_partial: dict[str, float] = {}
+            for year in ("2021", "2022", "2023"):
+                year_sample = _closed_formation_window(
+                    monthly,
+                    formations,
+                    f"{year}-01-01",
+                    f"{year}-12-31",
+                )
+                year_score, year_oos, year_ic = _score_metrics(
+                    year_sample,
+                    m1,
+                )
+                year_partial = partial_rank_ic(
+                    year_score,
+                    year_sample["target"],
+                    monthly_control.reindex(year_sample.index),
+                )
+                yearly_partial[year] = float(year_partial)
+                rows.append(
+                    _model_comparison_row(
+                        pit_policy=policy,
+                        candidate=candidate,
+                        q=q,
+                        target=target_name,
+                        window=year,
+                        model="M1",
+                        n=int(len(year_sample)),
+                        oos_r2=year_oos,
+                        spearman_ic=year_ic,
+                        partial_ic=float(year_partial),
+                        affects_verdict=True,
+                    )
+                )
+
+            if len(report):
+                _, m0_report_oos, m0_report_ic = _score_metrics(report, m0)
+                _, m1_report_oos, m1_report_ic = _score_metrics(report, m1)
+                rows.extend(
+                    [
+                        _model_comparison_row(
+                            pit_policy=policy,
+                            candidate=candidate,
+                            q=q,
+                            target=target_name,
+                            window="2024-2026-report-only",
+                            model="M0",
+                            n=int(len(report)),
+                            oos_r2=m0_report_oos,
+                            spearman_ic=m0_report_ic,
+                        ),
+                        _model_comparison_row(
+                            pit_policy=policy,
+                            candidate=candidate,
+                            q=q,
+                            target=target_name,
+                            window="2024-2026-report-only",
+                            model="M1",
+                            n=int(len(report)),
+                            oos_r2=m1_report_oos,
+                            spearman_ic=m1_report_ic,
+                        ),
+                    ]
+                )
+
+            increment_delta = m1_oos - m0_oos
+            increment_pass = bool(
+                np.isfinite([increment_delta, m1_ic, m0_ic]).all()
+                and increment_delta > 0.0
+                and m1_ic >= m0_ic
+            )
+            increment_signs[(policy, q)] = int(np.sign(increment_delta))
+            leg_gate_pass[(policy, q, "m1_increment")] = increment_pass
+            rows.append(
+                _model_comparison_row(
+                    pit_policy=policy,
+                    candidate=candidate,
+                    q=q,
+                    target=target_name,
+                    window="2021-2023",
+                    model="M1",
+                    gate_name="m1_increment",
+                    gate_pass=increment_pass,
+                    affects_verdict=True,
+                )
+            )
+
+            partial_pass = bool(
+                np.isfinite(confirmation_partial)
+                and confirmation_partial > 0.0
+                and sum(
+                    np.isfinite(value) and value > 0.0
+                    for value in yearly_partial.values()
+                )
+                >= 2
+            )
+            leg_gate_pass[(policy, q, "partial_ic")] = partial_pass
+            rows.append(
+                _model_comparison_row(
+                    pit_policy=policy,
+                    candidate=candidate,
+                    q=q,
+                    target=target_name,
+                    window="2021-2023",
+                    model="M1",
+                    partial_ic=float(confirmation_partial),
+                    gate_name="partial_ic",
+                    gate_pass=partial_pass,
+                    affects_verdict=True,
+                )
+            )
+
+            confirmation_daily = q_state.loc[
+                "2021-01-01":"2023-12-31", MODEL_FEATURES
+            ]
+            stability = stability_gate(
+                np.asarray(early_m1.slopes),
+                np.asarray(late_m1.slopes),
+                confirmation_daily,
+                min_score_spearman=minimum_stability,
+            )
+            stability_pass = bool(stability["pass"])
+            leg_gate_pass[(policy, q, "stability")] = stability_pass
+            rows.append(
+                _model_comparison_row(
+                    pit_policy=policy,
+                    candidate=candidate,
+                    q=q,
+                    target=target_name,
+                    window="2021-2023",
+                    model="M1",
+                    cosine_early_late=float(stability["cosine"]),
+                    confirmation_score_spearman=float(
+                        stability["score_spearman"]
+                    ),
+                    gate_name="stability",
+                    gate_pass=stability_pass,
+                    affects_verdict=True,
+                )
+            )
+
+            coverage = state_coverage_gate(
+                q_state["state"],
+                minimum_coverage,
+            )
+            coverage_windows = {
+                "2014-2017": ("2014-01-01", "2017-12-31", True),
+                "2018-2020": ("2018-01-01", "2020-12-31", True),
+                "2021-2023": ("2021-01-01", "2023-12-31", True),
+                "2014-2020": ("2014-01-01", "2020-12-31", False),
+            }
+            for window, (start, end, affects_verdict) in (
+                coverage_windows.items()
+            ):
+                shares = {
+                    label: float(coverage[f"{window}_{label}"])
+                    for label in ("UU", "DD", "DIV")
+                }
+                window_pass = all(
+                    share >= minimum_coverage for share in shares.values()
+                )
+                rows.append(
+                    _model_comparison_row(
+                        pit_policy=policy,
+                        candidate=candidate,
+                        q=q,
+                        target=target_name,
+                        window=window,
+                        model="M1",
+                        n=int(len(q_state.loc[start:end])),
+                        state_UU_share=shares["UU"],
+                        state_DD_share=shares["DD"],
+                        state_DIV_share=shares["DIV"],
+                        gate_name="state_coverage",
+                        gate_pass=bool(window_pass),
+                        affects_verdict=affects_verdict,
+                    )
+                )
+            leg_gate_pass[(policy, q, "state_coverage")] = bool(
+                coverage["pass"]
+            )
+
+        candidate_legs = {
+            "B3_unified": ("qblend",),
+            "B3_dual_target": ("q500", "q1000"),
+        }
+        for candidate, legs in candidate_legs.items():
+            for gate_name in (
+                "m1_increment",
+                "partial_ic",
+                "stability",
+                "state_coverage",
+            ):
+                passed = all(
+                    leg_gate_pass[(policy, q, gate_name)] for q in legs
+                )
+                aggregate_gate_pass[(policy, candidate, gate_name)] = passed
+                rows.append(
+                    _model_comparison_row(
+                        pit_policy=policy,
+                        candidate=candidate,
+                        window="2021-2023",
+                        gate_name=gate_name,
+                        gate_pass=bool(passed),
+                        affects_verdict=True,
+                    )
+                )
+
+    first_policy, second_policy = cfg["pit"]["policies"]
+    pit_flip = beta_signs[first_policy] != beta_signs[second_policy]
+    for q in Q_MODEL_SPECS:
+        pit_flip |= (
+            increment_signs[(first_policy, q)]
+            != increment_signs[(second_policy, q)]
+        )
+    for candidate in ("B3_unified", "B3_dual_target"):
+        for gate_name in (
+            "m1_increment",
+            "partial_ic",
+            "stability",
+            "state_coverage",
+        ):
+            pit_flip |= (
+                aggregate_gate_pass[(first_policy, candidate, gate_name)]
+                != aggregate_gate_pass[(second_policy, candidate, gate_name)]
+            )
+    rows.append(
+        _model_comparison_row(
+            pit_policy="ALL",
+            window="run",
+            gate_name="PIT_POLICY_FLIP",
+            gate_pass=not pit_flip,
+            affects_verdict=True,
+        )
+    )
+
+    output = pd.DataFrame(rows, columns=MODEL_COMPARISON_COLUMNS)
+    if output.empty:
+        raise RuntimeError("model comparison unexpectedly produced no rows")
+    if output.duplicated(MODEL_ROW_ID_COLUMNS).any():
+        raise RuntimeError("model comparison row identity is not unique")
+    output["is_in_sample"] = output["is_in_sample"].astype(bool)
+    output["affects_verdict"] = output["affects_verdict"].astype(bool)
+    gate_mask = output["gate_name"].ne("")
+    gate_values = pd.Series(
+        np.nan,
+        index=output.index,
+        dtype=object,
+    )
+    gate_values.loc[gate_mask] = [
+        bool(value) for value in output.loc[gate_mask, "gate_pass"]
+    ]
+    output["gate_pass"] = gate_values
+    return output.sort_values(
+        MODEL_ROW_ID_COLUMNS,
+        kind="mergesort",
+    ).reset_index(drop=True)
+
+
+def _validated_model_comparison_output(
+    frame: pd.DataFrame,
+) -> pd.DataFrame:
+    if not isinstance(frame, pd.DataFrame) or frame.empty:
+        raise DataBlocked("model comparison output must be a nonempty frame")
+    if list(frame.columns) != MODEL_COMPARISON_COLUMNS:
+        raise DataBlocked("model comparison output schema mismatch")
+    output = frame.copy()
+    string_columns = [
+        "pit_policy",
+        "candidate",
+        "q",
+        "target",
+        "window",
+        "model",
+        "gate_name",
+    ]
+    for column in string_columns:
+        invalid = ~output[column].map(
+            lambda value: (
+                isinstance(value, str) and value == value.strip()
+            )
+        )
+        if invalid.any():
+            raise DataBlocked(
+                f"model comparison output.{column} must be canonical strings"
+            )
+    if output.duplicated(MODEL_ROW_ID_COLUMNS).any():
+        raise DataBlocked("model comparison output row identity is duplicated")
+    for column in ("is_in_sample", "affects_verdict"):
+        invalid = ~output[column].map(
+            lambda value: isinstance(value, (bool, np.bool_))
+        )
+        if invalid.any():
+            raise DataBlocked(
+                f"model comparison output.{column} must be boolean"
+            )
+        output[column] = output[column].astype(bool)
+    numeric_columns = [
+        "n",
+        "oos_r2",
+        "spearman_ic",
+        "partial_ic",
+        "cosine_early_late",
+        "confirmation_score_spearman",
+        "state_UU_share",
+        "state_DD_share",
+        "state_DIV_share",
+    ]
+    for column in numeric_columns:
+        output[column] = _optional_finite_numeric(
+            output[column],
+            f"model comparison output.{column}",
+        )
+    gate = output["gate_name"].ne("")
+    invalid_gate = ~output.loc[gate, "gate_pass"].map(
+        lambda value: isinstance(value, (bool, np.bool_))
+    )
+    if invalid_gate.any() or output.loc[~gate, "gate_pass"].notna().any():
+        raise DataBlocked(
+            "model comparison gate rows require bool and metric rows require blank"
+        )
+    if output.loc[gate, "is_in_sample"].any():
+        raise DataBlocked("model comparison gate rows cannot be in-sample")
+    q_rows = output["q"].ne("")
+    expected_mapping = {
+        q: (candidate, target)
+        for q, (candidate, target) in Q_MODEL_SPECS.items()
+    }
+    for row in output.loc[q_rows].itertuples(index=False):
+        if row.q not in expected_mapping or (
+            row.candidate,
+            row.target,
+        ) != expected_mapping[row.q]:
+            raise DataBlocked("model comparison candidate/q/target mismatch")
+    metric = ~gate
+    if not output.loc[metric, "model"].isin({"M0", "M1"}).all():
+        raise DataBlocked("model comparison metrics must be M0/M1 rows")
+    if output.loc[
+        metric & output["model"].eq("M0"), "partial_ic"
+    ].notna().any():
+        raise DataBlocked("M0 cannot carry partial IC")
+    report = output["window"].eq("2024-2026-report-only")
+    if output.loc[report, "affects_verdict"].any():
+        raise DataBlocked("report-only model rows cannot affect verdict")
+    pit = output["gate_name"].eq("PIT_POLICY_FLIP")
+    if (
+        int(pit.sum()) != 1
+        or output.loc[pit, "pit_policy"].iloc[0] != "ALL"
+        or output.loc[pit, "window"].iloc[0] != "run"
+    ):
+        raise DataBlocked("model comparison requires one ALL/run PIT row")
+    gate_values = pd.Series(np.nan, index=output.index, dtype=object)
+    gate_values.loc[gate] = [
+        bool(value) for value in output.loc[gate, "gate_pass"]
+    ]
+    output["gate_pass"] = gate_values
+    return output.sort_values(
+        MODEL_ROW_ID_COLUMNS,
+        kind="mergesort",
+    ).reset_index(drop=True)
+
+
+def _validated_runner_series(
+    values: pd.Series,
+    label: str,
+    cutoff: pd.Timestamp,
+) -> pd.Series:
+    if not isinstance(values, pd.Series) or values.empty:
+        raise DataBlocked(f"{label} must be a nonempty Series")
+    if not isinstance(values.index, pd.DatetimeIndex):
+        raise DataBlocked(f"{label} index must be a DatetimeIndex")
+    if (
+        values.index.tz is not None
+        or not values.index.equals(values.index.normalize())
+        or values.index.has_duplicates
+        or not values.index.is_monotonic_increasing
+    ):
+        raise DataBlocked(
+            f"{label} dates must be unique increasing naive dates"
+        )
+    numeric = _finite_numeric(values, label)
+    return numeric.loc[:cutoff].copy()
+
+
+def _load_equal_weight_control(
+    path: str | Path,
+    cutoff: pd.Timestamp,
+) -> pd.Series:
+    frame = _read_cache(Path(path), "equal_weight control")
+    if list(frame.columns) != ["date", "factor_value"]:
+        raise DataBlocked("equal_weight control schema mismatch")
+    dates = _strict_dates(frame["date"], "equal_weight control.date")
+    if dates.duplicated().any():
+        raise DataBlocked("equal_weight control contains duplicate dates")
+    values = pd.Series(
+        frame["factor_value"].to_numpy(),
+        index=pd.DatetimeIndex(dates),
+        name="factor_value",
+    ).sort_index()
+    return _validated_runner_series(values, "equal_weight control", cutoff)
+
+
 @dataclass(frozen=True)
 class StructureRunResult:
     surface_path: Path
     coefficients_path: Path
+    model_path: Path
     status: str
 
 
@@ -1137,15 +2529,19 @@ def _validate_auxiliary_caches(
 def _atomic_write_outputs(
     surface: pd.DataFrame,
     coefficients: pd.DataFrame,
+    model_comparison: pd.DataFrame,
     surface_path: Path,
     coefficients_path: Path,
+    model_path: Path,
 ) -> None:
     surface_path.parent.mkdir(parents=True, exist_ok=True)
     coefficients_path.parent.mkdir(parents=True, exist_ok=True)
+    model_path.parent.mkdir(parents=True, exist_ok=True)
     surface_temp = surface_path.with_name(f".{surface_path.name}.tmp")
     coefficients_temp = coefficients_path.with_name(
         f".{coefficients_path.name}.tmp"
     )
+    model_temp = model_path.with_name(f".{model_path.name}.tmp")
     try:
         surface.to_csv(
             surface_temp,
@@ -1159,22 +2555,31 @@ def _atomic_write_outputs(
             date_format="%Y-%m-%d",
             lineterminator="\n",
         )
+        model_comparison.to_csv(
+            model_temp,
+            index=False,
+            lineterminator="\n",
+        )
         surface_temp.replace(surface_path)
         coefficients_temp.replace(coefficients_path)
+        model_temp.replace(model_path)
     except Exception:
         surface_path.unlink(missing_ok=True)
         coefficients_path.unlink(missing_ok=True)
+        model_path.unlink(missing_ok=True)
         raise
     finally:
         surface_temp.unlink(missing_ok=True)
         coefficients_temp.unlink(missing_ok=True)
+        model_temp.unlink(missing_ok=True)
 
 
 def _invalidate_structure_outputs(
     surface_path: Path,
     coefficients_path: Path,
+    model_path: Path,
 ) -> None:
-    for path in (surface_path, coefficients_path):
+    for path in (surface_path, coefficients_path, model_path):
         path.unlink(missing_ok=True)
         path.with_name(f".{path.name}.tmp").unlink(missing_ok=True)
 
@@ -1184,13 +2589,24 @@ def run_structure(
     data_end: pd.Timestamp,
     research_output_dir: str | Path = DEFAULT_RESEARCH_OUTPUT_DIR,
     backtest_output_dir: str | Path = DEFAULT_BACKTEST_OUTPUT_DIR,
+    *,
+    target_returns: dict[str, pd.Series] | None = None,
+    equal_weight_signal: pd.Series | None = None,
+    underlying_return_loader: Callable[[str], pd.Series] | None = None,
+    equal_weight_path: str | Path = DEFAULT_EQUAL_WEIGHT_SIGNAL_PATH,
+    model_comparison_builder: Callable[..., pd.DataFrame] | None = None,
 ) -> StructureRunResult:
     """Verify staged caches and materialize the frozen structure audit."""
     research_root = Path(research_output_dir)
     backtest_root = Path(backtest_output_dir)
     surface_path = research_root / "hard_sort_surface.csv"
     coefficients_path = backtest_root / "structure_coefficients.csv"
-    _invalidate_structure_outputs(surface_path, coefficients_path)
+    model_path = backtest_root / "model_comparison.csv"
+    _invalidate_structure_outputs(
+        surface_path,
+        coefficients_path,
+        model_path,
+    )
     _validate_structure_config(cfg)
     cutoff = _strict_dates(
         pd.Series([data_end]),
@@ -1220,7 +2636,7 @@ def run_structure(
         research_root / "state_components.csv",
         "states",
     )
-    _validate_auxiliary_caches(axis, states, cfg, cutoff)
+    axis, states = _validate_auxiliary_caches(axis, states, cfg, cutoff)
 
     exposures = _require_frame(
         exposures,
@@ -1276,11 +2692,67 @@ def run_structure(
         stock_returns,
         cfg,
     )
+    formation_dates = pd.DatetimeIndex(
+        sorted(exposures["formation_date"].unique())
+    )
+    if target_returns is None:
+        if underlying_return_loader is None:
+            from backtest.data import load_underlying_returns
+
+            underlying_return_loader = load_underlying_returns
+        target_returns = {
+            target: underlying_return_loader(target)
+            for target in ("blend", "500", "1000")
+        }
+    if not isinstance(target_returns, dict) or set(target_returns) != {
+        "blend",
+        "500",
+        "1000",
+    }:
+        raise DataBlocked(
+            "structure target returns must map blend/500/1000"
+        )
+    prepared_targets = {
+        target: _validated_runner_series(
+            target_returns[target],
+            f"structure target returns.{target}",
+            cutoff,
+        )
+        for target in ("blend", "500", "1000")
+    }
+    if equal_weight_signal is None:
+        control = _load_equal_weight_control(equal_weight_path, cutoff)
+    else:
+        control = _validated_runner_series(
+            equal_weight_signal,
+            "equal_weight control",
+            cutoff,
+        )
+    builder = (
+        build_model_comparison
+        if model_comparison_builder is None
+        else model_comparison_builder
+    )
+    model_comparison = builder(
+        states,
+        axis,
+        coefficients,
+        surface,
+        prepared_targets,
+        control,
+        formation_dates,
+        cfg,
+    )
+    model_comparison = _validated_model_comparison_output(
+        model_comparison
+    )
     _atomic_write_outputs(
         surface,
         coefficients,
+        model_comparison,
         surface_path,
         coefficients_path,
+        model_path,
     )
     blocked = surface.loc[
         surface["row_type"].eq("cell"),
@@ -1289,6 +2761,7 @@ def run_structure(
     return StructureRunResult(
         surface_path=surface_path,
         coefficients_path=coefficients_path,
+        model_path=model_path,
         status="COVERAGE_BLOCKED" if blocked else "OK",
     )
 
