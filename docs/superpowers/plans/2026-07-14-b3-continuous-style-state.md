@@ -2755,6 +2755,48 @@ git add backtest/b3_structure.py tests/test_b3_structure.py
 git commit -m "feat(b3): add hard-sort and cross-sectional structure audit"
 ```
 
+#### Task 7 implementation-review corrections
+
+This subsection supersedes conflicting Task 7 line-level pseudocode above.
+
+- Hard-sort and Fama--MacBeth inputs require exactly one formation in every
+  calendar month, a continuous monthly grid, identical full/model formation
+  grids and identical grids under both frozen PIT policies. Stock-period
+  return formations must equal the exposure grid with exactly the final
+  unrealized formation omitted; an equal-length terminal return is not
+  accepted as proof of a complete holding period.
+- The formation loader excludes the cutoff calendar month whenever
+  `data_end` is not a calendar month-end. At a calendar month-end cutoff it
+  retains that month's actual last observed trading day. The portfolio stage
+  publishes stock-period returns only for formations with a real next
+  formation, while daily axis and conditional-leg returns continue through
+  the available return end.
+- The structure runner rejects an old parent cache whose maximum formation is
+  in a non-month-end cutoff month. It invalidates both formal outputs and both
+  temporary files before configuration, cutoff or parent validation, so a
+  failed rerun cannot leave a stale-success artifact.
+- Ticker, policy and industry strings must be canonical nonempty strings with
+  no leading or trailing whitespace. Complete-but-empty legal hard-sort cells
+  remain `COVERAGE_BLOCKED`; input-key, calendar or provenance failures remain
+  `DATA_BLOCKED`.
+- A cross-sectional rank failure after the preflight contract has passed
+  remains an implementation/numerical `RuntimeError` (CLI exit 1), as frozen
+  in design section 6.1. It is not reclassified as a new coverage result after
+  returns have been read.
+
+Verification on 2026-07-16:
+
+- Red-green coverage expanded Task 7 to 34 structure tests and added upstream
+  regressions for incomplete cutoff-month formations and unclosed final stock
+  periods.
+- `python3 -m pytest tests/test_b3_*.py -q` -> `232 passed`.
+- `python3 -m pytest -q` -> `452 passed`.
+- Ruff, mypy with explicit package bases, `py_compile` and
+  `git diff --check` all passed; the worktree was clean.
+- Independent specification and quality re-reviews reported no Critical,
+  Important or Minor findings and both returned `Ready: Yes`.
+- Implementation checkpoints: `2b71440`, `bfe4ace`, `95393ff`.
+
 ## Task 8: Fit frozen M0/M1 models and enforce structure gates
 
 **Files:**
