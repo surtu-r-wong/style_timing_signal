@@ -2348,6 +2348,56 @@ def _valid_formation_sql_frames():
     }
 
 
+@pytest.mark.parametrize(
+    ("data_end", "last_trade", "expected"),
+    [
+        (
+            "2021-03-14",
+            "2021-03-14",
+            ["2021-01-31", "2021-02-28"],
+        ),
+        (
+            "2021-03-31",
+            "2021-03-29",
+            ["2021-01-31", "2021-02-28", "2021-03-29"],
+        ),
+    ],
+)
+def test_formation_inputs_only_uses_completed_calendar_months(
+    monkeypatch,
+    data_end,
+    last_trade,
+    expected,
+):
+    frames = _valid_formation_sql_frames()
+    trade_dates = pd.to_datetime(
+        ["2021-01-31", "2021-02-28", last_trade]
+    )
+    frames["index_daily"] = pd.DataFrame({"trade_date": trade_dates})
+    frames["stock_daily_price"] = pd.DataFrame(
+        {
+            "ticker": ["A"] * len(trade_dates),
+            "trade_date": trade_dates,
+            "close": [10.0] * len(trade_dates),
+        }
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    got = _formation_inputs(
+        {"schema": "public"},
+        pd.Timestamp(data_end),
+    )
+
+    assert got["month_ends"] == list(pd.to_datetime(expected))
+
+
 def test_formation_inputs_classifies_malformed_calendar_as_data_blocked(
     monkeypatch,
 ):

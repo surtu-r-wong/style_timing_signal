@@ -248,6 +248,22 @@ def test_build_portfolio_panels_freezes_schemas_and_old_portfolio_boundary():
     assert set(legs["q"]) == {"qblend", "q500", "q1000"}
 
 
+def test_build_portfolio_panels_omits_unclosed_final_stock_period():
+    dates, returns, suspended = _portfolio_daily_inputs()
+
+    axis, legs, periods = build_portfolio_panels(
+        _monthly_exposures(),
+        returns,
+        suspended,
+    )
+
+    assert list(periods["formation_date"].drop_duplicates()) == [
+        dates[0]
+    ]
+    assert axis["date"].max() == dates[-1]
+    assert legs["date"].max() == dates[-1]
+
+
 def test_build_portfolio_panels_is_exposure_row_order_invariant():
     dates, returns, suspended = _portfolio_daily_inputs()
     exposures = _monthly_exposures()

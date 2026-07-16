@@ -533,6 +533,8 @@ def build_portfolio_panels(
                     f"no model members for {policy} on "
                     f"{pd.Timestamp(formation).date()}"
                 )
+            if number + 1 == len(formations):
+                continue
             holding_days = returns.index[
                 (returns.index > formation) & (returns.index <= end)
             ]

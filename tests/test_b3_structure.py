@@ -644,6 +644,72 @@ def test_structure_runner_invalidates_outputs_before_config_validation(
     assert not coefficients_temp.exists()
 
 
+def test_structure_runner_rejects_incomplete_cutoff_month_formation(
+    tmp_path,
+):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2014-03-14")
+    paths, _, _ = _write_structure_parents(tmp_path, cfg, data_end)
+    policies = tuple(cfg["pit"]["policies"])
+    exposures, returns = _surface_inputs(
+        dates=pd.to_datetime(
+            ["2014-01-31", "2014-02-28", "2014-03-14"]
+        ),
+        policies=policies,
+    )
+    exposures.to_csv(
+        paths["exposures"],
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    returns.to_csv(
+        paths["periods"],
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    _write_stage_manifest(
+        tmp_path,
+        "exposures",
+        cfg,
+        data_end,
+        [paths["exposures"]],
+        "OK",
+        [],
+    )
+    _write_stage_manifest(
+        tmp_path,
+        "portfolios",
+        cfg,
+        data_end,
+        [paths["axis"], paths["legs"], paths["periods"]],
+        "OK",
+        [],
+    )
+    compact_dir = tmp_path / "compact"
+    compact_dir.mkdir()
+    surface_path = tmp_path / "hard_sort_surface.csv"
+    coefficients_path = compact_dir / "structure_coefficients.csv"
+    surface_temp = surface_path.with_name(f".{surface_path.name}.tmp")
+    coefficients_temp = coefficients_path.with_name(
+        f".{coefficients_path.name}.tmp"
+    )
+    for path in (
+        surface_path,
+        coefficients_path,
+        surface_temp,
+        coefficients_temp,
+    ):
+        path.write_text("stale", encoding="utf-8")
+
+    with pytest.raises(DataBlocked, match="incomplete.*formation"):
+        run_structure(cfg, data_end, tmp_path, compact_dir)
+
+    assert not surface_path.exists()
+    assert not coefficients_path.exists()
+    assert not surface_temp.exists()
+    assert not coefficients_temp.exists()
+
+
 @pytest.mark.parametrize("artifact", ["axis", "states"])
 def test_structure_runner_reads_and_validates_auxiliary_caches(
     tmp_path,

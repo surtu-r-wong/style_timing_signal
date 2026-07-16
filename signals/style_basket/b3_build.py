@@ -917,6 +917,14 @@ def _formation_inputs(
         "formation calendar",
     )
     trading = pd.DatetimeIndex(calendar["trade_date"])
+    if not data_end.is_month_end:
+        trading = trading[
+            trading.to_period("M") < data_end.to_period("M")
+        ]
+    if trading.empty:
+        raise DataBlocked(
+            "formation trading calendar has no completed months"
+        )
     month_ends = list(
         pd.Series(trading, index=trading)
         .groupby(trading.to_period("M"))

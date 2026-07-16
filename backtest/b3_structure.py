@@ -1245,6 +1245,14 @@ def run_structure(
         raise DataBlocked(
             "monthly exposures contain formation dates after data_end"
         )
+    if (
+        not cutoff.is_month_end
+        and exposure_dates.max().to_period("M")
+        == cutoff.to_period("M")
+    ):
+        raise DataBlocked(
+            "monthly exposures contain an incomplete cutoff-month formation"
+        )
     if return_dates.max() > cutoff:
         raise DataBlocked(
             "stock period returns contain dates after data_end"
