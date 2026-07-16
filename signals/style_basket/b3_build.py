@@ -896,11 +896,89 @@ def _formation_inputs(
 ) -> dict[str, object]:
     data_end = pd.Timestamp(data_end)
     schema = db["schema"]
+    calendar_start = pd.Timestamp("2013-05-01")
+    calendar_end = data_end.to_period("M").to_timestamp("M")
+
+    authoritative = _read_sql(
+        db,
+        """
+            SELECT calendar_date, sfe
+            FROM public.trading_calendar
+            WHERE calendar_date BETWEEN '2013-05-01'
+                                    AND %(calendar_end)s
+              AND deleted_at IS NULL
+            ORDER BY calendar_date
+        """,
+        {"calendar_end": calendar_end.date()},
+    )
+    if authoritative.empty:
+        raise DataBlocked("authoritative formation calendar is empty")
+    _require_columns(
+        authoritative,
+        {"calendar_date", "sfe"},
+        "authoritative formation calendar",
+    )
+    authoritative = _validate_datetime_columns(
+        authoritative,
+        ("calendar_date",),
+        "authoritative formation calendar",
+    )
+    if authoritative["calendar_date"].duplicated().any():
+        raise DataBlocked(
+            "authoritative formation calendar contains duplicate dates"
+        )
+    authoritative_dates = pd.DatetimeIndex(
+        authoritative["calendar_date"]
+    )
+    if not authoritative_dates.is_monotonic_increasing:
+        raise DataBlocked(
+            "authoritative formation calendar is not sorted"
+        )
+    expected_dates = pd.date_range(
+        calendar_start,
+        calendar_end,
+        freq="D",
+    )
+    if not authoritative_dates.equals(expected_dates):
+        raise DataBlocked(
+            "authoritative formation calendar must cover every natural "
+            "day through month-end"
+        )
+    invalid_sfe = ~authoritative["sfe"].map(
+        lambda value: isinstance(value, (bool, np.bool_))
+    )
+    if invalid_sfe.any():
+        raise DataBlocked(
+            "authoritative formation calendar.sfe must contain booleans"
+        )
+    official_trading = pd.DatetimeIndex(
+        authoritative.loc[authoritative["sfe"].astype(bool), "calendar_date"]
+    )
+    expected_months = pd.period_range(
+        calendar_start.to_period("M"),
+        calendar_end.to_period("M"),
+        freq="M",
+    )
+    authoritative_month_ends = pd.Series(
+        official_trading,
+        index=official_trading,
+    ).groupby(official_trading.to_period("M")).max()
+    if not authoritative_month_ends.index.equals(expected_months):
+        raise DataBlocked(
+            "authoritative formation calendar has a month without trading days"
+        )
+    completed_months = authoritative_month_ends[
+        authoritative_month_ends <= data_end
+    ]
+    if completed_months.empty:
+        raise DataBlocked(
+            "formation trading calendar has no completed months"
+        )
 
     calendar = _read_sql(
         db,
         f"""
-            SELECT DISTINCT trade_date
+            SELECT trade_date
             FROM {schema}.index_daily
             WHERE index_code = '000905.SH'
               AND trade_date BETWEEN '2013-05-01' AND %(end)s
@@ -917,19 +995,23 @@ def _formation_inputs(
         "formation calendar",
     )
     trading = pd.DatetimeIndex(calendar["trade_date"])
-    if not data_end.is_month_end:
-        trading = trading[
-            trading.to_period("M") < data_end.to_period("M")
-        ]
-    if trading.empty:
+    if trading.has_duplicates:
+        raise DataBlocked("formation calendar contains duplicate dates")
+    if not trading.is_monotonic_increasing:
+        raise DataBlocked("formation calendar is not sorted")
+    completed_periods = completed_months.index
+    actual_completed = trading[
+        trading.to_period("M").isin(completed_periods)
+    ]
+    expected_completed = official_trading[
+        official_trading.to_period("M").isin(completed_periods)
+    ]
+    if not actual_completed.equals(expected_completed):
         raise DataBlocked(
-            "formation trading calendar has no completed months"
+            "formation index calendar does not match the authoritative "
+            "calendar for completed months"
         )
-    month_ends = list(
-        pd.Series(trading, index=trading)
-        .groupby(trading.to_period("M"))
-        .max()
-    )
+    month_ends = [pd.Timestamp(date) for date in completed_months]
 
     meta = _read_sql(
         db,

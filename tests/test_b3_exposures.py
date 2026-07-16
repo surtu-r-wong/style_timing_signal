@@ -2306,16 +2306,49 @@ def _formation_sql_source(overrides):
     def fake_read_sql(db, sql, params=None):
         for marker, frame in overrides:
             if marker in sql:
-                return frame.copy()
+                result = frame.copy()
+                if marker == "trading_calendar" and params:
+                    upper_bound = pd.Timestamp(max(params.values()))
+                    parsed = pd.to_datetime(
+                        result["calendar_date"],
+                        errors="coerce",
+                        format="mixed",
+                    )
+                    result = result[
+                        parsed.isna() | parsed.le(upper_bound)
+                    ]
+                return result
         raise AssertionError(f"unexpected SQL: {sql}")
 
     return fake_read_sql
 
 
-def _valid_formation_sql_frames():
+def _authoritative_calendar(end):
+    dates = pd.date_range("2013-05-01", end, freq="D")
+    return pd.DataFrame(
+        {
+            "calendar_date": dates,
+            "sfe": dates.dayofweek < 5,
+        }
+    )
+
+
+def _valid_formation_sql_frames(
+    calendar_end="2023-12-31",
+    index_end=None,
+):
     formation = pd.Timestamp("2021-01-29")
+    index_end = calendar_end if index_end is None else index_end
     return {
-        "index_daily": pd.DataFrame({"trade_date": [formation]}),
+        "trading_calendar": _authoritative_calendar(calendar_end),
+        "index_daily": pd.DataFrame(
+            {
+                "trade_date": pd.bdate_range(
+                    "2013-05-01",
+                    index_end,
+                )
+            }
+        ),
         "stock_meta": pd.DataFrame(
             {
                 "ticker": ["A"],
@@ -2353,13 +2386,13 @@ def _valid_formation_sql_frames():
     [
         (
             "2021-03-14",
-            "2021-03-14",
-            ["2021-01-31", "2021-02-28"],
+            "2021-03-12",
+            ["2021-01-29", "2021-02-26"],
         ),
         (
             "2021-03-31",
-            "2021-03-29",
-            ["2021-01-31", "2021-02-28", "2021-03-29"],
+            "2021-03-31",
+            ["2021-01-29", "2021-02-26", "2021-03-31"],
         ),
     ],
 )
@@ -2369,17 +2402,9 @@ def test_formation_inputs_only_uses_completed_calendar_months(
     last_trade,
     expected,
 ):
-    frames = _valid_formation_sql_frames()
-    trade_dates = pd.to_datetime(
-        ["2021-01-31", "2021-02-28", last_trade]
-    )
-    frames["index_daily"] = pd.DataFrame({"trade_date": trade_dates})
-    frames["stock_daily_price"] = pd.DataFrame(
-        {
-            "ticker": ["A"] * len(trade_dates),
-            "trade_date": trade_dates,
-            "close": [10.0] * len(trade_dates),
-        }
+    frames = _valid_formation_sql_frames(
+        calendar_end="2021-03-31",
+        index_end=last_trade,
     )
     monkeypatch.setattr(
         "signals.style_basket.b3_build._read_sql",
@@ -2395,7 +2420,150 @@ def test_formation_inputs_only_uses_completed_calendar_months(
         pd.Timestamp(data_end),
     )
 
-    assert got["month_ends"] == list(pd.to_datetime(expected))
+    assert got["month_ends"][-len(expected) :] == list(
+        pd.to_datetime(expected)
+    )
+
+
+def test_formation_inputs_blocks_stale_index_calendar_at_natural_month_end(
+    monkeypatch,
+):
+    frames = _valid_formation_sql_frames(
+        calendar_end="2021-03-31",
+        index_end="2021-03-14",
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    with pytest.raises(DataBlocked, match="calendar"):
+        _formation_inputs(
+            {"schema": "public"},
+            pd.Timestamp("2021-03-31"),
+        )
+
+
+def test_formation_inputs_blocks_authoritative_calendar_before_month_end(
+    monkeypatch,
+):
+    frames = _valid_formation_sql_frames(
+        calendar_end="2021-03-14",
+        index_end="2021-03-12",
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    with pytest.raises(DataBlocked, match="calendar"):
+        _formation_inputs(
+            {"schema": "public"},
+            pd.Timestamp("2021-03-31"),
+        )
+
+
+@pytest.mark.parametrize(
+    "malformation",
+    [
+        "invalid-date",
+        "invalid-sfe",
+        "duplicate-date",
+        "unsorted",
+        "missing-natural-day",
+        "month-without-trading-day",
+    ],
+)
+def test_formation_inputs_classifies_malformed_authoritative_calendar(
+    monkeypatch,
+    malformation,
+):
+    frames = _valid_formation_sql_frames(
+        calendar_end="2021-03-31",
+        index_end="2021-03-31",
+    )
+    calendar = frames["trading_calendar"].copy()
+    if malformation == "invalid-date":
+        calendar["calendar_date"] = calendar["calendar_date"].astype(object)
+        calendar.loc[0, "calendar_date"] = "not-a-date"
+    elif malformation == "invalid-sfe":
+        calendar["sfe"] = calendar["sfe"].astype(object)
+        calendar.loc[0, "sfe"] = "yes"
+    elif malformation == "duplicate-date":
+        calendar = pd.concat(
+            [calendar.iloc[[0]], calendar],
+            ignore_index=True,
+        )
+    elif malformation == "unsorted":
+        order = [1, 0, *range(2, len(calendar))]
+        calendar = calendar.iloc[order].reset_index(drop=True)
+    elif malformation == "missing-natural-day":
+        calendar = calendar.drop(index=100).reset_index(drop=True)
+    elif malformation == "month-without-trading-day":
+        june_2013 = calendar["calendar_date"].dt.to_period("M").eq("2013-06")
+        calendar.loc[june_2013, "sfe"] = False
+    else:
+        raise AssertionError(f"unsupported malformation: {malformation}")
+    frames["trading_calendar"] = calendar
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    with pytest.raises(DataBlocked, match="authoritative.*calendar"):
+        _formation_inputs(
+            {"schema": "public"},
+            pd.Timestamp("2021-03-31"),
+        )
+
+
+@pytest.mark.parametrize("malformation", ["extra-date", "duplicate-date"])
+def test_formation_inputs_blocks_noncanonical_index_calendar(
+    monkeypatch,
+    malformation,
+):
+    frames = _valid_formation_sql_frames(
+        calendar_end="2021-03-31",
+        index_end="2021-03-31",
+    )
+    calendar = frames["index_daily"].copy()
+    if malformation == "extra-date":
+        calendar = pd.concat(
+            [calendar, pd.DataFrame({"trade_date": [pd.Timestamp("2021-01-30")]})],
+            ignore_index=True,
+        ).sort_values("trade_date", kind="mergesort")
+    else:
+        calendar = pd.concat(
+            [calendar.iloc[[0]], calendar],
+            ignore_index=True,
+        )
+    frames["index_daily"] = calendar.reset_index(drop=True)
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    with pytest.raises(DataBlocked, match="calendar"):
+        _formation_inputs(
+            {"schema": "public"},
+            pd.Timestamp("2021-03-31"),
+        )
 
 
 def test_formation_inputs_classifies_malformed_calendar_as_data_blocked(
