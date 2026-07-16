@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -86,6 +87,7 @@ def _surface_inputs(
     dates=None,
     policies=("legal_deadline",),
     names_per_cell=4,
+    include_final_return=False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     if dates is None:
         dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
@@ -126,14 +128,18 @@ def _surface_inputs(
                                 "h_perp": h,
                             }
                         )
-                        return_rows.append(
-                            {
-                                "pit_policy": policy,
-                                "formation_date": date,
-                                "ticker": ticker,
-                                "forward_return": forward,
-                            }
-                        )
+                        if (
+                            date_number < len(dates) - 1
+                            or include_final_return
+                        ):
+                            return_rows.append(
+                                {
+                                    "pit_policy": policy,
+                                    "formation_date": date,
+                                    "ticker": ticker,
+                                    "forward_return": forward,
+                                }
+                            )
     return pd.DataFrame(exposure_rows), pd.DataFrame(return_rows)
 
 
@@ -159,7 +165,10 @@ def test_hard_sort_ties_are_ticker_deterministic_and_row_order_invariant():
     assert first.loc["F", "cell_2x3"].startswith("small_")
 
 
-@pytest.mark.parametrize("mutation", ["duplicate", "nan", "boolean"])
+@pytest.mark.parametrize(
+    "mutation",
+    ["duplicate", "nan", "boolean", "whitespace"],
+)
 def test_hard_sort_rejects_illegal_cross_section(mutation):
     month = pd.DataFrame(
         {
@@ -172,12 +181,22 @@ def test_hard_sort_rejects_illegal_cross_section(mutation):
         month.loc[1, "ticker"] = "A"
     elif mutation == "nan":
         month.loc[1, "m_perp"] = np.nan
-    else:
+    elif mutation == "boolean":
         month["s_perp"] = month["s_perp"].astype(object)
         month.loc[1, "s_perp"] = True
+    else:
+        month.loc[1, "ticker"] = " B "
 
     with pytest.raises(DataBlocked):
         assign_hard_sort_cells(month)
+
+
+def test_hard_sort_surface_rejects_industry_with_edge_whitespace():
+    exposures, returns = _surface_inputs()
+    exposures.loc[exposures.index[0], "industry"] = " A"
+
+    with pytest.raises(DataBlocked, match="industry"):
+        build_hard_sort_surface(exposures, returns)
 
 
 def test_hard_sort_surface_emits_31_cells_and_14_fixed_diagnostics_per_month():
@@ -223,8 +242,11 @@ def test_hard_sort_surface_emits_31_cells_and_14_fixed_diagnostics_per_month():
 
 
 def test_hard_sort_corner_and_linear_residual_use_frozen_directions():
-    exposures, returns = _surface_inputs(dates=["2014-01-31"])
-    month = exposures.drop(columns="pit_policy")
+    dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+    exposures, returns = _surface_inputs(dates=dates)
+    month = exposures[
+        exposures["formation_date"].eq(dates[0])
+    ].drop(columns="pit_policy")
     assigned = assign_hard_sort_cells(month)
     corner_returns = {
         "big_value": 0.01,
@@ -273,7 +295,9 @@ def test_hard_sort_corner_and_linear_residual_use_frozen_directions():
 
 
 def test_hard_sort_surface_reports_empty_legal_cells_without_selecting_around_them():
-    exposures, returns = _surface_inputs(dates=["2014-01-31"])
+    exposures, returns = _surface_inputs(
+        dates=["2014-01-31", "2014-02-28"]
+    )
     exposures = exposures.copy()
     exposures["s_perp"] = exposures["m_perp"] ** 3
 
@@ -289,7 +313,9 @@ def test_hard_sort_surface_reports_empty_legal_cells_without_selecting_around_th
 
 
 def test_hard_sort_surface_uses_only_model_universe():
-    exposures, returns = _surface_inputs(dates=["2014-01-31"])
+    exposures, returns = _surface_inputs(
+        dates=["2014-01-31", "2014-02-28"]
+    )
     extra = exposures.iloc[[0]].copy()
     extra["ticker"] = "SIZE_ONLY"
     extra["universe_role"] = "size_only"
@@ -318,6 +344,37 @@ def test_hard_sort_surface_refuses_silent_inner_join_or_month_selection(mutation
         build_hard_sort_surface(exposures, returns)
 
 
+def test_hard_sort_surface_rejects_common_missing_formation_month():
+    dates = pd.to_datetime(["2014-01-31", "2014-02-28", "2014-03-31"])
+    exposures, returns = _surface_inputs(dates=dates)
+    exposures = exposures[~exposures["formation_date"].eq(dates[1])]
+    returns = returns[~returns["formation_date"].eq(dates[1])]
+
+    with pytest.raises(DataBlocked, match="continuous.*calendar month"):
+        build_hard_sort_surface(exposures, returns)
+
+
+def test_hard_sort_surface_requires_full_and_model_formation_grids_to_match():
+    dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+    exposures, returns = _surface_inputs(dates=dates)
+    exposures.loc[
+        exposures["formation_date"].eq(dates[1]),
+        "universe_role",
+    ] = "size_only"
+    returns = returns[returns["formation_date"].eq(dates[0])]
+
+    with pytest.raises(DataBlocked, match="full.*model.*formation"):
+        build_hard_sort_surface(exposures, returns)
+
+
+def test_hard_sort_surface_rejects_multiple_formations_in_one_calendar_month():
+    dates = pd.to_datetime(["2014-01-30", "2014-01-31", "2014-02-28"])
+    exposures, returns = _surface_inputs(dates=dates)
+
+    with pytest.raises(DataBlocked, match="one formation.*calendar month"):
+        build_hard_sort_surface(exposures, returns)
+
+
 def test_hard_sort_surface_allows_only_the_unrealized_final_formation_to_be_absent():
     dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
     exposures, returns = _surface_inputs(dates=dates)
@@ -328,15 +385,32 @@ def test_hard_sort_surface_allows_only_the_unrealized_final_formation_to_be_abse
     assert set(got["formation_date"]) == {dates[0]}
 
 
+def test_hard_sort_surface_rejects_return_for_unproven_final_holding_period():
+    dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+    exposures, returns = _surface_inputs(
+        dates=dates,
+        include_final_return=True,
+    )
+
+    with pytest.raises(DataBlocked, match="exactly one unrealized final"):
+        build_hard_sort_surface(exposures, returns)
+
+
 def test_structure_coefficients_freeze_schema_windows_and_verdict_flags():
-    dates = pd.to_datetime(
-        ["2014-01-31", "2018-01-31", "2021-01-29", "2024-01-31"]
+    dates = pd.date_range(
+        "2014-01-31",
+        "2024-02-29",
+        freq="ME",
     )
     policies = (
         "legal_deadline",
         "legal_deadline_plus_one_month_end",
     )
-    exposures, returns = _surface_inputs(dates=dates, policies=policies)
+    exposures, returns = _surface_inputs(
+        dates=dates,
+        policies=policies,
+        names_per_cell=1,
+    )
 
     got = build_structure_coefficients(
         exposures,
@@ -361,7 +435,7 @@ def test_structure_coefficients_freeze_schema_windows_and_verdict_flags():
     for policy, policy_frame in got.groupby("pit_policy"):
         monthly = policy_frame[policy_frame["row_type"].eq("monthly")]
         summary = policy_frame[policy_frame["row_type"].eq("summary")]
-        assert len(monthly) == 4
+        assert len(monthly) == 121
         assert list(summary["window"]) == [
             "2014-2017",
             "2018-2020",
@@ -369,7 +443,7 @@ def test_structure_coefficients_freeze_schema_windows_and_verdict_flags():
             "2024-2026-report-only",
         ]
         assert list(summary["affects_verdict"]) == [True, True, True, False]
-        assert summary["n"].eq(1).all()
+        assert list(summary["n"]) == [48, 36, 36, 1]
         assert np.allclose(summary["beta_h"], 0.03, atol=1.0e-10)
         assert monthly.loc[
             monthly["window"].eq("2024-2026-report-only"),
@@ -511,8 +585,8 @@ def test_structure_runner_hash_checks_parents_and_writes_deterministic_outputs(
         result.coefficients_path,
         parse_dates=["formation_date"],
     )
-    assert len(surface) == 2 * 2 * 45
-    assert len(coefficients) == 2 * (2 + 4)
+    assert len(surface) == 2 * 1 * 45
+    assert len(coefficients) == 2 * (1 + 4)
     first_surface = result.surface_path.read_bytes()
     first_coefficients = result.coefficients_path.read_bytes()
 
@@ -540,6 +614,34 @@ def test_structure_runner_rejects_tampered_parent_and_removes_stale_outputs(
 
     assert not (tmp_path / "hard_sort_surface.csv").exists()
     assert not (compact_dir / "structure_coefficients.csv").exists()
+
+
+def test_structure_runner_invalidates_outputs_before_config_validation(
+    tmp_path,
+):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2014-03-31")
+    _write_structure_parents(tmp_path, cfg, data_end)
+    compact_dir = tmp_path / "compact"
+    result = run_structure(cfg, data_end, tmp_path, compact_dir)
+    surface_temp = result.surface_path.with_name(
+        f".{result.surface_path.name}.tmp"
+    )
+    coefficients_temp = result.coefficients_path.with_name(
+        f".{result.coefficients_path.name}.tmp"
+    )
+    surface_temp.write_text("stale", encoding="utf-8")
+    coefficients_temp.write_text("stale", encoding="utf-8")
+    invalid_cfg = deepcopy(cfg)
+    invalid_cfg["model"]["newey_west_lag"] = 2
+
+    with pytest.raises(DataBlocked, match="Newey-West"):
+        run_structure(invalid_cfg, data_end, tmp_path, compact_dir)
+
+    assert not result.surface_path.exists()
+    assert not result.coefficients_path.exists()
+    assert not surface_temp.exists()
+    assert not coefficients_temp.exists()
 
 
 @pytest.mark.parametrize("artifact", ["axis", "states"])
@@ -638,7 +740,9 @@ def test_structure_runner_requires_axis_and_state_daily_grids_to_match(
 
 def test_structure_coefficients_require_both_frozen_pit_policies():
     cfg = load_b3_config()
-    exposures, returns = _surface_inputs(dates=["2014-01-31"])
+    exposures, returns = _surface_inputs(
+        dates=["2014-01-31", "2014-02-28"]
+    )
 
     with pytest.raises(DataBlocked, match="policy"):
         build_structure_coefficients(exposures, returns, cfg)

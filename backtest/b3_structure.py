@@ -127,10 +127,14 @@ def _strict_dates(values: pd.Series, label: str) -> pd.Series:
 
 def _validate_strings(values: pd.Series, label: str) -> None:
     invalid = ~values.map(
-        lambda value: isinstance(value, str) and bool(value.strip())
+        lambda value: (
+            isinstance(value, str)
+            and bool(value)
+            and value == value.strip()
+        )
     )
     if invalid.any():
-        raise DataBlocked(f"{label} must contain nonempty strings")
+        raise DataBlocked(f"{label} must contain canonical nonempty strings")
 
 
 def _finite_numeric(values: pd.Series, label: str) -> pd.Series:
@@ -385,6 +389,26 @@ def newey_west_mean_t(values: pd.Series, lag: int = 3) -> float:
     return float(clean.mean() / np.sqrt(variance_of_mean))
 
 
+def _monthly_formation_grid(
+    values: pd.Series,
+    label: str,
+) -> tuple[pd.Timestamp, ...]:
+    dates = pd.DatetimeIndex(sorted(values.unique()))
+    if dates.empty:
+        raise DataBlocked(f"{label} contains no formation dates")
+    periods = dates.to_period("M")
+    if periods.has_duplicates:
+        raise DataBlocked(
+            f"{label} must contain exactly one formation per calendar month"
+        )
+    expected = pd.period_range(periods[0], periods[-1], freq="M")
+    if not periods.equals(expected):
+        raise DataBlocked(
+            f"{label} formation grid must be continuous by calendar month"
+        )
+    return tuple(dates)
+
+
 def _validated_surface_inputs(
     exposures: pd.DataFrame,
     stock_period_returns: pd.DataFrame,
@@ -456,34 +480,42 @@ def _validated_surface_inputs(
     if (r["forward_return"] <= -1.0).any():
         raise DataBlocked("stock period returns must exceed -100%")
 
-    exposure_policies = sorted(model["pit_policy"].unique())
+    exposure_policies = sorted(x["pit_policy"].unique())
+    model_policies = sorted(model["pit_policy"].unique())
     return_policies = sorted(r["pit_policy"].unique())
-    if exposure_policies != return_policies:
+    if not (
+        exposure_policies == model_policies == return_policies
+    ):
         raise DataBlocked(
             "hard-sort exposure and return policy sets do not match"
         )
     reference_exposure_dates: tuple[pd.Timestamp, ...] | None = None
     reference_return_dates: tuple[pd.Timestamp, ...] | None = None
     for policy in exposure_policies:
+        policy_full = x[x["pit_policy"].eq(policy)]
         policy_model = model[model["pit_policy"].eq(policy)]
         policy_returns = r[r["pit_policy"].eq(policy)]
-        exposure_dates = tuple(
-            sorted(pd.DatetimeIndex(policy_model["formation_date"].unique()))
+        full_exposure_dates = _monthly_formation_grid(
+            policy_full["formation_date"],
+            f"hard-sort full exposures for {policy}",
         )
-        return_dates = tuple(
-            sorted(pd.DatetimeIndex(policy_returns["formation_date"].unique()))
+        exposure_dates = _monthly_formation_grid(
+            policy_model["formation_date"],
+            f"hard-sort model exposures for {policy}",
         )
-        if not return_dates:
+        if full_exposure_dates != exposure_dates:
             raise DataBlocked(
-                f"hard-sort returns contain no valid months for {policy}"
+                "hard-sort full and model formation grids do not match "
+                f"for {policy}"
             )
-        if (
-            len(exposure_dates) - len(return_dates) not in {0, 1}
-            or return_dates != exposure_dates[: len(return_dates)]
-        ):
+        return_dates = _monthly_formation_grid(
+            policy_returns["formation_date"],
+            f"hard-sort returns for {policy}",
+        )
+        if return_dates != exposure_dates[:-1]:
             raise DataBlocked(
                 "stock period return months must be the complete exposure "
-                "prefix with at most one unrealized final formation"
+                "prefix with exactly one unrealized final formation"
             )
         if reference_exposure_dates is None:
             reference_exposure_dates = exposure_dates
@@ -1138,6 +1170,15 @@ def _atomic_write_outputs(
         coefficients_temp.unlink(missing_ok=True)
 
 
+def _invalidate_structure_outputs(
+    surface_path: Path,
+    coefficients_path: Path,
+) -> None:
+    for path in (surface_path, coefficients_path):
+        path.unlink(missing_ok=True)
+        path.with_name(f".{path.name}.tmp").unlink(missing_ok=True)
+
+
 def run_structure(
     cfg: dict,
     data_end: pd.Timestamp,
@@ -1145,23 +1186,16 @@ def run_structure(
     backtest_output_dir: str | Path = DEFAULT_BACKTEST_OUTPUT_DIR,
 ) -> StructureRunResult:
     """Verify staged caches and materialize the frozen structure audit."""
+    research_root = Path(research_output_dir)
+    backtest_root = Path(backtest_output_dir)
+    surface_path = research_root / "hard_sort_surface.csv"
+    coefficients_path = backtest_root / "structure_coefficients.csv"
+    _invalidate_structure_outputs(surface_path, coefficients_path)
     _validate_structure_config(cfg)
     cutoff = _strict_dates(
         pd.Series([data_end]),
         "structure data_end",
     ).iloc[0]
-    research_root = Path(research_output_dir)
-    backtest_root = Path(backtest_output_dir)
-    surface_path = research_root / "hard_sort_surface.csv"
-    coefficients_path = backtest_root / "structure_coefficients.csv"
-    surface_path.unlink(missing_ok=True)
-    coefficients_path.unlink(missing_ok=True)
-    surface_path.with_name(f".{surface_path.name}.tmp").unlink(
-        missing_ok=True
-    )
-    coefficients_path.with_name(
-        f".{coefficients_path.name}.tmp"
-    ).unlink(missing_ok=True)
 
     for parent in ("exposures", "portfolios", "states"):
         require_parent_manifest(
