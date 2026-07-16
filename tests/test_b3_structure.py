@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import backtest.b3_structure as b3_structure
 from backtest.b3_structure import (
     MODEL_COMPARISON_COLUMNS,
     MODEL_ROW_ID_COLUMNS,
@@ -1193,6 +1194,18 @@ def test_stability_and_three_window_state_coverage_are_hard_gates():
     assert not failed["pass"]
 
 
+def test_state_coverage_rejects_unordered_dates():
+    state = pd.Series(
+        ["UU", "DD", "DIV"],
+        index=pd.DatetimeIndex(
+            ["2014-01-02", "2014-01-01", "2014-01-03"]
+        ),
+    )
+
+    with pytest.raises(DataBlocked, match="monotonic"):
+        state_coverage_gate(state, 0.10)
+
+
 def test_next_formation_targets_are_nonoverlapping_and_omit_final():
     dates = pd.bdate_range("2021-01-29", "2021-02-05")
     daily = pd.Series(
@@ -1578,6 +1591,38 @@ def test_model_comparison_adds_one_run_level_pit_policy_flip_row():
     assert len(pit) == 1
     assert not bool(pit.iloc[0]["gate_pass"])
     assert bool(pit.iloc[0]["affects_verdict"])
+
+
+@pytest.mark.filterwarnings("ignore:An input array is constant")
+def test_model_comparison_handles_undefined_confirmation_oos():
+    inputs = list(_model_comparison_inputs())
+    inputs[4] = {
+        name: pd.Series(0.0, index=series.index, name=series.name)
+        for name, series in inputs[4].items()
+    }
+
+    got = build_model_comparison(*inputs)
+
+    confirmation_metrics = got[
+        got["window"].eq("2021-2023")
+        & got["gate_name"].eq("")
+        & got["model"].isin({"M0", "M1"})
+    ]
+    increments = got[got["gate_name"].eq("m1_increment")]
+    pit = got[got["gate_name"].eq("PIT_POLICY_FLIP")]
+    assert confirmation_metrics["oos_r2"].isna().all()
+    assert increments["gate_pass"].eq(False).all()
+    assert len(pit) == 1
+    assert bool(pit.iloc[0]["gate_pass"])
+
+
+def test_increment_direction_distinguishes_finite_from_undefined():
+    undefined = b3_structure._increment_direction(float("nan"))
+
+    assert undefined == "NONFINITE"
+    assert undefined == b3_structure._increment_direction(float("inf"))
+    assert undefined != b3_structure._increment_direction(0.25)
+    assert b3_structure._increment_direction(-0.25) == -1
 
 
 def test_model_comparison_report_mutation_cannot_change_verdict_rows():

@@ -384,8 +384,11 @@ def state_coverage_gate(
         state.index.tz is not None
         or not state.index.equals(state.index.normalize())
         or state.index.has_duplicates
+        or not state.index.is_monotonic_increasing
     ):
-        raise DataBlocked("state coverage dates must be unique naive dates")
+        raise DataBlocked(
+            "state coverage dates must be unique monotonic naive dates"
+        )
     if not state.dropna().isin({"UU", "DD", "DIV"}).all():
         raise DataBlocked("state coverage contains unsupported labels")
     if (
@@ -1576,6 +1579,13 @@ def _score_metrics(
     return score, float(oos), float(spearman)
 
 
+def _increment_direction(value: float) -> int | str:
+    """Map a model increment to its frozen PIT-comparison direction."""
+    if not np.isfinite(value):
+        return "NONFINITE"
+    return int(np.sign(value))
+
+
 def _closed_formation_window(
     frame: pd.DataFrame,
     formations: pd.DatetimeIndex,
@@ -1664,7 +1674,7 @@ def build_model_comparison(
     rows: list[dict[str, object]] = []
     leg_gate_pass: dict[tuple[str, str, str], bool] = {}
     aggregate_gate_pass: dict[tuple[str, str, str], bool] = {}
-    increment_signs: dict[tuple[str, str], int] = {}
+    increment_signs: dict[tuple[str, str], int | str] = {}
     beta_signs: dict[str, tuple[int, ...]] = {}
     minimum_coverage = float(cfg["model"]["state_min_coverage"])
     minimum_stability = float(
@@ -2003,7 +2013,9 @@ def build_model_comparison(
                 and increment_delta > 0.0
                 and m1_ic >= m0_ic
             )
-            increment_signs[(policy, q)] = int(np.sign(increment_delta))
+            increment_signs[(policy, q)] = _increment_direction(
+                increment_delta
+            )
             leg_gate_pass[(policy, q, "m1_increment")] = increment_pass
             rows.append(
                 _model_comparison_row(
