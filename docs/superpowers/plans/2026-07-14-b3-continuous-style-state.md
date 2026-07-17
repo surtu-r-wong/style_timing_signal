@@ -2765,12 +2765,16 @@ This subsection supersedes conflicting Task 7 line-level pseudocode above.
   return formations must equal the exposure grid with exactly the final
   unrealized formation omitted; an equal-length terminal return is not
   accepted as proof of a complete holding period.
-- The formation loader excludes the cutoff calendar month whenever
-  `data_end` is not a calendar month-end. At a calendar month-end cutoff it
-  retains that month's actual last observed trading day. The portfolio stage
-  publishes stock-period returns only for formations with a real next
-  formation, while daily axis and conditional-leg returns continue through
-  the available return end.
+- The formation loader queries `public.trading_calendar(calendar_date, sfe,
+  deleted_at)` through the natural month-end containing `data_end`. The
+  authoritative table must cover every natural day with unique, ordered dates
+  and Boolean `sfe` flags. A month is complete only when its authoritative last
+  trading day is no later than `data_end`; for every completed month the
+  `000905.SH` date set must exactly equal the authoritative `sfe=true` set.
+  This blocks a stale mid-month index tail even when `data_end` itself is a
+  natural month-end. The portfolio stage publishes stock-period returns only
+  for formations with a real next formation, while daily axis and
+  conditional-leg returns continue through the available return end.
 - The structure runner rejects an old parent cache whose maximum formation is
   in a non-month-end cutoff month. It invalidates both formal outputs and both
   temporary files before configuration, cutoff or parent validation, so a
@@ -2795,7 +2799,11 @@ Verification on 2026-07-16:
   `git diff --check` all passed; the worktree was clean.
 - Independent specification and quality re-reviews reported no Critical,
   Important or Minor findings and both returned `Ready: Yes`.
-- Implementation checkpoints: `2b71440`, `bfe4ace`, `95393ff`.
+- A follow-up stale-calendar audit added 10 red-green counterfactuals and
+  verified the real 2013-05-01 through 2023-12-31 `sfe`/`000905.SH` daily
+  mismatch count is zero. The focused formation-input suite has 16 passing
+  tests and the exposures file has 143 passing tests with zero warnings.
+- Implementation checkpoints: `2b71440`, `bfe4ace`, `95393ff`, `ee78783`.
 
 ## Task 8: Fit frozen M0/M1 models and enforce structure gates
 
@@ -3104,6 +3112,41 @@ Expected: 5 passed.
 git add backtest/b3_structure.py tests/test_b3_structure.py
 git commit -m "feat(b3): add frozen state model gates"
 ```
+
+#### Task 8 implementation-review corrections
+
+This subsection records the frozen implementation after specification review
+and supersedes conflicting Task 8 pseudocode above.
+
+- Discovery, early/late, confirmation, calendar-year and report-only model
+  windows contain only formation rows whose next formation also closes inside
+  that window. Full-discovery M0/M1 coefficients are frozen before confirmation
+  or report rows are scored; `beta_h` direction is recomputed from the closed
+  monthly coefficient rows rather than trusted from a summary row.
+- `model_comparison.csv` uses the exact declared schema and row identity.
+  Public structure gates remain separate from candidate aggregates so Task 10
+  can apply the final public-and-candidate AND. `q500` and `q1000` remain
+  mandatory independent legs of dual-target.
+- An undefined confirmation OOS R-squared makes `m1_increment` fail. Its PIT
+  direction is the explicit `NONFINITE` sentinel, distinct from finite
+  negative, zero or positive increments: two undefined policies do not create
+  a flip, while finite versus undefined does. State-coverage inputs must have
+  unique, increasing naive dates.
+- The structure runner verifies all parent manifests before statistics, uses
+  the real cash-return loader and frozen equal-weight control by default, and
+  invalidates/writes `hard_sort_surface.csv`, `structure_coefficients.csv` and
+  `model_comparison.csv` as one fail-closed output set.
+
+Verification on 2026-07-17:
+
+- Stable-HEAD `python3 -m pytest tests/test_b3_structure.py -q -W error` ->
+  `63 passed in 194.71s`.
+- The three boundary regressions pass under `-W error`; Ruff, `py_compile`,
+  isolated mypy and `git diff --check` pass.
+- Independent specification re-review reported no Critical, Important or
+  Minor findings and returned `Ready: Yes`; primary-agent quality review found
+  no remaining contract, firewall, atomicity or error-classification issue.
+- Implementation checkpoints: `26342f4`, `afc71f8`.
 
 ## Task 9: Add same-scale candidate returns and paired bootstrap evidence
 
@@ -3573,7 +3616,7 @@ invalid_formation_months,stage_manifest_hashes,input_file_hashes,
 candidate_statistical_verdicts,family_statistical_verdict,final_verdict
 ```
 
-Populate `input_file_hashes` with SHA-256 for every consumed materialized input (`monthly_exposures.csv.gz`, `stock_period_returns.csv.gz`, `axis_returns.csv`, `conditional_leg_returns.csv`, `state_components.csv`, structure outputs and the frozen config). Populate `stage_manifest_hashes` with the byte hash of each verified parent manifest. Database-backed preflight inputs are not mislabeled as files: add `database_source_evidence` containing the exact query-template hash plus row count, minimum date and maximum date for every source table read. These fields are evidence only; changing them never bypasses the configured gates.
+Populate `input_file_hashes` with SHA-256 for every consumed materialized input (`monthly_exposures.csv.gz`, `stock_period_returns.csv.gz`, `axis_returns.csv`, `conditional_leg_returns.csv`, `state_components.csv`, structure outputs and the frozen config). Populate `stage_manifest_hashes` with the byte hash of each verified parent manifest. Database-backed preflight inputs are not mislabeled as files: add `database_source_evidence` containing the exact query-template hash plus row count, minimum date and maximum date for every source table read. This explicitly includes `public.trading_calendar` and records the `calendar_date`/`sfe`/`deleted_at` query used to certify completed formation months, independently of the `index_daily` evidence. These fields are evidence only; changing them never bypasses the configured gates.
 
 Set `true_first_disclosure_coverage` from the model-row provenance field produced in Task 3 and record its verified numerator, required denominator and `coverage_basis`. The first-round conservative rule marks a style observation unverified whenever its dependency history contains CSMAR; on current 2014–2023 data the coverage is therefore 0 rather than an invented partial estimate. A later first-date backfill must replace this conservative field with fact-level verified dependencies before coverage can become 1. Compute SalG freshness from `salg_source_end_date`, not from non-null repeated values; compute carry freshness from the raw individual carry series, not the filled pre-launch panel.
 
