@@ -3473,6 +3473,57 @@ git add backtest/b3_eval.py tests/test_b3_eval.py
 git commit -m "feat(b3): add same-scale candidate evaluation"
 ```
 
+#### Task 9 implementation-review corrections
+
+This subsection records the frozen implementation after specification and
+quality review and supersedes conflicting Task 9 pseudocode above.
+
+- Task 9 is a pure DataFrame layer: it returns exact production, bootstrap and
+  yearly frames but performs no file I/O, CLI dispatch or verdict aggregation.
+  Task 10 owns physical artifacts, manifests and three-layer verdicts.
+- Equal-weight, unified and dual-target all use the same two half-weight legs,
+  cash calendars, carry materialization, T+1 engine and costs. Each fixed
+  confirmation, pre-IM, post-IM, report and yearly window slices positions and
+  market inputs before rerunning the engine, so no position or cost state leaks
+  across a window boundary. Carry is zero only before the relevant launch,
+  internal post-launch gaps block, and a stale common tail may crop report-only
+  data but cannot shorten the original confirmation calendar.
+- Frozen M1 coefficients use only closed 2014--2020 formation periods and apply
+  without an intercept, refit or later re-standardization. Shared input
+  validation pins the complete evaluation configuration, exact 50/50 cash
+  blend and authoritative last-trading-day formations for every 2014--2023
+  required month; the public fitting helper and the production builder therefore
+  cannot diverge.
+- Structure evidence requires the exact public and candidate gate families,
+  rejects in-sample gate rows and out-of-domain partial IC, and retains concrete
+  monthly sample counts. Production validation freezes row identities, flags,
+  nullability, numeric domains, copied baselines and all directly recoverable
+  gate implications. The full partial-IC leg deliberately enforces only
+  `gate_pass=true -> combined partial_ic>0`, because a positive combined value
+  may still fail the frozen two-of-three annual-sign condition.
+- The two-candidate bootstrap family is fixed per PIT policy. Structure failure
+  receives raw tail 1 and blank intervals; a passing raw tail must lie on the
+  5,001-point empirical grid before the Holm-style adjustment and strict 0.10
+  gate are recomputed. Yearly diagnostics cover 2021--2023 and 2014--2023 plus
+  any available report-only years starting in 2024, remain verdict-neutral and
+  include the strongest-year exclusion, including an explicit empty summary
+  for a single report year.
+
+Verification on 2026-07-18:
+
+- Primary-agent `python3 -m pytest tests/test_b3_eval.py -q -W error` ->
+  `136 passed in 172.97s`.
+- Primary-agent four-module B3 regression -> `407 passed in 368.15s` with
+  `-W error`.
+- Ruff, isolated mypy, `py_compile`, the pure-function forbidden-name scan and
+  `git diff --cached --check` passed; the forbidden scan produced zero matches.
+- The final specification review reported no Critical, Important or Minor
+  findings and returned `Ready: Yes` after 39 targeted regressions. The final
+  independent quality re-review reported no remaining findings and returned
+  `Ready: Yes` after both blocking counterfactuals were demonstrated RED then
+  fixed GREEN.
+- Implementation checkpoint: `bf1bf03`.
+
 ## Task 10: Add three-layer verdicts, manifests and end-to-end regression guards
 
 **Files:**
