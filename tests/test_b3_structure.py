@@ -1,3 +1,4 @@
+import hashlib
 import json
 from copy import deepcopy
 
@@ -28,8 +29,9 @@ from backtest.b3_structure import (
     stability_gate,
     state_coverage_gate,
 )
+from backtest.b3_eval import verify_structure_provenance
 from signals.style_basket.b3_build import _write_stage_manifest
-from signals.style_basket.b3_config import load_b3_config
+from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_exposures import DataBlocked
 
 
@@ -1973,3 +1975,72 @@ def test_structure_runner_real_builder_failure_removes_all_outputs(tmp_path):
         )
 
     assert not any(path.exists() for path in stale_paths)
+
+
+def test_structure_runner_writes_manifest_the_eval_stage_accepts(tmp_path):
+    cfg, data_end, targets, control, _ = _write_full_model_parents(tmp_path)
+    compact_dir = tmp_path / "compact"
+
+    result = run_structure(
+        cfg,
+        data_end,
+        tmp_path,
+        compact_dir,
+        target_returns=targets,
+        equal_weight_signal=control,
+    )
+
+    contract = verify_structure_provenance(
+        compact_dir,
+        config_hash(cfg),
+        data_end,
+    )
+    assert contract.data_end == str(data_end.date())
+    assert dict(contract.output_hashes) == {
+        "structure_coefficients.csv": hashlib.sha256(
+            result.coefficients_path.read_bytes()
+        ).hexdigest(),
+        "model_comparison.csv": hashlib.sha256(
+            result.model_path.read_bytes()
+        ).hexdigest(),
+    }
+
+
+def test_structure_runner_failure_leaves_no_stale_manifest(tmp_path):
+    cfg, data_end, targets, control, paths = _write_full_model_parents(tmp_path)
+    compact_dir = tmp_path / "compact"
+    run_structure(
+        cfg,
+        data_end,
+        tmp_path,
+        compact_dir,
+        target_returns=targets,
+        equal_weight_signal=control,
+    )
+    manifest_path = compact_dir / "structure_manifest.json"
+    assert manifest_path.is_file()
+
+    states = pd.read_csv(paths["states"])
+    states["F_X"] = states["F_U"]
+    states.to_csv(paths["states"], index=False)
+    _write_stage_manifest(
+        tmp_path,
+        "states",
+        cfg,
+        data_end,
+        [paths["states"]],
+        "OK",
+        [],
+    )
+
+    with pytest.raises(RuntimeError, match="rank"):
+        run_structure(
+            cfg,
+            data_end,
+            tmp_path,
+            compact_dir,
+            target_returns=targets,
+            equal_weight_signal=control,
+        )
+
+    assert not manifest_path.exists()

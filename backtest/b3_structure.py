@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from collections.abc import Callable
@@ -14,7 +15,7 @@ import pandas as pd
 
 from backtest.rotation_probe import partial_rank_ic
 from signals.style_basket.b3_build import require_parent_manifest
-from signals.style_basket.b3_config import load_b3_config
+from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_exposures import DataBlocked
 
 
@@ -2586,14 +2587,54 @@ def _atomic_write_outputs(
         model_temp.unlink(missing_ok=True)
 
 
-def _invalidate_structure_outputs(
-    surface_path: Path,
-    coefficients_path: Path,
-    model_path: Path,
-) -> None:
-    for path in (surface_path, coefficients_path, model_path):
+def _invalidate_structure_outputs(*paths: Path) -> None:
+    for path in paths:
         path.unlink(missing_ok=True)
         path.with_name(f".{path.name}.tmp").unlink(missing_ok=True)
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_structure_manifest(
+    manifest_path: Path,
+    cfg: dict,
+    data_end: pd.Timestamp,
+    coefficients_path: Path,
+    model_path: Path,
+    status: str,
+) -> Path:
+    """Seal the structure stage so the eval stage can verify before reading."""
+
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "stage": "structure",
+        "config_hash": config_hash(cfg),
+        "data_end": str(pd.Timestamp(data_end).date()),
+        "status": status,
+        "outputs": {
+            "structure_coefficients.csv": _sha256_file(coefficients_path),
+            "model_comparison.csv": _sha256_file(model_path),
+        },
+    }
+    temp_path = manifest_path.with_name(f".{manifest_path.name}.tmp")
+    rendered = json.dumps(
+        payload,
+        sort_keys=True,
+        ensure_ascii=False,
+        indent=2,
+    )
+    try:
+        temp_path.write_text(rendered, encoding="utf-8")
+        temp_path.replace(manifest_path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+    return manifest_path
 
 
 def run_structure(
@@ -2614,10 +2655,12 @@ def run_structure(
     surface_path = research_root / "hard_sort_surface.csv"
     coefficients_path = backtest_root / "structure_coefficients.csv"
     model_path = backtest_root / "model_comparison.csv"
+    manifest_path = backtest_root / "structure_manifest.json"
     _invalidate_structure_outputs(
         surface_path,
         coefficients_path,
         model_path,
+        manifest_path,
     )
     _validate_structure_config(cfg)
     cutoff = _strict_dates(
@@ -2770,11 +2813,20 @@ def run_structure(
         surface["row_type"].eq("cell"),
         "status",
     ].eq("COVERAGE_BLOCKED").any()
+    status = "COVERAGE_BLOCKED" if blocked else "OK"
+    _write_structure_manifest(
+        manifest_path,
+        cfg,
+        cutoff,
+        coefficients_path,
+        model_path,
+        status,
+    )
     return StructureRunResult(
         surface_path=surface_path,
         coefficients_path=coefficients_path,
         model_path=model_path,
-        status="COVERAGE_BLOCKED" if blocked else "OK",
+        status=status,
     )
 
 
