@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+import re
+import subprocess
+from dataclasses import dataclass, field
 from numbers import Integral
+from pathlib import Path, PurePosixPath
 from typing import Any, TypedDict, cast
 
 import numpy as np
@@ -13,6 +18,9 @@ from backtest.engine import run_strategy
 from backtest.b3_structure import (
     MODEL_COMPARISON_COLUMNS,
     MODEL_ROW_ID_COLUMNS,
+    ROOT,
+    _increment_direction,
+    _validated_model_comparison_output,
     apply_model,
     fit_model,
     next_formation_targets,
@@ -20,6 +28,7 @@ from backtest.b3_structure import (
 from backtest.metrics import ann_return, max_drawdown, sharpe, turnover
 from backtest.positions import production_position
 from backtest.rotation_probe import partial_rank_ic
+from signals.style_basket.b3_config import config_hash
 from signals.style_basket.b3_exposures import DataBlocked
 
 
@@ -93,6 +102,1090 @@ YEARLY_ROW_ID_COLUMNS = [
     "year",
     "excluded_year",
 ]
+VERDICT_COLUMNS = [
+    "scope",
+    "subject",
+    "gate",
+    "gate_pass",
+    "status",
+    "reason_code",
+    "detail",
+    "provisional",
+    "affects_statistical",
+    "statistical_verdict",
+    "final_verdict",
+    "shadow_candidate",
+    "shadow_start_allowed",
+]
+
+RUN_MANIFEST_FIELDS = (
+    "config_hash",
+    "code_commit",
+    "requested_data_end",
+    "common_historical_end",
+    "stock_price_max_date",
+    "index_500_max_date",
+    "index_1000_max_date",
+    "ic_carry_max_date",
+    "im_carry_max_date",
+    "salg_valid_through",
+    "true_first_disclosure_coverage",
+    "im_launch_date",
+    "invalid_formation_months",
+    "stage_manifest_hashes",
+    "input_file_hashes",
+    "database_source_evidence",
+    "candidate_statistical_verdicts",
+    "family_statistical_verdict",
+    "final_verdict",
+)
+_SOURCE_MAX_DATE_FIELDS = (
+    "stock_price_max_date",
+    "index_500_max_date",
+    "index_1000_max_date",
+    "ic_carry_max_date",
+    "im_carry_max_date",
+)
+
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
+_GIT_COMMIT_RE = re.compile(r"[0-9a-f]{40}")
+_CANONICAL_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+_DATABASE_SOURCE_RE = re.compile(
+    r"[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*"
+)
+_CANONICAL_TICKER_RE = re.compile(r"[0-9]{6}\.(?:SH|SZ|BJ)")
+_PIT_POLICY_RE = re.compile(r"[a-z][a-z0-9_]*")
+_PREFLIGHT_OUTPUTS = {
+    "coverage_audit.csv",
+    "exposure_diagnostics.csv",
+}
+_PREFLIGHT_BLOCKER_KEYS = {
+    "pit_policy",
+    "formation_date",
+    "required_formation",
+    "affects_final",
+    "check",
+    "side",
+    "eligible_count",
+    "max_weight",
+    "status",
+    "reason_code",
+    "detail",
+}
+_VERIFIED_PREFLIGHT_TOKEN = object()
+
+TRADING_CALENDAR_QUERY_TEMPLATE = """SELECT calendar_date, sfe
+FROM public.trading_calendar
+WHERE calendar_date BETWEEN '2013-05-01' AND %(calendar_end)s
+  AND deleted_at IS NULL
+ORDER BY calendar_date"""
+TRADING_CALENDAR_QUERY_TEMPLATE_HASH = hashlib.sha256(
+    TRADING_CALENDAR_QUERY_TEMPLATE.encode("utf-8")
+).hexdigest()
+TRUE_DISCLOSURE_COVERAGE_BASIS = (
+    "explicit true_first_disclosure_verified on model rows for every frozen "
+    "PIT policy and formation month from 2014-01 through 2023-12"
+)
+
+
+class _FrozenDict(dict):
+    """A JSON-serializable mapping that cannot be mutated after construction."""
+
+    @staticmethod
+    def _immutable(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise TypeError("frozen mapping cannot be mutated")
+
+    __setitem__ = _immutable
+    __delitem__ = _immutable
+    __ior__ = _immutable
+    clear = _immutable
+    pop = _immutable
+    popitem = _immutable
+    setdefault = _immutable
+    update = _immutable
+
+
+class _FrozenList(list):
+    """A JSON-serializable sequence that cannot be mutated."""
+
+    @staticmethod
+    def _immutable(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise TypeError("frozen sequence cannot be mutated")
+
+    __setitem__ = _immutable
+    __delitem__ = _immutable
+    __iadd__ = _immutable
+    __imul__ = _immutable
+    append = _immutable
+    clear = _immutable
+    extend = _immutable
+    insert = _immutable
+    pop = _immutable
+    remove = _immutable
+    reverse = _immutable
+    sort = _immutable
+
+
+def _freeze_json(value: object) -> object:
+    if type(value) is dict:
+        mapping = cast(dict[object, object], value)
+        return _FrozenDict(
+            {
+                key: _freeze_json(mapping[key])
+                for key in sorted(mapping, key=str)
+            }
+        )
+    if type(value) is list:
+        return _FrozenList(
+            _freeze_json(item) for item in cast(list[object], value)
+        )
+    return value
+
+
+@dataclass(frozen=True)
+class PreflightManifestContract:
+    status: str
+    data_end: str
+    blockers: tuple[_FrozenDict, ...]
+    manifest_hash: str
+    output_hashes: _FrozenDict
+    database_source_evidence: _FrozenDict | None
+    _verification_token: object = field(
+        default=None,
+        repr=False,
+        compare=False,
+    )
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+def _strict_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _load_strict_json(raw: bytes, label: str) -> dict[str, object]:
+    try:
+        text = raw.decode("utf-8")
+        payload = json.loads(
+            text,
+            object_pairs_hook=_strict_json_object,
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeDecodeError, TypeError, ValueError) as exc:
+        raise DataBlocked(f"{label} is not strict JSON") from exc
+    if type(payload) is not dict:
+        raise DataBlocked(f"{label} must be a JSON object")
+    return cast(dict[str, object], payload)
+
+
+def _canonical_relative_path(value: object, label: str) -> str:
+    if type(value) is not str or not value:
+        raise DataBlocked(f"{label} path is unsafe: {value!r}")
+    relative = cast(str, value)
+    pure = PurePosixPath(relative)
+    if (
+        "\\" in relative
+        or pure.is_absolute()
+        or pure.as_posix() != relative
+        or any(part in {"", ".", ".."} for part in pure.parts)
+    ):
+        raise DataBlocked(f"{label} path is unsafe: {relative!r}")
+    return relative
+
+
+def _verified_relative_file(root: Path, relative: object, label: str) -> Path:
+    canonical = _canonical_relative_path(relative, label)
+    try:
+        resolved_root = root.resolve(strict=True)
+        candidate = (root / canonical).resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise DataBlocked(f"{label} file is missing: {canonical}") from exc
+    if not resolved_root.is_dir():
+        raise DataBlocked(f"{label} root is not a directory")
+    if not candidate.is_relative_to(resolved_root):
+        raise DataBlocked(f"{label} path escapes its root: {canonical}")
+    if not candidate.is_file():
+        raise DataBlocked(f"{label} is not a file: {canonical}")
+    return candidate
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise DataBlocked(f"unable to hash input file: {path.name}") from exc
+    return digest.hexdigest()
+
+
+def _require_sha256(value: object, label: str) -> str:
+    if type(value) is not str or _SHA256_RE.fullmatch(cast(str, value)) is None:
+        raise DataBlocked(f"{label} hash format is invalid")
+    return cast(str, value)
+
+
+def _canonical_date_string(value: object, label: str) -> str:
+    if (
+        type(value) is not str
+        or _CANONICAL_DATE_RE.fullmatch(cast(str, value)) is None
+    ):
+        raise DataBlocked(f"{label} must be a canonical date")
+    rendered = cast(str, value)
+    try:
+        timestamp = pd.Timestamp(rendered)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise DataBlocked(f"{label} must be a canonical date") from exc
+    if pd.isna(timestamp) or str(timestamp.date()) != rendered:
+        raise DataBlocked(f"{label} must be a canonical date")
+    return rendered
+
+
+def _requested_date_string(value: object, label: str) -> str:
+    if type(value) is str:
+        return _canonical_date_string(value, label)
+    timestamp = _strict_timestamp(value, label)
+    return str(timestamp.date())
+
+
+def _validate_preflight_blockers(
+    raw: object,
+    manifest_status: str,
+) -> tuple[_FrozenDict, ...]:
+    if type(raw) is not list:
+        raise DataBlocked("preflight blockers must be a list")
+    blockers = cast(list[object], raw)
+    checked: list[_FrozenDict] = []
+    statuses: set[str] = set()
+    for blocker in blockers:
+        if type(blocker) is not dict or set(cast(dict, blocker)) != _PREFLIGHT_BLOCKER_KEYS:
+            raise DataBlocked("preflight blockers schema mismatch")
+        row = cast(dict[str, object], blocker)
+        for key in ("pit_policy", "check", "reason_code"):
+            value = row[key]
+            if type(value) is not str or not value or value != value.strip():
+                raise DataBlocked(f"preflight blockers {key} is invalid")
+        for key in ("side", "detail"):
+            if type(row[key]) is not str:
+                raise DataBlocked(f"preflight blockers {key} is invalid")
+        formation_date = row["formation_date"]
+        if type(formation_date) is not str:
+            raise DataBlocked("preflight blockers formation_date is invalid")
+        if formation_date != "NaT":
+            try:
+                parsed = pd.Timestamp(formation_date)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise DataBlocked(
+                    "preflight blockers formation_date is invalid"
+                ) from exc
+            if pd.isna(parsed) or parsed.tz is not None or parsed != parsed.normalize():
+                raise DataBlocked("preflight blockers formation_date is invalid")
+        if type(row["required_formation"]) is not bool or not row[
+            "required_formation"
+        ]:
+            raise DataBlocked("preflight blockers required_formation is invalid")
+        if type(row["affects_final"]) is not bool or not row["affects_final"]:
+            raise DataBlocked("preflight blockers affects_final is invalid")
+        count = row["eligible_count"]
+        if count is not None and (type(count) is not int or count < 0):
+            raise DataBlocked("preflight blockers eligible_count is invalid")
+        weight = row["max_weight"]
+        if weight is not None and (
+            type(weight) not in {int, float} or not np.isfinite(weight)
+        ):
+            raise DataBlocked("preflight blockers max_weight is invalid")
+        status = row["status"]
+        if type(status) is not str or status not in {
+            "DATA_BLOCKED",
+            "COVERAGE_BLOCKED",
+        }:
+            raise DataBlocked("preflight blockers status is invalid")
+        statuses.add(cast(str, status))
+        checked.append(cast(_FrozenDict, _freeze_json(row)))
+
+    if not statuses:
+        expected_status = "OK"
+    elif "DATA_BLOCKED" in statuses:
+        expected_status = "DATA_BLOCKED"
+    else:
+        expected_status = "COVERAGE_BLOCKED"
+    if manifest_status != expected_status:
+        raise DataBlocked("preflight blocker priority is inconsistent with status")
+    return tuple(checked)
+
+
+def _validate_database_source_evidence(raw: object) -> _FrozenDict:
+    if type(raw) is not dict or set(cast(dict, raw)) != {
+        "consumed_sources",
+        "sources",
+    }:
+        raise DataBlocked("database source evidence schema mismatch")
+    evidence = cast(dict[str, object], raw)
+    consumed = evidence["consumed_sources"]
+    sources = evidence["sources"]
+    if type(consumed) is not list or not consumed or type(sources) is not dict:
+        raise DataBlocked("database source evidence consumed_sources is invalid")
+    names = cast(list[object], consumed)
+    if any(
+        type(name) is not str
+        or _DATABASE_SOURCE_RE.fullmatch(cast(str, name)) is None
+        for name in names
+    ):
+        raise DataBlocked("database source evidence consumed_sources is invalid")
+    string_names = cast(list[str], names)
+    if len(set(string_names)) != len(string_names) or string_names != sorted(
+        string_names
+    ):
+        raise DataBlocked("database source evidence consumed_sources is invalid")
+    source_rows = cast(dict[object, object], sources)
+    if set(source_rows) != set(string_names):
+        raise DataBlocked(
+            "database source evidence consumed_sources must exactly match sources"
+        )
+    if "public.trading_calendar" not in source_rows:
+        raise DataBlocked(
+            "database source evidence requires public.trading_calendar"
+        )
+
+    expected_fields = {
+        "query_template_hash",
+        "row_count",
+        "min_date",
+        "max_date",
+    }
+    checked_sources: dict[str, object] = {}
+    for name in string_names:
+        raw_row = source_rows[name]
+        if type(raw_row) is not dict or set(cast(dict, raw_row)) != expected_fields:
+            raise DataBlocked(f"database source evidence fields are invalid: {name}")
+        row = cast(dict[str, object], raw_row)
+        query_hash = _require_sha256(
+            row["query_template_hash"],
+            f"database source evidence {name} query_template",
+        )
+        row_count = row["row_count"]
+        if type(row_count) is not int or row_count < 0:
+            raise DataBlocked(
+                f"database source evidence row_count is invalid: {name}"
+            )
+        min_date = row["min_date"]
+        max_date = row["max_date"]
+        if (min_date is None) != (max_date is None):
+            raise DataBlocked(f"database source evidence dates are invalid: {name}")
+        if min_date is not None:
+            minimum = _canonical_date_string(
+                min_date,
+                f"database source evidence {name} min_date",
+            )
+            maximum = _canonical_date_string(
+                max_date,
+                f"database source evidence {name} max_date",
+            )
+            if minimum > maximum:
+                raise DataBlocked(
+                    f"database source evidence date range is invalid: {name}"
+                )
+        checked_sources[name] = {
+            "query_template_hash": query_hash,
+            "row_count": row_count,
+            "min_date": min_date,
+            "max_date": max_date,
+        }
+
+    calendar = cast(dict[str, object], checked_sources["public.trading_calendar"])
+    if calendar["query_template_hash"] != TRADING_CALENDAR_QUERY_TEMPLATE_HASH:
+        raise DataBlocked(
+            "public.trading_calendar query_template_hash does not bind the "
+            "calendar_date/sfe/deleted_at template"
+        )
+    return cast(
+        _FrozenDict,
+        _freeze_json(
+            {
+                "consumed_sources": string_names,
+                "sources": checked_sources,
+            }
+        ),
+    )
+
+
+def verify_preflight_manifest(
+    research_root: str | Path,
+    expected_config_hash: str,
+    requested_data_end: object | None = None,
+) -> PreflightManifestContract:
+    """Verify the preflight manifest and every declared output before use."""
+
+    try:
+        root = Path(research_root)
+    except TypeError as exc:
+        raise DataBlocked("preflight research root is invalid") from exc
+    manifest_path = _verified_relative_file(
+        root,
+        "manifests/preflight.json",
+        "preflight manifest",
+    )
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+    except OSError as exc:
+        raise DataBlocked("preflight manifest cannot be read") from exc
+    manifest = _load_strict_json(manifest_bytes, "preflight manifest")
+
+    base_keys = {
+        "stage",
+        "config_hash",
+        "data_end",
+        "status",
+        "blockers",
+        "outputs",
+    }
+    if set(manifest) not in (
+        base_keys,
+        base_keys | {"database_source_evidence"},
+    ):
+        raise DataBlocked("preflight manifest schema mismatch")
+    if manifest["stage"] != "preflight":
+        raise DataBlocked("preflight manifest stage mismatch")
+    expected_hash = _require_sha256(expected_config_hash, "expected config")
+    actual_hash = _require_sha256(manifest["config_hash"], "preflight config")
+    if actual_hash != expected_hash:
+        raise DataBlocked("preflight config hash mismatch")
+    data_end = _canonical_date_string(manifest["data_end"], "preflight data_end")
+    if requested_data_end is not None:
+        requested = _requested_date_string(
+            requested_data_end,
+            "requested_data_end",
+        )
+        if requested != data_end:
+            raise DataBlocked("preflight data_end mismatch")
+    status = manifest["status"]
+    if type(status) is not str or status not in {
+        "OK",
+        "DATA_BLOCKED",
+        "COVERAGE_BLOCKED",
+    }:
+        raise DataBlocked("preflight status is invalid")
+    blockers = _validate_preflight_blockers(
+        manifest["blockers"],
+        cast(str, status),
+    )
+
+    raw_outputs = manifest["outputs"]
+    if type(raw_outputs) is not dict or not raw_outputs:
+        raise DataBlocked("preflight outputs are invalid")
+    output_mapping = cast(dict[object, object], raw_outputs)
+    checked_outputs: dict[str, str] = {}
+    for raw_relative in sorted(output_mapping, key=str):
+        relative = _canonical_relative_path(raw_relative, "preflight output")
+        expected_output_hash = _require_sha256(
+            output_mapping[raw_relative],
+            f"preflight output {relative}",
+        )
+        output_path = _verified_relative_file(
+            root,
+            relative,
+            "preflight output",
+        )
+        if _sha256_file(output_path) != expected_output_hash:
+            raise DataBlocked(f"preflight output hash mismatch: {relative}")
+        checked_outputs[relative] = expected_output_hash
+    if not _PREFLIGHT_OUTPUTS.issubset(checked_outputs):
+        raise DataBlocked("preflight required outputs are missing")
+
+    database_evidence = None
+    if "database_source_evidence" in manifest:
+        database_evidence = _validate_database_source_evidence(
+            manifest["database_source_evidence"]
+        )
+    return PreflightManifestContract(
+        status=cast(str, status),
+        data_end=data_end,
+        blockers=blockers,
+        manifest_hash=hashlib.sha256(manifest_bytes).hexdigest(),
+        output_hashes=_FrozenDict(checked_outputs),
+        database_source_evidence=database_evidence,
+        _verification_token=_VERIFIED_PREFLIGHT_TOKEN,
+    )
+
+
+def database_source_evidence_blocker(
+    contract: PreflightManifestContract,
+) -> dict[str, object] | None:
+    """Return the run blocker for an evidence-free verified preflight."""
+
+    if (
+        type(contract) is not PreflightManifestContract
+        or contract._verification_token is not _VERIFIED_PREFLIGHT_TOKEN
+    ):
+        raise TypeError("contract must come from verify_preflight_manifest")
+    if contract.database_source_evidence is not None:
+        return None
+    return {
+        "reason_code": "DATABASE_SOURCE_EVIDENCE_MISSING",
+        "status": "DATA_BLOCKED",
+        "detail": "verified preflight manifest lacks database_source_evidence",
+        "affects_statistical": False,
+    }
+
+@dataclass(frozen=True)
+class StructureProvenanceContract:
+    data_end: str
+    structure_coefficients: pd.DataFrame
+    model_comparison: pd.DataFrame
+    manifest_hash: str
+    output_hashes: _FrozenDict
+
+
+def verify_structure_provenance(
+    compact_root: str | Path,
+    expected_config_hash: str,
+    requested_data_end: object,
+) -> StructureProvenanceContract:
+    """Verify structure provenance before reading either compact CSV."""
+
+    try:
+        root = Path(compact_root)
+    except TypeError as exc:
+        raise DataBlocked("structure compact root is invalid") from exc
+    manifest_candidate = root / "structure_manifest.json"
+    if not manifest_candidate.is_file():
+        raise DataBlocked(
+            "STRUCTURE_PROVENANCE_MISSING: structure_manifest.json is missing"
+        )
+    manifest_path = _verified_relative_file(
+        root,
+        "structure_manifest.json",
+        "structure manifest",
+    )
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+    except OSError as exc:
+        raise DataBlocked("structure manifest cannot be read") from exc
+    manifest = _load_strict_json(manifest_bytes, "structure manifest")
+    if set(manifest) != {
+        "stage",
+        "config_hash",
+        "data_end",
+        "status",
+        "outputs",
+    }:
+        raise DataBlocked("structure manifest schema mismatch")
+    if manifest["stage"] != "structure":
+        raise DataBlocked("structure manifest stage mismatch")
+    expected_hash = _require_sha256(expected_config_hash, "expected config")
+    actual_hash = _require_sha256(manifest["config_hash"], "structure config")
+    if actual_hash != expected_hash:
+        raise DataBlocked("structure config hash mismatch")
+    data_end = _canonical_date_string(manifest["data_end"], "structure data_end")
+    requested = _requested_date_string(requested_data_end, "requested_data_end")
+    if requested != data_end:
+        raise DataBlocked("structure data_end mismatch")
+    if manifest["status"] != "OK":
+        raise DataBlocked("structure status must be OK")
+
+    raw_outputs = manifest["outputs"]
+    expected_outputs = {
+        "structure_coefficients.csv",
+        "model_comparison.csv",
+    }
+    if (
+        type(raw_outputs) is not dict
+        or set(cast(dict, raw_outputs)) != expected_outputs
+    ):
+        raise DataBlocked("structure output set mismatch")
+    outputs = cast(dict[str, object], raw_outputs)
+    checked_hashes: dict[str, str] = {}
+    paths: dict[str, Path] = {}
+    for relative in sorted(expected_outputs):
+        expected_output_hash = _require_sha256(
+            outputs[relative],
+            f"structure output {relative}",
+        )
+        path = _verified_relative_file(root, relative, "structure output")
+        if _sha256_file(path) != expected_output_hash:
+            raise DataBlocked(f"structure output hash mismatch: {relative}")
+        checked_hashes[relative] = expected_output_hash
+        paths[relative] = path
+
+    try:
+        coefficients = pd.read_csv(paths["structure_coefficients.csv"])
+        comparison = pd.read_csv(paths["model_comparison.csv"])
+    except (OSError, TypeError, ValueError) as exc:
+        raise DataBlocked("verified structure CSV cannot be read") from exc
+    return StructureProvenanceContract(
+        data_end=data_end,
+        structure_coefficients=coefficients,
+        model_comparison=comparison,
+        manifest_hash=hashlib.sha256(manifest_bytes).hexdigest(),
+        output_hashes=_FrozenDict(checked_hashes),
+    )
+
+
+def _strict_frame_date(value: object, label: str) -> pd.Timestamp:
+    if type(value) is str:
+        canonical = _canonical_date_string(value, label)
+        return pd.Timestamp(canonical)
+    return _strict_timestamp(value, label)
+
+
+def _validated_pit_policies(pit_policies: object) -> list[str]:
+    if type(pit_policies) not in {list, tuple} or not pit_policies:
+        raise DataBlocked("frozen PIT policy list is invalid")
+    policies = list(cast(list[str] | tuple[str, ...], pit_policies))
+    if (
+        len(set(policies)) != len(policies)
+        or any(
+            type(policy) is not str
+            or _PIT_POLICY_RE.fullmatch(policy) is None
+            for policy in policies
+        )
+    ):
+        raise DataBlocked("frozen PIT policy list is invalid")
+    return policies
+
+
+def compute_true_disclosure_coverage(
+    monthly_exposures: pd.DataFrame,
+    pit_policies: object,
+) -> dict[str, object]:
+    """Count explicit true-disclosure provenance on the frozen model grid."""
+
+    if not isinstance(monthly_exposures, pd.DataFrame):
+        raise DataBlocked("monthly exposures must be a DataFrame")
+    required_columns = {
+        "universe_role",
+        "pit_policy",
+        "formation_date",
+        "ticker",
+        "true_first_disclosure_verified",
+    }
+    if not required_columns.issubset(monthly_exposures.columns):
+        raise DataBlocked("true disclosure coverage schema is incomplete")
+    policies = _validated_pit_policies(pit_policies)
+    roles = monthly_exposures["universe_role"]
+    if any(
+        type(role) is not str or role not in {"model", "size"}
+        for role in roles
+    ):
+        raise DataBlocked("monthly exposures universe_role is invalid")
+    model = monthly_exposures.loc[roles.eq("model")].copy()
+    if model.empty:
+        raise DataBlocked("true disclosure coverage denominator is empty")
+    model_dates = [
+        _strict_frame_date(value, "formation_date")
+        for value in model["formation_date"]
+    ]
+    model["_formation_date"] = model_dates
+    periods = pd.PeriodIndex(model["_formation_date"], freq="M")
+    required_periods = pd.period_range("2014-01", "2023-12", freq="M")
+    required_mask = periods.isin(required_periods)
+    required = model.loc[required_mask].copy()
+    if required.empty:
+        raise DataBlocked("true disclosure coverage denominator is empty")
+
+    observed_policies = required["pit_policy"]
+    if any(
+        type(policy) is not str
+        or _PIT_POLICY_RE.fullmatch(policy) is None
+        for policy in observed_policies
+    ):
+        raise DataBlocked("true disclosure coverage policy is invalid")
+    if set(observed_policies) != set(policies):
+        raise DataBlocked("true disclosure coverage policy set mismatch")
+    tickers = required["ticker"]
+    if any(
+        type(ticker) is not str
+        or _CANONICAL_TICKER_RE.fullmatch(ticker) is None
+        for ticker in tickers
+    ):
+        raise DataBlocked("true disclosure coverage ticker is invalid")
+    verified = required["true_first_disclosure_verified"]
+    if any(not isinstance(value, (bool, np.bool_)) for value in verified):
+        raise DataBlocked(
+            "true_first_disclosure_verified must contain strict boolean values"
+        )
+    if required.duplicated(
+        ["pit_policy", "_formation_date", "ticker"]
+    ).any():
+        raise DataBlocked("true disclosure coverage contains duplicate model keys")
+    required_row_periods = pd.PeriodIndex(required["_formation_date"], freq="M")
+    for policy in policies:
+        policy_periods = set(
+            required_row_periods[required["pit_policy"].eq(policy)]
+        )
+        missing = set(required_periods).difference(policy_periods)
+        if missing:
+            raise DataBlocked(
+                "true disclosure coverage is missing a required month for "
+                f"policy {policy}"
+            )
+
+    denominator = int(len(required))
+    numerator = int(sum(bool(value) for value in verified))
+    return {
+        "verified_numerator": numerator,
+        "required_denominator": denominator,
+        "ratio": float(numerator / denominator),
+        "coverage_basis": TRUE_DISCLOSURE_COVERAGE_BASIS,
+    }
+
+
+def salg_valid_through(monthly_exposures: pd.DataFrame) -> str:
+    """Return the earliest SalG valid-through date on the latest model formation."""
+
+    if not isinstance(monthly_exposures, pd.DataFrame):
+        raise DataBlocked("monthly exposures must be a DataFrame")
+    required_columns = {
+        "universe_role",
+        "formation_date",
+        "salg_source_end_date",
+    }
+    if not required_columns.issubset(monthly_exposures.columns):
+        raise DataBlocked("SalG freshness schema is incomplete")
+    roles = monthly_exposures["universe_role"]
+    if any(
+        type(role) is not str or role not in {"model", "size"}
+        for role in roles
+    ):
+        raise DataBlocked("monthly exposures universe_role is invalid")
+    model = monthly_exposures.loc[roles.eq("model")].copy()
+    if model.empty:
+        raise DataBlocked("SalG freshness has no model rows")
+    model["_formation_date"] = [
+        _strict_frame_date(value, "formation_date")
+        for value in model["formation_date"]
+    ]
+    latest = model["_formation_date"].max()
+    latest_rows = model.loc[model["_formation_date"].eq(latest)]
+    valid_through: list[pd.Timestamp] = []
+    mapping = {
+        (3, 31): (0, 8, 31),
+        (6, 30): (0, 10, 31),
+        (9, 30): (1, 4, 30),
+        (12, 31): (1, 4, 30),
+    }
+    for value in latest_rows["salg_source_end_date"]:
+        source_end = _strict_frame_date(value, "salg_source_end_date")
+        rule = mapping.get((source_end.month, source_end.day))
+        if rule is None:
+            raise DataBlocked("salg_source_end_date must be a canonical quarter-end")
+        year_offset, month, day = rule
+        valid_through.append(
+            pd.Timestamp(
+                year=source_end.year + year_offset,
+                month=month,
+                day=day,
+            )
+        )
+    return str(min(valid_through).date())
+
+
+def _raw_carry_max_date(raw: object, label: str) -> str | None:
+    if not isinstance(raw, pd.Series):
+        raise DataBlocked(f"{label} raw carry must be a Series")
+    if not isinstance(raw.index, pd.DatetimeIndex):
+        raise DataBlocked(f"{label} raw carry index must be a DatetimeIndex")
+    index = raw.index
+    if index.tz is not None:
+        raise DataBlocked(f"{label} raw carry index must be timezone-naive")
+    if index.hasnans:
+        raise DataBlocked(f"{label} raw carry index cannot contain NaT")
+    if not index.equals(index.normalize()):
+        raise DataBlocked(f"{label} raw carry index must be normalized")
+    if not index.is_unique:
+        raise DataBlocked(f"{label} raw carry index must be unique")
+    if not index.is_monotonic_increasing:
+        raise DataBlocked(f"{label} raw carry index must be increasing")
+    if pd.api.types.is_bool_dtype(raw.dtype) or not pd.api.types.is_numeric_dtype(
+        raw.dtype
+    ):
+        raise DataBlocked(f"{label} raw carry values must be numeric")
+    try:
+        values = raw.to_numpy(dtype=float, copy=False)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise DataBlocked(f"{label} raw carry values must be numeric") from exc
+    if not np.isfinite(values).all():
+        raise DataBlocked(f"{label} raw carry values must be finite")
+    if raw.empty:
+        return None
+    return str(index[-1].date())
+
+
+def compute_raw_carry_freshness(
+    raw_ic_carry: object,
+    raw_im_carry: object,
+    expected_latest_cash_date: object,
+) -> dict[str, object]:
+    """Bind carry freshness to raw source maxima, never a filled panel."""
+
+    expected = _requested_date_string(
+        expected_latest_cash_date,
+        "expected_latest_cash_date",
+    )
+    ic_max = _raw_carry_max_date(raw_ic_carry, "IC")
+    im_max = _raw_carry_max_date(raw_im_carry, "IM")
+    fresh = (
+        ic_max is not None
+        and im_max is not None
+        and ic_max >= expected
+        and im_max >= expected
+    )
+    return {
+        "ic_carry_max_date": ic_max,
+        "im_carry_max_date": im_max,
+        "expected_latest_cash_date": expected,
+        "fresh": fresh,
+    }
+
+
+def _validated_disclosure_coverage(raw: object) -> dict[str, object]:
+    expected_keys = {
+        "verified_numerator",
+        "required_denominator",
+        "ratio",
+        "coverage_basis",
+    }
+    if type(raw) is not dict or set(cast(dict, raw)) != expected_keys:
+        raise DataBlocked("true disclosure coverage schema mismatch")
+    coverage = cast(dict[str, object], raw)
+    numerator = coverage["verified_numerator"]
+    denominator = coverage["required_denominator"]
+    ratio = coverage["ratio"]
+    if type(numerator) is not int or numerator < 0:
+        raise DataBlocked("true disclosure verified_numerator is invalid")
+    if type(denominator) is not int or denominator <= 0:
+        raise DataBlocked("true disclosure required_denominator is invalid")
+    if numerator > denominator:
+        raise DataBlocked("true disclosure numerator exceeds denominator")
+    if type(ratio) is not float or not np.isfinite(ratio):
+        raise DataBlocked("true disclosure ratio is invalid")
+    expected_ratio = numerator / denominator
+    if ratio != expected_ratio:
+        raise DataBlocked("true disclosure ratio is inconsistent")
+    if coverage["coverage_basis"] != TRUE_DISCLOSURE_COVERAGE_BASIS:
+        raise DataBlocked("true disclosure coverage_basis is invalid")
+    return coverage
+
+
+def _validated_carry_freshness(raw: object) -> dict[str, object]:
+    expected_keys = {
+        "ic_carry_max_date",
+        "im_carry_max_date",
+        "expected_latest_cash_date",
+        "fresh",
+    }
+    if type(raw) is not dict or set(cast(dict, raw)) != expected_keys:
+        raise DataBlocked("carry freshness schema mismatch")
+    carry = cast(dict[str, object], raw)
+    expected = _canonical_date_string(
+        carry["expected_latest_cash_date"],
+        "expected_latest_cash_date",
+    )
+    maxima: dict[str, str | None] = {}
+    for key in ("ic_carry_max_date", "im_carry_max_date"):
+        value = carry[key]
+        maxima[key] = (
+            None if value is None else _canonical_date_string(value, key)
+        )
+    fresh = carry["fresh"]
+    if type(fresh) is not bool:
+        raise DataBlocked("carry freshness fresh must be boolean")
+    expected_fresh = (
+        maxima["ic_carry_max_date"] is not None
+        and maxima["im_carry_max_date"] is not None
+        and cast(str, maxima["ic_carry_max_date"]) >= expected
+        and cast(str, maxima["im_carry_max_date"]) >= expected
+    )
+    if fresh is not expected_fresh:
+        raise DataBlocked("carry freshness fresh is inconsistent with raw maxima")
+    return carry
+
+
+def freshness_blockers(
+    true_disclosure_coverage: object,
+    salg_valid_through_date: object,
+    requested_data_end: object,
+    raw_carry_freshness: object,
+) -> list[dict[str, object]]:
+    """Translate validated freshness evidence into run-level blockers."""
+
+    coverage = _validated_disclosure_coverage(true_disclosure_coverage)
+    salg_through = _canonical_date_string(
+        salg_valid_through_date,
+        "salg_valid_through",
+    )
+    requested = _requested_date_string(requested_data_end, "requested_data_end")
+    carry = _validated_carry_freshness(raw_carry_freshness)
+    expected_cash = cast(str, carry["expected_latest_cash_date"])
+    if expected_cash > requested:
+        raise DataBlocked(
+            "expected_latest_cash_date cannot be later than requested_data_end"
+        )
+
+    blockers: list[dict[str, object]] = []
+    if not cast(bool, carry["fresh"]):
+        ic_max = carry["ic_carry_max_date"] or "MISSING"
+        im_max = carry["im_carry_max_date"] or "MISSING"
+        blockers.append(
+            {
+                "reason_code": "CARRY_FRESHNESS",
+                "status": "DATA_BLOCKED",
+                "detail": (
+                    "raw IC/IM carry does not reach expected latest cash date "
+                    f"{expected_cash}; maxima: IC={ic_max}, IM={im_max}"
+                ),
+                "affects_statistical": False,
+            }
+        )
+    if salg_through < requested:
+        blockers.append(
+            {
+                "reason_code": "SALG_FRESHNESS",
+                "status": "DATA_BLOCKED",
+                "detail": (
+                    f"SalG valid-through {salg_through} is earlier than "
+                    f"requested data_end {requested}"
+                ),
+                "affects_statistical": False,
+            }
+        )
+    numerator = cast(int, coverage["verified_numerator"])
+    denominator = cast(int, coverage["required_denominator"])
+    ratio = cast(float, coverage["ratio"])
+    if ratio < 1.0:
+        blockers.append(
+            {
+                "reason_code": "TRUE_DISCLOSURE_COVERAGE",
+                "status": "DATA_BLOCKED",
+                "detail": (
+                    "true disclosure coverage is "
+                    f"{numerator}/{denominator} ({ratio:.6f}); "
+                    "full explicit coverage required"
+                ),
+                "affects_statistical": False,
+            }
+        )
+    return sorted(blockers, key=lambda row: cast(str, row["reason_code"]))
+
+
+def hash_files(
+    root: str | Path,
+    relative_paths: object,
+) -> dict[str, str]:
+    """Hash an explicit non-empty registration of files beneath one root."""
+
+    try:
+        resolved_root = Path(root)
+    except TypeError as exc:
+        raise DataBlocked("file hash root is invalid") from exc
+    if type(relative_paths) not in {list, tuple} or not relative_paths:
+        raise DataBlocked("file hash registrations must be a non-empty list or tuple")
+    paths = cast(list[object] | tuple[object, ...], relative_paths)
+    canonical = [
+        _canonical_relative_path(path, "file hash registration") for path in paths
+    ]
+    if len(canonical) != len(set(canonical)):
+        raise DataBlocked("file hash registrations must be unique")
+    return {
+        relative: _sha256_file(
+            _verified_relative_file(
+                resolved_root,
+                relative,
+                "file hash registration",
+            )
+        )
+        for relative in sorted(canonical)
+    }
+
+
+_FAMILY_RANK = {"STOP": 0, "MEASURE_ONLY": 1, "PASS_SHADOW": 2}
+
+
+def _require_bool(value: object, label: str) -> bool:
+    if not isinstance(value, (bool, np.bool_)):
+        raise ValueError(f"{label} must be boolean")
+    return bool(value)
+
+
+def candidate_statistical_label(
+    structure_pass: bool,
+    production_pass: bool,
+    executable_boundary_pass: bool,
+) -> str:
+    structure = _require_bool(structure_pass, "structure_pass")
+    production = _require_bool(production_pass, "production_pass")
+    boundary = _require_bool(
+        executable_boundary_pass,
+        "executable_boundary_pass",
+    )
+    if not structure:
+        return "STOP"
+    if production and boundary:
+        return "PASS_SHADOW"
+    return "MEASURE_ONLY"
+
+
+def family_best_wins(labels: list[str]) -> str:
+    if (
+        type(labels) is not list
+        or not labels
+        or any(
+            type(label) is not str or label not in _FAMILY_RANK
+            for label in labels
+        )
+    ):
+        raise ValueError("family requires evaluated candidate labels")
+    return max(labels, key=_FAMILY_RANK.__getitem__)
+
+
+def final_verdict(
+    statistical_verdict: str | None,
+    data_blocked: bool,
+    coverage_blocked: bool,
+) -> str:
+    data = _require_bool(data_blocked, "data_blocked")
+    coverage = _require_bool(coverage_blocked, "coverage_blocked")
+    if statistical_verdict is not None and (
+        type(statistical_verdict) is not str
+        or statistical_verdict not in _FAMILY_RANK
+    ):
+        raise ValueError("statistical verdict is invalid")
+    if data:
+        return "DATA_BLOCKED"
+    if coverage:
+        return "COVERAGE_BLOCKED"
+    if statistical_verdict is None:
+        raise ValueError("unblocked run requires statistical verdict")
+    return statistical_verdict
+
+
+@dataclass(frozen=True)
+class RunEvidence:
+    """Data-boundary evidence a run may claim only for the stages it reached.
+
+    Every field stays ``None`` on a blocked run: the run legally never read the
+    series or caches the value would have to come from.
+    """
+
+    stock_price_max_date: str | None = None
+    index_500_max_date: str | None = None
+    index_1000_max_date: str | None = None
+    ic_carry_max_date: str | None = None
+    im_carry_max_date: str | None = None
+    salg_valid_through: str | None = None
+    true_first_disclosure_coverage: dict[str, object] | None = None
+    stage_manifest_hashes: dict[str, str] = field(default_factory=dict)
+    input_file_hashes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -100,6 +1193,1003 @@ class EvaluationFrames:
     production_metrics: pd.DataFrame
     bootstrap: pd.DataFrame
     yearly: pd.DataFrame
+
+
+def _verdict_gate_audit_row(
+    scope: str,
+    subject: str,
+    gate: str,
+    gate_pass: bool,
+    reason_code: str,
+    detail: str,
+) -> dict[str, object]:
+    passed = _require_bool(gate_pass, "verdict audit gate_pass")
+    return {
+        "scope": scope,
+        "subject": subject,
+        "gate": gate,
+        "gate_pass": passed,
+        "status": "PASS" if passed else "FAIL",
+        "reason_code": "" if passed else reason_code,
+        "detail": detail,
+        "provisional": False,
+        "affects_statistical": True,
+        "statistical_verdict": None,
+        "final_verdict": None,
+        "shadow_candidate": False,
+        "shadow_start_allowed": False,
+    }
+
+
+def _validated_run_blockers(
+    run_blockers: list[dict[str, object]] | None,
+) -> list[dict[str, object]]:
+    if run_blockers is None:
+        return []
+    if type(run_blockers) is not list:
+        raise ValueError("run_blockers must be a list")
+    expected_keys = {
+        "reason_code",
+        "status",
+        "detail",
+        "affects_statistical",
+    }
+    validated: list[dict[str, object]] = []
+    for blocker in run_blockers:
+        if type(blocker) is not dict or set(blocker) != expected_keys:
+            raise ValueError("run blocker schema mismatch")
+        reason = blocker["reason_code"]
+        status = blocker["status"]
+        detail = blocker["detail"]
+        affects = blocker["affects_statistical"]
+        if (
+            type(reason) is not str
+            or not reason
+            or reason != reason.strip()
+        ):
+            raise ValueError("run blocker reason_code is invalid")
+        if reason == "PIT_POLICY_FLIP":
+            raise ValueError("run blocker reason_code is reserved")
+        if (
+            type(status) is not str
+            or status not in {"DATA_BLOCKED", "COVERAGE_BLOCKED"}
+        ):
+            raise ValueError("run blocker status is invalid")
+        if type(detail) is not str or detail != detail.strip():
+            raise ValueError("run blocker detail is invalid")
+        if not isinstance(affects, (bool, np.bool_)):
+            raise ValueError("run blocker affects_statistical must be boolean")
+        validated.append(
+            {
+                "reason_code": reason,
+                "status": status,
+                "detail": detail,
+                "affects_statistical": bool(affects),
+            }
+        )
+    reasons = [str(blocker["reason_code"]) for blocker in validated]
+    if len(reasons) != len(set(reasons)):
+        raise ValueError("run blocker reason_code must be unique")
+    return sorted(
+        validated,
+        key=lambda blocker: (
+            str(blocker["reason_code"]),
+            str(blocker["status"]),
+            str(blocker["detail"]),
+        ),
+    )
+
+
+def _validate_model_domain(
+    comparison: pd.DataFrame,
+    policies: tuple[str, ...],
+    candidates: tuple[str, ...],
+    report_present: bool,
+) -> None:
+    report = _require_bool(report_present, "model report presence")
+    q_specs = {
+        "qblend": ("B3_unified", "blend"),
+        "q500": ("B3_dual_target", "500"),
+        "q1000": ("B3_dual_target", "1000"),
+    }
+    gate_names = (
+        "m1_increment",
+        "partial_ic",
+        "stability",
+        "state_coverage",
+    )
+    expected: dict[tuple[str, ...], tuple[bool, bool]] = {}
+
+    def add(
+        identity: tuple[str, ...],
+        *,
+        is_in_sample: bool = False,
+        affects_verdict: bool = False,
+    ) -> None:
+        expected[identity] = (is_in_sample, affects_verdict)
+
+    for policy in policies:
+        for gate_name, window in {
+            "beta_h_same_sign": "structure",
+            "interaction_axis_corr": "2021-2023",
+            "hard_sort_complete": "structure",
+        }.items():
+            add(
+                (
+                    policy,
+                    "PUBLIC",
+                    "",
+                    "",
+                    window,
+                    "",
+                    gate_name,
+                ),
+                affects_verdict=True,
+            )
+        for q, (candidate, target) in q_specs.items():
+            add(
+                (
+                    policy,
+                    candidate,
+                    q,
+                    target,
+                    "2014-2020",
+                    "M1",
+                    "",
+                ),
+                is_in_sample=True,
+            )
+            for model in ("M0", "M1"):
+                add(
+                    (
+                        policy,
+                        candidate,
+                        q,
+                        target,
+                        "2021-2023",
+                        model,
+                        "",
+                    ),
+                    affects_verdict=True,
+                )
+            for year in ("2021", "2022", "2023"):
+                add(
+                    (
+                        policy,
+                        candidate,
+                        q,
+                        target,
+                        year,
+                        "M1",
+                        "",
+                    ),
+                    affects_verdict=True,
+                )
+            if report:
+                for model in ("M0", "M1"):
+                    add(
+                        (
+                            policy,
+                            candidate,
+                            q,
+                            target,
+                            "2024-2026-report-only",
+                            model,
+                            "",
+                        )
+                    )
+            for gate_name in gate_names[:3]:
+                add(
+                    (
+                        policy,
+                        candidate,
+                        q,
+                        target,
+                        "2021-2023",
+                        "M1",
+                        gate_name,
+                    ),
+                    affects_verdict=True,
+                )
+            for window, affects_verdict in (
+                ("2014-2017", True),
+                ("2018-2020", True),
+                ("2021-2023", True),
+                ("2014-2020", False),
+            ):
+                add(
+                    (
+                        policy,
+                        candidate,
+                        q,
+                        target,
+                        window,
+                        "M1",
+                        "state_coverage",
+                    ),
+                    affects_verdict=affects_verdict,
+                )
+        for candidate in candidates:
+            for gate_name in gate_names:
+                add(
+                    (
+                        policy,
+                        candidate,
+                        "",
+                        "",
+                        "2021-2023",
+                        "",
+                        gate_name,
+                    ),
+                    affects_verdict=True,
+                )
+    add(
+        ("ALL", "", "", "", "run", "", "PIT_POLICY_FLIP"),
+        affects_verdict=True,
+    )
+
+    actual = set(
+        comparison[MODEL_ROW_ID_COLUMNS].itertuples(
+            index=False,
+            name=None,
+        )
+    )
+    if actual != set(expected):
+        raise DataBlocked(
+            "model comparison row or gate identity lies outside frozen domain"
+        )
+    for row in comparison.itertuples(index=False):
+        identity = tuple(
+            str(getattr(row, column))
+            for column in MODEL_ROW_ID_COLUMNS
+        )
+        expected_in_sample, expected_affects = expected[identity]
+        if (
+            bool(row.is_in_sample) != expected_in_sample
+            or bool(row.affects_verdict) != expected_affects
+        ):
+            raise DataBlocked(
+                "model comparison row flags differ from frozen domain"
+            )
+
+    candidate_legs = {
+        "B3_unified": ("qblend",),
+        "B3_dual_target": ("q500", "q1000"),
+    }
+    for policy in policies:
+        for candidate, legs in candidate_legs.items():
+            for gate_name in gate_names:
+                leg = comparison[
+                    comparison["pit_policy"].eq(policy)
+                    & comparison["candidate"].eq(candidate)
+                    & comparison["q"].isin(legs)
+                    & comparison["gate_name"].eq(gate_name)
+                    & comparison["affects_verdict"]
+                ]
+                aggregate = comparison[
+                    comparison["pit_policy"].eq(policy)
+                    & comparison["candidate"].eq(candidate)
+                    & comparison["q"].eq("")
+                    & comparison["gate_name"].eq(gate_name)
+                    & comparison["affects_verdict"]
+                ]
+                if (
+                    len(aggregate) != 1
+                    or bool(aggregate["gate_pass"].iloc[0])
+                    != bool(leg["gate_pass"].astype(bool).all())
+                ):
+                    raise DataBlocked(
+                        "model comparison q-leg gate disagrees with aggregate gate"
+                    )
+
+
+def _validate_hashable_row_ids(
+    frame: pd.DataFrame,
+    columns: list[str],
+    row_id_columns: list[str],
+    label: str,
+) -> None:
+    if not isinstance(frame, pd.DataFrame) or list(frame.columns) != columns:
+        raise DataBlocked(f"{label} schema mismatch")
+    for column in row_id_columns:
+        for value in frame[column]:
+            try:
+                hash(value)
+            except TypeError as exc:
+                raise DataBlocked(
+                    f"{label}.{column} row identity must be hashable"
+                ) from exc
+
+
+def _observable_pit_policy_flip(
+    comparison: pd.DataFrame,
+    policies: tuple[str, ...],
+    candidates: tuple[str, ...],
+) -> bool:
+    first_policy, second_policy = policies
+    aggregate_gate_names = (
+        "m1_increment",
+        "partial_ic",
+        "stability",
+        "state_coverage",
+    )
+    for candidate in candidates:
+        vectors: list[tuple[bool, ...]] = []
+        for policy in (first_policy, second_policy):
+            aggregate = comparison[
+                comparison["pit_policy"].eq(policy)
+                & comparison["candidate"].eq(candidate)
+                & comparison["q"].eq("")
+                & comparison["window"].eq("2021-2023")
+                & comparison["gate_name"].isin(aggregate_gate_names)
+            ].set_index("gate_name")
+            vectors.append(
+                tuple(
+                    bool(aggregate.at[gate_name, "gate_pass"])
+                    for gate_name in aggregate_gate_names
+                )
+            )
+        if vectors[0] != vectors[1]:
+            return True
+
+    # Confirmation M0/M1 metric rows serialize every input required by the
+    # Task9 increment-direction rule. Beta coefficient signs do not survive
+    # into this table, so the producer PIT row remains authoritative for a
+    # beta-only flip while these two observable conditions can only tighten it.
+    for q in ("qblend", "q500", "q1000"):
+        directions: list[int | str] = []
+        for policy in (first_policy, second_policy):
+            metric = comparison[
+                comparison["pit_policy"].eq(policy)
+                & comparison["q"].eq(q)
+                & comparison["window"].eq("2021-2023")
+                & comparison["gate_name"].eq("")
+                & comparison["model"].isin(("M0", "M1"))
+            ].set_index("model")
+            try:
+                increment = float(metric.at["M1", "oos_r2"]) - float(
+                    metric.at["M0", "oos_r2"]
+                )
+            except (TypeError, ValueError) as exc:
+                raise DataBlocked(
+                    "model comparison increment metrics are invalid"
+                ) from exc
+            directions.append(_increment_direction(increment))
+        if directions[0] != directions[1]:
+            return True
+    return False
+
+
+def assemble_verdicts(
+    model_comparison: pd.DataFrame,
+    frames: EvaluationFrames,
+    cfg: dict,
+    run_blockers: list[dict[str, object]] | None = None,
+) -> pd.DataFrame:
+    _evaluation_config(cfg)
+    policies = tuple(cfg["pit"]["policies"])
+    candidates = tuple(cfg["candidates"])
+    if not isinstance(frames, EvaluationFrames):
+        raise ValueError("frames must be EvaluationFrames")
+    if not all(
+        isinstance(frame, pd.DataFrame)
+        for frame in (
+            frames.production_metrics,
+            frames.bootstrap,
+            frames.yearly,
+        )
+    ):
+        raise ValueError("evaluation outputs must be DataFrames")
+    for frame, columns, row_ids, label in (
+        (
+            model_comparison,
+            MODEL_COMPARISON_COLUMNS,
+            MODEL_ROW_ID_COLUMNS,
+            "model comparison",
+        ),
+        (
+            frames.production_metrics,
+            PRODUCTION_METRICS_COLUMNS,
+            PRODUCTION_ROW_ID_COLUMNS,
+            "production metrics",
+        ),
+        (
+            frames.bootstrap,
+            BOOTSTRAP_COLUMNS,
+            BOOTSTRAP_ROW_ID_COLUMNS,
+            "bootstrap",
+        ),
+        (
+            frames.yearly,
+            YEARLY_COLUMNS,
+            YEARLY_ROW_ID_COLUMNS,
+            "yearly",
+        ),
+    ):
+        _validate_hashable_row_ids(
+            frame,
+            columns,
+            row_ids,
+            label,
+        )
+    blockers = _validated_run_blockers(run_blockers)
+
+    report_present = (
+        "window" in frames.production_metrics
+        and frames.production_metrics["window"].eq(
+            "2024-2026-report-only"
+        ).any()
+    )
+    comparison = _validated_model_comparison_output(model_comparison)
+    model_report_present = comparison["window"].eq(
+        "2024-2026-report-only"
+    ).any()
+    _validate_model_domain(
+        comparison,
+        policies,
+        candidates,
+        bool(model_report_present),
+    )
+    model_structure, _ = _validated_model_evidence(comparison, policies)
+    production = _validate_production_output(
+        frames.production_metrics,
+        policies,
+        report_present=bool(report_present),
+    )
+    bootstrap = _validate_bootstrap_output(frames.bootstrap, policies)
+    _validate_yearly_output(
+        frames.yearly,
+        policies,
+        report_present=bool(report_present),
+    )
+
+    full_gate_names = {
+        "sharpe_improvement",
+        "maxdd_worsening",
+        "turnover_multiple",
+        "partial_ic",
+    }
+    boundary_gate_names = {
+        "post_im_min_days",
+        "post_im_sharpe_difference",
+        "post_im_maxdd_difference",
+        "post_im_partial_ic",
+    }
+    rows: list[dict[str, object]] = []
+    structure_rows = comparison[
+        comparison["pit_policy"].isin(policies)
+        & comparison["gate_name"].ne("")
+        & comparison["affects_verdict"]
+    ]
+    for _, gate_row in structure_rows.iterrows():
+        subject = "|".join(
+            [
+                str(gate_row["candidate"]),
+                f"q={gate_row['q'] or '-'}",
+                f"target={gate_row['target'] or '-'}",
+                f"window={gate_row['window'] or '-'}",
+                f"model={gate_row['model'] or '-'}",
+            ]
+        )
+        rows.append(
+            _verdict_gate_audit_row(
+                f"structure/{gate_row['pit_policy']}",
+                subject,
+                str(gate_row["gate_name"]),
+                bool(gate_row["gate_pass"]),
+                "STRUCTURE_GATE_FAILED",
+                "model comparison structure gate",
+            )
+        )
+    production_gate_rows = production[
+        production["component"].eq("aggregate")
+        & production["window"].eq("2021-2023")
+        & production["gate_name"].isin(full_gate_names)
+        & production["affects_verdict"]
+    ]
+    for _, gate_row in production_gate_rows.iterrows():
+        rows.append(
+            _verdict_gate_audit_row(
+                f"production/{gate_row['pit_policy']}",
+                str(gate_row["candidate"]),
+                str(gate_row["gate_name"]),
+                bool(gate_row["gate_pass"]),
+                "PRODUCTION_GATE_FAILED",
+                "2021-2023 aggregate production gate",
+            )
+        )
+    candidate_labels: dict[tuple[str, str], str] = {}
+    candidate_reasons: dict[tuple[str, str], str] = {}
+    for policy in policies:
+        for candidate in candidates:
+            bootstrap_row = bootstrap[
+                bootstrap["pit_policy"].eq(policy)
+                & bootstrap["candidate"].eq(candidate)
+            ].iloc[0]
+            structure_pass = bool(bootstrap_row["structure_pass"])
+            if structure_pass != model_structure[(policy, candidate)]:
+                raise RuntimeError(
+                    "bootstrap structure result disagrees with model evidence"
+                )
+            rows.append(
+                _verdict_gate_audit_row(
+                    f"bootstrap/{policy}",
+                    candidate,
+                    "holm_adjusted_tail",
+                    bool(bootstrap_row["gate_pass"]),
+                    "BOOTSTRAP_GATE_FAILED",
+                    (
+                        "holm_adjusted_tail="
+                        f"{float(bootstrap_row['holm_adjusted_tail']):.12g}"
+                    ),
+                )
+            )
+            full = production[
+                production["pit_policy"].eq(policy)
+                & production["candidate"].eq(candidate)
+                & production["component"].eq("aggregate")
+                & production["window"].eq("2021-2023")
+                & production["gate_name"].isin(full_gate_names)
+                & production["affects_verdict"]
+            ]
+            full_pass = bool(full["gate_pass"].astype(bool).all())
+            bootstrap_pass = bool(bootstrap_row["gate_pass"])
+            production_pass = full_pass and bootstrap_pass
+            if candidate == "B3_unified":
+                boundary_pass = True
+                rows.append(
+                    _verdict_gate_audit_row(
+                        f"boundary/{policy}",
+                        candidate,
+                        "unified_executable_boundary",
+                        True,
+                        "EXECUTABLE_BOUNDARY_FAILED",
+                        "unified executable boundary is always satisfied",
+                    )
+                )
+            else:
+                boundary = production[
+                    production["pit_policy"].eq(policy)
+                    & production["candidate"].eq(candidate)
+                    & production["component"].eq("aggregate")
+                    & production["window"].eq("post-IM")
+                    & production["gate_name"].isin(boundary_gate_names)
+                    & production["affects_verdict"]
+                ]
+                boundary_pass = bool(
+                    boundary["gate_pass"].astype(bool).all()
+                )
+                for _, gate_row in boundary.iterrows():
+                    rows.append(
+                        _verdict_gate_audit_row(
+                            f"boundary/{policy}",
+                            candidate,
+                            str(gate_row["gate_name"]),
+                            bool(gate_row["gate_pass"]),
+                            "EXECUTABLE_BOUNDARY_FAILED",
+                            "post-IM aggregate production gate",
+                        )
+                    )
+            label = candidate_statistical_label(
+                structure_pass,
+                production_pass,
+                boundary_pass,
+            )
+            if not structure_pass:
+                reason_code = "STRUCTURE_GATE_FAILED"
+                detail = "bootstrap.structure_pass=false"
+            elif not full_pass:
+                reason_code = "PRODUCTION_GATE_FAILED"
+                failed = sorted(
+                    full.loc[
+                        ~full["gate_pass"].astype(bool),
+                        "gate_name",
+                    ].astype(str)
+                )
+                detail = "failed gates: " + ",".join(failed)
+            elif not bootstrap_pass:
+                reason_code = "BOOTSTRAP_GATE_FAILED"
+                detail = (
+                    "holm_adjusted_tail="
+                    f"{float(bootstrap_row['holm_adjusted_tail']):.12g}"
+                )
+            elif not boundary_pass:
+                reason_code = "EXECUTABLE_BOUNDARY_FAILED"
+                failed = sorted(
+                    boundary.loc[
+                        ~boundary["gate_pass"].astype(bool),
+                        "gate_name",
+                    ].astype(str)
+                )
+                detail = "failed gates: " + ",".join(failed)
+            else:
+                reason_code = ""
+                detail = ""
+            candidate_labels[(policy, candidate)] = label
+            candidate_reasons[(policy, candidate)] = reason_code
+            rows.append(
+                {
+                    "scope": f"candidate/{policy}",
+                    "subject": candidate,
+                    "gate": "statistical_verdict",
+                    "gate_pass": label == "PASS_SHADOW",
+                    "status": label,
+                    "reason_code": reason_code,
+                    "detail": detail,
+                    "provisional": label in {"STOP", "MEASURE_ONLY"},
+                    "affects_statistical": True,
+                    "statistical_verdict": label,
+                    "final_verdict": None,
+                    "shadow_candidate": (
+                        policy == "legal_deadline"
+                        and label == "PASS_SHADOW"
+                    ),
+                    "shadow_start_allowed": False,
+                }
+            )
+    headline_policy = "legal_deadline"
+    headline_label = family_best_wins(
+        [
+            candidate_labels[(headline_policy, candidate)]
+            for candidate in candidates
+        ]
+    )
+    headline_failed = headline_label != "PASS_SHADOW"
+    rows.append(
+        {
+            "scope": f"family/{headline_policy}",
+            "subject": "B3",
+            "gate": "statistical_verdict",
+            "gate_pass": headline_label == "PASS_SHADOW",
+            "status": headline_label,
+            "reason_code": (
+                "HEADLINE_CANDIDATES_FAILED" if headline_failed else ""
+            ),
+            "detail": (
+                ",".join(
+                    (
+                        f"{candidate}="
+                        f"{candidate_labels[(headline_policy, candidate)]}:"
+                        f"{candidate_reasons[(headline_policy, candidate)]}"
+                    )
+                    for candidate in candidates
+                )
+                if headline_failed
+                else ""
+            ),
+            "provisional": False,
+            "affects_statistical": True,
+            "statistical_verdict": headline_label,
+            "final_verdict": None,
+            "shadow_candidate": False,
+            "shadow_start_allowed": False,
+        }
+    )
+    pit_row = comparison[
+        comparison["pit_policy"].eq("ALL")
+        & comparison["window"].eq("run")
+        & comparison["gate_name"].eq("PIT_POLICY_FLIP")
+    ].iloc[0]
+    pit_pass = bool(pit_row["gate_pass"]) and not (
+        _observable_pit_policy_flip(comparison, policies, candidates)
+    )
+    active_run_blockers = [
+        (str(blocker["reason_code"]), str(blocker["status"]))
+        for blocker in blockers
+    ]
+    if not pit_pass:
+        active_run_blockers.append(("PIT_POLICY_FLIP", "DATA_BLOCKED"))
+    active_run_blockers.sort(
+        key=lambda blocker: (
+            0 if blocker[1] == "DATA_BLOCKED" else 1,
+            blocker[0],
+        )
+    )
+    data_blocked = (not pit_pass) or any(
+        blocker["status"] == "DATA_BLOCKED" for blocker in blockers
+    )
+    coverage_blocked = any(
+        blocker["status"] == "COVERAGE_BLOCKED" for blocker in blockers
+    )
+    run_final = final_verdict(
+        headline_label,
+        data_blocked=data_blocked,
+        coverage_blocked=coverage_blocked,
+    )
+    if not active_run_blockers:
+        final_reason_code = ""
+    elif len(active_run_blockers) == 1:
+        final_reason_code = active_run_blockers[0][0]
+    else:
+        final_reason_code = "MULTIPLE_RUN_BLOCKERS"
+    final_detail = ",".join(
+        f"{reason_code}:{status}"
+        for reason_code, status in active_run_blockers
+    )
+    rows.append(
+        {
+            "scope": "run",
+            "subject": "ALL",
+            "gate": "PIT_POLICY_FLIP",
+            "gate_pass": pit_pass,
+            "status": "PASS" if pit_pass else "DATA_BLOCKED",
+            "reason_code": "" if pit_pass else "PIT_POLICY_FLIP",
+            "detail": (
+                "PIT policy verdict directions agree"
+                if pit_pass
+                else "PIT policy verdict directions disagree"
+            ),
+            "provisional": False,
+            "affects_statistical": False,
+            "statistical_verdict": None,
+            "final_verdict": None,
+            "shadow_candidate": False,
+            "shadow_start_allowed": False,
+        }
+    )
+    for blocker in blockers:
+        rows.append(
+            {
+                "scope": "run/blocker",
+                "subject": blocker["reason_code"],
+                "gate": "run_blocker",
+                "gate_pass": False,
+                "status": blocker["status"],
+                "reason_code": blocker["reason_code"],
+                "detail": blocker["detail"],
+                "provisional": False,
+                "affects_statistical": blocker["affects_statistical"],
+                "statistical_verdict": None,
+                "final_verdict": None,
+                "shadow_candidate": False,
+                "shadow_start_allowed": False,
+            }
+        )
+    for row in rows:
+        if (
+            row["scope"] == f"candidate/{headline_policy}"
+            and bool(row["shadow_candidate"])
+        ):
+            row["shadow_start_allowed"] = run_final == "PASS_SHADOW"
+    rows.append(
+        {
+            "scope": "run",
+            "subject": "ALL",
+            "gate": "final_verdict",
+            "gate_pass": run_final == "PASS_SHADOW",
+            "status": run_final,
+            "reason_code": final_reason_code,
+            "detail": final_detail,
+            "provisional": False,
+            "affects_statistical": False,
+            "statistical_verdict": headline_label,
+            "final_verdict": run_final,
+            "shadow_candidate": False,
+            "shadow_start_allowed": False,
+        }
+    )
+    output = pd.DataFrame(rows, columns=VERDICT_COLUMNS)
+    if output.duplicated(["scope", "subject", "gate"]).any():
+        raise RuntimeError("verdict row identity is not unique")
+    return output.sort_values(
+        ["scope", "subject", "gate"],
+        kind="mergesort",
+    ).reset_index(drop=True)
+
+
+def blocked_verdict_rows(
+    run_blockers: list[dict[str, object]],
+) -> pd.DataFrame:
+    """Emit the only verdict rows a blocked run may legally claim."""
+
+    blockers = _validated_run_blockers(run_blockers)
+    if not blockers:
+        raise ValueError("blocked run requires at least one blocker")
+    statuses = {str(blocker["status"]) for blocker in blockers}
+    run_final = final_verdict(
+        None,
+        "DATA_BLOCKED" in statuses,
+        "COVERAGE_BLOCKED" in statuses,
+    )
+    rows = [
+        {
+            "scope": "run/blocker",
+            "subject": blocker["reason_code"],
+            "gate": "run_blocker",
+            "gate_pass": False,
+            "status": blocker["status"],
+            "reason_code": blocker["reason_code"],
+            "detail": blocker["detail"],
+            "provisional": False,
+            "affects_statistical": blocker["affects_statistical"],
+            "statistical_verdict": None,
+            "final_verdict": None,
+            "shadow_candidate": False,
+            "shadow_start_allowed": False,
+        }
+        for blocker in blockers
+    ]
+    rows.append(
+        {
+            "scope": "run",
+            "subject": "ALL",
+            "gate": "final_verdict",
+            "gate_pass": False,
+            "status": run_final,
+            "reason_code": run_final,
+            "detail": "blocked run never reached candidate statistics",
+            "provisional": False,
+            "affects_statistical": False,
+            "statistical_verdict": None,
+            "final_verdict": run_final,
+            "shadow_candidate": False,
+            "shadow_start_allowed": False,
+        }
+    )
+    output = pd.DataFrame(rows, columns=VERDICT_COLUMNS)
+    if output.duplicated(["scope", "subject", "gate"]).any():
+        raise RuntimeError("verdict row identity is not unique")
+    return output.sort_values(
+        ["scope", "subject", "gate"],
+        kind="mergesort",
+    ).reset_index(drop=True)
+
+
+def git_commit() -> str:
+    """Return the exact commit the run executed from."""
+
+    try:
+        rendered = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise DataBlocked("code commit cannot be resolved") from exc
+    commit = rendered.strip()
+    if _GIT_COMMIT_RE.fullmatch(commit) is None:
+        raise DataBlocked("code commit is not a full git commit hash")
+    return commit
+
+
+def _optional_date(value: object, label: str) -> str | None:
+    return None if value is None else _canonical_date_string(value, label)
+
+
+def _validated_hash_map(raw: object, label: str) -> dict[str, str]:
+    if type(raw) is not dict:
+        raise DataBlocked(f"{label} must be a mapping")
+    entries = cast(dict[object, object], raw)
+    validated: dict[str, str] = {}
+    for key, value in entries.items():
+        if type(key) is not str or not key:
+            raise DataBlocked(f"{label} keys must be non-empty strings")
+        validated[key] = _require_sha256(value, f"{label} {key}")
+    return dict(sorted(validated.items()))
+
+
+def _verdict_cell(row: pd.Series, column: str) -> str | None:
+    value = row[column]
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return None
+    if type(value) is not str:
+        raise DataBlocked(f"verdict {column} must be a string or null")
+    return value
+
+
+def build_run_manifest(
+    cfg: dict,
+    preflight: PreflightManifestContract,
+    verdicts: pd.DataFrame,
+    requested_data_end: object,
+    *,
+    evidence: RunEvidence | None = None,
+) -> dict[str, object]:
+    """Seal what the run consumed, what it refused and what it concluded."""
+
+    if (
+        type(preflight) is not PreflightManifestContract
+        or preflight._verification_token is not _VERIFIED_PREFLIGHT_TOKEN
+    ):
+        raise TypeError("preflight must come from verify_preflight_manifest")
+    if evidence is None:
+        evidence = RunEvidence()
+    if type(evidence) is not RunEvidence:
+        raise TypeError("evidence must be RunEvidence")
+    if (
+        not isinstance(verdicts, pd.DataFrame)
+        or list(verdicts.columns) != VERDICT_COLUMNS
+    ):
+        raise DataBlocked("verdict rows schema mismatch")
+    final_rows = verdicts.loc[verdicts["gate"].eq("final_verdict")]
+    if len(final_rows) != 1:
+        raise DataBlocked("run manifest requires exactly one final verdict row")
+    final_row = final_rows.iloc[0]
+
+    settings = _evaluation_config(cfg)
+    maxima = {
+        name: _optional_date(getattr(evidence, name), name)
+        for name in _SOURCE_MAX_DATE_FIELDS
+    }
+    observed = [value for value in maxima.values() if value is not None]
+    common_historical_end = (
+        min(observed) if len(observed) == len(_SOURCE_MAX_DATE_FIELDS) else None
+    )
+    coverage = evidence.true_first_disclosure_coverage
+    candidates = {
+        f"{str(row['scope']).removeprefix('candidate/')}/{row['subject']}": (
+            _verdict_cell(row, "statistical_verdict")
+        )
+        for _, row in verdicts.iterrows()
+        if str(row["scope"]).startswith("candidate/")
+        and row["gate"] == "statistical_verdict"
+    }
+    manifest: dict[str, object] = {
+        "config_hash": config_hash(cfg),
+        "code_commit": git_commit(),
+        "requested_data_end": _requested_date_string(
+            requested_data_end,
+            "requested_data_end",
+        ),
+        "common_historical_end": common_historical_end,
+        **maxima,
+        "salg_valid_through": _optional_date(
+            evidence.salg_valid_through,
+            "salg_valid_through",
+        ),
+        "true_first_disclosure_coverage": (
+            None if coverage is None else _validated_disclosure_coverage(coverage)
+        ),
+        "im_launch_date": str(settings["im_launch"].date()),
+        "invalid_formation_months": sorted(
+            {
+                str(blocker["formation_date"])[:7]
+                for blocker in preflight.blockers
+                if str(blocker["formation_date"]) != "NaT"
+            }
+        ),
+        "stage_manifest_hashes": _validated_hash_map(
+            evidence.stage_manifest_hashes,
+            "stage_manifest_hashes",
+        ),
+        "input_file_hashes": _validated_hash_map(
+            evidence.input_file_hashes,
+            "input_file_hashes",
+        ),
+        "database_source_evidence": preflight.database_source_evidence,
+        "candidate_statistical_verdicts": candidates,
+        "family_statistical_verdict": _verdict_cell(
+            final_row,
+            "statistical_verdict",
+        ),
+        "final_verdict": _verdict_cell(final_row, "final_verdict"),
+    }
+    if set(manifest) != set(RUN_MANIFEST_FIELDS):
+        raise RuntimeError("run manifest field set is not frozen")
+    return manifest
+
+
+def write_run_manifest(path: str | Path, manifest: dict[str, object]) -> Path:
+    """Write the sealed manifest atomically once every product is closed."""
+
+    if type(manifest) is not dict or set(manifest) != set(RUN_MANIFEST_FIELDS):
+        raise DataBlocked("run manifest schema mismatch")
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = target.with_name(f".{target.name}.tmp")
+    rendered = json.dumps(
+        manifest,
+        sort_keys=True,
+        ensure_ascii=False,
+        indent=2,
+    )
+    try:
+        temp_path.write_text(rendered, encoding="utf-8")
+        temp_path.replace(target)
+    finally:
+        temp_path.unlink(missing_ok=True)
+    return target
 
 
 class EvaluationSettings(TypedDict):
@@ -667,6 +2757,31 @@ def yearly_contributions(
     return output.reset_index(drop=True)
 
 
+def _frozen_config_types_match(actual: object, expected: object) -> bool:
+    if type(actual) is not type(expected):
+        return False
+    if type(expected) is dict:
+        actual_dict = cast(dict[object, object], actual)
+        expected_dict = cast(dict[object, object], expected)
+        return all(
+            key not in actual_dict
+            or _frozen_config_types_match(actual_dict[key], value)
+            for key, value in expected_dict.items()
+        )
+    if type(expected) is list:
+        actual_list = cast(list[object], actual)
+        expected_list = cast(list[object], expected)
+        return all(
+            _frozen_config_types_match(actual_value, expected_value)
+            for actual_value, expected_value in zip(
+                actual_list,
+                expected_list,
+                strict=False,
+            )
+        )
+    return True
+
+
 def _evaluation_config(cfg: dict) -> EvaluationSettings:
     expected_windows = {
         "discovery": ["2014-01-01", "2020-12-31"],
@@ -693,6 +2808,35 @@ def _evaluation_config(cfg: dict) -> EvaluationSettings:
     }
     try:
         pit = cfg["pit"]
+        frozen_sections = {
+            "candidates": cfg["candidates"],
+            "windows": cfg["windows"],
+            "pit": pit,
+            "execution": cfg["execution"],
+            "production_gates": cfg["production_gates"],
+            "bootstrap": cfg["bootstrap"],
+        }
+        expected_sections = {
+            "candidates": ["B3_unified", "B3_dual_target"],
+            "windows": expected_windows,
+            "pit": {
+                "policies": [
+                    "legal_deadline",
+                    "legal_deadline_plus_one_month_end",
+                ],
+                "industry_pit_start": "2021-01-01",
+            },
+            "execution": expected_execution,
+            "production_gates": expected_gates,
+            "bootstrap": expected_bootstrap,
+        }
+        if not _frozen_config_types_match(
+            frozen_sections,
+            expected_sections,
+        ):
+            raise DataBlocked(
+                "B3 evaluation configuration type differs from preregistration"
+            )
         exact = (
             cfg["candidates"] == ["B3_unified", "B3_dual_target"]
             and cfg["windows"] == expected_windows
