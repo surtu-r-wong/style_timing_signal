@@ -658,13 +658,21 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
     return out
 
 
+_RAW_FINANCIAL_TICKER_BATCH = 100
+
+
 def _fetch_raw_financial(
     tickers,
     start,
     end,
     db,
 ) -> pd.DataFrame:
-    """Read source-preserving financial facts across the CSMAR/Wind cutoff."""
+    """Read source-preserving financial facts across the CSMAR/Wind cutoff.
+
+    Loads in sorted whole-ticker batches: the full-market raw payload is
+    ~4KB/row (>15GB in a single fetch), and the semantic-duplicate
+    validation stays batch-local only because a ticker never spans batches.
+    """
     db = db or load_db_config()
     sql = f"""
         SELECT ts_code,
@@ -683,38 +691,49 @@ def _fetch_raw_financial(
           )
         ORDER BY ts_code, statement_type, end_date
     """
-    params = [list(tickers), start, end, CSMAR_END, CSMAR_END]
+    ordered_tickers = sorted(set(tickers))
+    batch_size = _RAW_FINANCIAL_TICKER_BATCH
+    parts: list[pd.DataFrame] = []
 
     conn = _connect(db)
     try:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            rows = cur.fetchall()
-            columns = [description[0] for description in cur.description]
+        for offset in range(0, len(ordered_tickers), batch_size):
+            chunk = ordered_tickers[offset:offset + batch_size]
+            params = [chunk, start, end, CSMAR_END, CSMAR_END]
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                rows = cur.fetchall()
+                columns = [
+                    description[0] for description in cur.description
+                ]
+            if not rows:
+                continue
+            facts = pd.DataFrame(rows, columns=columns)
+            facts = _validate_raw_financial_facts(facts)
+            translated = []
+            for data, source, statement in zip(
+                facts["data"],
+                facts["data_source"],
+                facts["statement_type"],
+            ):
+                try:
+                    translated.append(
+                        translate_data(data, source, statement)
+                    )
+                except (AttributeError, TypeError, ValueError) as exc:
+                    raise DataBlocked(
+                        "failed to translate raw financial payload"
+                    ) from exc
+            facts["data"] = translated
+            parts.append(facts)
     finally:
         conn.close()
 
-    facts = pd.DataFrame(rows, columns=columns)
-    if facts.empty:
+    if not parts:
         raise DataBlocked(
             f"no financial facts for requested window {start}..{end}"
         )
-
-    facts = _validate_raw_financial_facts(facts)
-    translated = []
-    for data, source, statement in zip(
-        facts["data"],
-        facts["data_source"],
-        facts["statement_type"],
-    ):
-        try:
-            translated.append(translate_data(data, source, statement))
-        except (AttributeError, TypeError, ValueError) as exc:
-            raise DataBlocked(
-                "failed to translate raw financial payload"
-            ) from exc
-    facts["data"] = translated
-    return facts.reset_index(drop=True)
+    return pd.concat(parts, ignore_index=True)
 
 
 def _read_sql(

@@ -1350,6 +1350,154 @@ def test_fetch_raw_financial_preserves_execute_error_and_closes_connection(
     assert connection.closed is True
 
 
+class _BatchAwareRawFinancialCursor:
+    """Serves only rows whose ts_code is in the executed ticker chunk."""
+
+    def __init__(self, rows):
+        self._rows = list(rows)
+        self.executed_ticker_chunks = []
+        self._current = []
+        self.description = [
+            (column, None, None, None, None, None, None)
+            for column in _RAW_FINANCIAL_COLUMNS
+        ]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def execute(self, sql, params):
+        chunk = list(params[0])
+        self.executed_ticker_chunks.append(chunk)
+        requested = set(chunk)
+        self._current = sorted(
+            (row for row in self._rows if row[0] in requested),
+            key=lambda row: (row[0], row[3], row[1]),
+        )
+
+    def fetchall(self):
+        return self._current
+
+
+def _run_batch_aware_fetch(monkeypatch, rows, tickers, batch_size):
+    cursor = _BatchAwareRawFinancialCursor(rows)
+    connection = _RawFinancialConnection(cursor)
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._connect",
+        lambda db: connection,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._RAW_FINANCIAL_TICKER_BATCH",
+        batch_size,
+        raising=False,
+    )
+    frame = _fetch_raw_financial(
+        tickers,
+        "2020-01-01",
+        "2020-12-31",
+        {"schema": "public"},
+    )
+    return frame, cursor
+
+
+def test_fetch_raw_financial_batches_tickers_and_matches_single_query(
+    monkeypatch,
+):
+    rows = []
+    for index in range(7):
+        ticker = f"T{index:04d}"
+        rows.append(
+            _raw_db_row(
+                ts_code=ticker,
+                end_date="2020-06-30",
+                stored_ann_date="2020-07-15",
+            )
+        )
+        rows.append(_raw_db_row(ts_code=ticker))
+    scrambled = [
+        "T0003",
+        "T0001",
+        "T0003",
+        "T0000",
+        "T0002",
+        "T0006",
+        "T0005",
+        "T0004",
+    ]
+
+    batched, batched_cursor = _run_batch_aware_fetch(
+        monkeypatch,
+        rows,
+        scrambled,
+        3,
+    )
+    single, single_cursor = _run_batch_aware_fetch(
+        monkeypatch,
+        rows,
+        scrambled,
+        100,
+    )
+
+    assert batched_cursor.executed_ticker_chunks == [
+        ["T0000", "T0001", "T0002"],
+        ["T0003", "T0004", "T0005"],
+        ["T0006"],
+    ]
+    assert single_cursor.executed_ticker_chunks == [
+        ["T0000", "T0001", "T0002", "T0003", "T0004", "T0005", "T0006"],
+    ]
+    pd.testing.assert_frame_equal(batched, single)
+    assert list(single["ts_code"].unique()) == sorted(set(scrambled))
+
+
+def test_fetch_raw_financial_batched_empty_result_raises_datablocked(
+    monkeypatch,
+):
+    cursor = _BatchAwareRawFinancialCursor([])
+    connection = _RawFinancialConnection(cursor)
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._connect",
+        lambda db: connection,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._RAW_FINANCIAL_TICKER_BATCH",
+        2,
+        raising=False,
+    )
+
+    with pytest.raises(DataBlocked) as caught:
+        _fetch_raw_financial(
+            ["A", "B", "C"],
+            "2020-01-01",
+            "2020-12-31",
+            {"schema": "public"},
+        )
+
+    assert "no financial facts" in str(caught.value)
+    assert cursor.executed_ticker_chunks == [["A", "B"], ["C"]]
+    assert connection.closed is True
+
+
+def test_fetch_raw_financial_skips_empty_batches_without_dtype_damage(
+    monkeypatch,
+):
+    rows = [_raw_db_row(ts_code="C")]
+
+    frame, cursor = _run_batch_aware_fetch(
+        monkeypatch,
+        rows,
+        ["A", "B", "C", "D"],
+        2,
+    )
+
+    assert cursor.executed_ticker_chunks == [["A", "B"], ["C", "D"]]
+    assert list(frame["ts_code"]) == ["C"]
+    assert pd.api.types.is_datetime64_any_dtype(frame["end_date"])
+    assert pd.api.types.is_datetime64_any_dtype(frame["stored_ann_date"])
+
+
 def _constituents_for_snapshot(snapshot):
     ordered = snapshot.sort_values(
         ["total_market_value", "ticker"],
