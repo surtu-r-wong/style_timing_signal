@@ -2774,6 +2774,95 @@ def test_formation_inputs_classifies_malformed_share_date_as_data_blocked(
         )
 
 
+def test_snapshot_assembly_excludes_bj_and_hk_markets(monkeypatch):
+    _patch_minimal_assembly_dependencies(monkeypatch)
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    inputs["stock_meta"] = pd.concat(
+        [
+            inputs["stock_meta"],
+            pd.DataFrame(
+                {
+                    "ticker": ["0700.HK", "830001.BJ"],
+                    "list_date": ["2010-01-01", "2010-01-01"],
+                    "delist_date": [None, None],
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+    inputs["closes"]["0700.HK"] = 30.0
+    inputs["closes"]["830001.BJ"] = 40.0
+    inputs["shares_pool"] = pd.concat(
+        [
+            inputs["shares_pool"],
+            pd.DataFrame(
+                {
+                    "ts_code": ["0700.HK", "830001.BJ"],
+                    "end_date": ["2020-01-01", "2020-01-01"],
+                    "known_date": ["2020-01-01", "2020-01-01"],
+                    "total_shares": [300.0, 400.0],
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+    inputs["industry_pool"] = pd.concat(
+        [
+            inputs["industry_pool"],
+            pd.DataFrame(
+                {
+                    "ticker": ["0700.HK", "830001.BJ"],
+                    "effective_date": ["2021-01-01", "2021-01-01"],
+                    "industry": ["电子", "电子"],
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    snapshots = build_policy_snapshots(**inputs)
+
+    snapshot = snapshots[formation]
+    tickers = set(snapshot["ticker"])
+    assert "0700.HK" not in tickers
+    assert "830001.BJ" not in tickers
+    assert {"A", "B"} <= tickers
+
+
+def test_formation_inputs_excludes_bj_and_hk_markets(monkeypatch):
+    frames = _valid_formation_sql_frames()
+    frames["stock_meta"] = pd.DataFrame(
+        {
+            "ticker": ["0700.HK", "830001.BJ", "A"],
+            "list_date": ["2010-01-01", "2010-01-01", "2010-01-01"],
+            "delist_date": [None, None, None],
+        }
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+    captured = {}
+
+    def fake_fetch_raw_financial(tickers, start, end, db):
+        captured["tickers"] = list(tickers)
+        return pd.DataFrame()
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        fake_fetch_raw_financial,
+    )
+
+    got = _formation_inputs(
+        {"schema": "public"},
+        pd.Timestamp("2021-03-31"),
+    )
+
+    assert captured["tickers"] == ["A"]
+    assert list(got["meta"]["ticker"]) == ["A"]
+
+
 def test_preflight_classifies_invalid_constituent_dates_and_writes_manifest(
     tmp_path,
 ):

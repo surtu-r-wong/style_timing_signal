@@ -36,6 +36,9 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT_DIR = ROOT / "output" / "style_basket" / "b3"
 POLICY_MAIN = "legal_deadline"
 POLICY_LAG = "legal_deadline_plus_one_month_end"
+# 快照样本池 = 沪深 A 股（spec §输入合同）：北交所与港股通名称整体在池外，
+# 不进入 universe 计数、排除原因统计或任何数据加载清单（2026-07-24 确认口径）。
+EXCLUDED_MARKET_SUFFIXES = (".BJ", ".HK")
 STAGE_OUTPUTS = {
     "preflight": {
         "coverage_audit.csv",
@@ -1048,6 +1051,11 @@ def _formation_inputs(
         "stock metadata",
     )
     _validate_string_keys(meta["ticker"], "stock metadata ticker")
+    meta = meta.loc[
+        ~meta["ticker"].str.endswith(EXCLUDED_MARKET_SUFFIXES)
+    ].reset_index(drop=True)
+    if meta.empty:
+        raise DataBlocked("stock metadata is empty")
     tickers = meta["ticker"].tolist()
 
     closes = _read_sql(
@@ -1341,6 +1349,7 @@ def build_policy_snapshots(
         .set_index("ticker")
         .sort_index()
     )
+    meta = meta.loc[~meta.index.str.endswith(EXCLUDED_MARKET_SUFFIXES)]
 
     close_matrix = _validated_close_matrix(closes)
 
