@@ -1724,6 +1724,8 @@ def test_default_sources_cache_formation_inputs_across_pit_policies(
         "shares": object(),
         "industry": object(),
         "meta": object(),
+        "suspensions": object(),
+        "carried_closes": object(),
     }
     formation_calls = []
     build_calls = []
@@ -1740,6 +1742,9 @@ def test_default_sources_cache_formation_inputs_across_pit_policies(
         industry,
         meta,
         policy,
+        *,
+        suspensions=None,
+        carried_closes=None,
     ):
         build_calls.append(
             {
@@ -1750,6 +1755,8 @@ def test_default_sources_cache_formation_inputs_across_pit_policies(
                 "shares": shares,
                 "industry": industry,
                 "meta": meta,
+                "suspensions": suspensions,
+                "carried_closes": carried_closes,
             }
         )
         return {pd.Timestamp("2021-01-29"): pd.DataFrame()}
@@ -2488,6 +2495,11 @@ def _valid_formation_sql_frames(
     formation = pd.Timestamp("2021-01-29")
     index_end = calendar_end if index_end is None else index_end
     return {
+        # 必须先于 "stock_daily_price"：carried-close 的 lateral SQL 同时含
+        # 两个标记，按列表顺序首中。
+        "JOIN LATERAL": pd.DataFrame(
+            columns=["formation_date", "ts_code", "close_date", "close"]
+        ),
         "trading_calendar": _authoritative_calendar(calendar_end),
         "index_daily": pd.DataFrame(
             {
@@ -2526,6 +2538,7 @@ def _valid_formation_sql_frames(
                 "industry": ["电子"],
             }
         ),
+        "stock_suspension": pd.DataFrame(columns=["trade_date", "ts_code"]),
     }
 
 
@@ -2861,6 +2874,149 @@ def test_formation_inputs_excludes_bj_and_hk_markets(monkeypatch):
 
     assert captured["tickers"] == ["A"]
     assert list(got["meta"]["ticker"]) == ["A"]
+
+
+def test_snapshot_assembly_carries_forward_suspended_closes(monkeypatch):
+    _patch_minimal_assembly_dependencies(monkeypatch)
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    inputs["stock_meta"] = pd.concat(
+        [
+            inputs["stock_meta"],
+            pd.DataFrame(
+                {
+                    "ticker": ["C", "D", "E"],
+                    "list_date": ["2010-01-01"] * 3,
+                    "delist_date": [None] * 3,
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+    for name in ("C", "D", "E"):
+        inputs["closes"][name] = float("nan")
+    inputs["shares_pool"] = pd.concat(
+        [
+            inputs["shares_pool"],
+            pd.DataFrame(
+                {
+                    "ts_code": ["C", "D", "E"],
+                    "end_date": ["2020-01-01"] * 3,
+                    "known_date": ["2020-01-01"] * 3,
+                    "total_shares": [300.0, 400.0, 500.0],
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+    inputs["industry_pool"] = pd.concat(
+        [
+            inputs["industry_pool"],
+            pd.DataFrame(
+                {
+                    "ticker": ["C", "D", "E"],
+                    "effective_date": ["2021-01-01"] * 3,
+                    "industry": ["电子"] * 3,
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+    inputs["suspensions"] = pd.DataFrame(
+        {
+            "trade_date": [formation, formation],
+            "ts_code": ["C", "E"],
+        }
+    )
+    inputs["carried_closes"] = pd.DataFrame(
+        {
+            "formation_date": [formation],
+            "ts_code": ["C"],
+            "close_date": [formation - pd.Timedelta(days=45)],
+            "close": [12.5],
+        }
+    )
+
+    snapshots = build_policy_snapshots(**inputs)
+
+    snap = snapshots[formation].set_index("ticker")
+    # C: suspended with evidence and a carried close → eligible at stale price
+    assert snap.loc["C", "size_exclusion_reason"] == ""
+    assert bool(snap.loc["C", "close_carried"]) is True
+    assert snap.loc["C", "total_market_value"] == pytest.approx(12.5 * 300.0)
+    # E: suspension evidence but no carried close → still fail-closed
+    assert snap.loc["E", "size_exclusion_reason"] == "DATA_MISSING_CLOSE"
+    # D: missing close without evidence → unchanged fail-closed path
+    assert snap.loc["D", "size_exclusion_reason"] == "DATA_MISSING_CLOSE"
+    assert bool(snap.loc["A", "close_carried"]) is False
+
+
+def test_formation_inputs_loads_suspension_evidence(monkeypatch):
+    formation = pd.Timestamp("2021-01-29")
+    base_frames = _valid_formation_sql_frames()
+    base_frames["stock_suspension"] = pd.DataFrame(
+        {
+            "trade_date": [formation],
+            "ts_code": ["A"],
+        }
+    )
+    ordered = [
+        (
+            "JOIN LATERAL",
+            pd.DataFrame(
+                {
+                    "formation_date": [formation],
+                    "ts_code": ["A"],
+                    "close_date": [formation - pd.Timedelta(days=10)],
+                    "close": [9.5],
+                }
+            ),
+        ),
+        *base_frames.items(),
+    ]
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(ordered),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    got = _formation_inputs(
+        {"schema": "public"},
+        pd.Timestamp("2021-03-31"),
+    )
+
+    assert list(got["suspensions"]["ts_code"]) == ["A"]
+    assert list(got["carried_closes"]["ts_code"]) == ["A"]
+    assert got["carried_closes"]["close"].iloc[0] == 9.5
+
+
+def test_preflight_reports_suspended_carry_forward_distribution(tmp_path):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    snapshot["close_carried"] = False
+    snapshot.loc[snapshot.index[:2], "close_carried"] = True
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+    )
+
+    got = run_preflight(
+        cfg,
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "OK"
+    audit = pd.read_csv(tmp_path / "coverage_audit.csv")
+    rows = audit[audit["check"] == "close_carry_forward"]
+    assert not rows.empty
+    assert set(rows["side"]) == {"SUSPENDED_CARRY_FORWARD"}
+    assert set(rows["status"]) == {"REPORT_ONLY"}
+    assert rows["eligible_count"].astype(int).tolist() == [2] * len(rows)
 
 
 def test_preflight_classifies_invalid_constituent_dates_and_writes_manifest(

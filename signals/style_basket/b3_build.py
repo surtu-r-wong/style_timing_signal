@@ -1136,6 +1136,49 @@ def _formation_inputs(
         "industry history",
     )
 
+    suspensions = _read_sql(
+        db,
+        f"""
+            SELECT trade_date, ts_code
+            FROM {schema}.stock_suspension
+            WHERE trade_date = ANY(%(dates)s)
+            ORDER BY trade_date, ts_code
+        """,
+        {"dates": [date.date() for date in month_ends]},
+    )
+    _require_columns(
+        suspensions,
+        {"trade_date", "ts_code"},
+        "suspension evidence",
+    )
+
+    carried_closes = _read_sql(
+        db,
+        f"""
+            SELECT s.trade_date AS formation_date,
+                   s.ts_code,
+                   p.trade_date AS close_date,
+                   p.close
+            FROM {schema}.stock_suspension s
+            JOIN LATERAL (
+                SELECT q.trade_date, q.close
+                FROM {schema}.stock_daily_price q
+                WHERE q.ts_code = s.ts_code
+                  AND q.trade_date <= s.trade_date
+                ORDER BY q.trade_date DESC
+                LIMIT 1
+            ) p ON TRUE
+            WHERE s.trade_date = ANY(%(dates)s)
+            ORDER BY s.trade_date, s.ts_code
+        """,
+        {"dates": [date.date() for date in month_ends]},
+    )
+    _require_columns(
+        carried_closes,
+        {"formation_date", "ts_code", "close_date", "close"},
+        "carried suspended closes",
+    )
+
     facts = _fetch_raw_financial(
         tickers,
         "2003-01-01",
@@ -1148,6 +1191,8 @@ def _formation_inputs(
         "closes": close_wide,
         "shares": shares,
         "industry": industry,
+        "suspensions": suspensions,
+        "carried_closes": carried_closes,
         "facts": facts,
     }
 
@@ -1231,6 +1276,9 @@ def build_policy_snapshots(
     industry_pool: pd.DataFrame,
     stock_meta: pd.DataFrame,
     policy: str,
+    *,
+    suspensions: pd.DataFrame | None = None,
+    carried_closes: pd.DataFrame | None = None,
 ) -> dict[pd.Timestamp, pd.DataFrame]:
     """Assemble B3 monthly style snapshots under one PIT policy."""
     from signals.style_basket.build import (
@@ -1351,6 +1399,73 @@ def build_policy_snapshots(
     )
     meta = meta.loc[~meta.index.str.endswith(EXCLUDED_MARKET_SUFFIXES)]
 
+    if suspensions is None:
+        suspensions = pd.DataFrame(columns=["trade_date", "ts_code"])
+    _require_columns(
+        suspensions,
+        {"trade_date", "ts_code"},
+        "suspension evidence",
+    )
+    suspension_frame = suspensions.loc[:, ["trade_date", "ts_code"]].copy()
+    suspended_by_date: dict[pd.Timestamp, set] = {}
+    if not suspension_frame.empty:
+        _validate_string_keys(
+            suspension_frame["ts_code"],
+            "suspension evidence ts_code",
+        )
+        suspension_frame = _validate_datetime_columns(
+            suspension_frame,
+            ("trade_date",),
+            "suspension evidence",
+        )
+        suspension_frame = _deduplicate_or_block(
+            suspension_frame,
+            ("trade_date", "ts_code"),
+            "suspension evidence",
+        )
+        for suspend_date, group in suspension_frame.groupby("trade_date"):
+            suspended_by_date[pd.Timestamp(suspend_date)] = set(
+                group["ts_code"]
+            )
+
+    if carried_closes is None:
+        carried_closes = pd.DataFrame(
+            columns=["formation_date", "ts_code", "close_date", "close"]
+        )
+    _require_columns(
+        carried_closes,
+        {"formation_date", "ts_code", "close_date", "close"},
+        "carried suspended closes",
+    )
+    carried_frame = carried_closes.loc[
+        :,
+        ["formation_date", "ts_code", "close_date", "close"],
+    ].copy()
+    carried_by_date: dict[pd.Timestamp, pd.Series] = {}
+    if not carried_frame.empty:
+        _validate_string_keys(
+            carried_frame["ts_code"],
+            "carried close ts_code",
+        )
+        carried_frame = _validate_datetime_columns(
+            carried_frame,
+            ("formation_date", "close_date"),
+            "carried suspended closes",
+        )
+        carried_frame = _deduplicate_or_block(
+            carried_frame,
+            ("formation_date", "ts_code"),
+            "carried suspended closes",
+        )
+        carried_frame["close"] = pd.to_numeric(
+            carried_frame["close"],
+            errors="coerce",
+        )
+        for carry_date, group in carried_frame.groupby("formation_date"):
+            carried_by_date[pd.Timestamp(carry_date)] = group.set_index(
+                "ts_code"
+            )["close"]
+
     close_matrix = _validated_close_matrix(closes)
 
     share_columns = {
@@ -1418,6 +1533,23 @@ def build_policy_snapshots(
             close_row.reindex(base),
             errors="coerce",
         )
+
+        carried_mask = pd.Series(False, index=base)
+        suspended_today = suspended_by_date.get(formation_date)
+        carried_today = carried_by_date.get(formation_date)
+        if suspended_today and carried_today is not None:
+            evidence = pd.Series(
+                base.isin(suspended_today),
+                index=base,
+            )
+            fill = pd.to_numeric(
+                carried_today.reindex(base),
+                errors="coerce",
+            )
+            usable = close.isna() & evidence & fill.notna()
+            if usable.any():
+                close = close.mask(usable, fill)
+                carried_mask = usable
 
         selected_shares = asof_latest(share_history, formation_date)
         if selected_shares.empty:
@@ -1620,6 +1752,7 @@ def build_policy_snapshots(
                 "true_first_disclosure_verified": verified.to_numpy(
                     dtype=bool
                 ),
+                "close_carried": carried_mask.to_numpy(dtype=bool),
             }
         )
         snapshots[formation_date] = snapshot
@@ -1655,6 +1788,8 @@ def default_sources(db: dict) -> B3Sources:
             source["industry"],
             source["meta"],
             policy,
+            suspensions=source["suspensions"],
+            carried_closes=source["carried_closes"],
         )
 
     def constituents() -> pd.DataFrame:
@@ -1818,6 +1953,25 @@ def run_preflight(
                     status="REPORT_ONLY",
                     reason_code=str(reason),
                     detail="exclusion distribution",
+                )
+        if "close_carried" in snapshot.columns:
+            carried_count = int(
+                snapshot["close_carried"]
+                .fillna(False)
+                .astype(bool)
+                .sum()
+            )
+            if carried_count:
+                add_audit(
+                    policy=policy,
+                    formation_date=formation_date,
+                    required=required,
+                    affects_final=False,
+                    check="close_carry_forward",
+                    side="SUSPENDED_CARRY_FORWARD",
+                    eligible_count=carried_count,
+                    status="REPORT_ONLY",
+                    detail="suspended names valued at last traded close",
                 )
 
     required_periods = set(
