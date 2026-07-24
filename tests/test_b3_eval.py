@@ -60,6 +60,7 @@ from backtest.b3_structure import (
 from backtest.engine import run_strategy
 from backtest.metrics import ann_return, max_drawdown, sharpe, turnover
 from backtest.positions import production_position
+from signals.style_basket.b3_build import _write_stage_manifest
 from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_exposures import DataBlocked
 
@@ -3564,6 +3565,7 @@ def _write_preflight_manifest(
     blockers=None,
     data_end="2026-07-10",
     database_evidence=_NO_DATABASE_EVIDENCE,
+    config_hash_value=_EXPECTED_CONFIG_HASH,
 ):
     root.mkdir(parents=True, exist_ok=True)
     coverage = root / "coverage_audit.csv"
@@ -3572,7 +3574,7 @@ def _write_preflight_manifest(
     diagnostics.write_text("scope\nexposure\n", encoding="utf-8")
     payload = {
         "stage": "preflight",
-        "config_hash": _EXPECTED_CONFIG_HASH,
+        "config_hash": config_hash_value,
         "data_end": data_end,
         "status": status,
         "blockers": [] if blockers is None else blockers,
@@ -3584,7 +3586,7 @@ def _write_preflight_manifest(
     if database_evidence is not _NO_DATABASE_EVIDENCE:
         payload["database_source_evidence"] = database_evidence
     manifest_dir = root / "manifests"
-    manifest_dir.mkdir()
+    manifest_dir.mkdir(exist_ok=True)
     manifest_path = manifest_dir / "preflight.json"
     manifest_path.write_text(
         json.dumps(payload, sort_keys=True),
@@ -4036,7 +4038,7 @@ def test_true_disclosure_coverage_counts_explicit_mixed_booleans_only():
             pd.DataFrame(
                 [
                     {
-                        "universe_role": "size",
+                        "universe_role": "size_only",
                         "pit_policy": _PIT_POLICIES[0],
                         "formation_date": "2014-01-31",
                         "ticker": "000002.SZ",
@@ -4098,7 +4100,7 @@ def test_true_disclosure_coverage_blocks_missing_required_month_or_policy():
 
 
 def test_true_disclosure_coverage_blocks_empty_denominator():
-    frame = _required_disclosure_rows().assign(universe_role="size")
+    frame = _required_disclosure_rows().assign(universe_role="size_only")
 
     with pytest.raises(DataBlocked, match="denominator"):
         compute_true_disclosure_coverage(frame, _PIT_POLICIES)
@@ -4166,7 +4168,7 @@ def test_salg_valid_through_takes_earliest_latest_formation_dependency():
             pd.DataFrame(
                 [
                     {
-                        "universe_role": "size",
+                        "universe_role": "size_only",
                         "formation_date": "2026-06-30",
                         "salg_source_end_date": None,
                     }
@@ -4601,6 +4603,11 @@ def test_run_manifest_of_a_blocked_run_claims_no_statistical_verdict(tmp_path):
 def test_common_historical_end_is_the_earliest_source_maximum(tmp_path):
     preflight = _blocked_preflight(tmp_path, [_preflight_blocker()])
     verdicts = blocked_verdict_rows([_run_blocker("DATA_CONTRACT")])
+    # Evidence coexists with a block only on post-data runs, where the
+    # family statistical verdict survives (it is never erased by the block).
+    verdicts.loc[
+        verdicts["gate"].eq("final_verdict"), "statistical_verdict"
+    ] = "STOP"
 
     manifest = build_run_manifest(
         load_b3_config(),
@@ -4616,6 +4623,9 @@ def test_common_historical_end_is_the_earliest_source_maximum(tmp_path):
 def test_common_historical_end_is_null_when_any_source_maximum_is_missing(tmp_path):
     preflight = _blocked_preflight(tmp_path, [_preflight_blocker()])
     verdicts = blocked_verdict_rows([_run_blocker("DATA_CONTRACT")])
+    verdicts.loc[
+        verdicts["gate"].eq("final_verdict"), "statistical_verdict"
+    ] = "STOP"
 
     manifest = build_run_manifest(
         load_b3_config(),
@@ -4704,3 +4714,633 @@ def test_write_run_manifest_refuses_a_payload_that_is_not_the_frozen_schema(tmp_
         write_run_manifest(target, {"final_verdict": "STOP"})
 
     assert not target.exists()
+
+
+# ---------------------------------------------------------------------------
+# Task 10 Step 6: run_evaluation orchestration and the eval CLI
+# ---------------------------------------------------------------------------
+
+
+def _forbidden_market_loader(*args, **kwargs):
+    raise AssertionError("a blocked run must never load market data")
+
+
+def _blocked_run_layout(
+    tmp_path,
+    blockers,
+    *,
+    status="DATA_BLOCKED",
+    database_evidence=_NO_DATABASE_EVIDENCE,
+    data_end="2026-07-10",
+):
+    research = tmp_path / "research"
+    compact = tmp_path / "compact"
+    _write_preflight_manifest(
+        research,
+        status=status,
+        blockers=blockers,
+        data_end=data_end,
+        database_evidence=database_evidence,
+        config_hash_value=config_hash(load_b3_config()),
+    )
+    return research, compact
+
+
+def test_run_evaluation_blocked_preflight_writes_only_blocked_products(tmp_path):
+    research, compact = _blocked_run_layout(
+        tmp_path,
+        [
+            _formation_blocker(
+                "2023-08-31", reason_code="TARGET_COORDINATE_CALIBRATION"
+            )
+        ],
+        database_evidence=_database_evidence(),
+    )
+
+    result = b3_eval_module.run_evaluation(
+        load_b3_config(),
+        "2026-07-10",
+        research,
+        compact,
+        underlying_return_loader=_forbidden_market_loader,
+        carry_loader=_forbidden_market_loader,
+    )
+
+    assert result.blocked is True
+    assert result.final_verdict == "DATA_BLOCKED"
+    assert {p.name for p in compact.iterdir()} == {
+        "verdicts.csv",
+        "run_manifest.json",
+    }
+    manifest = json.loads(
+        (compact / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["final_verdict"] == "DATA_BLOCKED"
+    assert manifest["family_statistical_verdict"] is None
+    assert manifest["candidate_statistical_verdicts"] == {}
+    verdicts = pd.read_csv(compact / "verdicts.csv")
+    final_rows = verdicts.loc[verdicts["gate"] == "final_verdict"]
+    assert len(final_rows) == 1
+    assert final_rows["final_verdict"].iloc[0] == "DATA_BLOCKED"
+    assert (verdicts["reason_code"] == "TARGET_COORDINATE_CALIBRATION").any()
+
+
+def test_run_evaluation_dedupes_repeated_preflight_reason_codes(tmp_path):
+    research, compact = _blocked_run_layout(
+        tmp_path,
+        [
+            _formation_blocker(
+                "2023-07-31", reason_code="TARGET_COORDINATE_CALIBRATION"
+            ),
+            _formation_blocker(
+                "2023-08-31", reason_code="TARGET_COORDINATE_CALIBRATION"
+            ),
+        ],
+        database_evidence=_database_evidence(),
+    )
+
+    result = b3_eval_module.run_evaluation(
+        load_b3_config(),
+        "2026-07-10",
+        research,
+        compact,
+        underlying_return_loader=_forbidden_market_loader,
+        carry_loader=_forbidden_market_loader,
+    )
+
+    assert result.final_verdict == "DATA_BLOCKED"
+    verdicts = pd.read_csv(compact / "verdicts.csv")
+    blocker_rows = verdicts.loc[
+        verdicts["reason_code"] == "TARGET_COORDINATE_CALIBRATION"
+    ]
+    assert len(blocker_rows) == 1
+
+
+def test_run_evaluation_blocks_a_preflight_without_database_evidence(tmp_path):
+    research, compact = _blocked_run_layout(
+        tmp_path,
+        None,
+        status="OK",
+    )
+
+    result = b3_eval_module.run_evaluation(
+        load_b3_config(),
+        "2026-07-10",
+        research,
+        compact,
+        underlying_return_loader=_forbidden_market_loader,
+        carry_loader=_forbidden_market_loader,
+    )
+
+    assert result.blocked is True
+    assert result.final_verdict == "DATA_BLOCKED"
+    verdicts = pd.read_csv(compact / "verdicts.csv")
+    assert (
+        verdicts["reason_code"] == "DATABASE_SOURCE_EVIDENCE_MISSING"
+    ).any()
+
+
+def test_run_evaluation_invalidates_stale_full_run_products(tmp_path):
+    research, compact = _blocked_run_layout(
+        tmp_path,
+        [_preflight_blocker(status="DATA_BLOCKED")],
+        database_evidence=_database_evidence(),
+    )
+    compact.mkdir(parents=True, exist_ok=True)
+    stale = compact / "production_metrics.csv"
+    stale.write_text("stale\n", encoding="utf-8")
+
+    b3_eval_module.run_evaluation(
+        load_b3_config(),
+        "2026-07-10",
+        research,
+        compact,
+        underlying_return_loader=_forbidden_market_loader,
+        carry_loader=_forbidden_market_loader,
+    )
+
+    assert not stale.exists()
+
+
+def test_eval_cli_exits_2_on_data_blocked_preflight(tmp_path):
+    research, compact = _blocked_run_layout(
+        tmp_path,
+        [_preflight_blocker(status="DATA_BLOCKED")],
+        database_evidence=_database_evidence(),
+    )
+
+    code = b3_eval_module.main(
+        [
+            "--data-end",
+            "2026-07-10",
+            "--research-output-dir",
+            str(research),
+            "--backtest-output-dir",
+            str(compact),
+        ]
+    )
+
+    assert code == 2
+
+
+def test_eval_cli_exits_3_on_coverage_blocked_preflight(tmp_path):
+    research, compact = _blocked_run_layout(
+        tmp_path,
+        [_preflight_blocker(status="COVERAGE_BLOCKED")],
+        status="COVERAGE_BLOCKED",
+        database_evidence=_database_evidence(),
+    )
+
+    code = b3_eval_module.main(
+        [
+            "--data-end",
+            "2026-07-10",
+            "--research-output-dir",
+            str(research),
+            "--backtest-output-dir",
+            str(compact),
+        ]
+    )
+
+    assert code == 3
+
+
+def _write_eval_exposures(path, formations, policies):
+    rows = []
+    for policy in policies:
+        for offset, formation in enumerate(formations):
+            rows.append(
+                {
+                    "universe_role": "model",
+                    "pit_policy": policy,
+                    "formation_date": pd.Timestamp(formation),
+                    "ticker": f"{600000 + offset:06d}.SH",
+                    "true_first_disclosure_verified": True,
+                    "salg_source_end_date": pd.Timestamp("2024-12-31"),
+                }
+            )
+    frame = pd.DataFrame(rows)
+    frame.to_csv(
+        path,
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    return frame
+
+
+def _write_eval_structure(compact, cfg, comparison, data_end):
+    compact.mkdir(parents=True, exist_ok=True)
+    coefficients = compact / "structure_coefficients.csv"
+    model = compact / "model_comparison.csv"
+    pd.DataFrame({"coefficient": [0.1]}).to_csv(coefficients, index=False)
+    comparison.to_csv(model, index=False)
+    payload = {
+        "stage": "structure",
+        "config_hash": config_hash(cfg),
+        "data_end": data_end,
+        "status": "OK",
+        "outputs": {
+            "structure_coefficients.csv": _sha256(coefficients),
+            "model_comparison.csv": _sha256(model),
+        },
+    }
+    (compact / "structure_manifest.json").write_text(
+        json.dumps(payload, sort_keys=True),
+        encoding="utf-8",
+    )
+
+
+def _unblocked_run_layout(tmp_path, *, data_end="2024-12-31"):
+    cfg, _, formations, states, targets, equal_weight, carry = _evaluation_inputs()
+    comparison = _model_comparison(cfg)
+    research = tmp_path / "research"
+    compact = tmp_path / "compact"
+    research.mkdir(parents=True, exist_ok=True)
+    cutoff = pd.Timestamp(data_end)
+
+    exposure_path = research / "monthly_exposures.csv.gz"
+    _write_eval_exposures(exposure_path, formations, tuple(cfg["pit"]["policies"]))
+    _write_stage_manifest(
+        research, "exposures", cfg, cutoff, [exposure_path], "OK", []
+    )
+
+    state_path = research / "state_components.csv"
+    states.to_csv(state_path, index=False)
+    _write_stage_manifest(research, "states", cfg, cutoff, [state_path], "OK", [])
+
+    _write_eval_structure(compact, cfg, comparison, data_end)
+
+    _write_preflight_manifest(
+        research,
+        status="OK",
+        data_end=data_end,
+        database_evidence=_database_evidence(),
+        config_hash_value=config_hash(cfg),
+    )
+    return cfg, research, compact, targets, carry, equal_weight, data_end
+
+
+def test_run_evaluation_unblocked_writes_seven_products_and_concludes(tmp_path):
+    cfg, research, compact, targets, carry, equal_weight, data_end = (
+        _unblocked_run_layout(tmp_path)
+    )
+
+    result = b3_eval_module.run_evaluation(
+        cfg,
+        data_end,
+        research,
+        compact,
+        underlying_return_loader=lambda leg: targets[leg],
+        carry_loader=lambda leg: carry[leg],
+        equal_weight_signal=equal_weight,
+    )
+
+    assert result.blocked is False
+    assert result.final_verdict in {"STOP", "MEASURE_ONLY", "PASS_SHADOW"}
+    present = {p.name for p in compact.iterdir()}
+    assert {
+        "verdicts.csv",
+        "run_manifest.json",
+        "production_metrics.csv",
+        "yearly_contribution.csv",
+        "bootstrap.csv",
+        "structure_coefficients.csv",
+        "model_comparison.csv",
+    } <= present
+    manifest = json.loads(
+        (compact / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["final_verdict"] == result.final_verdict
+    assert manifest["family_statistical_verdict"] is not None
+    assert manifest["true_first_disclosure_coverage"]["ratio"] == 1.0
+    bootstrap = pd.read_csv(compact / "bootstrap.csv")
+    assert not bootstrap.empty
+
+
+def test_run_evaluation_post_data_coverage_gap_blocks_but_keeps_statistics(tmp_path):
+    cfg, research, compact, targets, carry, equal_weight, data_end = (
+        _unblocked_run_layout(tmp_path)
+    )
+    # Break true-disclosure coverage after the fact: one model row unverified.
+    exposure_path = research / "monthly_exposures.csv.gz"
+    exposures = pd.read_csv(exposure_path)
+    exposures.loc[0, "true_first_disclosure_verified"] = False
+    exposures.to_csv(
+        exposure_path,
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    _write_stage_manifest(
+        research, "exposures", cfg, pd.Timestamp(data_end), [exposure_path], "OK", []
+    )
+
+    result = b3_eval_module.run_evaluation(
+        cfg,
+        data_end,
+        research,
+        compact,
+        underlying_return_loader=lambda leg: targets[leg],
+        carry_loader=lambda leg: carry[leg],
+        equal_weight_signal=equal_weight,
+    )
+
+    assert result.blocked is True
+    assert result.final_verdict == "DATA_BLOCKED"
+    manifest = json.loads(
+        (compact / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    # The run-level block never erases the legal statistical evidence.
+    assert manifest["family_statistical_verdict"] is not None
+    verdicts = pd.read_csv(compact / "verdicts.csv")
+    assert (verdicts["reason_code"] == "TRUE_DISCLOSURE_COVERAGE").any()
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: bare runs adopt the verified preflight data_end (C1)
+
+
+def test_eval_cli_bare_run_writes_blocked_evidence_without_data_end(tmp_path):
+    research, compact = _blocked_run_layout(
+        tmp_path,
+        [
+            _formation_blocker(
+                "2023-08-31", reason_code="TARGET_COORDINATE_CALIBRATION"
+            )
+        ],
+        database_evidence=_database_evidence(),
+    )
+
+    code = b3_eval_module.main(
+        [
+            "--research-output-dir",
+            str(research),
+            "--backtest-output-dir",
+            str(compact),
+        ]
+    )
+
+    assert code == 2
+    assert (compact / "verdicts.csv").is_file()
+    manifest_path = compact / "run_manifest.json"
+    assert manifest_path.is_file()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["requested_data_end"] == "2026-07-10"
+    assert manifest["final_verdict"] == "DATA_BLOCKED"
+    assert manifest["family_statistical_verdict"] is None
+
+
+def test_run_evaluation_none_data_end_adopts_preflight_boundary(tmp_path):
+    cfg, research, compact, targets, carry, equal_weight, data_end = (
+        _unblocked_run_layout(tmp_path)
+    )
+
+    result = b3_eval_module.run_evaluation(
+        cfg,
+        None,
+        research,
+        compact,
+        underlying_return_loader=lambda leg: targets[leg],
+        carry_loader=lambda leg: carry[leg],
+        equal_weight_signal=equal_weight,
+    )
+
+    assert result.blocked is False
+    manifest = json.loads(
+        (compact / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["requested_data_end"] == data_end
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: eval validators must speak the producer vocabulary (C2)
+
+
+def test_true_disclosure_coverage_accepts_producer_size_only_rows():
+    frame = _required_disclosure_rows()
+    size_only = pd.DataFrame(
+        [
+            {
+                "universe_role": "size_only",
+                "pit_policy": _PIT_POLICIES[0],
+                "formation_date": "2014-01-31",
+                "ticker": "000002.SZ",
+                "true_first_disclosure_verified": False,
+            }
+        ]
+    )
+    mixed = pd.concat([frame, size_only], ignore_index=True)
+
+    got = compute_true_disclosure_coverage(mixed, _PIT_POLICIES)
+
+    assert got["ratio"] == 1.0
+
+
+def test_salg_valid_through_accepts_producer_size_only_rows():
+    base = _salg_rows("2026-03-31", "2025-12-31")
+    size_only = pd.DataFrame(
+        [
+            {
+                "universe_role": "size_only",
+                "formation_date": "2026-06-30",
+                "salg_source_end_date": None,
+            }
+        ]
+    )
+    mixed = pd.concat([base, size_only], ignore_index=True)
+
+    assert salg_valid_through(mixed) == salg_valid_through(base)
+
+
+def test_flatten_exposures_output_passes_eval_disclosure_validators(tmp_path):
+    from test_b3_exposures import _synthetic_snapshot
+
+    from signals.style_basket.b3_build import flatten_exposures
+    from signals.style_basket.b3_exposures import (
+        ExposureResult,
+        compute_month_exposures,
+    )
+
+    cfg = load_b3_config()
+    # The production snapshot (b3_build monthly_style_snapshots) carries the
+    # Task 3 provenance columns; the exposures stage passes them through.
+    snapshot = _synthetic_snapshot().assign(
+        salg_source_end_date=pd.Timestamp("2020-12-31"),
+        true_first_disclosure_verified=True,
+    )
+    snapshot["ticker"] = [
+        f"{600000 + offset:06d}.SH" for offset in range(len(snapshot))
+    ]
+    size_only_ticker = snapshot.iloc[-1]["ticker"]
+    snapshot.loc[snapshot["ticker"].eq(size_only_ticker), "style_score"] = np.nan
+    result = compute_month_exposures(snapshot, cfg)
+    policies = tuple(cfg["pit"]["policies"])
+    # The frozen config needs the full 2,200-name snapshot to compute, but
+    # the schema contract survives row selection; a small slice keeps the
+    # 120-month grid below the CSV round-trip pain threshold.
+    kept = result.size.index[:8].union(pd.Index([size_only_ticker]))
+    result = ExposureResult(
+        size=result.size.loc[result.size.index.isin(kept)],
+        model=result.model.loc[result.model.index.isin(kept)],
+        q=result.q,
+        diagnostics=result.diagnostics,
+    )
+    # Coverage demands the complete 2014-2023 formation grid; stamping the
+    # same exposure result on every month keeps the producer path authentic
+    # while staying cheap (flatten assigns formation_date per key).
+    grid_calendar = pd.bdate_range("2014-01-01", "2023-12-31")
+    formations = pd.DatetimeIndex(
+        pd.Series(grid_calendar, index=grid_calendar)
+        .groupby(grid_calendar.to_period("M"))
+        .max()
+    )
+    flattened = flatten_exposures(
+        {
+            policy: {formation: result for formation in formations}
+            for policy in policies
+        }
+    )
+
+    path = tmp_path / "monthly_exposures.csv.gz"
+    flattened.to_csv(
+        path,
+        index=False,
+        compression={"method": "gzip", "mtime": 0},
+    )
+    round_tripped = pd.read_csv(path)
+
+    assert set(round_tripped["universe_role"]) == {"model", "size_only"}
+    coverage = compute_true_disclosure_coverage(round_tripped, policies)
+    assert 0.0 <= coverage["ratio"] <= 1.0
+    salg_valid_through(round_tripped)
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: loader series are truncated at the preflight boundary (C3)
+
+
+def test_run_evaluation_truncates_loader_series_at_the_preflight_boundary(tmp_path):
+    cfg, research, compact, targets, carry, equal_weight, data_end = (
+        _unblocked_run_layout(tmp_path)
+    )
+
+    def beyond(series):
+        extra_index = pd.bdate_range(
+            series.index.max() + pd.Timedelta(days=1), periods=5
+        )
+        return pd.concat(
+            [series, pd.Series(0.001, index=extra_index, name=series.name)]
+        )
+
+    result = b3_eval_module.run_evaluation(
+        cfg,
+        data_end,
+        research,
+        compact,
+        underlying_return_loader=lambda leg: beyond(targets[leg]),
+        carry_loader=lambda leg: beyond(carry[leg]),
+        equal_weight_signal=beyond(equal_weight),
+    )
+
+    assert result.blocked is False
+    manifest = json.loads(
+        (compact / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["index_500_max_date"] <= data_end
+    assert manifest["index_1000_max_date"] <= data_end
+    # Raw carry freshness evidence must keep the untruncated series boundary.
+    assert manifest["ic_carry_max_date"] > data_end
+    assert manifest["im_carry_max_date"] > data_end
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: the blocked-run evidence invariant is validator-enforced (I2)
+
+
+def test_build_run_manifest_rejects_evidence_when_family_verdict_is_null(tmp_path):
+    preflight = _blocked_preflight(tmp_path, [_preflight_blocker()])
+    verdicts = blocked_verdict_rows([_run_blocker("DATA_CONTRACT")])
+
+    with pytest.raises(RuntimeError, match="evidence"):
+        build_run_manifest(
+            load_b3_config(),
+            preflight,
+            verdicts,
+            "2026-07-10",
+            evidence=_full_evidence(),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: CLI hardening (I3 + minors)
+
+
+def test_eval_cli_explicit_mismatch_reports_pre_audit_rejection(tmp_path, capsys):
+    research, compact = _blocked_run_layout(
+        tmp_path,
+        [
+            _formation_blocker(
+                "2023-08-31", reason_code="TARGET_COORDINATE_CALIBRATION"
+            )
+        ],
+        database_evidence=_database_evidence(),
+    )
+
+    code = b3_eval_module.main(
+        [
+            "--data-end",
+            "2026-12-31",
+            "--research-output-dir",
+            str(research),
+            "--backtest-output-dir",
+            str(compact),
+        ]
+    )
+
+    assert code == 2
+    assert not (compact / "run_manifest.json").exists()
+    assert "no audit evidence" in capsys.readouterr().err
+
+
+def test_invalidate_evaluation_outputs_clears_stale_temporaries(tmp_path):
+    (tmp_path / "verdicts.csv").write_text("stale", encoding="utf-8")
+    (tmp_path / ".run_manifest.json.tmp").write_text("orphan", encoding="utf-8")
+
+    b3_eval_module._invalidate_evaluation_outputs(tmp_path)
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_eval_cli_unblocked_run_exits_zero_with_default_loaders(
+    tmp_path, monkeypatch
+):
+    cfg, research, compact, targets, carry, equal_weight, data_end = (
+        _unblocked_run_layout(tmp_path)
+    )
+    control_path = tmp_path / "equal_weight_control.csv"
+    pd.DataFrame(
+        {
+            "date": equal_weight.index.strftime("%Y-%m-%d"),
+            "factor_value": equal_weight.to_numpy(),
+        }
+    ).to_csv(control_path, index=False)
+    import backtest.data as data_module
+
+    monkeypatch.setattr(
+        data_module, "load_underlying_returns", lambda leg: targets[leg]
+    )
+    monkeypatch.setattr(data_module, "load_carry", lambda leg: carry[leg])
+    monkeypatch.setattr(
+        b3_eval_module, "DEFAULT_EQUAL_WEIGHT_SIGNAL_PATH", control_path
+    )
+
+    code = b3_eval_module.main(
+        [
+            "--research-output-dir",
+            str(research),
+            "--backtest-output-dir",
+            str(compact),
+        ]
+    )
+
+    assert code == 0
+    assert (compact / "run_manifest.json").is_file()

@@ -2,25 +2,32 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from numbers import Integral
 from pathlib import Path, PurePosixPath
-from typing import Any, TypedDict, cast
+from typing import Any, Callable, TypedDict, cast
 
 import numpy as np
 import pandas as pd
 
 from backtest.engine import run_strategy
 from backtest.b3_structure import (
+    DEFAULT_BACKTEST_OUTPUT_DIR,
+    DEFAULT_EQUAL_WEIGHT_SIGNAL_PATH,
+    DEFAULT_RESEARCH_OUTPUT_DIR,
     MODEL_COMPARISON_COLUMNS,
     MODEL_ROW_ID_COLUMNS,
     ROOT,
     _increment_direction,
+    _load_equal_weight_control,
     _validated_model_comparison_output,
+    _validated_runner_series,
     apply_model,
     fit_model,
     next_formation_targets,
@@ -28,7 +35,8 @@ from backtest.b3_structure import (
 from backtest.metrics import ann_return, max_drawdown, sharpe, turnover
 from backtest.positions import production_position
 from backtest.rotation_probe import partial_rank_ic
-from signals.style_basket.b3_config import config_hash
+from signals.style_basket.b3_build import require_parent_manifest
+from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_exposures import DataBlocked
 
 
@@ -774,7 +782,7 @@ def compute_true_disclosure_coverage(
     policies = _validated_pit_policies(pit_policies)
     roles = monthly_exposures["universe_role"]
     if any(
-        type(role) is not str or role not in {"model", "size"}
+        type(role) is not str or role not in {"model", "size_only"}
         for role in roles
     ):
         raise DataBlocked("monthly exposures universe_role is invalid")
@@ -854,7 +862,7 @@ def salg_valid_through(monthly_exposures: pd.DataFrame) -> str:
         raise DataBlocked("SalG freshness schema is incomplete")
     roles = monthly_exposures["universe_role"]
     if any(
-        type(role) is not str or role not in {"model", "size"}
+        type(role) is not str or role not in {"model", "size_only"}
         for role in roles
     ):
         raise DataBlocked("monthly exposures universe_role is invalid")
@@ -2106,6 +2114,11 @@ def build_run_manifest(
     if len(final_rows) != 1:
         raise DataBlocked("run manifest requires exactly one final verdict row")
     final_row = final_rows.iloc[0]
+    family_statistical_verdict = _verdict_cell(final_row, "statistical_verdict")
+    if family_statistical_verdict is None and evidence != RunEvidence():
+        raise RuntimeError(
+            "a run without a family statistical verdict cannot carry evidence"
+        )
 
     settings = _evaluation_config(cfg)
     maxima = {
@@ -2159,10 +2172,7 @@ def build_run_manifest(
         ),
         "database_source_evidence": preflight.database_source_evidence,
         "candidate_statistical_verdicts": candidates,
-        "family_statistical_verdict": _verdict_cell(
-            final_row,
-            "statistical_verdict",
-        ),
+        "family_statistical_verdict": family_statistical_verdict,
         "final_verdict": _verdict_cell(final_row, "final_verdict"),
     }
     if set(manifest) != set(RUN_MANIFEST_FIELDS):
@@ -4423,3 +4433,399 @@ def build_evaluation(
         bootstrap=bootstrap,
         yearly=yearly,
     )
+
+
+@dataclass(frozen=True)
+class EvaluationRunResult:
+    """What an evaluation run concluded and where it sealed the evidence."""
+
+    final_verdict: str
+    blocked: bool
+    verdicts_path: Path
+    manifest_path: Path
+
+
+# Products the eval stage owns. structure_coefficients.csv and
+# model_comparison.csv belong to the structure stage and are never rewritten or
+# invalidated here.
+_EVAL_BLOCKED_PRODUCTS = ("verdicts.csv", "run_manifest.json")
+_EVAL_FULL_ONLY_PRODUCTS = (
+    "production_metrics.csv",
+    "yearly_contribution.csv",
+    "bootstrap.csv",
+)
+
+
+def _invalidate_evaluation_outputs(backtest_root: Path) -> None:
+    """Drop eval-owned products so a rerun never leaves a stale claim behind."""
+
+    for name in _EVAL_BLOCKED_PRODUCTS + _EVAL_FULL_ONLY_PRODUCTS:
+        (backtest_root / name).unlink(missing_ok=True)
+        (backtest_root / f".{name}.tmp").unlink(missing_ok=True)
+
+
+def _write_evaluation_csv(path: Path, frame: pd.DataFrame) -> Path:
+    """Write a compact product atomically, leaving no temporary behind."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_name(f".{path.name}.tmp")
+    try:
+        frame.to_csv(temp_path, index=False)
+        temp_path.replace(path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+    return path
+
+
+def _preflight_run_blockers(
+    preflight: PreflightManifestContract,
+) -> list[dict[str, object]]:
+    """Collect the run-level blockers derivable before any data is loaded.
+
+    Preflight blockers use a per-formation schema and repeat one reason code
+    across every affected month, so they are de-duplicated by reason code into
+    the run-blocker schema. A same-reason ``DATA_BLOCKED`` sibling dominates a
+    ``COVERAGE_BLOCKED`` one. The evidence-free preflight blocker is appended
+    last because it is derived from the verified contract, not the blocker list.
+    """
+
+    translated: dict[str, dict[str, object]] = {}
+    for blocker in preflight.blockers:
+        reason = str(blocker["reason_code"])
+        status = str(blocker["status"])
+        existing = translated.get(reason)
+        if existing is None:
+            translated[reason] = {
+                "reason_code": reason,
+                "status": status,
+                "detail": str(blocker["detail"]).strip() or reason,
+                "affects_statistical": False,
+            }
+        elif status == "DATA_BLOCKED":
+            existing["status"] = status
+    run_blockers = list(translated.values())
+    evidence_blocker = database_source_evidence_blocker(preflight)
+    if evidence_blocker is not None:
+        run_blockers.append(evidence_blocker)
+    return run_blockers
+
+
+def _coerce_model_comparison(frame: pd.DataFrame) -> pd.DataFrame:
+    """Restore the dtypes a CSV round-trip loses so structure output re-validates.
+
+    ``verify_structure_provenance`` reads ``model_comparison.csv`` with a plain
+    ``read_csv``: blank canonical strings arrive as NaN and booleans as text.
+    The frozen validators are strict, so the eval stage rebuilds the exact
+    in-memory contract before handing the frame to ``build_evaluation``.
+    """
+
+    if (
+        not isinstance(frame, pd.DataFrame)
+        or list(frame.columns) != MODEL_COMPARISON_COLUMNS
+    ):
+        raise DataBlocked("structure model comparison schema mismatch")
+    output = frame.copy()
+    for column in (
+        "pit_policy",
+        "candidate",
+        "q",
+        "target",
+        "window",
+        "model",
+        "gate_name",
+    ):
+        output[column] = [
+            ""
+            if value is None
+            or (not isinstance(value, str) and pd.isna(value))
+            else str(value)
+            for value in output[column]
+        ]
+
+    def _restore_bool(value: object) -> bool:
+        if isinstance(value, (bool, np.bool_)):
+            return bool(value)
+        if value == "True":
+            return True
+        if value == "False":
+            return False
+        raise DataBlocked("structure model comparison boolean is invalid")
+
+    for column in ("is_in_sample", "affects_verdict"):
+        output[column] = [_restore_bool(value) for value in output[column]]
+    gate_rows = output["gate_name"].ne("")
+    output["gate_pass"] = [
+        _restore_bool(value) if is_gate else np.nan
+        for is_gate, value in zip(gate_rows, output["gate_pass"])
+    ]
+    return output
+
+
+def _evaluation_formation_dates(exposures: pd.DataFrame) -> pd.DatetimeIndex:
+    """Derive the monthly formation calendar the eval stage scores against."""
+
+    if (
+        not isinstance(exposures, pd.DataFrame)
+        or "formation_date" not in exposures.columns
+    ):
+        raise DataBlocked("monthly exposures lack a formation_date column")
+    return pd.DatetimeIndex(
+        sorted(pd.to_datetime(exposures["formation_date"]).unique())
+    )
+
+
+def run_evaluation(
+    cfg: dict,
+    requested_data_end: object,
+    research_output_dir: str | Path = DEFAULT_RESEARCH_OUTPUT_DIR,
+    backtest_output_dir: str | Path = DEFAULT_BACKTEST_OUTPUT_DIR,
+    *,
+    underlying_return_loader: Callable[[str], pd.Series] | None = None,
+    carry_loader: Callable[[str], pd.Series] | None = None,
+    equal_weight_signal: pd.Series | None = None,
+    equal_weight_path: str | Path | None = None,
+) -> EvaluationRunResult:
+    """Verify staged provenance and emit fail-closed B3 verdicts.
+
+    Preflight is verified first. If any run-level blocker is derivable before
+    reading data, only the two blocked products are written and the run never
+    requests states, structure files or returns.
+
+    A ``requested_data_end`` of ``None`` (bare CLI runs) adopts the verified
+    preflight ``data_end`` as the run boundary; an explicit value must match
+    the preflight boundary exactly.
+    """
+
+    research_root = Path(research_output_dir)
+    backtest_root = Path(backtest_output_dir)
+    _evaluation_config(cfg)
+    _invalidate_evaluation_outputs(backtest_root)
+    preflight = verify_preflight_manifest(
+        research_root,
+        config_hash(cfg),
+        requested_data_end,
+    )
+    resolved_data_end = (
+        preflight.data_end
+        if requested_data_end is None
+        else _requested_date_string(requested_data_end, "requested_data_end")
+    )
+    run_blockers = _preflight_run_blockers(preflight)
+    if run_blockers:
+        verdicts = blocked_verdict_rows(run_blockers)
+        manifest = build_run_manifest(
+            cfg,
+            preflight,
+            verdicts,
+            resolved_data_end,
+        )
+        verdicts_path = _write_evaluation_csv(
+            backtest_root / "verdicts.csv",
+            verdicts,
+        )
+        manifest_path = write_run_manifest(
+            backtest_root / "run_manifest.json",
+            manifest,
+        )
+        return EvaluationRunResult(
+            final_verdict=str(manifest["final_verdict"]),
+            blocked=True,
+            verdicts_path=verdicts_path,
+            manifest_path=manifest_path,
+        )
+    # Unblocked before loading data: verify staged provenance, then evaluate.
+    cutoff = pd.Timestamp(preflight.data_end)
+    require_parent_manifest(research_root, "exposures", cfg, cutoff)
+    require_parent_manifest(research_root, "states", cfg, cutoff)
+    structure = verify_structure_provenance(
+        backtest_root,
+        config_hash(cfg),
+        resolved_data_end,
+    )
+    model_comparison = _coerce_model_comparison(structure.model_comparison)
+
+    exposures = pd.read_csv(research_root / "monthly_exposures.csv.gz")
+    state_components = pd.read_csv(research_root / "state_components.csv")
+    formation_dates = _evaluation_formation_dates(exposures)
+
+    if underlying_return_loader is None or carry_loader is None:
+        from backtest.data import load_carry, load_underlying_returns
+
+        underlying_return_loader = underlying_return_loader or load_underlying_returns
+        carry_loader = carry_loader or load_carry
+    target_returns = {
+        target: _validated_runner_series(
+            underlying_return_loader(target),
+            f"evaluation target returns.{target}",
+            cutoff,
+        )
+        for target in ("blend", "500", "1000")
+    }
+    # Carry freshness must be computed from the raw untruncated series
+    # (plan Task 10 Step 5); the evaluation itself consumes carry on the
+    # truncated cash calendar, which materialize_carry enforces strictly.
+    raw_carry = {leg: carry_loader(leg) for leg in ("500", "1000")}
+    evaluation_carry = {
+        leg: (
+            series.loc[series.index <= cutoff]
+            if isinstance(series, pd.Series)
+            and isinstance(series.index, pd.DatetimeIndex)
+            else series
+        )
+        for leg, series in raw_carry.items()
+    }
+    if equal_weight_signal is None:
+        equal_weight_signal = _load_equal_weight_control(
+            equal_weight_path
+            if equal_weight_path is not None
+            else DEFAULT_EQUAL_WEIGHT_SIGNAL_PATH,
+            cutoff,
+        )
+    else:
+        equal_weight_signal = _validated_runner_series(
+            equal_weight_signal,
+            "equal_weight control",
+            cutoff,
+        )
+
+    frames = build_evaluation(
+        state_components,
+        model_comparison,
+        target_returns,
+        evaluation_carry,
+        equal_weight_signal,
+        formation_dates,
+        cfg,
+    )
+
+    # Data-dependent run blockers become derivable only after the series load;
+    # they override the final verdict without erasing the statistical evidence.
+    expected_latest_cash = str(target_returns["500"].index.max().date())
+    carry_freshness = compute_raw_carry_freshness(
+        raw_carry["500"],
+        raw_carry["1000"],
+        expected_latest_cash,
+    )
+    coverage = compute_true_disclosure_coverage(exposures, cfg["pit"]["policies"])
+    salg_through = salg_valid_through(exposures)
+    data_blockers = freshness_blockers(
+        coverage,
+        salg_through,
+        resolved_data_end,
+        carry_freshness,
+    )
+    verdicts = assemble_verdicts(
+        model_comparison,
+        frames,
+        cfg,
+        run_blockers=data_blockers,
+    )
+
+    evidence = RunEvidence(
+        stock_price_max_date=None,
+        index_500_max_date=str(target_returns["500"].index.max().date()),
+        index_1000_max_date=str(target_returns["1000"].index.max().date()),
+        ic_carry_max_date=cast("str | None", carry_freshness["ic_carry_max_date"]),
+        im_carry_max_date=cast("str | None", carry_freshness["im_carry_max_date"]),
+        salg_valid_through=salg_through,
+        true_first_disclosure_coverage=coverage,
+        stage_manifest_hashes={
+            "preflight": preflight.manifest_hash,
+            "exposures": _sha256_file(
+                research_root / "manifests" / "exposures.json"
+            ),
+            "states": _sha256_file(research_root / "manifests" / "states.json"),
+            "structure": structure.manifest_hash,
+        },
+        input_file_hashes={
+            "monthly_exposures.csv.gz": _sha256_file(
+                research_root / "monthly_exposures.csv.gz"
+            ),
+            "state_components.csv": _sha256_file(
+                research_root / "state_components.csv"
+            ),
+            **dict(structure.output_hashes),
+        },
+    )
+    manifest = build_run_manifest(
+        cfg,
+        preflight,
+        verdicts,
+        resolved_data_end,
+        evidence=evidence,
+    )
+
+    verdicts_path = _write_evaluation_csv(backtest_root / "verdicts.csv", verdicts)
+    _write_evaluation_csv(
+        backtest_root / "production_metrics.csv",
+        frames.production_metrics,
+    )
+    _write_evaluation_csv(
+        backtest_root / "yearly_contribution.csv",
+        frames.yearly,
+    )
+    _write_evaluation_csv(backtest_root / "bootstrap.csv", frames.bootstrap)
+    manifest_path = write_run_manifest(
+        backtest_root / "run_manifest.json",
+        manifest,
+    )
+    final = str(manifest["final_verdict"])
+    return EvaluationRunResult(
+        final_verdict=final,
+        blocked=final in {"DATA_BLOCKED", "COVERAGE_BLOCKED"},
+        verdicts_path=verdicts_path,
+        manifest_path=manifest_path,
+    )
+
+
+def _cli_data_end(value: str) -> str:
+    try:
+        return _requested_date_string(value, "requested_data_end")
+    except DataBlocked as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="B3 fail-closed same-scale evaluation and verdicts"
+    )
+    parser.add_argument(
+        "--data-end",
+        type=_cli_data_end,
+        default=None,
+    )
+    parser.add_argument(
+        "--research-output-dir",
+        type=Path,
+        default=DEFAULT_RESEARCH_OUTPUT_DIR,
+    )
+    parser.add_argument(
+        "--backtest-output-dir",
+        type=Path,
+        default=DEFAULT_BACKTEST_OUTPUT_DIR,
+    )
+    args = parser.parse_args(argv)
+    cfg = load_b3_config()
+    try:
+        result = run_evaluation(
+            cfg,
+            args.data_end,
+            args.research_output_dir,
+            args.backtest_output_dir,
+        )
+    except DataBlocked as exc:
+        # Pre-audit rejection: unlike an audited block, nothing was written.
+        print(
+            f"DATA_BLOCKED (pre-audit rejection, no audit evidence written): {exc}",
+            file=sys.stderr,
+        )
+        return 2
+    if result.final_verdict == "DATA_BLOCKED":
+        return 2
+    if result.final_verdict == "COVERAGE_BLOCKED":
+        return 3
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
