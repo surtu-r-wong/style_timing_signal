@@ -55,6 +55,77 @@ STAGE_OUTPUTS = {
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
 
+class DatabaseEvidenceRecorder:
+    """Accumulates per-source query evidence for the preflight manifest.
+
+    payload() stays None until public.trading_calendar has been recorded:
+    partial evidence from an early-blocked run must not reach the manifest,
+    where the eval-side validator would reject the whole document.
+    """
+
+    def __init__(self) -> None:
+        self._sources: dict[str, dict] = {}
+
+    def record(
+        self,
+        name: str,
+        template: str,
+        frame: pd.DataFrame,
+        date_column: str | None = None,
+    ) -> None:
+        digest = hashlib.sha256(template.encode("utf-8")).hexdigest()
+        min_date: str | None = None
+        max_date: str | None = None
+        if (
+            date_column is not None
+            and date_column in frame.columns
+            and len(frame)
+        ):
+            dates = pd.to_datetime(
+                frame[date_column],
+                errors="coerce",
+            ).dropna()
+            if len(dates):
+                min_date = str(dates.min().date())
+                max_date = str(dates.max().date())
+        entry = self._sources.get(name)
+        if entry is None:
+            self._sources[name] = {
+                "query_template_hash": digest,
+                "row_count": int(len(frame)),
+                "min_date": min_date,
+                "max_date": max_date,
+            }
+            return
+        if entry["query_template_hash"] != digest:
+            raise RuntimeError(
+                f"conflicting query template recorded for {name}"
+            )
+        entry["row_count"] += int(len(frame))
+        if min_date is not None:
+            entry["min_date"] = (
+                min_date
+                if entry["min_date"] is None
+                else min(entry["min_date"], min_date)
+            )
+            entry["max_date"] = (
+                max_date
+                if entry["max_date"] is None
+                else max(entry["max_date"], max_date)
+            )
+
+    def payload(self) -> dict | None:
+        if "public.trading_calendar" not in self._sources:
+            return None
+        names = sorted(self._sources)
+        return {
+            "consumed_sources": names,
+            "sources": {
+                name: dict(self._sources[name]) for name in names
+            },
+        }
+
+
 @dataclass(frozen=True)
 class B3Sources:
     snapshots: Callable[..., dict[pd.Timestamp, pd.DataFrame]]
@@ -64,6 +135,7 @@ class B3Sources:
     ]
     target_returns: Callable[..., dict[str, pd.Series]]
     carry: Callable[..., pd.DataFrame | pd.Series]
+    database_evidence: Callable[[], dict | None] | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +162,7 @@ def _write_stage_manifest(
     outputs: list[str | Path],
     status: str,
     blockers: list[dict],
+    database_source_evidence: dict | None = None,
 ) -> Path:
     root = Path(output_dir)
     manifest_dir = root / "manifests"
@@ -130,6 +203,8 @@ def _write_stage_manifest(
         "blockers": list(blockers),
         "outputs": output_hashes,
     }
+    if database_source_evidence is not None:
+        payload["database_source_evidence"] = database_source_evidence
     manifest_path = manifest_dir / f"{stage}.json"
     temp_path = manifest_dir / f".{stage}.json.tmp"
     rendered = json.dumps(
@@ -669,6 +744,7 @@ def _fetch_raw_financial(
     start,
     end,
     db,
+    recorder: DatabaseEvidenceRecorder | None = None,
 ) -> pd.DataFrame:
     """Read source-preserving financial facts across the CSMAR/Wind cutoff.
 
@@ -712,6 +788,13 @@ def _fetch_raw_financial(
             if not rows:
                 continue
             facts = pd.DataFrame(rows, columns=columns)
+            if recorder is not None:
+                recorder.record(
+                    f"{db['schema']}.stock_financial",
+                    sql,
+                    facts,
+                    "end_date",
+                )
             facts = _validate_raw_financial_facts(facts)
             translated = []
             for data, source, statement in zip(
@@ -915,24 +998,27 @@ def _fetch_stock_return_status(
 def _formation_inputs(
     db: dict,
     data_end: pd.Timestamp,
+    recorder: DatabaseEvidenceRecorder | None = None,
 ) -> dict[str, object]:
     data_end = pd.Timestamp(data_end)
     schema = db["schema"]
     calendar_start = pd.Timestamp("2013-05-01")
     calendar_end = data_end.to_period("M").to_timestamp("M")
 
+    from backtest.b3_eval import TRADING_CALENDAR_QUERY_TEMPLATE
+
     authoritative = _read_sql(
         db,
-        """
-            SELECT calendar_date, sfe
-            FROM public.trading_calendar
-            WHERE calendar_date BETWEEN '2013-05-01'
-                                    AND %(calendar_end)s
-              AND deleted_at IS NULL
-            ORDER BY calendar_date
-        """,
+        TRADING_CALENDAR_QUERY_TEMPLATE,
         {"calendar_end": calendar_end.date()},
     )
+    if recorder is not None:
+        recorder.record(
+            "public.trading_calendar",
+            TRADING_CALENDAR_QUERY_TEMPLATE,
+            authoritative,
+            "calendar_date",
+        )
     if authoritative.empty:
         raise DataBlocked("authoritative formation calendar is empty")
     _require_columns(
@@ -997,17 +1083,25 @@ def _formation_inputs(
             "formation trading calendar has no completed months"
         )
 
-    calendar = _read_sql(
-        db,
-        f"""
+    calendar_sql = f"""
             SELECT trade_date
             FROM {schema}.index_daily
             WHERE index_code = '000905.SH'
               AND trade_date BETWEEN '2013-05-01' AND %(end)s
             ORDER BY trade_date
-        """,
+        """
+    calendar = _read_sql(
+        db,
+        calendar_sql,
         {"end": data_end.date()},
     )
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.index_daily",
+            calendar_sql,
+            calendar,
+            "trade_date",
+        )
     if calendar.empty:
         raise DataBlocked("formation trading calendar is empty")
     _require_columns(calendar, {"trade_date"}, "formation calendar")
@@ -1035,14 +1129,17 @@ def _formation_inputs(
         )
     month_ends = [pd.Timestamp(date) for date in completed_months]
 
-    meta = _read_sql(
-        db,
-        f"""
+    meta_sql = f"""
             SELECT ts_code AS ticker, list_date, delist_date
             FROM {schema}.stock_meta
             ORDER BY ts_code
-        """,
+        """
+    meta = _read_sql(
+        db,
+        meta_sql,
     )
+    if recorder is not None:
+        recorder.record(f"{schema}.stock_meta", meta_sql, meta)
     if meta.empty:
         raise DataBlocked("stock metadata is empty")
     _require_columns(
@@ -1058,16 +1155,24 @@ def _formation_inputs(
         raise DataBlocked("stock metadata is empty")
     tickers = meta["ticker"].tolist()
 
-    closes = _read_sql(
-        db,
-        f"""
+    closes_sql = f"""
             SELECT ts_code AS ticker, trade_date, close
             FROM {schema}.stock_daily_price
             WHERE trade_date = ANY(%(dates)s)
             ORDER BY trade_date, ts_code
-        """,
+        """
+    closes = _read_sql(
+        db,
+        closes_sql,
         {"dates": [date.date() for date in month_ends]},
     )
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.stock_daily_price",
+            closes_sql,
+            closes,
+            "trade_date",
+        )
     _require_columns(
         closes,
         {"ticker", "trade_date", "close"},
@@ -1087,9 +1192,7 @@ def _formation_inputs(
         values="close",
     )
 
-    shares = _read_sql(
-        db,
-        f"""
+    shares_sql = f"""
             SELECT ts_code,
                    effective_date AS end_date,
                    available_date AS known_date,
@@ -1097,8 +1200,18 @@ def _formation_inputs(
             FROM {schema}.stock_share_capital
             WHERE total_shares IS NOT NULL AND total_shares > 0
             ORDER BY ts_code, effective_date
-        """,
+        """
+    shares = _read_sql(
+        db,
+        shares_sql,
     )
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.stock_share_capital",
+            shares_sql,
+            shares,
+            "end_date",
+        )
     _require_columns(
         shares,
         {"ts_code", "end_date", "known_date", "total_shares"},
@@ -1113,17 +1226,25 @@ def _formation_inputs(
     )
     shares["known_date"] = shares["known_date"].fillna(shares["end_date"])
 
-    industry = _read_sql(
-        db,
-        f"""
+    industry_sql = f"""
             SELECT ts_code AS ticker,
                    effective_date,
                    level_1_name AS industry
             FROM {schema}.industry_classification
             WHERE classification_type = 'CITIC'
             ORDER BY ts_code, effective_date
-        """,
+        """
+    industry = _read_sql(
+        db,
+        industry_sql,
     )
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.industry_classification",
+            industry_sql,
+            industry,
+            "effective_date",
+        )
     _require_columns(
         industry,
         {"ticker", "effective_date", "industry"},
@@ -1136,25 +1257,31 @@ def _formation_inputs(
         "industry history",
     )
 
-    suspensions = _read_sql(
-        db,
-        f"""
+    suspensions_sql = f"""
             SELECT trade_date, ts_code
             FROM {schema}.stock_suspension
             WHERE trade_date = ANY(%(dates)s)
             ORDER BY trade_date, ts_code
-        """,
+        """
+    suspensions = _read_sql(
+        db,
+        suspensions_sql,
         {"dates": [date.date() for date in month_ends]},
     )
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.stock_suspension",
+            suspensions_sql,
+            suspensions,
+            "trade_date",
+        )
     _require_columns(
         suspensions,
         {"trade_date", "ts_code"},
         "suspension evidence",
     )
 
-    carried_closes = _read_sql(
-        db,
-        f"""
+    carried_sql = f"""
             SELECT s.trade_date AS formation_date,
                    s.ts_code,
                    p.trade_date AS close_date,
@@ -1170,9 +1297,19 @@ def _formation_inputs(
             ) p ON TRUE
             WHERE s.trade_date = ANY(%(dates)s)
             ORDER BY s.trade_date, s.ts_code
-        """,
+        """
+    carried_closes = _read_sql(
+        db,
+        carried_sql,
         {"dates": [date.date() for date in month_ends]},
     )
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.stock_daily_price_last_close",
+            carried_sql,
+            carried_closes,
+            "close_date",
+        )
     _require_columns(
         carried_closes,
         {"formation_date", "ts_code", "close_date", "close"},
@@ -1184,6 +1321,7 @@ def _formation_inputs(
         "2003-01-01",
         str(data_end.date()),
         db,
+        recorder=recorder,
     )
     return {
         "month_ends": month_ends,
@@ -1765,6 +1903,7 @@ def default_sources(db: dict) -> B3Sources:
     from backtest.data import load_carry, load_underlying_returns
 
     cached_inputs: dict[str, dict[str, object]] = {}
+    evidence_recorder = DatabaseEvidenceRecorder()
 
     def inputs(data_end: pd.Timestamp) -> dict[str, object]:
         key = str(pd.Timestamp(data_end).date())
@@ -1772,6 +1911,7 @@ def default_sources(db: dict) -> B3Sources:
             cached_inputs[key] = _formation_inputs(
                 db,
                 pd.Timestamp(data_end),
+                recorder=evidence_recorder,
             )
         return cached_inputs[key]
 
@@ -1793,9 +1933,7 @@ def default_sources(db: dict) -> B3Sources:
         )
 
     def constituents() -> pd.DataFrame:
-        frame = _read_sql(
-            db,
-            f"""
+        constituents_sql = f"""
                 SELECT index_code,
                        ts_code AS ticker,
                        effective_date
@@ -1803,7 +1941,16 @@ def default_sources(db: dict) -> B3Sources:
                 WHERE effective_date >= '2021-01-01'
                   AND index_code IN ('000905.SH', '000852.SH')
                 ORDER BY index_code, effective_date, ts_code
-            """,
+            """
+        frame = _read_sql(
+            db,
+            constituents_sql,
+        )
+        evidence_recorder.record(
+            f"{db['schema']}.index_constituent",
+            constituents_sql,
+            frame,
+            "effective_date",
         )
         return _validated_constituents(frame)
 
@@ -1838,6 +1985,7 @@ def default_sources(db: dict) -> B3Sources:
         ),
         target_returns=targets,
         carry=carries,
+        database_evidence=evidence_recorder.payload,
     )
 
 
@@ -2273,6 +2421,10 @@ def run_preflight(
     diagnostics_path = output_root / "exposure_diagnostics.csv"
     _write_csv_atomic(audit, audit_path, index=False)
     _write_csv_atomic(diagnostics, diagnostics_path, index=False)
+    database_evidence = None
+    evidence_source = getattr(sources, "database_evidence", None)
+    if evidence_source is not None:
+        database_evidence = evidence_source()
     _write_stage_manifest(
         output_root,
         "preflight",
@@ -2281,6 +2433,7 @@ def run_preflight(
         [audit_path, diagnostics_path],
         final_status,
         blockers,
+        database_source_evidence=database_evidence,
     )
 
     return PreflightOutcome(

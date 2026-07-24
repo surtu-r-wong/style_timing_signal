@@ -2858,7 +2858,7 @@ def test_formation_inputs_excludes_bj_and_hk_markets(monkeypatch):
     )
     captured = {}
 
-    def fake_fetch_raw_financial(tickers, start, end, db):
+    def fake_fetch_raw_financial(tickers, start, end, db, recorder=None):
         captured["tickers"] = list(tickers)
         return pd.DataFrame()
 
@@ -3017,6 +3017,126 @@ def test_preflight_reports_suspended_carry_forward_distribution(tmp_path):
     assert set(rows["side"]) == {"SUSPENDED_CARRY_FORWARD"}
     assert set(rows["status"]) == {"REPORT_ONLY"}
     assert rows["eligible_count"].astype(int).tolist() == [2] * len(rows)
+
+
+def test_formation_inputs_records_database_evidence(monkeypatch):
+    from backtest.b3_eval import TRADING_CALENDAR_QUERY_TEMPLATE_HASH
+    from signals.style_basket.b3_build import DatabaseEvidenceRecorder
+
+    frames = _valid_formation_sql_frames()
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+    recorder = DatabaseEvidenceRecorder()
+
+    _formation_inputs(
+        {"schema": "public"},
+        pd.Timestamp("2021-03-31"),
+        recorder=recorder,
+    )
+
+    payload = recorder.payload()
+    assert payload is not None
+    names = payload["consumed_sources"]
+    assert names == sorted(names)
+    assert "public.trading_calendar" in names
+    assert "public.stock_daily_price" in names
+    assert "public.stock_suspension" in names
+    calendar = payload["sources"]["public.trading_calendar"]
+    assert (
+        calendar["query_template_hash"]
+        == TRADING_CALENDAR_QUERY_TEMPLATE_HASH
+    )
+    assert calendar["row_count"] > 0
+    assert calendar["min_date"] is not None
+    meta_entry = payload["sources"]["public.stock_meta"]
+    assert meta_entry["min_date"] is None
+    assert meta_entry["max_date"] is None
+
+
+def test_preflight_manifest_database_evidence_contract_roundtrip(tmp_path):
+    import json as json_module
+    from dataclasses import replace
+
+    from backtest.b3_eval import (
+        TRADING_CALENDAR_QUERY_TEMPLATE,
+        database_source_evidence_blocker,
+        verify_preflight_manifest,
+    )
+    from signals.style_basket.b3_build import DatabaseEvidenceRecorder
+    from signals.style_basket.b3_config import config_hash
+
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    recorder = DatabaseEvidenceRecorder()
+    recorder.record(
+        "public.trading_calendar",
+        TRADING_CALENDAR_QUERY_TEMPLATE,
+        pd.DataFrame(
+            {
+                "calendar_date": [pd.Timestamp("2021-01-29")],
+                "sfe": [True],
+            }
+        ),
+        "calendar_date",
+    )
+    sources = replace(
+        _preflight_sources(
+            snapshot,
+            _constituents_for_snapshot(snapshot),
+        ),
+        database_evidence=recorder.payload,
+    )
+
+    got = run_preflight(
+        cfg,
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "OK"
+    manifest = json_module.loads(
+        (tmp_path / "manifests" / "preflight.json").read_text()
+    )
+    assert "database_source_evidence" in manifest
+    contract = verify_preflight_manifest(tmp_path, config_hash(cfg))
+    assert contract.database_source_evidence is not None
+    assert database_source_evidence_blocker(contract) is None
+
+
+def test_preflight_manifest_omits_database_evidence_when_unavailable(
+    tmp_path,
+):
+    assert (
+        B3Sources.__dataclass_fields__["database_evidence"].default is None
+    )
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+    )
+
+    got = run_preflight(
+        cfg,
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "OK"
+    import json as json_module
+
+    manifest = json_module.loads(
+        (tmp_path / "manifests" / "preflight.json").read_text()
+    )
+    assert "database_source_evidence" not in manifest
 
 
 def test_preflight_classifies_invalid_constituent_dates_and_writes_manifest(
