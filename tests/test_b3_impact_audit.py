@@ -325,3 +325,153 @@ def test_summarize_impacts_prioritizes_active_2023_names():
     assert got.loc[1, "listing_status_at_data_end"] == "DELISTED"
     assert got.loc[0, "exact_row_null_close_months"] == 1
     assert got.loc[1, "possible_delist_boundary_months"] == 1
+
+
+class _FakeConnection:
+    def __init__(self):
+        self.readonly = None
+        self.autocommit = None
+
+    def set_session(self, *, readonly, autocommit):
+        self.readonly = readonly
+        self.autocommit = autocommit
+
+
+def _small_anchors() -> object:
+    formations = pd.DataFrame(
+        {
+            "formation_date": pd.to_datetime(["2020-01-31", "2020-02-28"]),
+            "required_formation": [False, True],
+        }
+    )
+    expected = pd.DataFrame(
+        {
+            "DATA_MISSING_SHARES": [1, 0],
+            "DATA_MISSING_CLOSE": [0, 1],
+            "required_formation": [False, True],
+        },
+        index=pd.DatetimeIndex(
+            ["2020-01-31", "2020-02-28"],
+            name="formation_date",
+        ),
+    )
+    return AUDIT.AuditAnchors(formations, expected, ("A.SZ",))
+
+
+def test_connect_marks_transaction_read_only(monkeypatch):
+    fake = _FakeConnection()
+    monkeypatch.setattr(
+        AUDIT.psycopg2,
+        "connect",
+        lambda **kwargs: fake,
+    )
+
+    got = AUDIT.connect_read_only(
+        {
+            "host": "db",
+            "port": 5432,
+            "name": "market_monitor",
+            "user": "reader",
+            "password": "secret",
+            "schema": "stock_selector",
+        }
+    )
+
+    assert got is fake
+    assert fake.readonly is True
+    assert fake.autocommit is False
+
+
+def test_reconcile_rejects_one_month_mismatch():
+    anchors = _small_anchors()
+    shares = pd.DataFrame(
+        {
+            "ts_code": ["A.SZ"],
+            "formation_date": ["2020-01-31"],
+            "required_formation": [False],
+        }
+    )
+    closes = pd.DataFrame(
+        {
+            "ts_code": ["B.SZ"],
+            "formation_date": ["2020-02-28"],
+            "required_formation": [True],
+        }
+    )
+    AUDIT.reconcile_details(shares, closes, anchors)
+
+    with pytest.raises(AUDIT.AuditContractError, match="monthly"):
+        AUDIT.reconcile_details(shares.iloc[0:0], closes, anchors)
+
+
+def test_publish_outputs_leaves_no_formal_files_on_invalid_artifact(tmp_path):
+    artifacts = {
+        "shares_tail_impact_by_ticker.csv": pd.DataFrame(
+            {"ts_code": ["A.SZ"], "priority_rank": [1]}
+        ),
+        "shares_tail_impact_detail.csv": pd.DataFrame(
+            {"ts_code": ["A.SZ"]}
+        ),
+        "close_gap_impact_by_ticker.csv": pd.DataFrame(
+            {"ts_code": ["B.SZ"], "priority_rank": [1]}
+        ),
+        "close_gap_impact_detail.csv": pd.DataFrame(
+            {
+                "ts_code": ["B.SZ"],
+                "reason_code": ["DATA_MISSING_CLOSE"],
+                "evidence_bucket": ["UNEXPLAINED_EXACT_DATE_GAP"],
+            }
+        ),
+    }
+
+    with pytest.raises(AUDIT.AuditContractError, match="reason_code"):
+        AUDIT.publish_outputs(
+            tmp_path,
+            artifacts,
+            {"schema": "stock_selector"},
+        )
+
+    assert not list(tmp_path.glob("*impact*.csv"))
+    assert not (tmp_path / "impact_audit_manifest.json").exists()
+
+
+def test_fetch_sources_rejects_invalid_schema_before_sql():
+    with pytest.raises(AUDIT.AuditContractError, match="schema"):
+        AUDIT.fetch_audit_sources(
+            object(),
+            "stock_selector;DROP",
+            pd.DataFrame(
+                {
+                    "formation_date": [pd.Timestamp("2023-12-29")],
+                    "required_formation": [True],
+                }
+            ),
+            ("A.SZ",),
+        )
+
+
+def test_main_rejects_hash_mismatch_before_database_connect(
+    tmp_path,
+    monkeypatch,
+):
+    tail_path = tmp_path / "tail.csv"
+    coverage_path = tmp_path / "coverage.csv"
+    _tail_frame(57).to_csv(tail_path, index=False)
+    _coverage_frame().to_csv(coverage_path, index=False)
+    monkeypatch.setattr(
+        AUDIT,
+        "connect_read_only",
+        lambda *_: pytest.fail("database connection must not be attempted"),
+    )
+
+    with pytest.raises(AUDIT.AuditContractError, match="tail SHA-256"):
+        AUDIT.main(
+            [
+                "--tail",
+                str(tail_path),
+                "--coverage-audit",
+                str(coverage_path),
+                "--expected-tail-sha256",
+                "0" * 64,
+            ]
+        )

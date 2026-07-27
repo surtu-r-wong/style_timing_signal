@@ -3,12 +3,21 @@
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
+import re
+import shutil
+import tempfile
+from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
+import psycopg2
+import yaml
 
 
 HERE = Path(__file__).resolve().parent
@@ -704,3 +713,592 @@ def summarize_impacts(
     ).reset_index(drop=True)
     out["priority_rank"] = np.arange(1, len(out) + 1)
     return out
+
+
+_SCHEMA_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+ARTIFACT_NAMES = (
+    "shares_tail_impact_by_ticker.csv",
+    "shares_tail_impact_detail.csv",
+    "close_gap_impact_by_ticker.csv",
+    "close_gap_impact_detail.csv",
+)
+
+
+def connect_read_only(db: dict):
+    conn = psycopg2.connect(
+        host=db["host"],
+        port=db["port"],
+        dbname=db["name"],
+        user=db["user"],
+        password=db["password"],
+        connect_timeout=8,
+        options="-c statement_timeout=180000",
+    )
+    conn.set_session(readonly=True, autocommit=False)
+    return conn
+
+
+def reconcile_details(
+    shares_detail: pd.DataFrame,
+    close_detail: pd.DataFrame,
+    anchors: AuditAnchors,
+) -> None:
+    expected = anchors.expected_counts.copy()
+    expected.index = pd.DatetimeIndex(expected.index)
+    for reason, detail in (
+        ("DATA_MISSING_SHARES", shares_detail),
+        ("DATA_MISSING_CLOSE", close_detail),
+    ):
+        _require_columns(
+            detail,
+            {"ts_code", "formation_date", "required_formation"},
+            f"{reason} detail",
+        )
+        frame = _parse_dates(detail, ("formation_date",))
+        frame["required_formation"] = _coerce_bool(
+            frame["required_formation"],
+            f"{reason} required_formation",
+        )
+        unknown_dates = set(frame["formation_date"]) - set(expected.index)
+        if unknown_dates:
+            raise AuditContractError(
+                f"{reason} contains unknown formation dates"
+            )
+        actual = (
+            frame.groupby("formation_date")
+            .size()
+            .reindex(expected.index, fill_value=0)
+            .astype(int)
+        )
+        wanted = expected[reason].astype(int)
+        if not actual.equals(wanted):
+            mismatch = actual.ne(wanted)
+            first = actual.index[mismatch][0]
+            raise AuditContractError(
+                f"{reason} monthly count mismatch at {first.date()}: "
+                f"got {actual.loc[first]}, expected {wanted.loc[first]}"
+            )
+        wanted_required = int(
+            expected.loc[expected["required_formation"], reason].sum()
+        )
+        if int(frame["required_formation"].sum()) != wanted_required:
+            raise AuditContractError(
+                f"{reason} required count mismatch"
+            )
+    if set(shares_detail["ts_code"]) != set(anchors.tail_tickers):
+        raise AuditContractError(
+            "DATA_MISSING_SHARES ticker set differs from tail"
+        )
+
+
+def _validate_artifacts(artifacts: dict[str, pd.DataFrame]) -> None:
+    if set(artifacts) != set(ARTIFACT_NAMES):
+        raise AuditContractError("artifact file set differs from contract")
+    requirements = {
+        "shares_tail_impact_by_ticker.csv": {
+            "ts_code",
+            "priority_rank",
+        },
+        "shares_tail_impact_detail.csv": {
+            "ts_code",
+            "reason_code",
+        },
+        "close_gap_impact_by_ticker.csv": {
+            "ts_code",
+            "priority_rank",
+        },
+        "close_gap_impact_detail.csv": {
+            "ts_code",
+            "reason_code",
+            "evidence_bucket",
+        },
+    }
+    for name, required in requirements.items():
+        _require_columns(artifacts[name], required, name)
+    for name in (
+        "shares_tail_impact_detail.csv",
+        "close_gap_impact_detail.csv",
+    ):
+        reason = artifacts[name]["reason_code"]
+        if reason.isna().any() or reason.astype(str).str.strip().eq("").any():
+            raise AuditContractError(f"{name} reason_code is blank")
+    bucket = artifacts["close_gap_impact_detail.csv"][
+        "evidence_bucket"
+    ]
+    if bucket.isna().any() or bucket.astype(str).str.strip().eq("").any():
+        raise AuditContractError("close detail evidence_bucket is blank")
+
+
+def publish_outputs(
+    output_dir: str | Path,
+    artifacts: dict[str, pd.DataFrame],
+    manifest_base: dict,
+) -> dict:
+    _validate_artifacts(artifacts)
+    root = Path(output_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    staging = Path(
+        tempfile.mkdtemp(prefix=".impact-audit-", dir=root)
+    )
+    try:
+        outputs = {}
+        for name in ARTIFACT_NAMES:
+            path = staging / name
+            artifacts[name].to_csv(
+                path,
+                index=False,
+                date_format="%Y-%m-%d",
+                lineterminator="\n",
+            )
+            outputs[name] = {
+                "row_count": int(len(artifacts[name])),
+                "sha256": sha256_file(path),
+            }
+        manifest = {
+            **manifest_base,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "outputs": outputs,
+        }
+        manifest_path = staging / "impact_audit_manifest.json"
+        manifest_path.write_text(
+            json.dumps(
+                manifest,
+                sort_keys=True,
+                ensure_ascii=False,
+                indent=2,
+                default=str,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        for name in (*ARTIFACT_NAMES, "impact_audit_manifest.json"):
+            os.replace(staging / name, root / name)
+        return manifest
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+def _validated_schema(schema: str) -> str:
+    if not _SCHEMA_RE.fullmatch(str(schema)):
+        raise AuditContractError(f"invalid database schema: {schema!r}")
+    return str(schema)
+
+
+def _read_sql(conn, sql: str, params=None) -> pd.DataFrame:
+    return pd.read_sql_query(sql, conn, params=params)
+
+
+def fetch_audit_sources(
+    conn,
+    schema: str,
+    formations: pd.DataFrame,
+    tail_tickers: tuple[str, ...],
+) -> dict[str, pd.DataFrame]:
+    schema = _validated_schema(schema)
+    dates = [
+        value.date()
+        for value in pd.to_datetime(formations["formation_date"])
+    ]
+    meta = _read_sql(
+        conn,
+        f"""
+        SELECT ts_code AS ticker, list_date, delist_date
+        FROM {schema}.stock_meta
+        ORDER BY ts_code
+        """,
+    )
+    exact_closes = _read_sql(
+        conn,
+        f"""
+        SELECT ts_code AS ticker, trade_date AS formation_date,
+               close AS raw_close, TRUE AS raw_price_row_present
+        FROM {schema}.stock_daily_price
+        WHERE trade_date = ANY(%(dates)s)
+        ORDER BY trade_date, ts_code
+        """,
+        {"dates": dates},
+    )
+    shares = _read_sql(
+        conn,
+        f"""
+        SELECT ts_code, effective_date AS end_date,
+               COALESCE(available_date, effective_date) AS known_date,
+               total_shares
+        FROM {schema}.stock_share_capital
+        WHERE ts_code = ANY(%(tickers)s)
+          AND total_shares IS NOT NULL
+          AND total_shares > 0
+        ORDER BY ts_code, effective_date
+        """,
+        {"tickers": list(tail_tickers)},
+    )
+    suspensions = _read_sql(
+        conn,
+        f"""
+        SELECT ts_code AS ticker, trade_date AS formation_date
+        FROM {schema}.stock_suspension
+        WHERE trade_date = ANY(%(dates)s)
+        ORDER BY trade_date, ts_code
+        """,
+        {"dates": dates},
+    )
+    carried_closes = _read_sql(
+        conn,
+        f"""
+        SELECT s.ts_code AS ticker, s.trade_date AS formation_date,
+               p.trade_date AS carry_close_date, p.close AS carry_close
+        FROM {schema}.stock_suspension s
+        JOIN LATERAL (
+            SELECT q.trade_date, q.close
+            FROM {schema}.stock_daily_price q
+            WHERE q.ts_code = s.ts_code
+              AND q.trade_date <= s.trade_date
+            ORDER BY q.trade_date DESC
+            LIMIT 1
+        ) p ON TRUE
+        WHERE s.trade_date = ANY(%(dates)s)
+        ORDER BY s.trade_date, s.ts_code
+        """,
+        {"dates": dates},
+    )
+    return {
+        "meta": meta,
+        "exact_closes": exact_closes,
+        "shares": shares,
+        "suspensions": suspensions,
+        "carried_closes": carried_closes,
+    }
+
+
+def fetch_close_neighbors(
+    conn,
+    schema: str,
+    close_detail: pd.DataFrame,
+) -> pd.DataFrame:
+    schema = _validated_schema(schema)
+    keys = close_detail[["ts_code", "formation_date"]].drop_duplicates()
+    columns = [
+        "ts_code",
+        "formation_date",
+        "previous_nonnull_close_date",
+        "previous_nonnull_close",
+        "next_nonnull_close_date",
+        "next_nonnull_close",
+    ]
+    if keys.empty:
+        return pd.DataFrame(columns=columns)
+    keys["formation_date"] = pd.to_datetime(keys["formation_date"])
+    sql = f"""
+        WITH holes AS (
+            SELECT *
+            FROM unnest(
+                %(tickers)s::text[],
+                %(dates)s::date[]
+            ) AS h(ts_code, formation_date)
+        )
+        SELECT h.ts_code, h.formation_date,
+               prev.trade_date AS previous_nonnull_close_date,
+               prev.close AS previous_nonnull_close,
+               nxt.trade_date AS next_nonnull_close_date,
+               nxt.close AS next_nonnull_close
+        FROM holes h
+        LEFT JOIN LATERAL (
+            SELECT p.trade_date, p.close
+            FROM {schema}.stock_daily_price p
+            WHERE p.ts_code = h.ts_code
+              AND p.trade_date < h.formation_date
+              AND p.close IS NOT NULL
+            ORDER BY p.trade_date DESC
+            LIMIT 1
+        ) prev ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT p.trade_date, p.close
+            FROM {schema}.stock_daily_price p
+            WHERE p.ts_code = h.ts_code
+              AND p.trade_date > h.formation_date
+              AND p.close IS NOT NULL
+            ORDER BY p.trade_date
+            LIMIT 1
+        ) nxt ON TRUE
+        ORDER BY h.formation_date, h.ts_code
+    """
+    return _read_sql(
+        conn,
+        sql,
+        {
+            "tickers": keys["ts_code"].tolist(),
+            "dates": [value.date() for value in keys["formation_date"]],
+        },
+    )
+
+
+def load_db_config(path: str | Path) -> dict:
+    payload = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    db = payload.get("database") or {}
+    required = {"host", "port", "name", "user", "password", "schema"}
+    missing = sorted(
+        key for key in required if db.get(key) in (None, "")
+    )
+    if missing:
+        raise AuditContractError(f"database config missing: {missing}")
+    _validated_schema(db["schema"])
+    return db
+
+
+SHARE_DETAIL_COLUMNS = [
+    "ts_code",
+    "formation_date",
+    "required_formation",
+    "list_date",
+    "delist_date",
+    "raw_close",
+    "close_source",
+    "selected_share_effective_date",
+    "selected_share_known_date",
+    "selected_total_shares",
+    "reason_code",
+]
+CLOSE_DETAIL_COLUMNS = [
+    "ts_code",
+    "formation_date",
+    "required_formation",
+    "list_date",
+    "delist_date",
+    "raw_price_row_present",
+    "raw_close",
+    "suspension_evidence",
+    "carry_close_date",
+    "carry_close",
+    "usable_carry",
+    "previous_nonnull_close_date",
+    "previous_nonnull_close",
+    "next_nonnull_close_date",
+    "next_nonnull_close",
+    "after_last_observed_close",
+    "no_later_observed_close",
+    "evidence_bucket",
+    "reason_code",
+]
+SHARE_SUMMARY_COLUMNS = [
+    "ts_code",
+    "list_date",
+    "delist_date",
+    "listing_status_at_data_end",
+    "in_pool_2023_any",
+    "in_pool_2023_12",
+    "affected_months_all",
+    "affected_months_required",
+    "affected_months_2023",
+    "first_affected_formation",
+    "last_affected_formation",
+    "csmar_latest_a003101000",
+    "anchor_2025_shares",
+    "implied_par",
+    "note",
+    "priority_rank",
+]
+CLOSE_SUMMARY_COLUMNS = [
+    "ts_code",
+    "list_date",
+    "delist_date",
+    "listing_status_at_data_end",
+    "in_pool_2023_any",
+    "in_pool_2023_12",
+    "affected_months_all",
+    "affected_months_required",
+    "affected_months_2023",
+    "first_affected_formation",
+    "last_affected_formation",
+    "exact_row_missing_months",
+    "exact_row_null_close_months",
+    "suspension_without_usable_carry_months",
+    "possible_delist_boundary_months",
+    "unexplained_exact_date_gap_months",
+    "priority_rank",
+]
+
+
+def prepare_artifacts(
+    tail: pd.DataFrame,
+    shares_detail: pd.DataFrame,
+    close_detail: pd.DataFrame,
+    classified: pd.DataFrame,
+    formations: pd.DataFrame,
+) -> dict[str, pd.DataFrame]:
+    pool = build_pool_membership(classified, formations)
+    share_summary = summarize_impacts(shares_detail, pool)
+    diagnostics = tail[
+        [
+            "ts_code",
+            "csmar_latest_a003101000",
+            "anchor_2025_shares",
+            "implied_par",
+            "note",
+        ]
+    ]
+    share_summary = share_summary.merge(
+        diagnostics,
+        on="ts_code",
+        how="left",
+        validate="1:1",
+    ).reindex(columns=SHARE_SUMMARY_COLUMNS)
+    close_summary = summarize_impacts(
+        close_detail,
+        pool,
+        include_close_buckets=True,
+    ).reindex(columns=CLOSE_SUMMARY_COLUMNS)
+    share_rows = shares_detail.copy()
+    share_rows["reason_code"] = "DATA_MISSING_SHARES"
+    share_rows = share_rows.reindex(columns=SHARE_DETAIL_COLUMNS)
+    close_rows = close_detail.reindex(columns=CLOSE_DETAIL_COLUMNS)
+    return {
+        "shares_tail_impact_by_ticker.csv": share_summary,
+        "shares_tail_impact_detail.csv": share_rows,
+        "close_gap_impact_by_ticker.csv": close_summary,
+        "close_gap_impact_detail.csv": close_rows,
+    }
+
+
+def _verify_hash(path: Path, expected: str, label: str) -> str:
+    actual = sha256_file(path)
+    if actual != expected:
+        raise AuditContractError(
+            f"{label} SHA-256 mismatch: got {actual}, expected {expected}"
+        )
+    return actual
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tail", type=Path, default=HERE / "tail.csv")
+    parser.add_argument(
+        "--coverage-audit",
+        type=Path,
+        default=ROOT / "output/style_basket/b3/coverage_audit.csv",
+    )
+    parser.add_argument(
+        "--settings",
+        type=Path,
+        default=ROOT / "config/settings.yaml",
+    )
+    parser.add_argument("--output-dir", type=Path, default=HERE)
+    parser.add_argument(
+        "--expected-tail-sha256",
+        default=EXPECTED_TAIL_SHA256,
+    )
+    parser.add_argument(
+        "--expected-coverage-sha256",
+        default=EXPECTED_COVERAGE_SHA256,
+    )
+    return parser
+
+
+def main(argv=None) -> int:
+    args = _parser().parse_args(argv)
+    tail_hash = _verify_hash(
+        args.tail,
+        args.expected_tail_sha256,
+        "tail",
+    )
+    coverage_hash = _verify_hash(
+        args.coverage_audit,
+        args.expected_coverage_sha256,
+        "coverage_audit",
+    )
+    tail = pd.read_csv(args.tail)
+    coverage = pd.read_csv(args.coverage_audit)
+    anchors = validate_anchors(tail, coverage)
+    db = load_db_config(args.settings)
+    conn = connect_read_only(db)
+    try:
+        sources = fetch_audit_sources(
+            conn,
+            db["schema"],
+            anchors.formations,
+            anchors.tail_tickers,
+        )
+        shares_detail, close_detail, classified = build_impact_details(
+            formations=anchors.formations,
+            tail_tickers=anchors.tail_tickers,
+            **sources,
+        )
+        neighbors = fetch_close_neighbors(
+            conn,
+            db["schema"],
+            close_detail,
+        )
+        close_detail = enrich_close_evidence(close_detail, neighbors)
+        reconcile_details(shares_detail, close_detail, anchors)
+        artifacts = prepare_artifacts(
+            tail,
+            shares_detail,
+            close_detail,
+            classified,
+            anchors.formations,
+        )
+        manifest = publish_outputs(
+            args.output_dir,
+            artifacts,
+            {
+                "data_end": str(
+                    anchors.formations["formation_date"].max().date()
+                ),
+                "schema": db["schema"],
+                "inputs": {
+                    "tail.csv": {
+                        "path": str(args.tail.resolve()),
+                        "sha256": tail_hash,
+                    },
+                    "coverage_audit.csv": {
+                        "path": str(args.coverage_audit.resolve()),
+                        "sha256": coverage_hash,
+                    },
+                },
+                "counts": {
+                    "DATA_MISSING_SHARES": {
+                        "all": int(len(shares_detail)),
+                        "required": int(
+                            shares_detail["required_formation"].sum()
+                        ),
+                        "tickers": int(shares_detail["ts_code"].nunique()),
+                    },
+                    "DATA_MISSING_CLOSE": {
+                        "all": int(len(close_detail)),
+                        "required": int(
+                            close_detail["required_formation"].sum()
+                        ),
+                        "tickers": int(close_detail["ts_code"].nunique()),
+                    },
+                },
+                "source_tables": [
+                    f"{db[schema]}.stock_meta",
+                    f"{db[schema]}.stock_daily_price",
+                    f"{db[schema]}.stock_share_capital",
+                    f"{db[schema]}.stock_suspension",
+                ],
+            },
+        )
+    finally:
+        conn.rollback()
+        conn.close()
+
+    share_counts = manifest["counts"]["DATA_MISSING_SHARES"]
+    close_counts = manifest["counts"]["DATA_MISSING_CLOSE"]
+    print(
+        "DATA_MISSING_SHARES: "
+        f"{share_counts[all]} all / "
+        f"{share_counts[required]} required / "
+        f"{share_counts[tickers]} tickers"
+    )
+    print(
+        "DATA_MISSING_CLOSE: "
+        f"{close_counts[all]} all / "
+        f"{close_counts[required]} required / "
+        f"{close_counts[tickers]} tickers"
+    )
+    print("monthly reconciliation: OK")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
