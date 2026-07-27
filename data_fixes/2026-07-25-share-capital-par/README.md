@@ -1,6 +1,6 @@
 # 2026-07-25 stock_share_capital 面值推断同期锚修复（决策 B）
 
-**状态：代码已修并合并；prod 重跑 + B3 复验待做（Debian 库 MTU 黑洞，等网络恢复）。**
+**状态：2026-07-27 已完成代码修复、沙箱/生产重跑、双回归验收和 B3 复验。**
 
 ## 背景：这是什么问题
 
@@ -22,68 +22,82 @@ B3 preflight 的 `DATA_MISSING_SHARES` 阻断（2026-07-24 三件套分析确认
 - 样本机制：`000060.SZ` 股本 2025-Q1→2026 涨 18.8% → 隐含面值从真值 1.0 掉到 0.842 → miss；
   `000061.SZ` 涨 17.0% → 0.855 → miss。
 
-## 代码修复（已完成，stock_selector master `c31104e`）
+## 代码修复（已完成）
 
-`fix(share-capital): anchor par-calibration overlap at CSMAR_END (contemporaneous)`
+根因修复为 stock_selector `c31104e`：
+`fix(share-capital): anchor par-calibration overlap at CSMAR_END (contemporaneous)`。
 
 `_read_overlap`（`stock_selector/backfill/modes.py`）的标定窗口从
 `[MAX(trade_date)-180d, MAX(trade_date)]` 改锚到 **`[CSMAR_END, CSMAR_END+180d)`**，与最新
 CSMAR 财报期同期，消除跨期漂移；仍 OOM 有界。`indicator_implied` 路径、`_STANDARD_PARS`、
 `_PAR_TOLERANCE` 均未动。
 
-- 新增 red-green 测试 `test_read_overlap_anchored_at_csmar_end`；
-- 改名 OOM 边界测试 `test_read_overlap_window_bounded_oom`；
-- 挪 2 个 par fixture 种子日进新窗（断言值不变）；
-- **全套 1816 passed**；spec 审查 ✅ + code-reviewer **Approve**（4 Minor）。
+生产复跑前又在其上落定两阶段标定，stock_selector master `e11d73e`
+（原审查提交 `c284ef7`）：
+`fix(share-capital): use tight par window with safe fallback`。
 
-计划全文：`stock_selector/docs/plans/2026-07-25-share-capital-par-contemporaneous-anchor.md`。
+- 第一阶段取 **`[CSMAR_END, CSMAR_END+30d)`** 的隐含面值中位数并吸附；
+- 若不能吸附，再退回原有完整 180 日 supplied-overlap 中位数；
+- 因有旧口径 fallback，原本能成功标定的票不会因紧窗口丢失；
+- 标准面值、±5% 容差、180 日有界读取及 `indicator_implied` 路径均未改；
+- 合入态全套：**1819 passed, 1 skipped, 347 deselected**；
+- 两阶段 spec/质量审查及最终集成审查均 **Approve**，无 Critical/Important。
 
-## 🛑 待做：等 Debian 库（`100.65.111.79`）黑洞恢复后一把过
+设计与计划：
 
-黑洞诊断（2026-07-25 四连测）：ICMP 50% 丢包 RTT 2309ms、TCP 握手过、小查询超时 = MTU 黑洞，
-根因 Debian 侧。**用户在家网络无法改善，需回到能连库的环境再跑。**
+- `docs/superpowers/specs/2026-07-27-share-capital-two-stage-par-calibration-design.md`
+- `docs/superpowers/plans/2026-07-27-share-capital-two-stage-par-calibration.md`
+- `stock_selector/docs/plans/2026-07-25-share-capital-par-contemporaneous-anchor.md`
 
-恢复后按序执行（工具已预置）：
+## 2026-07-27 执行与验收实录
 
-```bash
-# 0) 先四连测确认黑洞已清（见 memory ops-tailscale-blackhole-diagnosis）
+### 前置与基线
 
-# 1) 存 prod 基线（写 gap_before.csv + valued_tickers_before.csv，应报 gap≈696）
-cd /home/elfbob/claude-code/style_timing_signal/data_fixes/2026-07-25-share-capital-par
-python verify_par_recovery.py --phase before
+- 四连测全部 0 丢包，PostgreSQL `SELECT 1` 返回
+  `(1, 'market_monitor', 'stock_selector')`。
+- `gap_before.csv`：696 行，SHA-256
+  `ea5bc078e4bacbe68832d106b5f60dfe0fba4ca015975b72929af175cfd223ef`。
+- `valued_tickers_before.csv`：5,200 行，SHA-256
+  `52c2d90217dc306f1b6a0f13c7f37603dc3c1abc357aaa6e90464fdf908e4631`。
+- **不得再运行 `--phase before`，否则会覆盖这份原始生产基线。**
 
-# 2) 沙箱先验（stock_selector_test，不动 prod）
-cd /home/elfbob/claude-code/stock_selector
-.venv/bin/python -m stock_selector.backfill.cli share-capital --use-test
+### 数据重跑
 
-# 3) prod 重跑（UPSERT stock_share_capital；Pi5 由同步链自动跟）
-.venv/bin/python -m stock_selector.backfill.cli share-capital
+- `stock_selector_test`：写入 11,621 行，`par_unknown=2`，当前 A 股池 `5198/5198`。
+- prod（仅执行一次）：写入 89,579 行，`par_unknown=464`，当前 A 股池 `5200/5200`。
+- `verify_par_recovery.py --phase after`：recovered **639**、residual tail **57**、
+  `REGRESSION (valued->unvalued)` **0**、`NEW HISTORICAL GAP REGRESSION` **0**。
+- `gap_after.csv` SHA-256：
+  `c161e6a62cc391b6f1e24fc194784043457c59243600310798829c6b1691db1e`。
+- `tail.csv` SHA-256：
+  `93653f5ad7cade2d03872bd7796966e60e94074d7445eaa8192e4885b0995223`。
 
-# 4) 验恢复 + 出尾巴清单（写 gap_after.csv + tail.csv；应报 recovered≈639 / 残 tail≈57 /
-#    REGRESSION 必须=0）
-cd /home/elfbob/claude-code/style_timing_signal/data_fixes/2026-07-25-share-capital-par
-python verify_par_recovery.py --phase after
+### B3 复验（`data_end=2023-12-31`，8G MemoryMax）
 
-# 5) 护栏下 B3 复验（看 DATA_MISSING_SHARES 从 46,004 塌到尾巴量、34 个纯 SHARES 月尤其
-#    2023 全年是否解锁）
-cd /home/elfbob/claude-code/style_timing_signal
-systemd-run --user --scope -p MemoryMax=8G \
-  .venv/bin/python -m backtest.b3_eval --data-end 2023-12-31
-python /tmp/.../scratchpad/analyze_preflight.py   # 或重写三件套统计
-```
+- standalone preflight 正常以数据闸门退出码 2 结束；内存峰值约 3.60GB，无 OOM。
+- `DATA_MISSING_SHARES`：**46,004 → 5,781 票·月（-87.4%）**。
+- 2023 年：653 票·月、每月 53–55 只，2023-12 为 55（修复前为 680）。
+- `DATA_MISSING_CLOSE`：202 票·月（未变）；`close_carry_forward`：13,475 票·月（未变）。
+- 120 个 required formation 月仍因剩余 SHARES/CLOSE 尾巴 `DATA_BLOCKED`。
+- `b3_eval` 正常以退出码 2 结束，最终 verdict：
+  `DATA_BLOCKED / DATA_CONTRACT`，尚未进入候选统计。
+- `coverage_audit.csv` SHA-256：
+  `13c8af70650a24ba00c1b0890e979c487a0133589e6127967340e622426e9358`。
+- `manifests/preflight.json` SHA-256：
+  `cb4f8360804c16d7c58d2285d1d9e82fb0a3ad9a96fccc36ab4235269e49b035`。
 
-**若第 4 步 recovered 明显少于 639，或 REGRESSION > 0**：审查员 M1 提示前向窗口有轻微下偏
-（股本长期上行）。旋钮 = 把 `_read_overlap` 改居中窗口 `[CSMAR_END−90d, CSMAR_END+90d)`
-或缩小 `recent_days`，再重跑第 2–4 步。
+style_timing_signal verifier 加固提交 `25e9c4b` 会同时阻断 valued→unvalued 和
+`gap_after - gap_before` 新历史缺口；合入后全套 **813 passed**。
 
 ## 待用户决定
 
 - **57 尾巴票**（`tail.csv`：面值不落标准档，散在 ~0.2–0.9 / ~1.2–1.6 / 个别 ~20）：
   Wind 定向回填 `total_shares` 历史 vs 接受为 B3 豁免。**不自动处理。**
-- 何时 push origin（style_timing_signal main 领先 ~38、stock_selector master 领先 3）。
+- style_timing_signal 尚未 push；stock_selector `origin/master` 已于 2026-07-27 14:44
+  由外部 push 更新到 `e11d73e`（本代理未执行 `git push`）。
 
 ## 回滚
 
-代码回滚 = `git revert c31104e`（stock_selector）。数据侧重跑是幂等 UPSERT，本次尚未执行；
-一旦执行，`gap_before.csv` / `valued_tickers_before.csv` 是重跑前的完整基线快照，可据以
-核对任何意外变更。
+两阶段代码回滚 = `git revert e11d73e`（会回到 `c31104e` 的 180 日同期锚口径）。
+根因锚点回滚另需评估 `c31104e`。生产 UPSERT 已执行；回滚代码不会自动回滚数据。
+`gap_before.csv` / `valued_tickers_before.csv` 是重跑前的完整基线快照，必须保留用于核对。
