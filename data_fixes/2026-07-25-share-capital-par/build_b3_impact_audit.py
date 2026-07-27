@@ -7,6 +7,7 @@ import hashlib
 from pathlib import Path
 from typing import NamedTuple
 
+import numpy as np
 import pandas as pd
 
 
@@ -192,4 +193,307 @@ def validate_anchors(
         formations=formations,
         expected_counts=expected,
         tail_tickers=tuple(sorted(tickers)),
+    )
+
+
+MIN_LISTED_DAYS = 180
+EXCLUDED_SUFFIXES = (".BJ", ".HK")
+
+
+def _parse_dates(
+    frame: pd.DataFrame,
+    columns: tuple[str, ...],
+) -> pd.DataFrame:
+    out = frame.copy()
+    for column in columns:
+        out[column] = pd.to_datetime(out[column], errors="raise")
+    return out
+
+
+def _reject_duplicate_keys(
+    frame: pd.DataFrame,
+    keys: tuple[str, ...],
+    label: str,
+) -> None:
+    deduplicated = frame.drop_duplicates()
+    if deduplicated.duplicated(list(keys), keep=False).any():
+        raise AuditContractError(f"{label} has conflicting duplicate keys")
+
+
+def _share_asof(
+    shares: pd.DataFrame,
+    formation: pd.Timestamp,
+) -> pd.DataFrame:
+    known = shares[shares["known_date"].le(formation)]
+    if known.empty:
+        return known
+    return (
+        known.sort_values(
+            ["ts_code", "end_date"],
+            kind="mergesort",
+        )
+        .groupby("ts_code", as_index=False)
+        .tail(1)
+    )
+
+
+def build_impact_details(
+    *,
+    formations: pd.DataFrame,
+    meta: pd.DataFrame,
+    exact_closes: pd.DataFrame,
+    shares: pd.DataFrame,
+    suspensions: pd.DataFrame,
+    carried_closes: pd.DataFrame,
+    tail_tickers: tuple[str, ...],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Mirror B3 size-reason precedence for every formation coordinate."""
+    _require_columns(
+        formations,
+        {"formation_date", "required_formation"},
+        "formations",
+    )
+    _require_columns(
+        meta,
+        {"ticker", "list_date", "delist_date"},
+        "stock metadata",
+    )
+    _require_columns(
+        exact_closes,
+        {
+            "ticker",
+            "formation_date",
+            "raw_close",
+            "raw_price_row_present",
+        },
+        "exact closes",
+    )
+    _require_columns(
+        shares,
+        {"ts_code", "end_date", "known_date", "total_shares"},
+        "share capital",
+    )
+    _require_columns(
+        suspensions,
+        {"ticker", "formation_date"},
+        "suspensions",
+    )
+    _require_columns(
+        carried_closes,
+        {
+            "ticker",
+            "formation_date",
+            "carry_close_date",
+            "carry_close",
+        },
+        "carried closes",
+    )
+
+    formations = _parse_dates(formations, ("formation_date",))
+    formations["required_formation"] = _coerce_bool(
+        formations["required_formation"],
+        "formations required_formation",
+    )
+    meta = _parse_dates(meta, ("list_date", "delist_date"))
+    exact_closes = _parse_dates(exact_closes, ("formation_date",))
+    shares = _parse_dates(shares, ("end_date", "known_date"))
+    suspensions = _parse_dates(suspensions, ("formation_date",))
+    carried_closes = _parse_dates(
+        carried_closes,
+        ("formation_date", "carry_close_date"),
+    )
+
+    for frame, column, label in (
+        (meta, "ticker", "stock metadata"),
+        (exact_closes, "ticker", "exact closes"),
+        (shares, "ts_code", "share capital"),
+        (suspensions, "ticker", "suspensions"),
+        (carried_closes, "ticker", "carried closes"),
+    ):
+        values = frame[column]
+        if values.isna().any() or values.astype(str).str.strip().eq("").any():
+            raise AuditContractError(f"{label} has invalid ticker keys")
+
+    _reject_duplicate_keys(meta, ("ticker",), "stock metadata")
+    _reject_duplicate_keys(
+        exact_closes,
+        ("ticker", "formation_date"),
+        "exact closes",
+    )
+    _reject_duplicate_keys(
+        shares,
+        ("ts_code", "end_date"),
+        "share capital",
+    )
+    _reject_duplicate_keys(
+        suspensions,
+        ("ticker", "formation_date"),
+        "suspensions",
+    )
+    _reject_duplicate_keys(
+        carried_closes,
+        ("ticker", "formation_date"),
+        "carried closes",
+    )
+
+    exact_closes["raw_close"] = pd.to_numeric(
+        exact_closes["raw_close"],
+        errors="coerce",
+    )
+    exact_closes["raw_price_row_present"] = _coerce_bool(
+        exact_closes["raw_price_row_present"],
+        "exact closes raw_price_row_present",
+    )
+    shares["total_shares"] = pd.to_numeric(
+        shares["total_shares"],
+        errors="coerce",
+    )
+    shares = shares[
+        shares["total_shares"].notna()
+        & shares["total_shares"].gt(0)
+    ].copy()
+    carried_closes["carry_close"] = pd.to_numeric(
+        carried_closes["carry_close"],
+        errors="coerce",
+    )
+
+    classified_parts = []
+    for formation_row in formations.sort_values(
+        "formation_date",
+        kind="mergesort",
+    ).itertuples(index=False):
+        formation = pd.Timestamp(formation_row.formation_date)
+        active = meta[
+            ~meta["ticker"].str.endswith(EXCLUDED_SUFFIXES)
+            & (
+                meta["list_date"].isna()
+                | meta["list_date"].le(formation)
+            )
+            & (
+                meta["delist_date"].isna()
+                | meta["delist_date"].ge(formation)
+            )
+        ].copy()
+        active["formation_date"] = formation
+        active["required_formation"] = bool(
+            formation_row.required_formation
+        )
+        active["listed_lt_180"] = (
+            active["list_date"].notna()
+            & (
+                active["list_date"]
+                + pd.Timedelta(days=MIN_LISTED_DAYS)
+                > formation
+            )
+        )
+
+        exact = exact_closes[
+            exact_closes["formation_date"].eq(formation)
+        ][["ticker", "raw_price_row_present", "raw_close"]]
+        active = active.merge(exact, on="ticker", how="left")
+        active["raw_price_row_present"] = active[
+            "raw_price_row_present"
+        ].fillna(False)
+
+        suspension_set = set(
+            suspensions.loc[
+                suspensions["formation_date"].eq(formation),
+                "ticker",
+            ]
+        )
+        carry = carried_closes[
+            carried_closes["formation_date"].eq(formation)
+        ][["ticker", "carry_close_date", "carry_close"]]
+        active = active.merge(carry, on="ticker", how="left")
+        active["suspension_evidence"] = active["ticker"].isin(
+            suspension_set
+        )
+        active["usable_carry"] = (
+            active["suspension_evidence"]
+            & active["raw_close"].isna()
+            & active["carry_close"].notna()
+        )
+        active["close"] = active["raw_close"]
+        active.loc[active["usable_carry"], "close"] = active.loc[
+            active["usable_carry"],
+            "carry_close",
+        ]
+        active["close_source"] = np.where(
+            active["raw_close"].notna(),
+            "EXACT_FORMATION_CLOSE",
+            np.where(
+                active["usable_carry"],
+                "SUSPENDED_CARRY_FORWARD",
+                "",
+            ),
+        )
+
+        selected = _share_asof(shares, formation).rename(
+            columns={
+                "end_date": "selected_share_effective_date",
+                "known_date": "selected_share_known_date",
+                "total_shares": "selected_total_shares",
+            }
+        )
+        active = active.merge(
+            selected[
+                [
+                    "ts_code",
+                    "selected_share_effective_date",
+                    "selected_share_known_date",
+                    "selected_total_shares",
+                ]
+            ].rename(columns={"ts_code": "ticker"}),
+            on="ticker",
+            how="left",
+        )
+
+        active["size_reason"] = ""
+        active.loc[
+            active["list_date"].isna(),
+            "size_reason",
+        ] = "DATA_MISSING_LIST_DATE"
+        active.loc[
+            active["size_reason"].eq("") & active["listed_lt_180"],
+            "size_reason",
+        ] = "LISTED_LT_180D"
+        active.loc[
+            active["size_reason"].eq("") & active["close"].isna(),
+            "size_reason",
+        ] = "DATA_MISSING_CLOSE"
+        active.loc[
+            active["size_reason"].eq("")
+            & active["selected_total_shares"].isna(),
+            "size_reason",
+        ] = "DATA_MISSING_SHARES"
+        market_value = active["close"] * active["selected_total_shares"]
+        invalid_market_value = (
+            ~np.isfinite(market_value.to_numpy(dtype=float))
+            | market_value.le(0).to_numpy()
+        )
+        active.loc[
+            active["size_reason"].eq("") & invalid_market_value,
+            "size_reason",
+        ] = "DATA_INVALID_MARKET_VALUE"
+        classified_parts.append(active)
+
+    classified = pd.concat(classified_parts, ignore_index=True).rename(
+        columns={"ticker": "ts_code"}
+    )
+    shares_detail = classified[
+        classified["size_reason"].eq("DATA_MISSING_SHARES")
+    ].copy()
+    unexpected = set(shares_detail["ts_code"]) - set(tail_tickers)
+    if unexpected:
+        raise AuditContractError(
+            "DATA_MISSING_SHARES contains tickers outside tail: "
+            f"{sorted(unexpected)[:10]}"
+        )
+    close_detail = classified[
+        classified["size_reason"].eq("DATA_MISSING_CLOSE")
+    ].copy()
+    return (
+        shares_detail.reset_index(drop=True),
+        close_detail.reset_index(drop=True),
+        classified.reset_index(drop=True),
     )
