@@ -497,3 +497,210 @@ def build_impact_details(
         close_detail.reset_index(drop=True),
         classified.reset_index(drop=True),
     )
+
+
+def close_evidence_bucket(row: pd.Series) -> str:
+    """Return a direct-evidence label, never a final disposition."""
+    if bool(row["raw_price_row_present"]) and pd.isna(row["raw_close"]):
+        return "EXACT_ROW_NULL_CLOSE"
+    if bool(row["suspension_evidence"]) and not bool(row["usable_carry"]):
+        return "SUSPENSION_WITHOUT_USABLE_CARRY"
+    if pd.notna(row["delist_date"]) and pd.isna(
+        row["next_nonnull_close"]
+    ):
+        return "POSSIBLE_DELIST_BOUNDARY"
+    return "UNEXPLAINED_EXACT_DATE_GAP"
+
+
+def enrich_close_evidence(
+    close_detail: pd.DataFrame,
+    neighbors: pd.DataFrame,
+) -> pd.DataFrame:
+    required = {
+        "ts_code",
+        "formation_date",
+        "previous_nonnull_close_date",
+        "previous_nonnull_close",
+        "next_nonnull_close_date",
+        "next_nonnull_close",
+    }
+    _require_columns(neighbors, required, "close neighbors")
+    detail = _parse_dates(close_detail, ("formation_date", "delist_date"))
+    evidence = _parse_dates(
+        neighbors,
+        (
+            "formation_date",
+            "previous_nonnull_close_date",
+            "next_nonnull_close_date",
+        ),
+    )
+    _reject_duplicate_keys(
+        evidence,
+        ("ts_code", "formation_date"),
+        "close neighbors",
+    )
+    out = detail.merge(
+        evidence,
+        on=["ts_code", "formation_date"],
+        how="left",
+        validate="1:1",
+    )
+    out["after_last_observed_close"] = (
+        out["previous_nonnull_close_date"].notna()
+        & out["previous_nonnull_close_date"].lt(out["formation_date"])
+        & out["next_nonnull_close_date"].isna()
+    )
+    out["no_later_observed_close"] = out[
+        "next_nonnull_close_date"
+    ].isna()
+    out["evidence_bucket"] = out.apply(
+        close_evidence_bucket,
+        axis=1,
+    )
+    out["reason_code"] = "DATA_MISSING_CLOSE"
+    return out
+
+
+def build_pool_membership(
+    classified: pd.DataFrame,
+    formations: pd.DataFrame,
+) -> pd.DataFrame:
+    frame = _parse_dates(
+        classified,
+        ("formation_date", "list_date", "delist_date"),
+    )
+    formation_frame = _parse_dates(formations, ("formation_date",))
+    dates_2023 = formation_frame.loc[
+        formation_frame["formation_date"].dt.year.eq(2023),
+        "formation_date",
+    ]
+    if dates_2023.empty:
+        raise AuditContractError("formation grid has no 2023 dates")
+    last_2023 = dates_2023.max()
+    eligible = frame[
+        frame["list_date"].notna() & ~frame["listed_lt_180"]
+    ]
+    tickers = pd.DataFrame(
+        {"ts_code": sorted(frame["ts_code"].unique())}
+    )
+    any_2023 = set(
+        eligible.loc[
+            eligible["formation_date"].dt.year.eq(2023),
+            "ts_code",
+        ]
+    )
+    in_last = set(
+        eligible.loc[
+            eligible["formation_date"].eq(last_2023),
+            "ts_code",
+        ]
+    )
+    tickers["in_pool_2023_any"] = tickers["ts_code"].isin(any_2023)
+    tickers["in_pool_2023_12"] = tickers["ts_code"].isin(in_last)
+    tickers.attrs["data_end"] = formation_frame["formation_date"].max()
+    return tickers
+
+
+def summarize_impacts(
+    detail: pd.DataFrame,
+    pool_membership: pd.DataFrame,
+    *,
+    include_close_buckets: bool = False,
+) -> pd.DataFrame:
+    """Build stable per-ticker impact counts and priority ordering."""
+    frame = _parse_dates(
+        detail,
+        ("formation_date", "list_date", "delist_date"),
+    )
+    frame["required_formation"] = _coerce_bool(
+        frame["required_formation"],
+        "detail required_formation",
+    )
+    grouped = frame.groupby("ts_code", sort=True)
+    out = grouped.agg(
+        list_date=("list_date", "first"),
+        delist_date=("delist_date", "first"),
+        affected_months_all=("formation_date", "size"),
+        affected_months_required=("required_formation", "sum"),
+        first_affected_formation=("formation_date", "min"),
+        last_affected_formation=("formation_date", "max"),
+    ).reset_index()
+    affected_2023 = (
+        frame[frame["formation_date"].dt.year.eq(2023)]
+        .groupby("ts_code")
+        .size()
+    )
+    out["affected_months_2023"] = (
+        out["ts_code"].map(affected_2023).fillna(0).astype(int)
+    )
+    data_end = pool_membership.attrs.get("data_end")
+    if data_end is None:
+        raise AuditContractError("pool membership lacks data_end")
+    out = out.merge(
+        pool_membership,
+        on="ts_code",
+        how="left",
+        validate="1:1",
+    )
+    out[["in_pool_2023_any", "in_pool_2023_12"]] = out[
+        ["in_pool_2023_any", "in_pool_2023_12"]
+    ].fillna(False).astype(bool)
+    out["listing_status_at_data_end"] = np.where(
+        out["list_date"].isna(),
+        "LIST_DATE_MISSING",
+        np.where(
+            out["delist_date"].notna()
+            & out["delist_date"].lt(pd.Timestamp(data_end)),
+            "DELISTED",
+            "ACTIVE",
+        ),
+    )
+
+    if include_close_buckets:
+        _require_columns(
+            frame,
+            {
+                "evidence_bucket",
+                "raw_price_row_present",
+                "raw_close",
+            },
+            "close detail",
+        )
+        raw_present = _coerce_bool(
+            frame["raw_price_row_present"],
+            "close detail raw_price_row_present",
+        )
+        count_frame = pd.DataFrame(
+            {
+                "ts_code": frame["ts_code"],
+                "exact_row_missing_months": (~raw_present).astype(int),
+                "exact_row_null_close_months": (
+                    raw_present & frame["raw_close"].isna()
+                ).astype(int),
+                "suspension_without_usable_carry_months": frame[
+                    "evidence_bucket"
+                ].eq("SUSPENSION_WITHOUT_USABLE_CARRY").astype(int),
+                "possible_delist_boundary_months": frame[
+                    "evidence_bucket"
+                ].eq("POSSIBLE_DELIST_BOUNDARY").astype(int),
+                "unexplained_exact_date_gap_months": frame[
+                    "evidence_bucket"
+                ].eq("UNEXPLAINED_EXACT_DATE_GAP").astype(int),
+            }
+        )
+        counts = count_frame.groupby("ts_code", as_index=False).sum()
+        out = out.merge(counts, on="ts_code", how="left", validate="1:1")
+
+    out = out.sort_values(
+        [
+            "in_pool_2023_12",
+            "affected_months_2023",
+            "affected_months_required",
+            "affected_months_all",
+            "ts_code",
+        ],
+        ascending=[False, False, False, False, True],
+        kind="mergesort",
+    ).reset_index(drop=True)
+    out["priority_rank"] = np.arange(1, len(out) + 1)
+    return out

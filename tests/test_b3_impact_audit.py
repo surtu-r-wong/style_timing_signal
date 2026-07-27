@@ -211,3 +211,117 @@ def test_share_asof_filters_known_date_before_latest_effective_date():
     assert pd.Timestamp(row["selected_share_effective_date"]) == pd.Timestamp(
         "2020-12-31"
     )
+
+
+@pytest.mark.parametrize(
+    (
+        "raw_present",
+        "raw_close",
+        "suspended",
+        "usable_carry",
+        "delist",
+        "next_close",
+        "expected",
+    ),
+    [
+        (True, None, False, False, None, None, "EXACT_ROW_NULL_CLOSE"),
+        (
+            False,
+            None,
+            True,
+            False,
+            None,
+            None,
+            "SUSPENSION_WITHOUT_USABLE_CARRY",
+        ),
+        (
+            False,
+            None,
+            False,
+            False,
+            "2021-04-30",
+            None,
+            "POSSIBLE_DELIST_BOUNDARY",
+        ),
+        (
+            False,
+            None,
+            False,
+            False,
+            None,
+            10.0,
+            "UNEXPLAINED_EXACT_DATE_GAP",
+        ),
+    ],
+)
+def test_close_evidence_bucket_is_observation_only(
+    raw_present,
+    raw_close,
+    suspended,
+    usable_carry,
+    delist,
+    next_close,
+    expected,
+):
+    row = pd.Series(
+        {
+            "raw_price_row_present": raw_present,
+            "raw_close": raw_close,
+            "suspension_evidence": suspended,
+            "usable_carry": usable_carry,
+            "delist_date": delist,
+            "next_nonnull_close": next_close,
+        }
+    )
+
+    assert AUDIT.close_evidence_bucket(row) == expected
+
+
+def _summary_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
+    detail = pd.DataFrame(
+        {
+            "ts_code": ["ACTIVE.SZ", "ACTIVE.SZ", "OLD.SZ"],
+            "formation_date": [
+                "2023-01-31",
+                "2023-12-29",
+                "2020-01-31",
+            ],
+            "required_formation": [True, True, True],
+            "list_date": ["2010-01-01"] * 3,
+            "delist_date": [None, None, "2021-01-01"],
+            "evidence_bucket": [
+                "UNEXPLAINED_EXACT_DATE_GAP",
+                "EXACT_ROW_NULL_CLOSE",
+                "POSSIBLE_DELIST_BOUNDARY",
+            ],
+            "raw_price_row_present": [False, True, False],
+            "raw_close": [None, None, None],
+        }
+    )
+    pool = pd.DataFrame(
+        {
+            "ts_code": ["ACTIVE.SZ", "OLD.SZ"],
+            "in_pool_2023_any": [True, False],
+            "in_pool_2023_12": [True, False],
+        }
+    )
+    pool.attrs["data_end"] = pd.Timestamp("2023-12-29")
+    return detail, pool
+
+
+def test_summarize_impacts_prioritizes_active_2023_names():
+    detail, pool = _summary_inputs()
+
+    got = AUDIT.summarize_impacts(
+        detail,
+        pool,
+        include_close_buckets=True,
+    )
+
+    assert list(got["ts_code"]) == ["ACTIVE.SZ", "OLD.SZ"]
+    assert got.loc[0, "priority_rank"] == 1
+    assert bool(got.loc[0, "in_pool_2023_12"])
+    assert got.loc[0, "affected_months_2023"] == 2
+    assert got.loc[1, "listing_status_at_data_end"] == "DELISTED"
+    assert got.loc[0, "exact_row_null_close_months"] == 1
+    assert got.loc[1, "possible_delist_boundary_months"] == 1
