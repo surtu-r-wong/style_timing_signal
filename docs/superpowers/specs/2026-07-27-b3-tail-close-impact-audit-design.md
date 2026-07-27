@@ -33,7 +33,7 @@ B3 `size_exclusion` 所需的最小数据：
 - 月末 formation date 当日的 `stock_daily_price`
 - formation date 当日的 `stock_suspension`
 - 停牌票 formation date 之前最近一条价格
-- 57 只尾巴票的正值 `stock_share_capital`
+- 全体沪深样本的正值 `stock_share_capital`（与 B3 原查询一致；输出再限定 tail）
 - CLOSE 缺口票前后最近的非空价格证据
 
 核心分类逻辑实现为接收 DataFrame 的纯函数，数据库读取与分类分离，以便用合成数据
@@ -96,6 +96,7 @@ CLI 允许显式传入其他路径或期望哈希，但不得静默接受哈希�
 ### `shares_tail_impact_by_ticker.csv`
 
 固定 57 行，每票一行。字段包括：
+其中 `688347.SH` 截至 data-end 上市不足 180 天，实际 SHARES 影响为 0，但仍保留在 57 行 tail 汇总中。
 
 - `ts_code`
 - `list_date`, `delist_date`, `listing_status_at_data_end`
@@ -123,6 +124,7 @@ CLI 允许显式传入其他路径或期望哈希，但不得静默接受哈希�
 - `reason_code`
 
 最终应为 5,781 行，其中 required 5,445 行。
+真库结果涉及 56 只股票；第 57 只 `688347.SH` 因上市不足 180 天未进入 size 缺股本原因。
 
 ### `close_gap_impact_by_ticker.csv`
 
@@ -183,7 +185,7 @@ manifest 不记录数据库密码、token 或完整连接串。
 - 股本明细不是 5,781/5,445；
 - CLOSE 明细不是 202/190；
 - 逐月重建计数与 coverage 审计任一月份不一致；
-- 股本缺口 ticker 集不等于 tail ticker 集；
+- 股本缺口 ticker 集不是 tail ticker 集的子集，或 57 行 tail 汇总不完整；
 - 数据库返回冲突重复键、非法日期或 ticker；
 - 输入哈希不符。
 

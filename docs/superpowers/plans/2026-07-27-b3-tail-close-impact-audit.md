@@ -783,7 +783,7 @@ ORDER BY trade_date, ts_code
 SELECT ts_code, effective_date AS end_date,
        COALESCE(available_date, effective_date) AS known_date, total_shares
 FROM {schema}.stock_share_capital
-WHERE ts_code = ANY(%s) AND total_shares IS NOT NULL AND total_shares > 0
+WHERE total_shares IS NOT NULL AND total_shares > 0
 ORDER BY ts_code, effective_date
 ```
 
@@ -796,7 +796,7 @@ identifying the 202 holes, query previous/next non-null close with a parameteriz
 `reconcile_details` must group each detail frame by
 `formation_date,required_formation`, reindex to the full formation grid with
 zero, and compare every row to `anchors.expected_counts`. It must also enforce
-57 unique share tickers and the exact all/required totals.
+SHARES detail tickers as a subset of the 57-tail anchor, a fixed 57-row summary, and the exact all/required totals.
 
 `publish_outputs` must:
 
@@ -893,7 +893,7 @@ the canonical checkout paths explicitly:
 Expected bounded summary:
 
 ```text
-DATA_MISSING_SHARES: 5781 all / 5445 required / 57 tickers
+DATA_MISSING_SHARES: 5781 all / 5445 required / 56 tickers
 DATA_MISSING_CLOSE: 202 all / 190 required / <derived> tickers
 monthly reconciliation: OK
 ```

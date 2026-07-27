@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -475,3 +476,151 @@ def test_main_rejects_hash_mismatch_before_database_connect(
                 "0" * 64,
             ]
         )
+
+
+def test_fetch_sources_loads_full_positive_share_history(monkeypatch):
+    calls = []
+
+    def fake_read_sql(conn, sql, params=None):
+        calls.append((sql, params))
+        return pd.DataFrame()
+
+    monkeypatch.setattr(AUDIT, "_read_sql", fake_read_sql)
+    AUDIT.fetch_audit_sources(
+        object(),
+        "stock_selector",
+        pd.DataFrame(
+            {
+                "formation_date": [pd.Timestamp("2023-12-29")],
+                "required_formation": [True],
+            }
+        ),
+        ("TAIL.SZ",),
+    )
+
+    share_sql, share_params = next(
+        (sql, params)
+        for sql, params in calls
+        if "stock_share_capital" in sql
+    )
+    assert "ts_code = ANY" not in share_sql
+    assert share_params is None
+
+
+def test_manifest_helpers_render_schema_and_counts():
+    assert AUDIT.source_table_names("stock_selector") == [
+        "stock_selector.stock_meta",
+        "stock_selector.stock_daily_price",
+        "stock_selector.stock_share_capital",
+        "stock_selector.stock_suspension",
+    ]
+    assert AUDIT.format_count_line(
+        "DATA_MISSING_CLOSE",
+        {"all": 202, "required": 190, "tickers": 12},
+    ) == "DATA_MISSING_CLOSE: 202 all / 190 required / 12 tickers"
+
+
+def test_reconcile_allows_tail_ticker_with_zero_size_impact():
+    anchors = _small_anchors()._replace(
+        tail_tickers=("A.SZ", "ZERO.SZ")
+    )
+    shares = pd.DataFrame(
+        {
+            "ts_code": ["A.SZ"],
+            "formation_date": ["2020-01-31"],
+            "required_formation": [False],
+        }
+    )
+    closes = pd.DataFrame(
+        {
+            "ts_code": ["B.SZ"],
+            "formation_date": ["2020-02-28"],
+            "required_formation": [True],
+        }
+    )
+
+    AUDIT.reconcile_details(shares, closes, anchors)
+
+
+def test_complete_share_summary_keeps_zero_impact_tail_ticker():
+    tail = _tail_frame(2)
+    impacted = tail.loc[0, "ts_code"]
+    zero = tail.loc[1, "ts_code"]
+    impact_summary = pd.DataFrame(
+        {
+            "ts_code": [impacted],
+            "affected_months_all": [10],
+            "affected_months_required": [8],
+            "affected_months_2023": [2],
+            "first_affected_formation": [pd.Timestamp("2020-01-31")],
+            "last_affected_formation": [pd.Timestamp("2023-12-29")],
+        }
+    )
+    classified = pd.DataFrame(
+        {
+            "ts_code": [impacted, zero],
+            "list_date": ["2010-01-01", "2023-08-07"],
+            "delist_date": [None, None],
+        }
+    )
+    pool = pd.DataFrame(
+        {
+            "ts_code": [impacted, zero],
+            "in_pool_2023_any": [True, False],
+            "in_pool_2023_12": [True, False],
+        }
+    )
+    pool.attrs["data_end"] = pd.Timestamp("2023-12-29")
+
+    got = AUDIT.complete_share_summary(
+        impact_summary,
+        tail,
+        classified,
+        pool,
+    )
+
+    assert len(got) == 2
+    zero_row = got.set_index("ts_code").loc[zero]
+    assert zero_row["affected_months_all"] == 0
+    assert not bool(zero_row["in_pool_2023_12"])
+    assert zero_row["priority_rank"] == 2
+
+
+class _CursorRows:
+    description = [("ticker",), ("value",)]
+
+    def __init__(self):
+        self.executed = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def execute(self, sql, params):
+        self.executed = (sql, params)
+
+    def fetchall(self):
+        return [("A.SZ", 1.0)]
+
+
+class _ConnectionRows:
+    def __init__(self):
+        self.cursor_object = _CursorRows()
+
+    def cursor(self):
+        return self.cursor_object
+
+
+def test_read_sql_uses_dbapi_cursor_without_pandas_warning():
+    conn = _ConnectionRows()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        got = AUDIT._read_sql(conn, "SELECT ticker, value", {"x": 1})
+
+    assert got.to_dict("records") == [{"ticker": "A.SZ", "value": 1.0}]
+    assert conn.cursor_object.executed == (
+        "SELECT ticker, value",
+        {"x": 1},
+    )

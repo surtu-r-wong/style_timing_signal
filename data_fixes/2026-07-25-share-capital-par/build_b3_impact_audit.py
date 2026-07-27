@@ -785,9 +785,10 @@ def reconcile_details(
             raise AuditContractError(
                 f"{reason} required count mismatch"
             )
-    if set(shares_detail["ts_code"]) != set(anchors.tail_tickers):
+    outside_tail = set(shares_detail["ts_code"]) - set(anchors.tail_tickers)
+    if outside_tail:
         raise AuditContractError(
-            "DATA_MISSING_SHARES ticker set differs from tail"
+            "DATA_MISSING_SHARES contains tickers outside tail"
         )
 
 
@@ -885,7 +886,14 @@ def _validated_schema(schema: str) -> str:
 
 
 def _read_sql(conn, sql: str, params=None) -> pd.DataFrame:
-    return pd.read_sql_query(sql, conn, params=params)
+    with conn.cursor() as cursor:
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        columns = [
+            getattr(item, "name", item[0])
+            for item in cursor.description
+        ]
+    return pd.DataFrame(rows, columns=columns)
 
 
 def fetch_audit_sources(
@@ -925,12 +933,10 @@ def fetch_audit_sources(
                COALESCE(available_date, effective_date) AS known_date,
                total_shares
         FROM {schema}.stock_share_capital
-        WHERE ts_code = ANY(%(tickers)s)
-          AND total_shares IS NOT NULL
+          WHERE total_shares IS NOT NULL
           AND total_shares > 0
         ORDER BY ts_code, effective_date
         """,
-        {"tickers": list(tail_tickers)},
     )
     suspensions = _read_sql(
         conn,
@@ -1118,6 +1124,99 @@ CLOSE_SUMMARY_COLUMNS = [
 ]
 
 
+def complete_share_summary(
+    impact_summary: pd.DataFrame,
+    tail: pd.DataFrame,
+    classified: pd.DataFrame,
+    pool_membership: pd.DataFrame,
+) -> pd.DataFrame:
+    """Keep all 57 tail names, including names with zero size impact."""
+    _require_columns(
+        tail,
+        {
+            "ts_code",
+            "csmar_latest_a003101000",
+            "anchor_2025_shares",
+            "implied_par",
+            "note",
+        },
+        "tail diagnostics",
+    )
+    if tail["ts_code"].duplicated().any():
+        raise AuditContractError("tail diagnostics has duplicate tickers")
+    meta = _parse_dates(
+        classified[["ts_code", "list_date", "delist_date"]]
+        .drop_duplicates()
+        .copy(),
+        ("list_date", "delist_date"),
+    )
+    _reject_duplicate_keys(meta, ("ts_code",), "classified metadata")
+    metrics = impact_summary[
+        [
+            "ts_code",
+            "affected_months_all",
+            "affected_months_required",
+            "affected_months_2023",
+            "first_affected_formation",
+            "last_affected_formation",
+        ]
+    ]
+    base = (
+        tail[
+            [
+                "ts_code",
+                "csmar_latest_a003101000",
+                "anchor_2025_shares",
+                "implied_par",
+                "note",
+            ]
+        ]
+        .merge(meta, on="ts_code", how="left", validate="1:1")
+        .merge(metrics, on="ts_code", how="left", validate="1:1")
+        .merge(
+            pool_membership,
+            on="ts_code",
+            how="left",
+            validate="1:1",
+        )
+    )
+    for column in (
+        "affected_months_all",
+        "affected_months_required",
+        "affected_months_2023",
+    ):
+        base[column] = base[column].fillna(0).astype(int)
+    base[["in_pool_2023_any", "in_pool_2023_12"]] = base[
+        ["in_pool_2023_any", "in_pool_2023_12"]
+    ].fillna(False).astype(bool)
+    data_end = pool_membership.attrs.get("data_end")
+    if data_end is None:
+        raise AuditContractError("pool membership lacks data_end")
+    base["listing_status_at_data_end"] = np.where(
+        base["list_date"].isna(),
+        "LIST_DATE_MISSING",
+        np.where(
+            base["delist_date"].notna()
+            & base["delist_date"].lt(pd.Timestamp(data_end)),
+            "DELISTED",
+            "ACTIVE",
+        ),
+    )
+    base = base.sort_values(
+        [
+            "in_pool_2023_12",
+            "affected_months_2023",
+            "affected_months_required",
+            "affected_months_all",
+            "ts_code",
+        ],
+        ascending=[False, False, False, False, True],
+        kind="mergesort",
+    ).reset_index(drop=True)
+    base["priority_rank"] = np.arange(1, len(base) + 1)
+    return base.reindex(columns=SHARE_SUMMARY_COLUMNS)
+
+
 def prepare_artifacts(
     tail: pd.DataFrame,
     shares_detail: pd.DataFrame,
@@ -1126,22 +1225,13 @@ def prepare_artifacts(
     formations: pd.DataFrame,
 ) -> dict[str, pd.DataFrame]:
     pool = build_pool_membership(classified, formations)
-    share_summary = summarize_impacts(shares_detail, pool)
-    diagnostics = tail[
-        [
-            "ts_code",
-            "csmar_latest_a003101000",
-            "anchor_2025_shares",
-            "implied_par",
-            "note",
-        ]
-    ]
-    share_summary = share_summary.merge(
-        diagnostics,
-        on="ts_code",
-        how="left",
-        validate="1:1",
-    ).reindex(columns=SHARE_SUMMARY_COLUMNS)
+    impact_summary = summarize_impacts(shares_detail, pool)
+    share_summary = complete_share_summary(
+        impact_summary,
+        tail,
+        classified,
+        pool,
+    )
     close_summary = summarize_impacts(
         close_detail,
         pool,
@@ -1167,6 +1257,26 @@ def _verify_hash(path: Path, expected: str, label: str) -> str:
         )
     return actual
 
+
+
+def source_table_names(schema: str) -> list[str]:
+    schema = _validated_schema(schema)
+    return [
+        f"{schema}.stock_meta",
+        f"{schema}.stock_daily_price",
+        f"{schema}.stock_share_capital",
+        f"{schema}.stock_suspension",
+    ]
+
+
+def format_count_line(reason: str, counts: dict) -> str:
+    all_count = int(counts.get("all"))
+    required_count = int(counts.get("required"))
+    ticker_count = int(counts.get("tickers"))
+    return (
+        f"{reason}: {all_count} all / "
+        f"{required_count} required / {ticker_count} tickers"
+    )
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1270,12 +1380,7 @@ def main(argv=None) -> int:
                         "tickers": int(close_detail["ts_code"].nunique()),
                     },
                 },
-                "source_tables": [
-                    f"{db[schema]}.stock_meta",
-                    f"{db[schema]}.stock_daily_price",
-                    f"{db[schema]}.stock_share_capital",
-                    f"{db[schema]}.stock_suspension",
-                ],
+                "source_tables": source_table_names(db.get("schema")),
             },
         )
     finally:
@@ -1284,18 +1389,8 @@ def main(argv=None) -> int:
 
     share_counts = manifest["counts"]["DATA_MISSING_SHARES"]
     close_counts = manifest["counts"]["DATA_MISSING_CLOSE"]
-    print(
-        "DATA_MISSING_SHARES: "
-        f"{share_counts[all]} all / "
-        f"{share_counts[required]} required / "
-        f"{share_counts[tickers]} tickers"
-    )
-    print(
-        "DATA_MISSING_CLOSE: "
-        f"{close_counts[all]} all / "
-        f"{close_counts[required]} required / "
-        f"{close_counts[tickers]} tickers"
-    )
+    print(format_count_line("DATA_MISSING_SHARES", share_counts))
+    print(format_count_line("DATA_MISSING_CLOSE", close_counts))
     print("monthly reconciliation: OK")
     return 0
 
