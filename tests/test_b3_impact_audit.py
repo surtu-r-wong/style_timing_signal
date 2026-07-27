@@ -214,6 +214,20 @@ def test_share_asof_filters_known_date_before_latest_effective_date():
     )
 
 
+def test_build_details_deduplicates_exact_duplicate_source_rows():
+    inputs = _classification_inputs()
+    exact = inputs["exact_closes"]
+    inputs["exact_closes"] = pd.concat(
+        [exact, exact.iloc[[0]]],
+        ignore_index=True,
+    )
+
+    shares, _, classified = AUDIT.build_impact_details(**inputs)
+
+    assert not shares.duplicated(["ts_code", "formation_date"]).any()
+    assert not classified.duplicated(["ts_code", "formation_date"]).any()
+
+
 @pytest.mark.parametrize(
     (
         "raw_present",
@@ -405,6 +419,161 @@ def test_reconcile_rejects_one_month_mismatch():
         AUDIT.reconcile_details(shares.iloc[0:0], closes, anchors)
 
 
+def test_reconcile_rejects_swapped_required_flags_between_months():
+    anchors = _small_anchors()._replace(
+        expected_counts=pd.DataFrame(
+            {
+                "DATA_MISSING_SHARES": [1, 1],
+                "DATA_MISSING_CLOSE": [0, 0],
+                "required_formation": [False, True],
+            },
+            index=pd.DatetimeIndex(
+                ["2020-01-31", "2020-02-28"],
+                name="formation_date",
+            ),
+        )
+    )
+    shares = pd.DataFrame(
+        {
+            "ts_code": ["A.SZ", "A.SZ"],
+            "formation_date": ["2020-01-31", "2020-02-28"],
+            "required_formation": [True, False],
+        }
+    )
+    closes = shares.iloc[0:0].copy()
+
+    with pytest.raises(
+        AUDIT.AuditContractError,
+        match="required_formation mismatch",
+    ):
+        AUDIT.reconcile_details(shares, closes, anchors)
+
+
+def _small_artifacts():
+    def one_row(columns, **values):
+        return pd.DataFrame(
+            [{column: values.get(column) for column in columns}],
+            columns=columns,
+        )
+
+    share_summary = one_row(
+        AUDIT.SHARE_SUMMARY_COLUMNS,
+        ts_code="A.SZ",
+        affected_months_all=1,
+        affected_months_required=0,
+        affected_months_2023=0,
+        priority_rank=1,
+    )
+    share_detail = one_row(
+        AUDIT.SHARE_DETAIL_COLUMNS,
+        ts_code="A.SZ",
+        formation_date="2020-01-31",
+        required_formation=False,
+        reason_code="DATA_MISSING_SHARES",
+    )
+    close_summary = one_row(
+        AUDIT.CLOSE_SUMMARY_COLUMNS,
+        ts_code="B.SZ",
+        affected_months_all=1,
+        affected_months_required=1,
+        affected_months_2023=0,
+        exact_row_missing_months=1,
+        exact_row_null_close_months=0,
+        suspension_without_usable_carry_months=0,
+        possible_delist_boundary_months=0,
+        unexplained_exact_date_gap_months=1,
+        priority_rank=1,
+    )
+    close_detail = one_row(
+        AUDIT.CLOSE_DETAIL_COLUMNS,
+        ts_code="B.SZ",
+        formation_date="2020-02-28",
+        required_formation=True,
+        raw_price_row_present=False,
+        suspension_evidence=False,
+        usable_carry=False,
+        after_last_observed_close=False,
+        no_later_observed_close=False,
+        evidence_bucket="UNEXPLAINED_EXACT_DATE_GAP",
+        reason_code="DATA_MISSING_CLOSE",
+    )
+    return {
+        "shares_tail_impact_by_ticker.csv": share_summary,
+        "shares_tail_impact_detail.csv": share_detail,
+        "close_gap_impact_by_ticker.csv": close_summary,
+        "close_gap_impact_detail.csv": close_detail,
+    }
+
+
+def _validate_small_artifacts(artifacts):
+    AUDIT._validate_artifacts(
+        artifacts,
+        expected_tail_rows=1,
+        expected_counts={
+            "DATA_MISSING_SHARES": (1, 0),
+            "DATA_MISSING_CLOSE": (1, 1),
+        },
+    )
+
+
+def test_validate_artifacts_requires_exact_ordered_schema():
+    artifacts = _small_artifacts()
+    frame = artifacts["shares_tail_impact_detail.csv"]
+    artifacts["shares_tail_impact_detail.csv"] = frame[
+        list(reversed(frame.columns))
+    ]
+
+    with pytest.raises(AUDIT.AuditContractError, match="ordered schema"):
+        _validate_small_artifacts(artifacts)
+
+
+def test_validate_artifacts_rejects_duplicate_ticker_month_keys():
+    artifacts = _small_artifacts()
+    artifacts["shares_tail_impact_detail.csv"] = pd.concat(
+        [
+            artifacts["shares_tail_impact_detail.csv"],
+            artifacts["shares_tail_impact_detail.csv"],
+        ],
+        ignore_index=True,
+    )
+
+    with pytest.raises(AUDIT.AuditContractError, match="duplicate"):
+        AUDIT._validate_artifacts(
+            artifacts,
+            expected_tail_rows=1,
+            expected_counts={
+                "DATA_MISSING_SHARES": (2, 0),
+                "DATA_MISSING_CLOSE": (1, 1),
+            },
+        )
+
+
+def test_validate_artifacts_rejects_invalid_rank_and_evidence_values():
+    artifacts = _small_artifacts()
+    artifacts["shares_tail_impact_by_ticker.csv"].loc[
+        0, "priority_rank"
+    ] = 2
+    with pytest.raises(AUDIT.AuditContractError, match="priority_rank"):
+        _validate_small_artifacts(artifacts)
+
+    artifacts = _small_artifacts()
+    artifacts["close_gap_impact_detail.csv"].loc[
+        0, "evidence_bucket"
+    ] = "NOT_A_BUCKET"
+    with pytest.raises(AUDIT.AuditContractError, match="evidence_bucket"):
+        _validate_small_artifacts(artifacts)
+
+
+def test_validate_artifacts_enforces_detail_and_required_totals():
+    artifacts = _small_artifacts()
+    artifacts["close_gap_impact_detail.csv"] = artifacts[
+        "close_gap_impact_detail.csv"
+    ].iloc[0:0]
+
+    with pytest.raises(AUDIT.AuditContractError, match="row count"):
+        _validate_small_artifacts(artifacts)
+
+
 def test_publish_outputs_leaves_no_formal_files_on_invalid_artifact(tmp_path):
     artifacts = {
         "shares_tail_impact_by_ticker.csv": pd.DataFrame(
@@ -425,7 +594,7 @@ def test_publish_outputs_leaves_no_formal_files_on_invalid_artifact(tmp_path):
         ),
     }
 
-    with pytest.raises(AUDIT.AuditContractError, match="reason_code"):
+    with pytest.raises(AUDIT.AuditContractError, match="schema"):
         AUDIT.publish_outputs(
             tmp_path,
             artifacts,
@@ -434,6 +603,74 @@ def test_publish_outputs_leaves_no_formal_files_on_invalid_artifact(tmp_path):
 
     assert not list(tmp_path.glob("*impact*.csv"))
     assert not (tmp_path / "impact_audit_manifest.json").exists()
+
+
+def _small_publish_kwargs():
+    return {
+        "expected_tail_rows": 1,
+        "expected_counts": {
+            "DATA_MISSING_SHARES": (1, 0),
+            "DATA_MISSING_CLOSE": (1, 1),
+        },
+    }
+
+
+def test_publish_outputs_restores_all_prior_files_on_mid_commit_failure(
+    tmp_path,
+    monkeypatch,
+):
+    names = (*AUDIT.ARTIFACT_NAMES, "impact_audit_manifest.json")
+    originals = {}
+    for index, name in enumerate(names):
+        payload = f"old-{index}\n".encode()
+        originals[name] = payload
+        (tmp_path / name).write_bytes(payload)
+
+    real_replace = AUDIT.os.replace
+    failed = False
+
+    def fail_once_on_third_output(source, target):
+        nonlocal failed
+        if (
+            not failed
+            and Path(target).name == "close_gap_impact_by_ticker.csv"
+            and Path(source).parent.name.startswith(".impact-audit-")
+        ):
+            failed = True
+            raise OSError("simulated mid-commit failure")
+        return real_replace(source, target)
+
+    monkeypatch.setattr(AUDIT.os, "replace", fail_once_on_third_output)
+
+    with pytest.raises(OSError, match="simulated mid-commit failure"):
+        AUDIT.publish_outputs(
+            tmp_path,
+            _small_artifacts(),
+            {"schema": "stock_selector"},
+            **_small_publish_kwargs(),
+        )
+
+    assert {
+        name: (tmp_path / name).read_bytes() for name in names
+    } == originals
+    assert not list(tmp_path.glob(".impact-audit-*"))
+    assert not list(tmp_path.glob(".impact-audit-backup-*"))
+
+
+def test_publish_outputs_writes_a_hash_bound_complete_set(tmp_path):
+    manifest = AUDIT.publish_outputs(
+        tmp_path,
+        _small_artifacts(),
+        {"schema": "stock_selector"},
+        **_small_publish_kwargs(),
+    )
+
+    for name in AUDIT.ARTIFACT_NAMES:
+        assert (tmp_path / name).exists()
+        assert manifest["outputs"][name]["sha256"] == AUDIT.sha256_file(
+            tmp_path / name
+        )
+    assert (tmp_path / "impact_audit_manifest.json").exists()
 
 
 def test_fetch_sources_rejects_invalid_schema_before_sql():

@@ -158,7 +158,7 @@ style_timing_signal verifier 加固提交 `25e9c4b` 会同时阻断 valued→unv
 - `close_gap_impact_detail.csv`（202 行）：
   `53496d6b57ec599d0839b4f8df8f72ea7e9fa31099f1baf65255e3b6e286a2f5`；
 - `impact_audit_manifest.json`：
-  `32e69227f2f136140ae78325b150a288959a46a55a3e7dc4e313dadbb0067412`。
+  `777818dd48a0fc4513f74391ce9c57b8bca0f5750173590ba894c93be22b1f74`。
 
 下一步按汇总优先级对活跃 SHARES 票做 Wind 历史股本事实取证；CLOSE 202 则逐票核查
 停牌记录与价格源，不与 SHARES 回填混写。

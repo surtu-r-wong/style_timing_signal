@@ -12,7 +12,7 @@
     }
   },
   "data_end": "2023-12-29",
-  "generated_at": "2026-07-27T10:33:33.396122+00:00",
+  "generated_at": "2026-07-27T11:08:28.246475+00:00",
   "inputs": {
     "coverage_audit.csv": {
       "path": "/home/elfbob/claude-code/style_timing_signal/output/style_basket/b3/coverage_audit.csv",

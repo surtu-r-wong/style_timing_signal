@@ -223,10 +223,11 @@ def _reject_duplicate_keys(
     frame: pd.DataFrame,
     keys: tuple[str, ...],
     label: str,
-) -> None:
+) -> pd.DataFrame:
     deduplicated = frame.drop_duplicates()
     if deduplicated.duplicated(list(keys), keep=False).any():
         raise AuditContractError(f"{label} has conflicting duplicate keys")
+    return deduplicated
 
 
 def _share_asof(
@@ -323,23 +324,23 @@ def build_impact_details(
         if values.isna().any() or values.astype(str).str.strip().eq("").any():
             raise AuditContractError(f"{label} has invalid ticker keys")
 
-    _reject_duplicate_keys(meta, ("ticker",), "stock metadata")
-    _reject_duplicate_keys(
+    meta = _reject_duplicate_keys(meta, ("ticker",), "stock metadata")
+    exact_closes = _reject_duplicate_keys(
         exact_closes,
         ("ticker", "formation_date"),
         "exact closes",
     )
-    _reject_duplicate_keys(
+    shares = _reject_duplicate_keys(
         shares,
         ("ts_code", "end_date"),
         "share capital",
     )
-    _reject_duplicate_keys(
+    suspensions = _reject_duplicate_keys(
         suspensions,
         ("ticker", "formation_date"),
         "suspensions",
     )
-    _reject_duplicate_keys(
+    carried_closes = _reject_duplicate_keys(
         carried_closes,
         ("ticker", "formation_date"),
         "carried closes",
@@ -543,7 +544,7 @@ def enrich_close_evidence(
             "next_nonnull_close_date",
         ),
     )
-    _reject_duplicate_keys(
+    evidence = _reject_duplicate_keys(
         evidence,
         ("ts_code", "formation_date"),
         "close neighbors",
@@ -745,6 +746,22 @@ def reconcile_details(
 ) -> None:
     expected = anchors.expected_counts.copy()
     expected.index = pd.DatetimeIndex(expected.index)
+    formation_flags = _parse_dates(
+        anchors.formations[["formation_date", "required_formation"]],
+        ("formation_date",),
+    )
+    formation_flags["required_formation"] = _coerce_bool(
+        formation_flags["required_formation"],
+        "anchor formations required_formation",
+    )
+    formation_flags = _reject_duplicate_keys(
+        formation_flags,
+        ("formation_date",),
+        "anchor formations",
+    )
+    required_by_date = formation_flags.set_index("formation_date")[
+        "required_formation"
+    ]
     for reason, detail in (
         ("DATA_MISSING_SHARES", shares_detail),
         ("DATA_MISSING_CLOSE", close_detail),
@@ -763,6 +780,11 @@ def reconcile_details(
         if unknown_dates:
             raise AuditContractError(
                 f"{reason} contains unknown formation dates"
+            )
+        canonical_required = frame["formation_date"].map(required_by_date)
+        if frame["required_formation"].ne(canonical_required).any():
+            raise AuditContractError(
+                f"{reason} required_formation mismatch"
             )
         actual = (
             frame.groupby("formation_date")
@@ -792,50 +814,141 @@ def reconcile_details(
         )
 
 
-def _validate_artifacts(artifacts: dict[str, pd.DataFrame]) -> None:
+def _validate_artifacts(
+    artifacts: dict[str, pd.DataFrame],
+    *,
+    expected_tail_rows: int = EXPECTED_TAIL_ROWS,
+    expected_counts: dict[str, tuple[int, int]] = EXPECTED_COUNTS,
+) -> None:
     if set(artifacts) != set(ARTIFACT_NAMES):
         raise AuditContractError("artifact file set differs from contract")
-    requirements = {
-        "shares_tail_impact_by_ticker.csv": {
-            "ts_code",
-            "priority_rank",
-        },
-        "shares_tail_impact_detail.csv": {
-            "ts_code",
-            "reason_code",
-        },
-        "close_gap_impact_by_ticker.csv": {
-            "ts_code",
-            "priority_rank",
-        },
-        "close_gap_impact_detail.csv": {
-            "ts_code",
-            "reason_code",
-            "evidence_bucket",
-        },
+
+    schemas = {
+        "shares_tail_impact_by_ticker.csv": SHARE_SUMMARY_COLUMNS,
+        "shares_tail_impact_detail.csv": SHARE_DETAIL_COLUMNS,
+        "close_gap_impact_by_ticker.csv": CLOSE_SUMMARY_COLUMNS,
+        "close_gap_impact_detail.csv": CLOSE_DETAIL_COLUMNS,
     }
-    for name, required in requirements.items():
-        _require_columns(artifacts[name], required, name)
-    for name in (
-        "shares_tail_impact_detail.csv",
-        "close_gap_impact_detail.csv",
+    for name, columns in schemas.items():
+        if list(artifacts[name].columns) != list(columns):
+            raise AuditContractError(f"{name} ordered schema differs")
+
+    share_summary = artifacts["shares_tail_impact_by_ticker.csv"]
+    share_detail = artifacts["shares_tail_impact_detail.csv"]
+    close_summary = artifacts["close_gap_impact_by_ticker.csv"]
+    close_detail = artifacts["close_gap_impact_detail.csv"]
+
+    if len(share_summary) != expected_tail_rows:
+        raise AuditContractError("share summary row count mismatch")
+
+    detail_specs = (
+        (
+            "shares_tail_impact_detail.csv",
+            share_detail,
+            "DATA_MISSING_SHARES",
+        ),
+        (
+            "close_gap_impact_detail.csv",
+            close_detail,
+            "DATA_MISSING_CLOSE",
+        ),
+    )
+    for name, frame, reason in detail_specs:
+        expected_all, expected_required = expected_counts[reason]
+        if len(frame) != expected_all:
+            raise AuditContractError(f"{name} row count mismatch")
+        required = _coerce_bool(
+            frame["required_formation"],
+            f"{name} required_formation",
+        )
+        if int(required.sum()) != expected_required:
+            raise AuditContractError(f"{name} required total mismatch")
+        keys = frame[["ts_code", "formation_date"]]
+        if keys.isna().any().any():
+            raise AuditContractError(f"{name} has blank ticker-month keys")
+        if keys.duplicated().any():
+            raise AuditContractError(f"{name} has duplicate ticker-month keys")
+        reason_values = frame["reason_code"].astype(str)
+        if not reason_values.eq(reason).all():
+            raise AuditContractError(f"{name} has invalid reason_code")
+
+    allowed_buckets = {
+        "EXACT_ROW_NULL_CLOSE",
+        "SUSPENSION_WITHOUT_USABLE_CARRY",
+        "POSSIBLE_DELIST_BOUNDARY",
+        "UNEXPLAINED_EXACT_DATE_GAP",
+    }
+    if not close_detail["evidence_bucket"].isin(allowed_buckets).all():
+        raise AuditContractError(
+            "close detail has invalid evidence_bucket"
+        )
+
+    for name, summary in (
+        ("shares_tail_impact_by_ticker.csv", share_summary),
+        ("close_gap_impact_by_ticker.csv", close_summary),
     ):
-        reason = artifacts[name]["reason_code"]
-        if reason.isna().any() or reason.astype(str).str.strip().eq("").any():
-            raise AuditContractError(f"{name} reason_code is blank")
-    bucket = artifacts["close_gap_impact_detail.csv"][
-        "evidence_bucket"
-    ]
-    if bucket.isna().any() or bucket.astype(str).str.strip().eq("").any():
-        raise AuditContractError("close detail evidence_bucket is blank")
+        tickers = summary["ts_code"].astype(str).str.strip()
+        if tickers.eq("").any() or tickers.duplicated().any():
+            raise AuditContractError(f"{name} has invalid ticker keys")
+        ranks = pd.to_numeric(summary["priority_rank"], errors="raise")
+        if ranks.tolist() != list(range(1, len(summary) + 1)):
+            raise AuditContractError(f"{name} priority_rank mismatch")
+
+    share_tickers = set(share_summary["ts_code"])
+    if not set(share_detail["ts_code"]).issubset(share_tickers):
+        raise AuditContractError("share detail ticker set exceeds summary")
+    if set(close_detail["ts_code"]) != set(close_summary["ts_code"]):
+        raise AuditContractError("close detail/summary ticker sets differ")
+
+    for name, summary, detail in (
+        ("share", share_summary, share_detail),
+        ("close", close_summary, close_detail),
+    ):
+        counts = detail.groupby("ts_code").size()
+        required = (
+            detail.assign(
+                _required=_coerce_bool(
+                    detail["required_formation"],
+                    f"{name} detail required_formation",
+                )
+            )
+            .groupby("ts_code")["_required"]
+            .sum()
+        )
+        indexed = summary.set_index("ts_code")
+        actual_all = pd.to_numeric(
+            indexed["affected_months_all"],
+            errors="raise",
+        ).astype(int)
+        actual_required = pd.to_numeric(
+            indexed["affected_months_required"],
+            errors="raise",
+        ).astype(int)
+        if not actual_all.equals(
+            counts.reindex(indexed.index, fill_value=0).astype(int)
+        ):
+            raise AuditContractError(f"{name} summary all totals mismatch")
+        if not actual_required.equals(
+            required.reindex(indexed.index, fill_value=0).astype(int)
+        ):
+            raise AuditContractError(
+                f"{name} summary required totals mismatch"
+            )
 
 
 def publish_outputs(
     output_dir: str | Path,
     artifacts: dict[str, pd.DataFrame],
     manifest_base: dict,
+    *,
+    expected_tail_rows: int = EXPECTED_TAIL_ROWS,
+    expected_counts: dict[str, tuple[int, int]] = EXPECTED_COUNTS,
 ) -> dict:
-    _validate_artifacts(artifacts)
+    _validate_artifacts(
+        artifacts,
+        expected_tail_rows=expected_tail_rows,
+        expected_counts=expected_counts,
+    )
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
     staging = Path(
@@ -872,8 +985,42 @@ def publish_outputs(
             + "\n",
             encoding="utf-8",
         )
-        for name in (*ARTIFACT_NAMES, "impact_audit_manifest.json"):
-            os.replace(staging / name, root / name)
+        publication_names = (
+            *ARTIFACT_NAMES,
+            "impact_audit_manifest.json",
+        )
+        backup = Path(
+            tempfile.mkdtemp(prefix=".impact-audit-backup-", dir=root)
+        )
+        published = set()
+        try:
+            for name in publication_names:
+                target = root / name
+                prior = backup / name
+                if target.exists():
+                    os.replace(target, prior)
+                os.replace(staging / name, target)
+                published.add(name)
+        except BaseException as error:
+            rollback_errors = []
+            for name in reversed(publication_names):
+                target = root / name
+                prior = backup / name
+                try:
+                    if prior.exists():
+                        os.replace(prior, target)
+                    elif name in published and target.exists():
+                        target.unlink()
+                except OSError as rollback_error:
+                    rollback_errors.append(f"{name}: {rollback_error}")
+            if rollback_errors:
+                raise AuditContractError(
+                    "publication failed and rollback was incomplete: "
+                    + "; ".join(rollback_errors)
+                ) from error
+            raise
+        finally:
+            shutil.rmtree(backup, ignore_errors=True)
         return manifest
     finally:
         shutil.rmtree(staging, ignore_errors=True)
@@ -1150,7 +1297,7 @@ def complete_share_summary(
         .copy(),
         ("list_date", "delist_date"),
     )
-    _reject_duplicate_keys(meta, ("ts_code",), "classified metadata")
+    meta = _reject_duplicate_keys(meta, ("ts_code",), "classified metadata")
     metrics = impact_summary[
         [
             "ts_code",
