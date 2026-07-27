@@ -1,0 +1,51 @@
+{
+  "counts": {
+    "DATA_MISSING_CLOSE": {
+      "all": 202,
+      "required": 190,
+      "tickers": 14
+    },
+    "DATA_MISSING_SHARES": {
+      "all": 5781,
+      "required": 5445,
+      "tickers": 56
+    }
+  },
+  "data_end": "2023-12-29",
+  "generated_at": "2026-07-27T10:33:33.396122+00:00",
+  "inputs": {
+    "coverage_audit.csv": {
+      "path": "/home/elfbob/claude-code/style_timing_signal/output/style_basket/b3/coverage_audit.csv",
+      "sha256": "13c8af70650a24ba00c1b0890e979c487a0133589e6127967340e622426e9358"
+    },
+    "tail.csv": {
+      "path": "/home/elfbob/claude-code/style_timing_signal/.worktrees/b3-tail-close-impact/data_fixes/2026-07-25-share-capital-par/tail.csv",
+      "sha256": "93653f5ad7cade2d03872bd7796966e60e94074d7445eaa8192e4885b0995223"
+    }
+  },
+  "outputs": {
+    "close_gap_impact_by_ticker.csv": {
+      "row_count": 14,
+      "sha256": "473d412f5de45546ceff30649f23711848199def754a609b60684d1a8206a8aa"
+    },
+    "close_gap_impact_detail.csv": {
+      "row_count": 202,
+      "sha256": "53496d6b57ec599d0839b4f8df8f72ea7e9fa31099f1baf65255e3b6e286a2f5"
+    },
+    "shares_tail_impact_by_ticker.csv": {
+      "row_count": 57,
+      "sha256": "ff8a9123504d430225c0ea0618c6a07c06373b07f2826af8bff450d6a55d7a40"
+    },
+    "shares_tail_impact_detail.csv": {
+      "row_count": 5781,
+      "sha256": "a2fd07c9cdf5ba6b1defb89850eaf5bea629c7e76cf372c95931c745eedead13"
+    }
+  },
+  "schema": "stock_selector",
+  "source_tables": [
+    "stock_selector.stock_meta",
+    "stock_selector.stock_daily_price",
+    "stock_selector.stock_share_capital",
+    "stock_selector.stock_suspension"
+  ]
+}

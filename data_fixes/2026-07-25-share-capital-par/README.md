@@ -101,3 +101,64 @@ style_timing_signal verifier 加固提交 `25e9c4b` 会同时阻断 valued→unv
 两阶段代码回滚 = `git revert e11d73e`（会回到 `c31104e` 的 180 日同期锚口径）。
 根因锚点回滚另需评估 `c31104e`。生产 UPSERT 已执行；回滚代码不会自动回滚数据。
 `gap_before.csv` / `valued_tickers_before.csv` 是重跑前的完整基线快照，必须保留用于核对。
+
+## 2026-07-27 B3 逐票影响审计（只读）
+
+本轮没有执行 prod backfill、B3 preflight/eval 或 `verify_par_recovery.py --phase before`。
+审计脚本使用只读事务，以最终 `tail.csv` 和 `coverage_audit.csv` 为不可变锚，复刻 B3
+`size_exclusion` 原因优先级并逐月对账。
+
+执行命令：
+
+```bash
+/home/elfbob/miniconda3/bin/python \
+  data_fixes/2026-07-25-share-capital-par/build_b3_impact_audit.py \
+  --tail data_fixes/2026-07-25-share-capital-par/tail.csv \
+  --coverage-audit \
+    /home/elfbob/claude-code/style_timing_signal/output/style_basket/b3/coverage_audit.csv \
+  --settings \
+    /home/elfbob/claude-code/style_timing_signal/config/settings.yaml \
+  --output-dir data_fixes/2026-07-25-share-capital-par
+```
+
+输入锚：
+
+- `tail.csv`：`93653f5ad7cade2d03872bd7796966e60e94074d7445eaa8192e4885b0995223`；
+- `coverage_audit.csv`：`13c8af70650a24ba00c1b0890e979c487a0133589e6127967340e622426e9358`。
+
+### SHARES 结果
+
+- 逐月明细与 coverage 完全一致：**5,781 all / 5,445 required**；实际涉及 **56 只**。
+- 汇总仍固定保留 tail 全集 **57 行**；`688347.SH` 于 2023-08-07 上市，截至
+  2023-12-29 尚不足 180 天，因此实际 `DATA_MISSING_SHARES` 影响为 0、`in_pool_2023_12=False`。
+- 最高优先级为 2023-12 仍在池且全 128 月受影响的活跃票；前十为
+  `000035.SZ, 000156.SZ, 000301.SZ, 000498.SZ, 000547.SZ, 000603.SZ,`
+  `000620.SZ, 000681.SZ, 000813.SZ, 000820.SZ`。
+
+### CLOSE 结果
+
+- 逐月明细与 coverage 完全一致：**202 all / 190 required / 14 tickers**。
+- 14 只及 all 影响数：`000670.SZ(28), 000155.SZ(19), 000995.SZ(19),`
+  `000520.SZ(15), 000629.SZ(15), 000792.SZ(15), 000950.SZ(15),`
+  `002506.SZ(15), 600710.SH(15), 600732.SH(14), 600610.SH(13),`
+  `000751.SZ(15), 000545.SZ(2), 600698.SH(2)`。
+- 202 行全部是 formation date 原始价格行缺失；同日 `stock_suspension` 证据为 0，
+  退市边界为 0，且 202 行全部存在后续非空 close，因此当前证据桶均为
+  `UNEXPLAINED_EXACT_DATE_GAP`。这只说明需要继续核查停牌证据遗漏/价格源缺口，
+  **不构成自动回填、豁免或 universe 剔除结论**。
+
+### 产物哈希
+
+- `shares_tail_impact_by_ticker.csv`（57 行）：
+  `ff8a9123504d430225c0ea0618c6a07c06373b07f2826af8bff450d6a55d7a40`；
+- `shares_tail_impact_detail.csv`（5,781 行）：
+  `a2fd07c9cdf5ba6b1defb89850eaf5bea629c7e76cf372c95931c745eedead13`；
+- `close_gap_impact_by_ticker.csv`（14 行）：
+  `473d412f5de45546ceff30649f23711848199def754a609b60684d1a8206a8aa`；
+- `close_gap_impact_detail.csv`（202 行）：
+  `53496d6b57ec599d0839b4f8df8f72ea7e9fa31099f1baf65255e3b6e286a2f5`；
+- `impact_audit_manifest.json`：
+  `32e69227f2f136140ae78325b150a288959a46a55a3e7dc4e313dadbb0067412`。
+
+下一步按汇总优先级对活跃 SHARES 票做 Wind 历史股本事实取证；CLOSE 202 则逐票核查
+停牌记录与价格源，不与 SHARES 回填混写。

@@ -1,0 +1,15 @@
+ts_code,list_date,delist_date,listing_status_at_data_end,in_pool_2023_any,in_pool_2023_12,affected_months_all,affected_months_required,affected_months_2023,first_affected_formation,last_affected_formation,exact_row_missing_months,exact_row_null_close_months,suspension_without_usable_carry_months,possible_delist_boundary_months,unexplained_exact_date_gap_months,priority_rank
+000670.SZ,1996-12-17,,ACTIVE,True,True,28,28,0,2020-04-30,2022-07-29,28,0,0,0,28,1
+000155.SZ,2000-09-26,,ACTIVE,True,True,19,19,0,2016-05-31,2017-11-30,19,0,0,0,19,2
+000995.SZ,2000-08-07,,ACTIVE,True,True,19,19,0,2019-05-31,2020-11-30,19,0,0,0,19,3
+000520.SZ,1993-10-25,,ACTIVE,True,True,15,15,0,2014-05-30,2015-07-31,15,0,0,0,15,4
+000629.SZ,1996-11-15,,ACTIVE,True,True,15,15,0,2017-05-31,2018-07-31,15,0,0,0,15,5
+000792.SZ,1997-09-04,,ACTIVE,True,True,15,15,0,2020-05-29,2021-07-30,15,0,0,0,15,6
+000950.SZ,1999-09-16,,ACTIVE,True,True,15,15,0,2017-05-31,2018-07-31,15,0,0,0,15,7
+002506.SZ,2010-11-18,,ACTIVE,True,True,15,15,0,2014-05-30,2015-07-31,15,0,0,0,15,8
+600710.SH,1996-07-01,,ACTIVE,True,True,15,15,0,2016-04-29,2017-06-30,15,0,0,0,15,9
+600732.SH,1996-08-16,,ACTIVE,True,True,14,14,0,2016-04-29,2017-05-31,14,0,0,0,14,10
+600610.SH,1992-08-05,,ACTIVE,True,True,13,13,0,2019-07-31,2020-07-31,13,0,0,0,13,11
+000751.SZ,1997-06-26,,ACTIVE,True,True,15,7,0,2013-05-31,2014-07-31,15,0,0,0,15,12
+000545.SZ,1993-12-15,,ACTIVE,True,True,2,0,0,2013-05-31,2013-06-28,2,0,0,0,2,13
+600698.SH,1993-12-06,,ACTIVE,True,True,2,0,0,2013-05-31,2013-06-28,2,0,0,0,2,14
