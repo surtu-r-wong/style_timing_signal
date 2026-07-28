@@ -177,3 +177,23 @@ def test_non_bj_hk_suffix_is_not_silently_excluded():
         closes=[{"ts_code": "OTHER.X", "formation_date": FORMATION, "close": None}],
     )
     assert result["ts_code"].tolist() == ["OTHER.X"]
+
+
+@pytest.mark.parametrize(
+    ("meta", "carries", "label"),
+    [
+        (
+            [{"ts_code": "A.SZ", "list_date": "", "delist_date": None}],
+            None,
+            "stock meta",
+        ),
+        (
+            None,
+            [{"ts_code": "A.SZ", "formation_date": FORMATION, "close_date": "", "close": None}],
+            "exact carries",
+        ),
+    ],
+)
+def test_invalid_non_null_nullable_date_tokens_raise_source_named_errors(meta, carries, label):
+    with pytest.raises(SuspensionEvidenceError, match=label):
+        _build(meta=meta, carries=carries)

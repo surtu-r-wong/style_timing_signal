@@ -31,10 +31,13 @@ def _parse_dates(
 ) -> pd.DataFrame:
     parsed = frame.copy()
     for column in columns:
+        missing = parsed[column].isna()
         try:
             parsed[column] = pd.to_datetime(parsed[column], errors="raise")
         except (TypeError, ValueError) as exc:
             raise SuspensionEvidenceError(f"{label}: invalid {column}") from exc
+        if (parsed[column].isna() & ~missing).any():
+            raise SuspensionEvidenceError(f"{label}: invalid {column}")
         if column not in nullable and parsed[column].isna().any():
             raise SuspensionEvidenceError(f"{label}: {column} must not be null")
     return parsed
