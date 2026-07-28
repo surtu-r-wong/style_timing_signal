@@ -40,11 +40,9 @@ def _parse_dates(
     return parsed
 
 
-def _normalise(frame: pd.DataFrame, *, label: str, date_columns: tuple[str, ...], nullable_dates: tuple[str, ...] = (), close: bool = False) -> pd.DataFrame:
+def _normalise(frame: pd.DataFrame, *, label: str, date_columns: tuple[str, ...], nullable_dates: tuple[str, ...] = ()) -> pd.DataFrame:
     _validate_tickers(frame, label)
     result = _parse_dates(frame, date_columns, label, nullable_dates)
-    if close:
-        result["close"] = pd.to_numeric(result["close"], errors="coerce")
     return result.drop_duplicates().reset_index(drop=True)
 
 
@@ -56,31 +54,39 @@ def _deduplicate_keys(frame: pd.DataFrame, keys: list[str], label: str) -> pd.Da
 
 
 def build_missing_close_candidates(*, formations, stock_meta, exact_closes, exact_suspensions, exact_carries) -> pd.DataFrame:
-    """Return mature SH/SZ formation ticker-months with missing, unusable exact closes."""
+    """Return mature non-BJ/HK formation ticker-months with missing exact closes."""
     _require_columns(formations, ("formation_date",), "formations")
     _require_columns(stock_meta, ("ts_code", "list_date", "delist_date"), "stock meta")
     _require_columns(exact_closes, ("ts_code", "formation_date", "close"), "exact closes")
     _require_columns(exact_suspensions, ("ts_code", "formation_date"), "exact suspensions")
     _require_columns(exact_carries, ("ts_code", "formation_date", "close_date", "close"), "exact carries")
 
-    formations = _parse_dates(formations, ("formation_date",), "formations").drop_duplicates()
+    formations = _deduplicate_keys(
+        _parse_dates(formations, ("formation_date",), "formations").drop_duplicates(),
+        ["formation_date"], "formations",
+    )[["formation_date"]]
     stock_meta = _normalise(stock_meta, label="stock meta", date_columns=("list_date", "delist_date"), nullable_dates=("list_date", "delist_date"))
     exact_closes = _deduplicate_keys(
-        _normalise(exact_closes, label="exact closes", date_columns=("formation_date",), close=True),
+        _normalise(exact_closes, label="exact closes", date_columns=("formation_date",)),
         ["ts_code", "formation_date"], "exact closes",
     )
+    exact_closes["close"] = pd.to_numeric(exact_closes["close"], errors="coerce")
     exact_suspensions = _deduplicate_keys(
         _normalise(exact_suspensions, label="exact suspensions", date_columns=("formation_date",)),
         ["ts_code", "formation_date"], "exact suspensions",
     )
     exact_carries = _deduplicate_keys(
-        _normalise(exact_carries, label="exact carries", date_columns=("formation_date", "close_date"), close=True),
+        _normalise(
+            exact_carries, label="exact carries", date_columns=("formation_date", "close_date"),
+            nullable_dates=("close_date",),
+        ),
         ["ts_code", "formation_date"], "exact carries",
     )
+    exact_carries["close"] = pd.to_numeric(exact_carries["close"], errors="coerce")
     stock_meta = _deduplicate_keys(stock_meta, ["ts_code"], "stock meta")
 
     universe = formations.merge(stock_meta, how="cross")
-    in_scope = universe["ts_code"].str.endswith((".SH", ".SZ"), na=False)
+    in_scope = ~universe["ts_code"].str.endswith(EXCLUDED_MARKET_SUFFIXES, na=False)
     active = universe["list_date"].notna() & (universe["list_date"] <= universe["formation_date"])
     active &= universe["delist_date"].isna() | (universe["formation_date"] <= universe["delist_date"])
     mature = universe["list_date"] + pd.Timedelta(days=MIN_LISTED_DAYS) <= universe["formation_date"]

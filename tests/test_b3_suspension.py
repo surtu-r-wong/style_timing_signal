@@ -11,9 +11,9 @@ from signals.style_basket.b3_suspension import (
 FORMATION = pd.Timestamp("2021-01-29")
 
 
-def _frames(*, meta=None, closes=None, suspensions=None, carries=None):
+def _frames(*, formations=None, meta=None, closes=None, suspensions=None, carries=None):
     return {
-        "formations": pd.DataFrame({"formation_date": [FORMATION]}),
+        "formations": formations if formations is not None else pd.DataFrame({"formation_date": [FORMATION]}),
         "stock_meta": pd.DataFrame(
             meta if meta is not None else [{"ts_code": "A.SZ", "list_date": "2020-01-01", "delist_date": None}]
         ),
@@ -136,3 +136,44 @@ def test_empty_inputs_return_exact_ordered_schema():
     )
     assert tuple(result.columns) == CANDIDATE_COLUMNS
     assert result.empty
+
+
+def test_conflicting_formation_keys_raise_source_named_error():
+    formations = pd.DataFrame([
+        {"formation_date": FORMATION, "source": "first"},
+        {"formation_date": FORMATION, "source": "second"},
+    ])
+    with pytest.raises(SuspensionEvidenceError, match="formations"):
+        _build(formations=formations)
+
+
+def test_distinct_non_numeric_exact_close_values_are_conflicting_evidence():
+    with pytest.raises(SuspensionEvidenceError, match="exact closes"):
+        _build(closes=[
+            {"ts_code": "A.SZ", "formation_date": FORMATION, "close": "junk"},
+            {"ts_code": "A.SZ", "formation_date": FORMATION, "close": "garbage"},
+        ])
+
+
+def test_distinct_non_numeric_exact_carry_values_are_conflicting_evidence():
+    with pytest.raises(SuspensionEvidenceError, match="exact carries"):
+        _build(carries=[
+            {"ts_code": "A.SZ", "formation_date": FORMATION, "close_date": "2021-01-28", "close": "junk"},
+            {"ts_code": "A.SZ", "formation_date": FORMATION, "close_date": "2021-01-28", "close": "garbage"},
+        ])
+
+
+def test_null_carry_close_date_with_nonusable_close_remains_candidate():
+    result = _build(
+        suspensions=[{"ts_code": "A.SZ", "formation_date": FORMATION}],
+        carries=[{"ts_code": "A.SZ", "formation_date": FORMATION, "close_date": None, "close": None}],
+    )
+    assert result["ts_code"].tolist() == ["A.SZ"]
+
+
+def test_non_bj_hk_suffix_is_not_silently_excluded():
+    result = _build(
+        meta=[{"ts_code": "OTHER.X", "list_date": "2020-01-01", "delist_date": None}],
+        closes=[{"ts_code": "OTHER.X", "formation_date": FORMATION, "close": None}],
+    )
+    assert result["ts_code"].tolist() == ["OTHER.X"]
