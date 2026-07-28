@@ -225,3 +225,44 @@ def test_non_null_exact_carry_values_exclude_candidate(carry_close):
 def test_singleton_non_numeric_exact_close_is_coerced_to_missing():
     result = _build(closes=[{"ts_code": "A.SZ", "formation_date": FORMATION, "close": "not-a-number"}])
     assert result["ts_code"].tolist() == ["A.SZ"]
+
+
+@pytest.mark.parametrize(
+    ("formations", "label"),
+    [
+        (pd.DataFrame({"formation_date": [20210129]}), "formations"),
+        (pd.DataFrame({"formation_date": [pd.Timestamp("2021-01-29", tz="UTC")]}), "formations"),
+        (pd.DataFrame({"formation_date": [FORMATION, pd.Timestamp("2021-01-29", tz="UTC")]}), "formations"),
+        (pd.DataFrame({"formation_date": [pd.Timestamp("2021-01-29 09:30")] }), "formations"),
+    ],
+)
+def test_noncanonical_required_dates_raise_source_named_errors(formations, label):
+    with pytest.raises(SuspensionEvidenceError, match=label):
+        _build(formations=formations)
+
+
+@pytest.mark.parametrize("ts_code", [" A.SZ", "A.SZ ", "A.HK ", "A.BJ "])
+def test_ticker_whitespace_is_a_structural_error(ts_code):
+    with pytest.raises(SuspensionEvidenceError, match="stock meta"):
+        _build(meta=[{"ts_code": ts_code, "list_date": "2020-01-01", "delist_date": None}])
+
+
+def test_absent_exact_close_row_is_a_candidate():
+    frames = _frames()
+    frames["exact_closes"] = pd.DataFrame(columns=["ts_code", "formation_date", "close"])
+    result = build_missing_close_candidates(**frames)
+    assert result["ts_code"].tolist() == ["A.SZ"]
+
+
+def test_exact_180_day_listing_age_is_mature():
+    result = _build(meta=[{
+        "ts_code": "A.SZ", "list_date": FORMATION - pd.Timedelta(days=180), "delist_date": None,
+    }])
+    assert result["ts_code"].tolist() == ["A.SZ"]
+
+
+def test_delist_date_equal_to_formation_is_active():
+    result = _build(meta=[{
+        "ts_code": "A.SZ", "list_date": "2020-01-01", "delist_date": FORMATION,
+    }])
+    assert result["ts_code"].tolist() == ["A.SZ"]

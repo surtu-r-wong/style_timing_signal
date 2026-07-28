@@ -1,5 +1,7 @@
 """Pure DataFrame rules for B3 missing-close suspension evidence."""
 
+from numbers import Number
+
 import pandas as pd
 
 
@@ -21,7 +23,9 @@ def _require_columns(frame: pd.DataFrame, columns: tuple[str, ...], label: str) 
 def _validate_tickers(frame: pd.DataFrame, label: str) -> None:
     if frame.empty:
         return
-    invalid = frame["ts_code"].map(lambda value: not isinstance(value, str) or not value.strip())
+    invalid = frame["ts_code"].map(
+        lambda value: not isinstance(value, str) or not value.strip() or value != value.strip()
+    )
     if invalid.any():
         raise SuspensionEvidenceError(f"{label}: ts_code keys must be non-blank strings")
 
@@ -31,13 +35,25 @@ def _parse_dates(
 ) -> pd.DataFrame:
     parsed = frame.copy()
     for column in columns:
-        missing = parsed[column].isna()
-        try:
-            parsed[column] = pd.to_datetime(parsed[column], errors="raise")
-        except (TypeError, ValueError) as exc:
-            raise SuspensionEvidenceError(f"{label}: invalid {column}") from exc
-        if (parsed[column].isna() & ~missing).any():
-            raise SuspensionEvidenceError(f"{label}: invalid {column}")
+        values = []
+        for value in parsed[column]:
+            try:
+                missing = bool(pd.isna(value))
+            except (TypeError, ValueError) as exc:
+                raise SuspensionEvidenceError(f"{label}: invalid {column}") from exc
+            if missing:
+                values.append(pd.NaT)
+                continue
+            if isinstance(value, (bool, Number)):
+                raise SuspensionEvidenceError(f"{label}: invalid {column}")
+            try:
+                timestamp = pd.Timestamp(value)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise SuspensionEvidenceError(f"{label}: invalid {column}") from exc
+            if pd.isna(timestamp) or timestamp.tzinfo is not None or timestamp != timestamp.normalize():
+                raise SuspensionEvidenceError(f"{label}: invalid {column}")
+            values.append(timestamp)
+        parsed[column] = pd.Series(values, index=parsed.index, dtype="datetime64[ns]")
         if column not in nullable and parsed[column].isna().any():
             raise SuspensionEvidenceError(f"{label}: {column} must not be null")
     return parsed
@@ -73,6 +89,7 @@ def build_missing_close_candidates(*, formations, stock_meta, exact_closes, exac
         _normalise(exact_closes, label="exact closes", date_columns=("formation_date",)),
         ["ts_code", "formation_date"], "exact closes",
     )
+    exact_closes = exact_closes[["ts_code", "formation_date", "close"]]
     exact_closes["close"] = pd.to_numeric(exact_closes["close"], errors="coerce")
     exact_suspensions = _deduplicate_keys(
         _normalise(exact_suspensions, label="exact suspensions", date_columns=("formation_date",)),
@@ -85,8 +102,12 @@ def build_missing_close_candidates(*, formations, stock_meta, exact_closes, exac
         ),
         ["ts_code", "formation_date"], "exact carries",
     )
+    exact_suspensions = exact_suspensions[["ts_code", "formation_date"]]
+    exact_carries = exact_carries[["ts_code", "formation_date", "close_date", "close"]]
     exact_carries["close"] = pd.to_numeric(exact_carries["close"], errors="coerce")
-    stock_meta = _deduplicate_keys(stock_meta, ["ts_code"], "stock meta")
+    stock_meta = _deduplicate_keys(stock_meta, ["ts_code"], "stock meta")[
+        ["ts_code", "list_date", "delist_date"]
+    ]
 
     universe = formations.merge(stock_meta, how="cross")
     in_scope = ~universe["ts_code"].str.endswith(EXCLUDED_MARKET_SUFFIXES, na=False)
