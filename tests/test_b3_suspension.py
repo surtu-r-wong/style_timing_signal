@@ -3,6 +3,10 @@ import pytest
 
 from signals.style_basket.b3_suspension import (
     CANDIDATE_COLUMNS,
+    CORE_EVIDENCE_COLUMNS,
+    INTERVAL_METHOD,
+    build_continuous_suspension_evidence,
+    empty_interval_evidence,
     SuspensionEvidenceError,
     build_missing_close_candidates,
 )
@@ -278,3 +282,165 @@ def test_delist_date_equal_to_formation_is_active():
 def test_out_of_range_dates_raise_source_named_errors(formations, meta, label):
     with pytest.raises(SuspensionEvidenceError, match=label):
         _build(formations=formations, meta=meta)
+
+
+INTERVAL_FORMATION = pd.Timestamp("2021-09-30")
+
+
+def _interval_frames(*, candidates=None, calendar=None, prices=None, events=None, status=None):
+    return {
+        "candidates": pd.DataFrame(candidates if candidates is not None else [{"ts_code": "A.SZ", "formation_date": INTERVAL_FORMATION, "list_date": "2020-01-01", "delist_date": None}]),
+        "trading_calendar": pd.DataFrame(calendar if calendar is not None else [
+            {"calendar_date": "2021-09-17", "sfe": True}, {"calendar_date": "2021-09-18", "sfe": False},
+            {"calendar_date": "2021-09-19", "sfe": False}, {"calendar_date": "2021-09-20", "sfe": False},
+            {"calendar_date": "2021-09-21", "sfe": False}, {"calendar_date": "2021-09-22", "sfe": True},
+            {"calendar_date": "2021-09-30", "sfe": True}, {"calendar_date": "2021-10-08", "sfe": True},
+        ]),
+        "prices": pd.DataFrame(prices if prices is not None else [{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": 10.0}, {"ts_code": "A.SZ", "trade_date": "2021-10-08", "close": 12.0}]),
+        "suspension_events": pd.DataFrame(events if events is not None else [{"ts_code": "A.SZ", "trade_date": "2021-09-22", "suspend_type": "今起停牌", "suspend_reason": "重大事项"}], columns=["ts_code", "trade_date", "suspend_type", "suspend_reason"]),
+        "stock_status": None if status is None else pd.DataFrame(status),
+    }
+
+
+def _interval_build(*, source_start="2021-01-01", **kwargs):
+    return build_continuous_suspension_evidence(**_interval_frames(**kwargs), suspension_source_start=source_start)
+
+
+def test_empty_interval_evidence_has_exact_schema():
+    result = empty_interval_evidence()
+    assert tuple(result.columns) == CORE_EVIDENCE_COLUMNS
+    assert result.empty
+
+
+def test_classifies_explicit_interval_over_holiday_and_reports_future_resume():
+    row = _interval_build().iloc[0]
+    assert row["accepted"] is True
+    assert row["evidence_method"] == INTERVAL_METHOD
+    assert row["rejection_reason"] == ""
+    assert row["suspension_start"] == pd.Timestamp("2021-09-22")
+    assert row["previous_official_trade_date"] == pd.Timestamp("2021-09-17")
+    assert row["previous_close_date"] == pd.Timestamp("2021-09-17")
+    assert row["previous_close"] == 10.0
+    assert row["next_trade_date"] == pd.Timestamp("2021-10-08")
+    assert row["next_nonnull_close"] == 12.0
+    assert pd.isna(row["exact_stock_status_confirmed"])
+
+
+@pytest.mark.parametrize(("events", "source_start", "reason"), [
+    ([], "2021-01-01", "NO_EXPLICIT_SUSPENSION_START"),
+    ([], "2021-09-23", "SUSPENSION_START_PRECEDES_SOURCE_COVERAGE"),
+    ([{"ts_code": "A.SZ", "trade_date": "2021-09-21", "suspend_type": "今起停牌", "suspend_reason": "x"}], "2021-01-01", "START_NOT_OFFICIAL_TRADING_DAY"),
+])
+def test_start_absence_coverage_and_closed_day_rejections(events, source_start, reason):
+    assert _interval_build(events=events, source_start=source_start).iloc[0]["rejection_reason"] == reason
+
+
+def test_rejects_stale_prior_close_and_price_inside_interval():
+    stale = _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-16", "close": 10.0}]).iloc[0]
+    inside = _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": 10.0}, {"ts_code": "A.SZ", "trade_date": "2021-09-30", "close": 11.0}]).iloc[0]
+    assert stale["rejection_reason"] == "PREVIOUS_CLOSE_NOT_PRIOR_TRADING_DAY"
+    assert inside["rejection_reason"] == "PRICE_OBSERVED_DURING_INTERVAL"
+
+
+@pytest.mark.parametrize("close", [None, 0.0, -1.0, float("nan"), float("inf")])
+def test_rejects_missing_nonpositive_or_nonfinite_previous_close(close):
+    row = _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": close}]).iloc[0]
+    assert row["rejection_reason"] == "INVALID_PREVIOUS_CLOSE"
+
+
+def test_rechecks_legal_listing_interval_and_detects_overlapping_starts():
+    outside = _interval_build(candidates=[{"ts_code": "A.SZ", "formation_date": INTERVAL_FORMATION, "list_date": "2021-10-01", "delist_date": None}]).iloc[0]
+    assert outside["rejection_reason"] == "OUTSIDE_LEGAL_LISTING_INTERVAL"
+    with pytest.raises(SuspensionEvidenceError, match="overlapping"):
+        _interval_build(events=[
+            {"ts_code": "A.SZ", "trade_date": "2021-09-22", "suspend_type": "今起停牌", "suspend_reason": "first"},
+            {"ts_code": "A.SZ", "trade_date": "2021-09-24", "suspend_type": "今起停牌", "suspend_reason": "second"},
+        ])
+
+
+def test_prior_completed_cycle_is_allowed():
+    calendar = _interval_frames()["trading_calendar"].to_dict("records") + [{"calendar_date": "2021-09-15", "sfe": True}]
+    row = _interval_build(calendar=calendar, events=[
+        {"ts_code": "A.SZ", "trade_date": "2021-09-15", "suspend_type": "今起停牌", "suspend_reason": "old"},
+        {"ts_code": "A.SZ", "trade_date": "2021-09-22", "suspend_type": "今起停牌", "suspend_reason": "new"},
+    ]).iloc[0]
+    assert row["accepted"] is True
+    assert row["suspension_start"] == pd.Timestamp("2021-09-22")
+
+
+def test_future_facts_cannot_change_decision_fields():
+    baseline = _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": 10.0}])
+    changed = _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": 10.0}, {"ts_code": "A.SZ", "trade_date": "2021-10-08", "close": 99.0}], events=[
+        {"ts_code": "A.SZ", "trade_date": "2021-09-22", "suspend_type": "今起停牌", "suspend_reason": "重大事项"},
+        {"ts_code": "A.SZ", "trade_date": "2021-10-08", "suspend_type": "复牌", "suspend_reason": "future"},
+    ])
+    fields = ["accepted", "rejection_reason", "evidence_method", "suspension_start", "previous_close_date", "previous_close"]
+    pd.testing.assert_frame_equal(baseline[fields], changed[fields])
+
+
+@pytest.mark.parametrize(("status", "expected"), [
+    ([{"ts_code": "A.SZ", "trade_date": "2021-09-30", "is_suspended": True}], True),
+    ([{"ts_code": "A.SZ", "trade_date": "2021-09-30", "is_suspended": False}], False), (None, pd.NA),
+])
+def test_exact_stock_status_is_report_only(status, expected):
+    row = _interval_build(status=status).iloc[0]
+    assert row["accepted"] is True
+    assert pd.isna(row["exact_stock_status_confirmed"]) if expected is pd.NA else row["exact_stock_status_confirmed"] is expected
+
+
+def test_order_and_identical_duplicates_do_not_change_output():
+    frames = _interval_frames(candidates=[
+        {"ts_code": "B.SZ", "formation_date": INTERVAL_FORMATION, "list_date": "2020-01-01", "delist_date": None},
+        {"ts_code": "A.SZ", "formation_date": INTERVAL_FORMATION, "list_date": "2020-01-01", "delist_date": None},
+    ], prices=[{"ts_code": "B.SZ", "trade_date": "2021-09-17", "close": 20.0}, {"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": 10.0}], events=[
+        {"ts_code": "B.SZ", "trade_date": "2021-09-22", "suspend_type": "今起停牌", "suspend_reason": "b"},
+        {"ts_code": "A.SZ", "trade_date": "2021-09-22", "suspend_type": "今起停牌", "suspend_reason": "a"},
+    ])
+    forward = build_continuous_suspension_evidence(**frames, suspension_source_start="2021-01-01")
+    duplicate = build_continuous_suspension_evidence(
+        candidates=pd.concat([frames["candidates"].iloc[::-1], frames["candidates"].iloc[::-1]]),
+        trading_calendar=pd.concat([frames["trading_calendar"].iloc[::-1]] * 2), prices=pd.concat([frames["prices"].iloc[::-1]] * 2),
+        suspension_events=pd.concat([frames["suspension_events"].iloc[::-1]] * 2), suspension_source_start="2021-01-01",
+    )
+    pd.testing.assert_frame_equal(forward, duplicate)
+    assert forward["ts_code"].tolist() == ["A.SZ", "B.SZ"]
+
+
+@pytest.mark.parametrize(("frame_name", "replacement", "label"), [
+    ("candidates", pd.DataFrame([{"ts_code": "A.SZ", "formation_date": INTERVAL_FORMATION, "list_date": "2020-01-01", "delist_date": None}, {"ts_code": "A.SZ", "formation_date": INTERVAL_FORMATION, "list_date": "2020-02-01", "delist_date": None}]), "candidates"),
+    ("prices", pd.DataFrame([{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": 10.0}, {"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": 11.0}]), "prices"),
+    ("suspension_events", pd.DataFrame([{"ts_code": "A.SZ", "trade_date": "2021-09-22", "suspend_type": "今起停牌", "suspend_reason": "one"}, {"ts_code": "A.SZ", "trade_date": "2021-09-22", "suspend_type": "今起停牌", "suspend_reason": "two"}]), "suspension events"),
+    ("stock_status", pd.DataFrame([{"ts_code": "A.SZ", "trade_date": "2021-09-30", "is_suspended": True}, {"ts_code": "A.SZ", "trade_date": "2021-09-30", "is_suspended": False}]), "stock status"),
+    ("trading_calendar", pd.DataFrame([{"calendar_date": "2021-09-22", "sfe": True}, {"calendar_date": "2021-09-22", "sfe": False}]), "trading calendar"),
+])
+def test_conflicting_interval_logical_keys_raise_source_named_errors(frame_name, replacement, label):
+    frames = _interval_frames()
+    frames[frame_name] = replacement
+    with pytest.raises(SuspensionEvidenceError, match=label):
+        build_continuous_suspension_evidence(**frames, suspension_source_start="2021-01-01")
+
+
+def test_empty_candidates_return_schema_without_nonempty_history():
+    result = build_continuous_suspension_evidence(
+        candidates=pd.DataFrame(columns=CANDIDATE_COLUMNS), trading_calendar=pd.DataFrame(columns=["calendar_date", "sfe"]),
+        prices=pd.DataFrame(columns=["ts_code", "trade_date", "close"]), suspension_events=pd.DataFrame(columns=["ts_code", "trade_date", "suspend_type", "suspend_reason"]),
+        stock_status=pd.DataFrame(columns=["ts_code", "trade_date", "is_suspended"]), suspension_source_start="2021-01-01",
+    )
+    assert tuple(result.columns) == CORE_EVIDENCE_COLUMNS
+    assert result.empty
+
+
+@pytest.mark.parametrize(("frame_name", "replacement", "source_start", "label"), [
+    ("trading_calendar", pd.DataFrame([{"calendar_date": "2021-09-17", "sfe": 1}]), "2021-01-01", "trading calendar"),
+    ("stock_status", pd.DataFrame([{"ts_code": "A.SZ", "trade_date": "2021-09-30", "is_suspended": "yes"}]), "2021-01-01", "stock status"),
+    (None, None, 20210101, "suspension source start"), (None, None, pd.Timestamp("2021-01-01", tz="UTC"), "suspension source start"),
+    (None, None, pd.Timestamp("2021-01-01 09:30"), "suspension source start"),
+    ("prices", pd.DataFrame([{"ts_code": " A.SZ", "trade_date": "2021-09-17", "close": 10.0}]), "2021-01-01", "prices"),
+    ("suspension_events", pd.DataFrame([{"ts_code": "A.SZ", "trade_date": 20210922, "suspend_type": "今起停牌", "suspend_reason": "x"}]), "2021-01-01", "suspension events"),
+])
+def test_malformed_interval_inputs_raise_structural_errors(frame_name, replacement, source_start, label):
+    frames = _interval_frames()
+    if frame_name is not None:
+        frames[frame_name] = replacement
+    with pytest.raises(SuspensionEvidenceError, match=label):
+        build_continuous_suspension_evidence(**frames, suspension_source_start=source_start)

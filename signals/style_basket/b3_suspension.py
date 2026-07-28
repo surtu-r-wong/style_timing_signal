@@ -1,5 +1,7 @@
 """Pure DataFrame rules for B3 missing-close suspension evidence."""
 
+import math
+
 from numbers import Number
 
 import pandas as pd
@@ -128,3 +130,137 @@ def build_missing_close_candidates(*, formations, stock_meta, exact_closes, exac
     candidates = candidates.merge(usable_carries.assign(_usable=True), on=["ts_code", "formation_date"], how="left")
     candidates = candidates.loc[candidates["_usable"].isna(), CANDIDATE_COLUMNS]
     return candidates.sort_values(["formation_date", "ts_code"], kind="stable").reset_index(drop=True)
+
+
+CORE_EVIDENCE_COLUMNS = (
+    "ts_code", "formation_date", "list_date", "delist_date", "suspension_start", "previous_official_trade_date", "previous_close_date", "previous_close", "suspend_type", "suspend_reason", "evidence_method", "accepted", "rejection_reason", "next_trade_date", "next_nonnull_close", "exact_stock_status_confirmed",
+)
+INTERVAL_METHOD = "CONTINUOUS_SUSPENSION_INTERVAL"
+
+
+def empty_interval_evidence() -> pd.DataFrame:
+    return pd.DataFrame(columns=CORE_EVIDENCE_COLUMNS)
+
+
+def _normalise_interval_frame(frame, *, label, date_columns, keys, nullable_dates=(), tickers=True):
+    raw = frame.drop_duplicates()
+    if tickers:
+        _validate_tickers(raw, label)
+    return _deduplicate_keys(_parse_dates(raw, date_columns, label, nullable_dates), keys, label).reset_index(drop=True)
+
+
+def _normalise_bool_column(frame, *, column, label):
+    if frame[column].map(lambda value: not isinstance(value, bool)).any():
+        raise SuspensionEvidenceError(f"{label}: {column} keys must be boolean")
+    return frame
+
+
+def _strict_source_start(value):
+    return _parse_dates(pd.DataFrame({"suspension_source_start": [value]}), ("suspension_source_start",), "suspension source start").iloc[0, 0]
+
+
+def _report_text(value):
+    try:
+        if bool(pd.isna(value)):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    return str(value)
+
+
+def _last_nonnull_price(prices, ts_code, date, *, strict):
+    comparison = prices["trade_date"] < date if strict else prices["trade_date"] <= date
+    matches = prices.loc[(prices["ts_code"] == ts_code) & comparison & prices["close"].notna()]
+    return None if matches.empty else matches.sort_values("trade_date", kind="stable").iloc[-1]
+
+
+def _valid_close(value):
+    return value is not None and not pd.isna(value) and math.isfinite(float(value)) and float(value) > 0
+
+
+def _interval_row(candidate):
+    row = {column: pd.NA for column in CORE_EVIDENCE_COLUMNS}
+    row.update({
+        "ts_code": candidate["ts_code"], "formation_date": candidate["formation_date"], "list_date": candidate["list_date"], "delist_date": candidate["delist_date"],
+        "suspend_type": "", "suspend_reason": "", "evidence_method": "", "accepted": False, "rejection_reason": "", "exact_stock_status_confirmed": pd.NA,
+    })
+    return row
+
+
+def build_continuous_suspension_evidence(*, candidates, trading_calendar, prices, suspension_events, suspension_source_start, stock_status=None):
+    """Classify candidate missing closes using only formation-date evidence."""
+    _require_columns(candidates, CANDIDATE_COLUMNS, "candidates")
+    _require_columns(trading_calendar, ("calendar_date", "sfe"), "trading calendar")
+    _require_columns(prices, ("ts_code", "trade_date", "close"), "prices")
+    _require_columns(suspension_events, ("ts_code", "trade_date", "suspend_type", "suspend_reason"), "suspension events")
+    if stock_status is not None:
+        _require_columns(stock_status, ("ts_code", "trade_date", "is_suspended"), "stock status")
+    source_start = _strict_source_start(suspension_source_start)
+    candidates = _normalise_interval_frame(candidates, label="candidates", date_columns=("formation_date", "list_date", "delist_date"), nullable_dates=("delist_date",), keys=["ts_code", "formation_date"])
+    calendar = _normalise_interval_frame(trading_calendar, label="trading calendar", date_columns=("calendar_date",), keys=["calendar_date"], tickers=False)
+    calendar = _normalise_bool_column(calendar, column="sfe", label="trading calendar")
+    prices = _normalise_interval_frame(prices, label="prices", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
+    prices["close"] = pd.to_numeric(prices["close"], errors="coerce")
+    events = _normalise_interval_frame(suspension_events, label="suspension events", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
+    if stock_status is None:
+        status = pd.DataFrame(columns=["ts_code", "trade_date", "is_suspended"])
+    else:
+        status = _normalise_interval_frame(stock_status, label="stock status", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
+        status = _normalise_bool_column(status, column="is_suspended", label="stock status")
+    if candidates.empty:
+        return empty_interval_evidence()
+
+    official_dates = calendar.loc[calendar["sfe"], "calendar_date"].sort_values(kind="stable")
+    official_set = set(official_dates)
+    rows = []
+    for _, candidate in candidates.sort_values(["formation_date", "ts_code"], kind="stable").iterrows():
+        row = _interval_row(candidate)
+        ts_code, formation = candidate["ts_code"], candidate["formation_date"]
+        legal = candidate["list_date"] <= formation and (pd.isna(candidate["delist_date"]) or formation <= candidate["delist_date"])
+        if not legal:
+            row["rejection_reason"] = "OUTSIDE_LEGAL_LISTING_INTERVAL"
+        else:
+            starts = events.loc[(events["ts_code"] == ts_code) & (events["trade_date"] <= formation) & (events["suspend_type"] == "今起停牌")].sort_values("trade_date", kind="stable")
+            if starts.empty:
+                previous = _last_nonnull_price(prices, ts_code, formation, strict=False)
+                if previous is None or not _valid_close(previous["close"]):
+                    row["rejection_reason"] = "INVALID_PREVIOUS_CLOSE"
+                else:
+                    row["previous_close_date"], row["previous_close"] = previous["trade_date"], float(previous["close"])
+                    expected = official_dates.loc[official_dates > previous["trade_date"]]
+                    row["rejection_reason"] = "SUSPENSION_START_PRECEDES_SOURCE_COVERAGE" if not expected.empty and expected.iloc[0] < source_start else "NO_EXPLICIT_SUSPENSION_START"
+            else:
+                selected = starts.iloc[-1]
+                start = selected["trade_date"]
+                row["suspension_start"], row["suspend_type"], row["suspend_reason"] = start, _report_text(selected["suspend_type"]), _report_text(selected["suspend_reason"])
+                previous = _last_nonnull_price(prices, ts_code, start, strict=True)
+                if previous is not None:
+                    row["previous_close_date"], row["previous_close"] = previous["trade_date"], float(previous["close"])
+                prior_price_date = None if previous is None else previous["trade_date"]
+                unended = starts if prior_price_date is None else starts.loc[starts["trade_date"] > prior_price_date]
+                if len(unended) > 1:
+                    raise SuspensionEvidenceError("overlapping unended suspension starts")
+                prior_official = official_dates.loc[official_dates < start]
+                if not prior_official.empty:
+                    row["previous_official_trade_date"] = prior_official.iloc[-1]
+                if start not in official_set:
+                    row["rejection_reason"] = "START_NOT_OFFICIAL_TRADING_DAY"
+                elif previous is None or not _valid_close(previous["close"]):
+                    row["rejection_reason"] = "INVALID_PREVIOUS_CLOSE"
+                elif prior_official.empty or previous["trade_date"] != prior_official.iloc[-1]:
+                    row["rejection_reason"] = "PREVIOUS_CLOSE_NOT_PRIOR_TRADING_DAY"
+                elif not prices.loc[(prices["ts_code"] == ts_code) & (prices["trade_date"] >= start) & (prices["trade_date"] <= formation) & prices["close"].notna()].empty:
+                    row["rejection_reason"] = "PRICE_OBSERVED_DURING_INTERVAL"
+                else:
+                    row["accepted"], row["evidence_method"] = True, INTERVAL_METHOD
+        future = prices.loc[(prices["ts_code"] == ts_code) & (prices["trade_date"] > formation) & prices["close"].notna()].sort_values("trade_date", kind="stable")
+        if not future.empty:
+            row["next_trade_date"], row["next_nonnull_close"] = future.iloc[0]["trade_date"], float(future.iloc[0]["close"])
+        exact_status = status.loc[(status["ts_code"] == ts_code) & (status["trade_date"] == formation)]
+        if not exact_status.empty:
+            row["exact_stock_status_confirmed"] = bool(exact_status.iloc[0]["is_suspended"])
+        rows.append(row)
+    result = pd.DataFrame(rows, columns=CORE_EVIDENCE_COLUMNS)
+    result["accepted"] = result["accepted"].astype(object)
+    result["exact_stock_status_confirmed"] = result["exact_stock_status_confirmed"].astype(object)
+    return result.sort_values(["formation_date", "ts_code"], kind="stable").reset_index(drop=True)
