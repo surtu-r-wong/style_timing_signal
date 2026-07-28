@@ -266,3 +266,15 @@ def test_delist_date_equal_to_formation_is_active():
         "ts_code": "A.SZ", "list_date": "2020-01-01", "delist_date": FORMATION,
     }])
     assert result["ts_code"].tolist() == ["A.SZ"]
+
+
+@pytest.mark.parametrize(
+    ("formations", "meta", "label"),
+    [
+        (pd.DataFrame({"formation_date": ["9999-12-31"]}), None, "formations"),
+        (None, [{"ts_code": "A.SZ", "list_date": "2020-01-01", "delist_date": "9999-12-31"}], "stock meta"),
+    ],
+)
+def test_out_of_range_dates_raise_source_named_errors(formations, meta, label):
+    with pytest.raises(SuspensionEvidenceError, match=label):
+        _build(formations=formations, meta=meta)

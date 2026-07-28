@@ -53,7 +53,10 @@ def _parse_dates(
             if pd.isna(timestamp) or timestamp.tzinfo is not None or timestamp != timestamp.normalize():
                 raise SuspensionEvidenceError(f"{label}: invalid {column}")
             values.append(timestamp)
-        parsed[column] = pd.Series(values, index=parsed.index, dtype="datetime64[ns]")
+        try:
+            parsed[column] = pd.Series(values, index=parsed.index, dtype="datetime64[ns]")
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise SuspensionEvidenceError(f"{label}: invalid {column}") from exc
         if column not in nullable and parsed[column].isna().any():
             raise SuspensionEvidenceError(f"{label}: {column} must not be null")
     return parsed
