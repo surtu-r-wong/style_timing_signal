@@ -45,8 +45,8 @@ def _parse_dates(
 
 def _normalise(frame: pd.DataFrame, *, label: str, date_columns: tuple[str, ...], nullable_dates: tuple[str, ...] = ()) -> pd.DataFrame:
     _validate_tickers(frame, label)
-    result = _parse_dates(frame, date_columns, label, nullable_dates)
-    return result.drop_duplicates().reset_index(drop=True)
+    result = _parse_dates(frame.drop_duplicates(), date_columns, label, nullable_dates)
+    return result.reset_index(drop=True)
 
 
 def _deduplicate_keys(frame: pd.DataFrame, keys: list[str], label: str) -> pd.DataFrame:
@@ -65,7 +65,7 @@ def build_missing_close_candidates(*, formations, stock_meta, exact_closes, exac
     _require_columns(exact_carries, ("ts_code", "formation_date", "close_date", "close"), "exact carries")
 
     formations = _deduplicate_keys(
-        _parse_dates(formations, ("formation_date",), "formations").drop_duplicates(),
+        _parse_dates(formations.drop_duplicates(), ("formation_date",), "formations"),
         ["formation_date"], "formations",
     )[["formation_date"]]
     stock_meta = _normalise(stock_meta, label="stock meta", date_columns=("list_date", "delist_date"), nullable_dates=("list_date", "delist_date"))

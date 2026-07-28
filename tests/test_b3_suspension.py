@@ -197,3 +197,31 @@ def test_non_bj_hk_suffix_is_not_silently_excluded():
 def test_invalid_non_null_nullable_date_tokens_raise_source_named_errors(meta, carries, label):
     with pytest.raises(SuspensionEvidenceError, match=label):
         _build(meta=meta, carries=carries)
+
+
+def test_raw_distinct_date_equivalent_formation_rows_are_conflicting_evidence():
+    formations = pd.DataFrame({"formation_date": ["2021-01-29", FORMATION]})
+    with pytest.raises(SuspensionEvidenceError, match="formations"):
+        _build(formations=formations)
+
+
+def test_raw_distinct_date_equivalent_exact_close_rows_are_conflicting_evidence():
+    with pytest.raises(SuspensionEvidenceError, match="exact closes"):
+        _build(closes=[
+            {"ts_code": "A.SZ", "formation_date": "2021-01-29", "close": None},
+            {"ts_code": "A.SZ", "formation_date": FORMATION, "close": None},
+        ])
+
+
+@pytest.mark.parametrize("carry_close", [0.0, -1.0, float("inf")])
+def test_non_null_exact_carry_values_exclude_candidate(carry_close):
+    result = _build(
+        suspensions=[{"ts_code": "A.SZ", "formation_date": FORMATION}],
+        carries=[{"ts_code": "A.SZ", "formation_date": FORMATION, "close_date": "2021-01-28", "close": carry_close}],
+    )
+    assert result.empty
+
+
+def test_singleton_non_numeric_exact_close_is_coerced_to_missing():
+    result = _build(closes=[{"ts_code": "A.SZ", "formation_date": FORMATION, "close": "not-a-number"}])
+    assert result["ts_code"].tolist() == ["A.SZ"]
