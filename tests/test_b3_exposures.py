@@ -41,6 +41,7 @@ from signals.style_basket.b3_exposures import (
 )
 from signals.style_basket.b3_suspension import (
     CORE_EVIDENCE_COLUMNS,
+    INTERVAL_METHOD,
     SuspensionEvidenceError,
 )
 
@@ -103,6 +104,8 @@ def _synthetic_snapshot(n=2200):
             "total_market_value": np.exp(log_mv),
             "industry": industry,
             "style_score": style,
+            "close_method": "",
+            "close_carried": False,
         }
     )
 
@@ -1731,6 +1734,7 @@ def test_default_sources_cache_formation_inputs_across_pit_policies(
         "meta": object(),
         "suspensions": object(),
         "carried_closes": object(),
+        "interval_carried_closes": object(),
     }
     formation_calls = []
     build_calls = []
@@ -1750,6 +1754,7 @@ def test_default_sources_cache_formation_inputs_across_pit_policies(
         *,
         suspensions=None,
         carried_closes=None,
+        interval_carried_closes=None,
     ):
         build_calls.append(
             {
@@ -1762,6 +1767,7 @@ def test_default_sources_cache_formation_inputs_across_pit_policies(
                 "meta": meta,
                 "suspensions": suspensions,
                 "carried_closes": carried_closes,
+                "interval_carried_closes": interval_carried_closes,
             }
         )
         return {pd.Timestamp("2021-01-29"): pd.DataFrame()}
@@ -2023,7 +2029,13 @@ def _grid_preflight_sources(policy_snapshots):
 
 def _snapshot_map(dates):
     return {
-        pd.Timestamp(date): pd.DataFrame({"ticker": ["A", "B"]})
+        pd.Timestamp(date): pd.DataFrame(
+            {
+                "ticker": ["A", "B"],
+                "close_method": ["", ""],
+                "close_carried": [False, False],
+            }
+        )
         for date in dates
     }
 
@@ -2173,6 +2185,8 @@ def test_exclusion_audit_copies_reason_into_reason_code(
             "style_score": [0.0, 0.0],
             "size_exclusion_reason": ["", "LISTED_LT_180D"],
             "model_exclusion_reason": ["", "MISSING_STYLE_SCORE"],
+            "close_method": ["", ""],
+            "close_carried": [False, False],
         }
     )
     snapshots = {formation: snapshot}
@@ -3369,6 +3383,150 @@ def test_snapshot_assembly_carries_forward_suspended_closes(monkeypatch):
     # D: missing close without evidence → unchanged fail-closed path
     assert snap.loc["D", "size_exclusion_reason"] == "DATA_MISSING_CLOSE"
     assert bool(snap.loc["A", "close_carried"]) is False
+    assert snap.loc["C", "close_method"] == "EXACT_SUSPENSION"
+    assert snap.loc["A", "close_method"] == ""
+
+
+def _single_ticker_carry_inputs(monkeypatch):
+    _patch_minimal_assembly_dependencies(monkeypatch)
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    inputs["closes"].loc[formation, "A"] = np.nan
+    return inputs, formation
+
+
+def _carry_frame(formation, close=9.5):
+    return pd.DataFrame(
+        {
+            "formation_date": [formation],
+            "ts_code": ["A"],
+            "close_date": [formation - pd.Timedelta(days=1)],
+            "close": [close],
+        }
+    )
+
+
+def test_snapshot_assembly_applies_interval_only_carry_without_exact_evidence(monkeypatch):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    inputs["interval_carried_closes"] = _carry_frame(formation)
+    snap = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+    assert snap.loc["A", "total_market_value"] == pytest.approx(950.0)
+    assert snap.loc["A", "close_method"] == INTERVAL_METHOD
+    assert bool(snap.loc["A", "close_carried"]) is True
+
+
+def test_snapshot_assembly_uses_exact_when_both_carries_have_same_close(monkeypatch):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    inputs["suspensions"] = pd.DataFrame({"trade_date": [formation], "ts_code": ["A"]})
+    inputs["carried_closes"] = _carry_frame(formation)
+    inputs["interval_carried_closes"] = _carry_frame(formation)
+    snap = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+    assert snap.loc["A", "total_market_value"] == pytest.approx(950.0)
+    assert snap.loc["A", "close_method"] == "EXACT_SUSPENSION"
+    assert bool(snap.loc["A", "close_carried"]) is True
+
+
+def test_snapshot_assembly_blocks_conflicting_exact_and_interval_carries(monkeypatch):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    inputs["suspensions"] = pd.DataFrame({"trade_date": [formation], "ts_code": ["A"]})
+    inputs["carried_closes"] = _carry_frame(formation, close=9.5)
+    inputs["interval_carried_closes"] = _carry_frame(formation, close=9.6)
+    with pytest.raises(DataBlocked, match="conflicting exact and interval carry closes"):
+        build_policy_snapshots(**inputs)
+
+
+def test_snapshot_assembly_does_not_overwrite_original_close(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    inputs["interval_carried_closes"] = pd.DataFrame(
+        {"formation_date": [formation], "ts_code": ["B"], "close_date": [formation - pd.Timedelta(days=1)], "close": [99.0]}
+    )
+    _patch_minimal_assembly_dependencies(monkeypatch)
+    snap = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+    assert snap.loc["B", "total_market_value"] == pytest.approx(4000.0)
+    assert snap.loc["B", "close_method"] == ""
+    assert bool(snap.loc["B", "close_carried"]) is False
+
+
+@pytest.mark.parametrize("source_name", ["carried_closes", "interval_carried_closes"])
+@pytest.mark.parametrize(
+    ("case", "bad_value"),
+    [
+        pytest.param("missing_column", None, id="missing-column"),
+        pytest.param("unexpected_column", None, id="unexpected-column"),
+        pytest.param("mixed_type_column", None, id="mixed-type-column"),
+        pytest.param("duplicate_ticker_column", None, id="duplicate-ticker-column"),
+        pytest.param("ticker", " A", id="invalid-ticker"),
+        pytest.param("formation_date", "not-a-date", id="invalid-formation"),
+        pytest.param("close_date", "not-a-date", id="invalid-close-date"),
+        pytest.param("close_date", "formation", id="same-day-close"),
+        pytest.param("close_date", "future", id="future-close"),
+        pytest.param("close", "9.5", id="string-close"),
+        pytest.param("close", True, id="boolean-close"),
+        pytest.param("close", np.nan, id="missing-close"),
+        pytest.param("close", 0.0, id="zero-close"),
+        pytest.param("close", -1.0, id="negative-close"),
+        pytest.param("close", np.inf, id="positive-infinite-close"),
+        pytest.param("close", -np.inf, id="negative-infinite-close"),
+    ],
+)
+def test_snapshot_assembly_strictly_validates_each_carry_source(monkeypatch, source_name, case, bad_value):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    frame = _carry_frame(formation)
+    if case == "missing_column":
+        frame = frame.drop(columns="close_date")
+    elif case == "unexpected_column":
+        frame["unexpected"] = "not allowed"
+    elif case == "mixed_type_column":
+        frame[1] = "not allowed"
+    elif case == "duplicate_ticker_column":
+        frame = pd.concat([frame, frame[["ts_code"]]], axis=1)
+    elif case == "close_date" and bad_value == "formation":
+        frame.loc[0, "close_date"] = formation
+    elif case == "close_date" and bad_value == "future":
+        frame.loc[0, "close_date"] = formation + pd.Timedelta(days=1)
+    else:
+        column = "ts_code" if case == "ticker" else case
+        frame[column] = frame[column].astype(object)
+        frame.loc[0, column] = bad_value
+    inputs[source_name] = frame
+    if source_name == "carried_closes":
+        inputs["suspensions"] = pd.DataFrame({"trade_date": [formation], "ts_code": ["A"]})
+    with pytest.raises(DataBlocked):
+        build_policy_snapshots(**inputs)
+
+
+@pytest.mark.parametrize("source_name", ["carried_closes", "interval_carried_closes"])
+def test_snapshot_assembly_deduplicates_identical_carry_rows(monkeypatch, source_name):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    frame = _carry_frame(formation)
+    inputs[source_name] = pd.concat([frame, frame], ignore_index=True)
+    if source_name == "carried_closes":
+        inputs["suspensions"] = pd.DataFrame({"trade_date": [formation], "ts_code": ["A"]})
+    snap = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+    expected = "EXACT_SUSPENSION" if source_name == "carried_closes" else INTERVAL_METHOD
+    assert snap.loc["A", "close_method"] == expected
+    assert bool(snap.loc["A", "close_carried"]) is True
+
+
+@pytest.mark.parametrize("source_name", ["carried_closes", "interval_carried_closes"])
+def test_snapshot_assembly_blocks_conflicting_duplicate_carry_keys(monkeypatch, source_name):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    inputs[source_name] = pd.concat([_carry_frame(formation), _carry_frame(formation, close=9.6)], ignore_index=True)
+    if source_name == "carried_closes":
+        inputs["suspensions"] = pd.DataFrame({"trade_date": [formation], "ts_code": ["A"]})
+    with pytest.raises(DataBlocked, match="conflicting duplicate keys"):
+        build_policy_snapshots(**inputs)
+
+
+def test_snapshot_close_method_is_identical_across_pit_policies(monkeypatch):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    inputs["interval_carried_closes"] = _carry_frame(formation)
+    main = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+    inputs["policy"] = POLICY_LAG
+    lag = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+    pd.testing.assert_series_equal(main["close_method"], lag["close_method"])
+    pd.testing.assert_series_equal(main["close_carried"], lag["close_carried"])
 
 
 def test_formation_inputs_loads_suspension_evidence(monkeypatch):
@@ -3416,27 +3574,106 @@ def test_formation_inputs_loads_suspension_evidence(monkeypatch):
 def test_preflight_reports_suspended_carry_forward_distribution(tmp_path):
     cfg = _single_month_preflight_config()
     snapshot = _synthetic_snapshot()
-    snapshot["close_carried"] = False
-    snapshot.loc[snapshot.index[:2], "close_carried"] = True
-    sources = _preflight_sources(
-        snapshot,
-        _constituents_for_snapshot(snapshot),
+    snapshot.loc[snapshot.index[:2], "close_method"] = "EXACT_SUSPENSION"
+    snapshot.loc[snapshot.index[2:5], "close_method"] = INTERVAL_METHOD
+    snapshot["close_carried"] = snapshot["close_method"].isin(
+        {"EXACT_SUSPENSION", INTERVAL_METHOD}
     )
+    sources = _preflight_sources(snapshot, _constituents_for_snapshot(snapshot))
 
-    got = run_preflight(
-        cfg,
-        sources,
-        pd.Timestamp("2023-12-31"),
-        tmp_path,
-    )
+    got = run_preflight(cfg, sources, pd.Timestamp("2023-12-31"), tmp_path)
 
     assert got.final_status == "OK"
     audit = pd.read_csv(tmp_path / "coverage_audit.csv")
     rows = audit[audit["check"] == "close_carry_forward"]
-    assert not rows.empty
-    assert set(rows["side"]) == {"SUSPENDED_CARRY_FORWARD"}
+    assert set(rows["side"]) == {
+        "EXACT_SUSPENSION_CARRY_FORWARD",
+        "INTERVAL_SUSPENSION_CARRY_FORWARD",
+    }
     assert set(rows["status"]) == {"REPORT_ONLY"}
-    assert rows["eligible_count"].astype(int).tolist() == [2] * len(rows)
+    assert set(rows["detail"]) == {"suspended names valued at last traded close"}
+    counts = rows.groupby(["pit_policy", "side"])["eligible_count"].sum()
+    for policy in (POLICY_MAIN, POLICY_LAG):
+        assert int(counts.loc[policy, "EXACT_SUSPENSION_CARRY_FORWARD"]) == 2
+        assert int(counts.loc[policy, "INTERVAL_SUSPENSION_CARRY_FORWARD"]) == 3
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        pytest.param("missing_method", id="missing-method-column"),
+        pytest.param("missing_bool", id="missing-bool-column"),
+        pytest.param("duplicate_ticker", id="duplicate-ticker-column"),
+        pytest.param("duplicate_method", id="duplicate-method-column"),
+        pytest.param("duplicate_bool", id="duplicate-bool-column"),
+        pytest.param("unknown_method", id="unknown-method"),
+        pytest.param("method_bool_mismatch", id="method-bool-mismatch"),
+        pytest.param("non_boolean", id="non-boolean-carried"),
+    ],
+)
+def test_preflight_blocks_invalid_snapshot_carry_contract(tmp_path, mutation):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    if mutation == "missing_method":
+        snapshot = snapshot.drop(columns="close_method")
+    elif mutation == "missing_bool":
+        snapshot = snapshot.drop(columns="close_carried")
+    elif mutation.startswith("duplicate_"):
+        column = {
+            "duplicate_ticker": "ticker",
+            "duplicate_method": "close_method",
+            "duplicate_bool": "close_carried",
+        }[mutation]
+        snapshot = pd.concat(
+            [snapshot, snapshot[[column]]],
+            axis=1,
+        )
+    elif mutation == "unknown_method":
+        snapshot.loc[0, "close_method"] = "UNKNOWN"
+        snapshot.loc[0, "close_carried"] = True
+    elif mutation == "method_bool_mismatch":
+        snapshot.loc[0, "close_method"] = "EXACT_SUSPENSION"
+    else:
+        snapshot["close_carried"] = snapshot["close_carried"].astype(object)
+        snapshot.loc[0, "close_carried"] = "False"
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(_synthetic_snapshot()),
+    )
+
+    got = run_preflight(cfg, sources, pd.Timestamp("2023-12-31"), tmp_path)
+
+    assert got.final_status == "DATA_BLOCKED"
+    assert set(got.audit["check"]) == {"snapshot_source"}
+
+
+def test_preflight_blocks_cross_policy_carry_method_mismatch(tmp_path):
+    cfg = _single_month_preflight_config()
+    main = _synthetic_snapshot()
+    lag = main.copy()
+    lag.loc[0, "close_method"] = INTERVAL_METHOD
+    lag.loc[0, "close_carried"] = True
+    formation = pd.Timestamp("2021-01-29")
+
+    def snapshots(policy, _data_end):
+        frame = main if policy == POLICY_MAIN else lag
+        return {formation: frame.copy()}
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preflight must not access returns or carry inputs")
+
+    sources = B3Sources(
+        snapshots=snapshots,
+        constituents=lambda: _constituents_for_snapshot(main),
+        stock_returns=forbidden,
+        target_returns=forbidden,
+        carry=forbidden,
+    )
+
+    got = run_preflight(cfg, sources, pd.Timestamp("2023-12-31"), tmp_path)
+
+    assert got.final_status == "DATA_BLOCKED"
+    assert "carry" in " ".join(got.audit["detail"].fillna("")).lower()
 
 
 def test_formation_inputs_records_database_evidence(monkeypatch):

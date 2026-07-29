@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from numbers import Real
 from pathlib import Path
 from typing import Callable
 
@@ -31,11 +32,22 @@ from signals.style_basket.b3_exposures import (
 from signals.style_basket.b3_portfolios import build_portfolio_panels
 from signals.style_basket.b3_states import build_state_features
 from signals.style_basket.b3_suspension import (
+    INTERVAL_METHOD,
     SuspensionEvidenceError,
     build_continuous_suspension_evidence,
     build_missing_close_candidates,
     empty_interval_evidence,
 )
+
+
+EXACT_CARRY_METHOD = "EXACT_SUSPENSION"
+_CARRY_COLUMNS = (
+    "formation_date",
+    "ts_code",
+    "close_date",
+    "close",
+)
+_ALLOWED_CLOSE_METHODS = {"", EXACT_CARRY_METHOD, INTERVAL_METHOD}
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -429,6 +441,134 @@ def _deduplicate_or_block(
     if conflicting.any():
         raise DataBlocked(f"{label} contains conflicting duplicate keys")
     return deduplicated.reset_index(drop=True)
+
+
+def _empty_carried_closes() -> pd.DataFrame:
+    return pd.DataFrame(columns=list(_CARRY_COLUMNS))
+
+
+def _validated_carried_closes(
+    frame: pd.DataFrame | None,
+    *,
+    label: str,
+    method: str,
+) -> pd.DataFrame:
+    if frame is None:
+        frame = _empty_carried_closes()
+    if not isinstance(frame, pd.DataFrame):
+        raise DataBlocked(f"{label} must be a DataFrame")
+    if (
+        frame.columns.duplicated().any()
+        or set(frame.columns) != set(_CARRY_COLUMNS)
+    ):
+        rendered_columns = sorted(
+            repr(column) for column in frame.columns
+        )
+        raise DataBlocked(
+            f"{label} schema mismatch: expected {sorted(_CARRY_COLUMNS)}, "
+            f"got {rendered_columns}"
+        )
+
+    carried = frame.loc[:, list(_CARRY_COLUMNS)].copy()
+    _validate_string_keys(carried["ts_code"], f"{label} ts_code")
+    if carried["ts_code"].map(lambda value: value != value.strip()).any():
+        raise DataBlocked(f"{label} ts_code must contain trimmed string keys")
+
+    for column in ("formation_date", "close_date"):
+        parsed = []
+        for value in carried[column]:
+            if isinstance(value, (bool, np.bool_, Real)):
+                raise DataBlocked(f"{label}.{column} contains invalid dates")
+            try:
+                timestamp = pd.Timestamp(value)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise DataBlocked(
+                    f"{label}.{column} contains invalid dates"
+                ) from exc
+            if (
+                pd.isna(timestamp)
+                or timestamp.tzinfo is not None
+                or timestamp != timestamp.normalize()
+            ):
+                raise DataBlocked(f"{label}.{column} contains invalid dates")
+            parsed.append(timestamp)
+        carried[column] = pd.Series(
+            parsed,
+            index=carried.index,
+            dtype="datetime64[ns]",
+        )
+
+    closes = []
+    for value in carried["close"]:
+        if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real):
+            raise DataBlocked(f"{label}.close must contain real numeric values")
+        numeric = float(value)
+        if not np.isfinite(numeric) or numeric <= 0.0:
+            raise DataBlocked(
+                f"{label}.close must contain finite positive values"
+            )
+        closes.append(numeric)
+    carried["close"] = pd.Series(closes, index=carried.index, dtype=float)
+
+    if carried["close_date"].ge(carried["formation_date"]).any():
+        raise DataBlocked(f"{label}.close_date must precede formation_date")
+    carried = _deduplicate_or_block(
+        carried,
+        ("formation_date", "ts_code"),
+        label,
+    )
+    carried["close_method"] = method
+    return carried.sort_values(
+        ["formation_date", "ts_code"],
+        kind="mergesort",
+    ).reset_index(drop=True)
+
+
+def _validated_snapshot_carry_contract(
+    snapshot: pd.DataFrame,
+    *,
+    label: str,
+) -> pd.DataFrame:
+    carry_columns = ("ticker", "close_method", "close_carried")
+    if any(
+        int(snapshot.columns.to_list().count(column)) != 1
+        for column in carry_columns
+    ):
+        raise DataBlocked(
+            f"{label} carry contract columns must occur exactly once"
+        )
+    _require_columns(
+        snapshot,
+        set(carry_columns),
+        f"{label} carry contract",
+    )
+    carry = snapshot.loc[
+        :,
+        ["ticker", "close_method", "close_carried"],
+    ].copy()
+    _validate_string_keys(carry["ticker"], f"{label} carry ticker")
+    if carry["ticker"].duplicated().any():
+        raise DataBlocked(f"{label} carry contract contains duplicate tickers")
+    _validate_allowed_values(
+        carry["close_method"],
+        _ALLOWED_CLOSE_METHODS,
+        f"{label} close_method",
+    )
+    invalid_bool = ~carry["close_carried"].map(
+        lambda value: isinstance(value, (bool, np.bool_))
+    )
+    if invalid_bool.any():
+        raise DataBlocked(f"{label} close_carried must contain booleans")
+    expected = carry["close_method"].isin(
+        {EXACT_CARRY_METHOD, INTERVAL_METHOD}
+    )
+    actual = carry["close_carried"].astype(bool)
+    if not actual.equals(expected):
+        raise DataBlocked(
+            f"{label} carry method and close_carried are inconsistent"
+        )
+    carry["close_carried"] = actual
+    return carry.sort_values("ticker", kind="mergesort").reset_index(drop=True)
 
 
 def _validated_close_matrix(closes: pd.DataFrame) -> pd.DataFrame:
@@ -1612,6 +1752,7 @@ def build_policy_snapshots(
     *,
     suspensions: pd.DataFrame | None = None,
     carried_closes: pd.DataFrame | None = None,
+    interval_carried_closes: pd.DataFrame | None = None,
 ) -> dict[pd.Timestamp, pd.DataFrame]:
     """Assemble B3 monthly style snapshots under one PIT policy."""
     from signals.style_basket.build import (
@@ -1740,7 +1881,7 @@ def build_policy_snapshots(
         "suspension evidence",
     )
     suspension_frame = suspensions.loc[:, ["trade_date", "ts_code"]].copy()
-    suspended_by_date: dict[pd.Timestamp, set] = {}
+    suspension_keys: set[tuple[pd.Timestamp, str]] = set()
     if not suspension_frame.empty:
         _validate_string_keys(
             suspension_frame["ts_code"],
@@ -1756,48 +1897,58 @@ def build_policy_snapshots(
             ("trade_date", "ts_code"),
             "suspension evidence",
         )
-        for suspend_date, group in suspension_frame.groupby("trade_date"):
-            suspended_by_date[pd.Timestamp(suspend_date)] = set(
-                group["ts_code"]
-            )
+        suspension_keys = set(
+            suspension_frame[["trade_date", "ts_code"]]
+            .itertuples(index=False, name=None)
+        )
 
-    if carried_closes is None:
-        carried_closes = pd.DataFrame(
-            columns=["formation_date", "ts_code", "close_date", "close"]
-        )
-    _require_columns(
+    exact_carries = _validated_carried_closes(
         carried_closes,
-        {"formation_date", "ts_code", "close_date", "close"},
-        "carried suspended closes",
+        label="exact carried closes",
+        method=EXACT_CARRY_METHOD,
     )
-    carried_frame = carried_closes.loc[
-        :,
-        ["formation_date", "ts_code", "close_date", "close"],
-    ].copy()
-    carried_by_date: dict[pd.Timestamp, pd.Series] = {}
-    if not carried_frame.empty:
-        _validate_string_keys(
-            carried_frame["ts_code"],
-            "carried close ts_code",
+    interval_carries = _validated_carried_closes(
+        interval_carried_closes,
+        label="interval carried closes",
+        method=INTERVAL_METHOD,
+    )
+
+    if not exact_carries.empty:
+        exact_keys = pd.MultiIndex.from_frame(
+            exact_carries[["formation_date", "ts_code"]]
         )
-        carried_frame = _validate_datetime_columns(
-            carried_frame,
-            ("formation_date", "close_date"),
-            "carried suspended closes",
-        )
-        carried_frame = _deduplicate_or_block(
-            carried_frame,
-            ("formation_date", "ts_code"),
-            "carried suspended closes",
-        )
-        carried_frame["close"] = pd.to_numeric(
-            carried_frame["close"],
-            errors="coerce",
-        )
-        for carry_date, group in carried_frame.groupby("formation_date"):
-            carried_by_date[pd.Timestamp(carry_date)] = group.set_index(
-                "ts_code"
-            )["close"]
+        exact_carries = exact_carries.loc[
+            exact_keys.isin(suspension_keys)
+        ].reset_index(drop=True)
+
+    key_columns = ["formation_date", "ts_code"]
+    exact_indexed = exact_carries.set_index(key_columns)
+    interval_indexed = interval_carries.set_index(key_columns)
+    overlap = exact_indexed.index.intersection(interval_indexed.index)
+    if len(overlap):
+        exact_close = exact_indexed.loc[overlap, "close"]
+        interval_close = interval_indexed.loc[overlap, "close"]
+        if exact_close.ne(interval_close).any():
+            raise DataBlocked(
+                "conflicting exact and interval carry closes"
+            )
+    interval_only = interval_indexed.loc[
+        ~interval_indexed.index.isin(exact_indexed.index)
+    ]
+    carried_frame = (
+        pd.concat([exact_indexed, interval_only])
+        .reset_index()
+        .sort_values(key_columns, kind="mergesort")
+        .reset_index(drop=True)
+    )
+    if carried_frame.duplicated(key_columns).any():
+        raise DataBlocked("combined carried closes contain duplicate keys")
+
+    carried_by_date: dict[pd.Timestamp, pd.DataFrame] = {}
+    for carry_date, group in carried_frame.groupby("formation_date"):
+        carried_by_date[pd.Timestamp(carry_date)] = group.set_index(
+            "ts_code"
+        )[["close", "close_method"]]
 
     close_matrix = _validated_close_matrix(closes)
 
@@ -1867,22 +2018,19 @@ def build_policy_snapshots(
             errors="coerce",
         )
 
-        carried_mask = pd.Series(False, index=base)
-        suspended_today = suspended_by_date.get(formation_date)
+        close_method = pd.Series("", index=base, dtype=object)
         carried_today = carried_by_date.get(formation_date)
-        if suspended_today and carried_today is not None:
-            evidence = pd.Series(
-                base.isin(suspended_today),
-                index=base,
-            )
-            fill = pd.to_numeric(
-                carried_today.reindex(base),
-                errors="coerce",
-            )
-            usable = close.isna() & evidence & fill.notna()
+        if carried_today is not None:
+            aligned = carried_today.reindex(base)
+            fill = aligned["close"]
+            method = aligned["close_method"].fillna("")
+            usable = close.isna() & fill.notna()
             if usable.any():
                 close = close.mask(usable, fill)
-                carried_mask = usable
+                close_method = close_method.mask(usable, method)
+        carried_mask = close_method.isin(
+            {EXACT_CARRY_METHOD, INTERVAL_METHOD}
+        )
 
         selected_shares = asof_latest(share_history, formation_date)
         if selected_shares.empty:
@@ -2085,6 +2233,7 @@ def build_policy_snapshots(
                 "true_first_disclosure_verified": verified.to_numpy(
                     dtype=bool
                 ),
+                "close_method": close_method.to_numpy(),
                 "close_carried": carried_mask.to_numpy(dtype=bool),
             }
         )
@@ -2125,6 +2274,7 @@ def default_sources(db: dict) -> B3Sources:
             policy,
             suspensions=source["suspensions"],
             carried_closes=source["carried_closes"],
+            interval_carried_closes=source["interval_carried_closes"],
         )
 
     def constituents() -> pd.DataFrame:
@@ -2307,25 +2457,24 @@ def run_preflight(
                     reason_code=str(reason),
                     detail="exclusion distribution",
                 )
-        if "close_carried" in snapshot.columns:
-            carried_count = int(
-                snapshot["close_carried"]
-                .fillna(False)
-                .astype(bool)
-                .sum()
+        for method, side in (
+            (EXACT_CARRY_METHOD, "EXACT_SUSPENSION_CARRY_FORWARD"),
+            (INTERVAL_METHOD, "INTERVAL_SUSPENSION_CARRY_FORWARD"),
+        ):
+            carried_count = int(snapshot["close_method"].eq(method).sum())
+            if carried_count == 0:
+                continue
+            add_audit(
+                policy=policy,
+                formation_date=formation_date,
+                required=required,
+                affects_final=False,
+                check="close_carry_forward",
+                side=side,
+                eligible_count=carried_count,
+                status="REPORT_ONLY",
+                detail="suspended names valued at last traded close",
             )
-            if carried_count:
-                add_audit(
-                    policy=policy,
-                    formation_date=formation_date,
-                    required=required,
-                    affects_final=False,
-                    check="close_carry_forward",
-                    side="SUSPENDED_CARRY_FORWARD",
-                    eligible_count=carried_count,
-                    status="REPORT_ONLY",
-                    detail="suspended names valued at last traded close",
-                )
 
     required_periods = set(
         pd.period_range(
@@ -2336,6 +2485,10 @@ def run_preflight(
     )
     constituents = pd.DataFrame()
     normalized_by_policy: dict[
+        str,
+        dict[pd.Timestamp, pd.DataFrame],
+    ] = {}
+    carry_contracts_by_policy: dict[
         str,
         dict[pd.Timestamp, pd.DataFrame],
     ] = {}
@@ -2398,6 +2551,7 @@ def run_preflight(
                         "snapshot source returned no snapshots"
                     )
                 snapshots: dict[pd.Timestamp, pd.DataFrame] = {}
+                carry_contracts: dict[pd.Timestamp, pd.DataFrame] = {}
                 for raw_date, snapshot in supplied.items():
                     try:
                         formation_date = pd.Timestamp(raw_date)
@@ -2424,6 +2578,14 @@ def run_preflight(
                             f"{formation_date.date()}"
                         )
                     if formation_date <= data_end:
+                        carry_contracts[formation_date] = (
+                            _validated_snapshot_carry_contract(
+                                snapshot,
+                                label=(
+                                    f"{policy} {formation_date.date()} snapshot"
+                                ),
+                            )
+                        )
                         snapshots[formation_date] = snapshot
 
                 policy_required_keys = {
@@ -2463,6 +2625,7 @@ def run_preflight(
                     )
                 normalized_by_policy[policy] = snapshots
                 required_keys[policy] = policy_required_keys
+                carry_contracts_by_policy[policy] = carry_contracts
             except (DataBlocked, CoverageBlocked) as exc:
                 status = (
                     "DATA_BLOCKED"
@@ -2503,6 +2666,33 @@ def run_preflight(
                 ),
             )
             add_blocker(row)
+
+    if not blockers and policies:
+        reference_contracts = carry_contracts_by_policy[policies[0]]
+        for policy in policies[1:]:
+            compared_contracts = carry_contracts_by_policy[policy]
+            for formation_date in sorted(
+                set(reference_contracts).intersection(compared_contracts)
+            ):
+                if reference_contracts[formation_date].equals(
+                    compared_contracts[formation_date]
+                ):
+                    continue
+                row = add_audit(
+                    policy="all",
+                    formation_date=formation_date,
+                    required=(
+                        required_start <= formation_date <= required_end
+                    ),
+                    check="snapshot_carry_alignment",
+                    status="DATA_BLOCKED",
+                    reason_code="DATA_CONTRACT",
+                    detail="snapshot carry methods differ across PIT policies",
+                )
+                add_blocker(row)
+                break
+            if blockers:
+                break
 
     for policy in policies if not blockers else []:
         snapshots = normalized_by_policy[policy]
