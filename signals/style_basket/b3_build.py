@@ -492,17 +492,27 @@ def _validated_carried_closes(
             ):
                 raise DataBlocked(f"{label}.{column} contains invalid dates")
             parsed.append(timestamp)
-        carried[column] = pd.Series(
-            parsed,
-            index=carried.index,
-            dtype="datetime64[ns]",
-        )
+        try:
+            carried[column] = pd.Series(
+                parsed,
+                index=carried.index,
+                dtype="datetime64[ns]",
+            )
+        except pd.errors.OutOfBoundsDatetime as exc:
+            raise DataBlocked(
+                f"{label}.{column} contains invalid dates"
+            ) from exc
 
     closes = []
     for value in carried["close"]:
         if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real):
             raise DataBlocked(f"{label}.close must contain real numeric values")
-        numeric = float(value)
+        try:
+            numeric = float(value)
+        except OverflowError as exc:
+            raise DataBlocked(
+                f"{label}.close must contain finite positive values"
+            ) from exc
         if not np.isfinite(numeric) or numeric <= 0.0:
             raise DataBlocked(
                 f"{label}.close must contain finite positive values"

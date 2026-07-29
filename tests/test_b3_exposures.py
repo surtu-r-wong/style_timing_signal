@@ -3527,6 +3527,73 @@ def test_snapshot_assembly_strictly_validates_each_carry_source(monkeypatch, sou
         build_policy_snapshots(**inputs)
 
 
+@pytest.mark.parametrize(
+    ("source_name", "source_label"),
+    [
+        pytest.param(
+            "carried_closes",
+            "exact carried closes",
+            id="exact",
+        ),
+        pytest.param(
+            "interval_carried_closes",
+            "interval carried closes",
+            id="interval",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("column", "bad_value"),
+    [
+        pytest.param("formation_date", "9999-12-31", id="formation-date"),
+        pytest.param("close_date", "1600-01-01", id="close-date"),
+    ],
+)
+def test_snapshot_assembly_wraps_out_of_bounds_carry_dates(
+    monkeypatch,
+    source_name,
+    source_label,
+    column,
+    bad_value,
+):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    frame = _carry_frame(formation)
+    frame[column] = pd.Series([bad_value], dtype=object)
+    inputs[source_name] = frame
+
+    with pytest.raises(DataBlocked, match=source_label):
+        build_policy_snapshots(**inputs)
+
+
+@pytest.mark.parametrize(
+    ("source_name", "source_label"),
+    [
+        pytest.param(
+            "carried_closes",
+            "exact carried closes",
+            id="exact",
+        ),
+        pytest.param(
+            "interval_carried_closes",
+            "interval carried closes",
+            id="interval",
+        ),
+    ],
+)
+def test_snapshot_assembly_wraps_overflowing_carry_close(
+    monkeypatch,
+    source_name,
+    source_label,
+):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    frame = _carry_frame(formation)
+    frame["close"] = pd.Series([10**10000], dtype=object)
+    inputs[source_name] = frame
+
+    with pytest.raises(DataBlocked, match=source_label):
+        build_policy_snapshots(**inputs)
+
+
 @pytest.mark.parametrize("source_name", ["carried_closes", "interval_carried_closes"])
 def test_snapshot_assembly_deduplicates_identical_carry_rows(monkeypatch, source_name):
     inputs, formation = _single_ticker_carry_inputs(monkeypatch)
