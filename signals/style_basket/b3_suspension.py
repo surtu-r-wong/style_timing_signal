@@ -175,8 +175,9 @@ def _normalise_price_closes(frame):
     result = frame.copy()
     result["close"] = values
     return result
-def _report_text(value):
 
+
+def _report_text(value):
     try:
         if bool(pd.isna(value)):
             return ""
@@ -214,16 +215,16 @@ def build_continuous_suspension_evidence(*, candidates, trading_calendar, prices
         _require_columns(stock_status, ("ts_code", "trade_date", "is_suspended"), "stock status")
     source_start = _strict_source_start(suspension_source_start)
     candidates = _normalise_interval_frame(candidates, label="candidates", date_columns=("formation_date", "list_date", "delist_date"), nullable_dates=("delist_date",), keys=["ts_code", "formation_date"])
-    calendar = _normalise_interval_frame(trading_calendar, label="trading calendar", date_columns=("calendar_date",), keys=["calendar_date"], tickers=False)
-    calendar = _normalise_bool_column(calendar, column="sfe", label="trading calendar")
+    calendar = _normalise_bool_column(trading_calendar, column="sfe", label="trading calendar")
+    calendar = _normalise_interval_frame(calendar, label="trading calendar", date_columns=("calendar_date",), keys=["calendar_date"], tickers=False)
     prices = _normalise_price_closes(prices)
     prices = _normalise_interval_frame(prices, label="prices", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
     events = _normalise_interval_frame(suspension_events, label="suspension events", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
     if stock_status is None:
         status = pd.DataFrame(columns=["ts_code", "trade_date", "is_suspended"])
     else:
-        status = _normalise_interval_frame(stock_status, label="stock status", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
-        status = _normalise_bool_column(status, column="is_suspended", label="stock status")
+        status = _normalise_bool_column(stock_status, column="is_suspended", label="stock status")
+        status = _normalise_interval_frame(status, label="stock status", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
     if candidates.empty:
         return empty_interval_evidence()
 

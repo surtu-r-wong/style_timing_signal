@@ -463,3 +463,18 @@ def test_accepts_python_and_numpy_real_numeric_price_closes(close):
 def test_preserves_missing_price_values_for_classification(close):
     row = _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": close}]).iloc[0]
     assert row["rejection_reason"] == "INVALID_PREVIOUS_CLOSE"
+
+
+@pytest.mark.parametrize("first, second", [(True, 1), (1, True)])
+@pytest.mark.parametrize(("source", "column", "label"), [
+    ("trading_calendar", "sfe", "trading calendar"),
+    ("stock_status", "is_suspended", "stock status"),
+])
+def test_rejects_bool_integer_equivalent_rows_before_deduplication(first, second, source, column, label):
+    frames = _interval_frames()
+    if source == "trading_calendar":
+        frames[source] = pd.DataFrame({"calendar_date": ["2021-09-22", "2021-09-22"], column: pd.Series([first, second], dtype=object)})
+    else:
+        frames[source] = pd.DataFrame({"ts_code": ["A.SZ", "A.SZ"], "trade_date": ["2021-09-30", "2021-09-30"], column: pd.Series([first, second], dtype=object)})
+    with pytest.raises(SuspensionEvidenceError, match=label):
+        build_continuous_suspension_evidence(**frames, suspension_source_start="2021-01-01")
