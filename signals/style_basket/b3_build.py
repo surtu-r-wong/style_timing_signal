@@ -1913,6 +1913,20 @@ def build_policy_snapshots(
         method=INTERVAL_METHOD,
     )
 
+    key_columns = ["formation_date", "ts_code"]
+    validated_exact_indexed = exact_carries.set_index(key_columns)
+    interval_indexed = interval_carries.set_index(key_columns)
+    overlap = validated_exact_indexed.index.intersection(
+        interval_indexed.index
+    )
+    if len(overlap):
+        exact_close = validated_exact_indexed.loc[overlap, "close"]
+        interval_close = interval_indexed.loc[overlap, "close"]
+        if exact_close.ne(interval_close).any():
+            raise DataBlocked(
+                "conflicting exact and interval carry closes"
+            )
+
     if not exact_carries.empty:
         exact_keys = pd.MultiIndex.from_frame(
             exact_carries[["formation_date", "ts_code"]]
@@ -1921,17 +1935,7 @@ def build_policy_snapshots(
             exact_keys.isin(suspension_keys)
         ].reset_index(drop=True)
 
-    key_columns = ["formation_date", "ts_code"]
     exact_indexed = exact_carries.set_index(key_columns)
-    interval_indexed = interval_carries.set_index(key_columns)
-    overlap = exact_indexed.index.intersection(interval_indexed.index)
-    if len(overlap):
-        exact_close = exact_indexed.loc[overlap, "close"]
-        interval_close = interval_indexed.loc[overlap, "close"]
-        if exact_close.ne(interval_close).any():
-            raise DataBlocked(
-                "conflicting exact and interval carry closes"
-            )
     interval_only = interval_indexed.loc[
         ~interval_indexed.index.isin(exact_indexed.index)
     ]

@@ -3435,6 +3435,37 @@ def test_snapshot_assembly_blocks_conflicting_exact_and_interval_carries(monkeyp
         build_policy_snapshots(**inputs)
 
 
+def test_snapshot_blocks_conflicting_carries_without_exact_suspension_evidence(
+    monkeypatch,
+):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    inputs["carried_closes"] = _carry_frame(formation, close=9.5)
+    inputs["interval_carried_closes"] = _carry_frame(
+        formation,
+        close=9.6,
+    )
+
+    with pytest.raises(
+        DataBlocked,
+        match="conflicting exact and interval carry closes",
+    ):
+        build_policy_snapshots(**inputs)
+
+
+def test_snapshot_uses_interval_for_equal_exact_carry_without_evidence(
+    monkeypatch,
+):
+    inputs, formation = _single_ticker_carry_inputs(monkeypatch)
+    inputs["carried_closes"] = _carry_frame(formation)
+    inputs["interval_carried_closes"] = _carry_frame(formation)
+
+    snap = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert snap.loc["A", "total_market_value"] == pytest.approx(950.0)
+    assert snap.loc["A", "close_method"] == INTERVAL_METHOD
+    assert bool(snap.loc["A", "close_carried"]) is True
+
+
 def test_snapshot_assembly_does_not_overwrite_original_close(monkeypatch):
     inputs = _minimal_assembly_inputs()
     formation = inputs["month_ends"][0]
