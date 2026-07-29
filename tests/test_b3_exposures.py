@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 import yaml
 
+from signals.style_basket import b3_build as b3_build_module
 from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_build import (
     B3Sources,
@@ -37,6 +38,10 @@ from signals.style_basket.b3_exposures import (
     _industry_design,
     _residualize,
     compute_month_exposures,
+)
+from signals.style_basket.b3_suspension import (
+    CORE_EVIDENCE_COLUMNS,
+    SuspensionEvidenceError,
 )
 
 
@@ -1784,6 +1789,88 @@ def test_default_sources_cache_formation_inputs_across_pit_policies(
         assert build_calls[1][key] is value
 
 
+def test_default_sources_interval_evidence_cache_miss_is_query_free(
+    monkeypatch,
+):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("evidence cache miss must not load formation inputs")
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._formation_inputs",
+        forbidden,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        forbidden,
+    )
+
+    sources = default_sources({"schema": "public"})
+    first = sources.suspension_interval_evidence(
+        pd.Timestamp("2023-12-31")
+    )
+    first["probe"] = "mutated"
+    second = sources.suspension_interval_evidence(
+        pd.Timestamp("2023-12-31")
+    )
+
+    assert (
+        B3Sources.__dataclass_fields__["suspension_interval_evidence"].default
+        is None
+    )
+    assert tuple(second.columns) == CORE_EVIDENCE_COLUMNS
+    assert second.empty
+    assert "probe" not in second.columns
+
+
+def test_default_sources_interval_evidence_callback_returns_cached_copy(
+    monkeypatch,
+):
+    data_end = pd.Timestamp("2023-12-31")
+    evidence = pd.DataFrame(
+        [{column: pd.NA for column in CORE_EVIDENCE_COLUMNS}],
+        columns=CORE_EVIDENCE_COLUMNS,
+    )
+    evidence.loc[0, "ts_code"] = "A"
+    sentinel = {
+        "facts": object(),
+        "month_ends": object(),
+        "closes": object(),
+        "shares": object(),
+        "industry": object(),
+        "meta": object(),
+        "suspensions": object(),
+        "carried_closes": object(),
+        "interval_evidence": evidence,
+        "interval_carried_closes": pd.DataFrame(
+            columns=["formation_date", "ts_code", "close_date", "close"]
+        ),
+    }
+    calls = []
+
+    def fake_formation_inputs(*args, **kwargs):
+        calls.append((args, kwargs))
+        return sentinel
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._formation_inputs",
+        fake_formation_inputs,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build.build_policy_snapshots",
+        lambda *args, **kwargs: {},
+    )
+
+    sources = default_sources({"schema": "public"})
+    sources.snapshots(POLICY_MAIN, data_end)
+    first = sources.suspension_interval_evidence(data_end)
+    first.loc[0, "ts_code"] = "MUTATED"
+    second = sources.suspension_interval_evidence(data_end)
+
+    assert len(calls) == 1
+    assert first is not evidence
+    pd.testing.assert_frame_equal(second, evidence)
+
+
 def test_cli_rejects_unfrozen_config_override(monkeypatch):
     monkeypatch.setattr(
         sys,
@@ -2472,6 +2559,22 @@ def _formation_sql_source(overrides):
                     result = result[
                         parsed.isna() | parsed.le(upper_bound)
                     ]
+                if (
+                    marker == "stock_daily_price"
+                    and params
+                    and "dates" in params
+                    and "trade_date" in result.columns
+                ):
+                    requested = set(params["dates"])
+                    parsed = pd.to_datetime(
+                        result["trade_date"],
+                        errors="coerce",
+                        format="mixed",
+                    )
+                    result = result[
+                        parsed.isna()
+                        | parsed.dt.date.isin(requested)
+                    ]
                 return result
         raise AssertionError(f"unexpected SQL: {sql}")
 
@@ -2492,8 +2595,14 @@ def _valid_formation_sql_frames(
     calendar_end="2023-12-31",
     index_end=None,
 ):
-    formation = pd.Timestamp("2021-01-29")
     index_end = calendar_end if index_end is None else index_end
+    official = pd.bdate_range("2013-05-01", calendar_end)
+    formation_dates = (
+        pd.Series(official, index=official)
+        .groupby(official.to_period("M"))
+        .max()
+        .tolist()
+    )
     return {
         # 必须先于 "stock_daily_price"：carried-close 的 lateral SQL 同时含
         # 两个标记，按列表顺序首中。
@@ -2518,9 +2627,9 @@ def _valid_formation_sql_frames(
         ),
         "stock_daily_price": pd.DataFrame(
             {
-                "ticker": ["A"],
-                "trade_date": [formation],
-                "close": [10.0],
+                "ticker": ["A"] * len(formation_dates),
+                "trade_date": formation_dates,
+                "close": [10.0] * len(formation_dates),
             }
         ),
         "stock_share_capital": pd.DataFrame(
@@ -2540,6 +2649,317 @@ def _valid_formation_sql_frames(
         ),
         "stock_suspension": pd.DataFrame(columns=["trade_date", "ts_code"]),
     }
+
+
+def test_suspension_interval_history_empty_candidates_is_query_free_and_typed(
+    monkeypatch,
+):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("empty candidates must not query the database")
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        forbidden,
+    )
+
+    got = b3_build_module._fetch_suspension_interval_history(
+        {"schema": "market"},
+        pd.DataFrame(columns=["ts_code", "formation_date"]),
+        pd.Timestamp("2021-03-31"),
+        recorder=None,
+    )
+
+    assert tuple(got["prices"].columns) == (
+        "ts_code",
+        "trade_date",
+        "close",
+    )
+    assert tuple(got["events"].columns) == (
+        "ts_code",
+        "trade_date",
+        "suspend_type",
+        "suspend_reason",
+    )
+    assert tuple(got["status"].columns) == (
+        "ts_code",
+        "trade_date",
+        "is_suspended",
+    )
+    assert got["prices"].empty
+    assert got["events"].empty
+    assert got["status"].empty
+    assert pd.isna(got["source_start"])
+
+
+def test_suspension_interval_history_queries_only_candidate_coordinates(
+    monkeypatch,
+):
+    calls = []
+    records = []
+
+    class Recorder:
+        def record(self, name, sql, frame, date_column=None):
+            records.append((name, sql, frame.copy(), date_column))
+
+    def recording_read_sql(db, sql, params=None):
+        calls.append((sql, params))
+        if "MIN(trade_date) AS source_start" in sql:
+            return pd.DataFrame({"source_start": ["2010-01-01"]})
+        if "suspend_type" in sql:
+            return pd.DataFrame(
+                columns=[
+                    "ts_code",
+                    "trade_date",
+                    "suspend_type",
+                    "suspend_reason",
+                ]
+            )
+        if "is_suspended" in sql:
+            return pd.DataFrame(
+                columns=["ts_code", "trade_date", "is_suspended"]
+            )
+        if "stock_daily_price" in sql:
+            return pd.DataFrame(columns=["ts_code", "trade_date", "close"])
+        raise AssertionError(f"unexpected interval SQL: {sql}")
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        recording_read_sql,
+    )
+    candidates = pd.DataFrame(
+        {
+            "ts_code": ["B.SZ", "A.SZ", "A.SZ"],
+            "formation_date": [
+                "2021-02-26",
+                "2021-01-29",
+                "2021-01-29",
+            ],
+        }
+    )
+
+    got = b3_build_module._fetch_suspension_interval_history(
+        {"schema": "market"},
+        candidates,
+        pd.Timestamp("2021-03-31"),
+        Recorder(),
+    )
+
+    assert got["source_start"] == pd.Timestamp("2010-01-01")
+    assert len(calls) == 4
+    price_sql, price_params = calls[0]
+    event_sql, event_params = calls[1]
+    coverage_sql, coverage_params = calls[2]
+    status_sql, status_params = calls[3]
+    for sql in (price_sql, event_sql):
+        assert "ts_code = ANY(%(tickers)s)" in sql
+        assert "trade_date <= %(end)s" in sql
+        assert "A.SZ" not in sql and "B.SZ" not in sql
+    assert "SELECT ts_code, trade_date, close" in price_sql
+    assert "ORDER BY ts_code, trade_date" in price_sql
+    assert (
+        "SELECT ts_code, trade_date, suspend_type, suspend_reason"
+        in event_sql
+    )
+    assert (
+        "ORDER BY ts_code, trade_date, suspend_type, suspend_reason"
+        in event_sql
+    )
+    assert "MIN(trade_date) AS source_start" in coverage_sql
+    assert coverage_params is None
+    assert "ts_code = ANY(%(tickers)s)" in status_sql
+    assert "trade_date = ANY(%(dates)s)" in status_sql
+    assert "trade_date <=" not in status_sql
+    assert "ORDER BY ts_code, trade_date" in status_sql
+    expected_history_params = {
+        "tickers": ["A.SZ", "B.SZ"],
+        "end": pd.Timestamp("2021-03-31").date(),
+    }
+    assert price_params == expected_history_params
+    assert event_params == expected_history_params
+    assert status_params == {
+        "tickers": ["A.SZ", "B.SZ"],
+        "dates": [
+            pd.Timestamp("2021-01-29").date(),
+            pd.Timestamp("2021-02-26").date(),
+        ],
+    }
+    assert [record[0] for record in records] == [
+        "market.stock_daily_price_interval_history",
+        "market.stock_suspension_interval_history",
+        "market.stock_suspension_source_coverage",
+        "market.stock_status_interval_confirmation",
+    ]
+    assert [record[3] for record in records] == [
+        "trade_date",
+        "trade_date",
+        "source_start",
+        "trade_date",
+    ]
+
+
+def test_formation_inputs_builds_interval_evidence_without_future_decision_leakage(
+    monkeypatch,
+):
+    formation = pd.Timestamp("2021-01-29")
+    frames = _valid_formation_sql_frames(calendar_end="2021-03-31")
+    frames["stock_meta"] = pd.DataFrame(
+        {
+            "ticker": ["A"],
+            "list_date": ["2020-07-30"],
+            "delist_date": [formation],
+        }
+    )
+    frames["stock_daily_price"] = pd.DataFrame(
+        {"ticker": ["A"], "trade_date": [formation], "close": [None]}
+    )
+    frames["stock_suspension"] = pd.DataFrame(
+        {"trade_date": [formation], "ts_code": ["A"]}
+    )
+    interval_prices = pd.DataFrame(
+        {
+            "ts_code": ["A", "A"],
+            "trade_date": ["2021-01-28", "2021-02-01"],
+            "close": [9.5, 10.5],
+        }
+    )
+    interval_events = pd.DataFrame(
+        {
+            "ts_code": ["A", "A"],
+            "trade_date": [formation, "2021-02-01"],
+            "suspend_type": ["今起停牌", "复牌"],
+            "suspend_reason": ["重大事项", "事项完成"],
+        }
+    )
+    interval_status = pd.DataFrame(
+        {
+            "ts_code": ["A"],
+            "trade_date": [formation],
+            "is_suspended": [False],
+        }
+    )
+    ordered = [
+        (
+            "SELECT MIN(trade_date) AS source_start",
+            pd.DataFrame({"source_start": ["2010-01-01"]}),
+        ),
+        (
+            "SELECT ts_code, trade_date, suspend_type, suspend_reason",
+            interval_events,
+        ),
+        (
+            "SELECT ts_code, trade_date, is_suspended",
+            interval_status,
+        ),
+        ("SELECT ts_code, trade_date, close", interval_prices),
+        *frames.items(),
+    ]
+    source = _formation_sql_source(ordered)
+    calls = []
+
+    def recording_read_sql(db, sql, params=None):
+        calls.append((sql, params))
+        return source(db, sql, params)
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        recording_read_sql,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    got = _formation_inputs(
+        {"schema": "public"},
+        pd.Timestamp("2021-03-31"),
+    )
+
+    assert tuple(got["interval_evidence"].columns) == CORE_EVIDENCE_COLUMNS
+    row = got["interval_evidence"].iloc[0]
+    assert row["accepted"] is True
+    assert row["previous_close_date"] == pd.Timestamp("2021-01-28")
+    assert row["next_trade_date"] == pd.Timestamp("2021-02-01")
+    assert row["next_nonnull_close"] == 10.5
+    assert row["exact_stock_status_confirmed"] is False
+    assert got["interval_carried_closes"].to_dict("records") == [
+        {
+            "formation_date": formation,
+            "ts_code": "A",
+            "close_date": pd.Timestamp("2021-01-28"),
+            "close": 9.5,
+        }
+    ]
+    interval_calls = [
+        (sql, params)
+        for sql, params in calls
+        if "interval" not in sql
+        and (
+            "SELECT ts_code, trade_date, close" in sql
+            or "suspend_type" in sql
+            or "is_suspended" in sql
+        )
+    ]
+    assert interval_calls
+    for sql, params in interval_calls:
+        assert params["tickers"] == ["A"]
+        if "is_suspended" in sql:
+            assert params["dates"] == [formation.date()]
+        else:
+            assert params["end"] == pd.Timestamp("2021-03-31").date()
+
+
+def test_formation_inputs_wraps_interval_structure_errors_as_data_blocked(
+    monkeypatch,
+):
+    formation = pd.Timestamp("2021-01-29")
+    frames = _valid_formation_sql_frames(calendar_end="2021-03-31")
+    frames["stock_meta"] = pd.DataFrame(
+        {
+            "ticker": ["A"],
+            "list_date": ["2020-07-30"],
+            "delist_date": [formation],
+        }
+    )
+    frames["stock_daily_price"] = pd.DataFrame(
+        {"ticker": ["A"], "trade_date": [formation], "close": [None]}
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _formation_sql_source(list(frames.items())),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_suspension_interval_history",
+        lambda *args, **kwargs: {
+            "prices": pd.DataFrame(columns=["ts_code", "trade_date"]),
+            "events": pd.DataFrame(
+                columns=[
+                    "ts_code",
+                    "trade_date",
+                    "suspend_type",
+                    "suspend_reason",
+                ]
+            ),
+            "source_start": pd.Timestamp("2010-01-01"),
+            "status": pd.DataFrame(
+                columns=["ts_code", "trade_date", "is_suspended"]
+            ),
+        },
+    )
+
+    with pytest.raises(
+        DataBlocked,
+        match="continuous suspension evidence invalid: prices",
+    ) as caught:
+        _formation_inputs(
+            {"schema": "public"},
+            pd.Timestamp("2021-03-31"),
+        )
+
+    assert isinstance(caught.value.__cause__, SuspensionEvidenceError)
 
 
 @pytest.mark.parametrize(

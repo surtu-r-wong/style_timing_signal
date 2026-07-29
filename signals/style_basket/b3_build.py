@@ -30,6 +30,12 @@ from signals.style_basket.b3_exposures import (
 )
 from signals.style_basket.b3_portfolios import build_portfolio_panels
 from signals.style_basket.b3_states import build_state_features
+from signals.style_basket.b3_suspension import (
+    SuspensionEvidenceError,
+    build_continuous_suspension_evidence,
+    build_missing_close_candidates,
+    empty_interval_evidence,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -136,6 +142,9 @@ class B3Sources:
     target_returns: Callable[..., dict[str, pd.Series]]
     carry: Callable[..., pd.DataFrame | pd.Series]
     database_evidence: Callable[[], dict | None] | None = None
+    suspension_interval_evidence: (
+        Callable[[pd.Timestamp], pd.DataFrame] | None
+    ) = None
 
 
 @dataclass(frozen=True)
@@ -834,6 +843,133 @@ def _read_sql(
         conn.close()
 
 
+def _fetch_suspension_interval_history(
+    db: dict,
+    candidates: pd.DataFrame,
+    data_end: pd.Timestamp,
+    recorder: DatabaseEvidenceRecorder | None,
+) -> dict[str, object]:
+    """Load bounded price, event, coverage, and exact-status evidence."""
+    empty_prices = pd.DataFrame(
+        columns=["ts_code", "trade_date", "close"]
+    )
+    empty_events = pd.DataFrame(
+        columns=[
+            "ts_code",
+            "trade_date",
+            "suspend_type",
+            "suspend_reason",
+        ]
+    )
+    empty_status = pd.DataFrame(
+        columns=["ts_code", "trade_date", "is_suspended"]
+    )
+    if candidates.empty:
+        return {
+            "prices": empty_prices,
+            "events": empty_events,
+            "source_start": pd.NaT,
+            "status": empty_status,
+        }
+
+    schema = db["schema"]
+    tickers = sorted(candidates["ts_code"].drop_duplicates().tolist())
+    dates = sorted(
+        pd.Timestamp(value).date()
+        for value in candidates["formation_date"].drop_duplicates()
+    )
+    end = pd.Timestamp(data_end).date()
+    history_params = {"tickers": tickers, "end": end}
+
+    price_sql = f"""
+            SELECT ts_code, trade_date, close
+            FROM {schema}.stock_daily_price
+            WHERE ts_code = ANY(%(tickers)s)
+              AND trade_date <= %(end)s
+            ORDER BY ts_code, trade_date
+        """
+    prices = _read_sql(db, price_sql, history_params)
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.stock_daily_price_interval_history",
+            price_sql,
+            prices,
+            "trade_date",
+        )
+
+    event_sql = f"""
+            SELECT ts_code, trade_date, suspend_type, suspend_reason
+            FROM {schema}.stock_suspension
+            WHERE ts_code = ANY(%(tickers)s)
+              AND trade_date <= %(end)s
+            ORDER BY ts_code, trade_date, suspend_type, suspend_reason
+        """
+    events = _read_sql(db, event_sql, history_params)
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.stock_suspension_interval_history",
+            event_sql,
+            events,
+            "trade_date",
+        )
+
+    coverage_sql = f"""
+            SELECT MIN(trade_date) AS source_start
+            FROM {schema}.stock_suspension
+        """
+    coverage = _read_sql(db, coverage_sql)
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.stock_suspension_source_coverage",
+            coverage_sql,
+            coverage,
+            "source_start",
+        )
+    _require_columns(
+        coverage,
+        {"source_start"},
+        "suspension source coverage",
+    )
+    if len(coverage) > 1:
+        raise DataBlocked(
+            "suspension source coverage contains multiple rows"
+        )
+    try:
+        source_start = (
+            pd.NaT
+            if coverage.empty or pd.isna(coverage.iloc[0]["source_start"])
+            else pd.Timestamp(coverage.iloc[0]["source_start"])
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise DataBlocked("suspension source coverage is invalid") from exc
+
+    status_sql = f"""
+            SELECT ts_code, trade_date, is_suspended
+            FROM {schema}.stock_status
+            WHERE ts_code = ANY(%(tickers)s)
+              AND trade_date = ANY(%(dates)s)
+            ORDER BY ts_code, trade_date
+        """
+    status = _read_sql(
+        db,
+        status_sql,
+        {"tickers": tickers, "dates": dates},
+    )
+    if recorder is not None:
+        recorder.record(
+            f"{schema}.stock_status_interval_confirmation",
+            status_sql,
+            status,
+            "trade_date",
+        )
+    return {
+        "prices": prices,
+        "events": events,
+        "source_start": source_start,
+        "status": status,
+    }
+
+
 def _fetch_stock_return_status(
     db: dict,
     data_end: pd.Timestamp,
@@ -1316,6 +1452,63 @@ def _formation_inputs(
         "carried suspended closes",
     )
 
+    try:
+        candidates = build_missing_close_candidates(
+            formations=pd.DataFrame({"formation_date": month_ends}),
+            stock_meta=meta.rename(columns={"ticker": "ts_code"}),
+            exact_closes=closes.rename(
+                columns={
+                    "ticker": "ts_code",
+                    "trade_date": "formation_date",
+                }
+            ),
+            exact_suspensions=suspensions.rename(
+                columns={"trade_date": "formation_date"}
+            ),
+            exact_carries=carried_closes,
+        )
+        if candidates.empty:
+            interval_evidence = empty_interval_evidence()
+        else:
+            history = _fetch_suspension_interval_history(
+                db,
+                candidates,
+                data_end,
+                recorder,
+            )
+            interval_evidence = build_continuous_suspension_evidence(
+                candidates=candidates,
+                trading_calendar=authoritative,
+                prices=history["prices"],
+                suspension_events=history["events"],
+                suspension_source_start=history["source_start"],
+                stock_status=history["status"],
+            )
+    except SuspensionEvidenceError as exc:
+        raise DataBlocked(
+            f"continuous suspension evidence invalid: {exc}"
+        ) from exc
+
+    accepted_interval = interval_evidence.loc[
+        interval_evidence["accepted"].astype(bool)
+    ]
+    interval_carried_closes = (
+        accepted_interval.rename(
+            columns={
+                "previous_close_date": "close_date",
+                "previous_close": "close",
+            }
+        )[
+            ["formation_date", "ts_code", "close_date", "close"]
+        ]
+        .drop_duplicates()
+        .sort_values(
+            ["formation_date", "ts_code"],
+            kind="mergesort",
+        )
+        .reset_index(drop=True)
+    )
+
     facts = _fetch_raw_financial(
         tickers,
         "2003-01-01",
@@ -1331,6 +1524,8 @@ def _formation_inputs(
         "industry": industry,
         "suspensions": suspensions,
         "carried_closes": carried_closes,
+        "interval_evidence": interval_evidence,
+        "interval_carried_closes": interval_carried_closes,
         "facts": facts,
     }
 
@@ -1976,6 +2171,15 @@ def default_sources(db: dict) -> B3Sources:
             for target in ["500", "1000"]
         }
 
+    def suspension_interval_evidence(
+        data_end: pd.Timestamp,
+    ) -> pd.DataFrame:
+        key = str(pd.Timestamp(data_end).date())
+        source = cached_inputs.get(key)
+        if source is None:
+            return empty_interval_evidence()
+        return source["interval_evidence"].copy()
+
     return B3Sources(
         snapshots=snapshots,
         constituents=constituents,
@@ -1986,6 +2190,7 @@ def default_sources(db: dict) -> B3Sources:
         target_returns=targets,
         carry=carries,
         database_evidence=evidence_recorder.payload,
+        suspension_interval_evidence=suspension_interval_evidence,
     )
 
 
