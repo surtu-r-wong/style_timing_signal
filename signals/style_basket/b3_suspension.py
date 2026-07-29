@@ -135,7 +135,24 @@ def build_missing_close_candidates(*, formations, stock_meta, exact_closes, exac
 CORE_EVIDENCE_COLUMNS = (
     "ts_code", "formation_date", "list_date", "delist_date", "suspension_start", "previous_official_trade_date", "previous_close_date", "previous_close", "suspend_type", "suspend_reason", "evidence_method", "accepted", "rejection_reason", "next_trade_date", "next_nonnull_close", "exact_stock_status_confirmed",
 )
+SUSPENSION_INTERVAL_ARTIFACT_COLUMNS = (
+    "ts_code",
+    "formation_date",
+    "required_formation",
+    *CORE_EVIDENCE_COLUMNS[2:],
+)
 INTERVAL_METHOD = "CONTINUOUS_SUSPENSION_INTERVAL"
+INTERVAL_REJECTION_REASONS = frozenset(
+    {
+        "NO_EXPLICIT_SUSPENSION_START",
+        "START_NOT_OFFICIAL_TRADING_DAY",
+        "PREVIOUS_CLOSE_NOT_PRIOR_TRADING_DAY",
+        "INVALID_PREVIOUS_CLOSE",
+        "PRICE_OBSERVED_DURING_INTERVAL",
+        "OUTSIDE_LEGAL_LISTING_INTERVAL",
+        "SUSPENSION_START_PRECEDES_SOURCE_COVERAGE",
+    }
+)
 
 
 def empty_interval_evidence() -> pd.DataFrame:

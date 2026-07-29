@@ -32,7 +32,10 @@ from signals.style_basket.b3_exposures import (
 from signals.style_basket.b3_portfolios import build_portfolio_panels
 from signals.style_basket.b3_states import build_state_features
 from signals.style_basket.b3_suspension import (
+    CORE_EVIDENCE_COLUMNS,
     INTERVAL_METHOD,
+    INTERVAL_REJECTION_REASONS,
+    SUSPENSION_INTERVAL_ARTIFACT_COLUMNS,
     SuspensionEvidenceError,
     build_continuous_suspension_evidence,
     build_missing_close_candidates,
@@ -61,6 +64,7 @@ STAGE_OUTPUTS = {
     "preflight": {
         "coverage_audit.csv",
         "exposure_diagnostics.csv",
+        "suspension_interval_evidence.csv",
     },
     "exposures": {"monthly_exposures.csv.gz"},
     "portfolios": {
@@ -274,6 +278,258 @@ def _write_csv_atomic(
     finally:
         temporary.unlink(missing_ok=True)
     return output
+
+
+_INTERVAL_EVIDENCE_DATE_COLUMNS = (
+    "formation_date",
+    "list_date",
+    "delist_date",
+    "suspension_start",
+    "previous_official_trade_date",
+    "previous_close_date",
+    "next_trade_date",
+)
+_INTERVAL_EVIDENCE_REQUIRED_DATES = {"formation_date", "list_date"}
+_INTERVAL_EVIDENCE_NUMERIC_COLUMNS = (
+    "previous_close",
+    "next_nonnull_close",
+)
+_INTERVAL_EVIDENCE_TEXT_COLUMNS = (
+    "suspend_type",
+    "suspend_reason",
+    "evidence_method",
+    "rejection_reason",
+)
+
+
+def _empty_preflight_interval_evidence() -> pd.DataFrame:
+    return pd.DataFrame(columns=SUSPENSION_INTERVAL_ARTIFACT_COLUMNS)
+
+
+def _evidence_value_is_missing(value: object) -> bool:
+    try:
+        missing = pd.isna(value)
+    except (TypeError, ValueError) as exc:
+        raise SuspensionEvidenceError(
+            "suspension interval evidence contains an invalid scalar"
+        ) from exc
+    if not isinstance(missing, (bool, np.bool_)):
+        raise SuspensionEvidenceError(
+            "suspension interval evidence contains an invalid scalar"
+        )
+    return bool(missing)
+
+
+def _preflight_interval_evidence(
+    raw: object,
+    required_start: pd.Timestamp,
+    required_end: pd.Timestamp,
+) -> pd.DataFrame:
+    """Validate cached core evidence and add the frozen preflight coordinate."""
+    if not isinstance(raw, pd.DataFrame):
+        raise SuspensionEvidenceError(
+            "suspension interval evidence callback must return a DataFrame"
+        )
+    columns = list(raw.columns)
+    if len(columns) != len(set(columns)):
+        raise SuspensionEvidenceError(
+            "suspension interval evidence contains duplicate columns"
+        )
+    missing = sorted(set(CORE_EVIDENCE_COLUMNS).difference(columns))
+    extra = sorted(set(columns).difference(CORE_EVIDENCE_COLUMNS))
+    if missing or extra:
+        raise SuspensionEvidenceError(
+            "suspension interval evidence schema mismatch: "
+            f"missing={missing}, extra={extra}"
+        )
+
+    evidence = raw.loc[:, CORE_EVIDENCE_COLUMNS].copy()
+    invalid_ticker = evidence["ts_code"].map(
+        lambda value: (
+            not isinstance(value, str)
+            or not value.strip()
+            or value != value.strip()
+        )
+    )
+    if invalid_ticker.any():
+        raise SuspensionEvidenceError(
+            "suspension interval evidence ts_code must be a non-blank string"
+        )
+
+    for column in _INTERVAL_EVIDENCE_DATE_COLUMNS:
+        parsed = []
+        for value in evidence[column]:
+            if _evidence_value_is_missing(value):
+                if column in _INTERVAL_EVIDENCE_REQUIRED_DATES:
+                    raise SuspensionEvidenceError(
+                        f"suspension interval evidence {column} must not be null"
+                    )
+                parsed.append(pd.NaT)
+                continue
+            if isinstance(value, (bool, Real)):
+                raise SuspensionEvidenceError(
+                    f"suspension interval evidence {column} is invalid"
+                )
+            try:
+                timestamp = pd.Timestamp(value)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise SuspensionEvidenceError(
+                    f"suspension interval evidence {column} is invalid"
+                ) from exc
+            if (
+                pd.isna(timestamp)
+                or timestamp.tzinfo is not None
+                or timestamp != timestamp.normalize()
+            ):
+                raise SuspensionEvidenceError(
+                    f"suspension interval evidence {column} is invalid"
+                )
+            parsed.append(timestamp)
+        try:
+            evidence[column] = pd.Series(
+                parsed,
+                index=evidence.index,
+                dtype="datetime64[ns]",
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise SuspensionEvidenceError(
+                f"suspension interval evidence {column} is invalid"
+            ) from exc
+
+    for column in _INTERVAL_EVIDENCE_NUMERIC_COLUMNS:
+        values = []
+        for value in evidence[column]:
+            if _evidence_value_is_missing(value):
+                values.append(float("nan"))
+                continue
+            if isinstance(value, bool) or not isinstance(value, Real):
+                raise SuspensionEvidenceError(
+                    f"suspension interval evidence {column} must be numeric"
+                )
+            values.append(float(value))
+        evidence[column] = values
+
+    if evidence["accepted"].map(lambda value: type(value) is not bool).any():
+        raise SuspensionEvidenceError(
+            "suspension interval evidence accepted must be boolean"
+        )
+    invalid_status = evidence["exact_stock_status_confirmed"].map(
+        lambda value: (
+            not _evidence_value_is_missing(value)
+            and type(value) is not bool
+        )
+    )
+    if invalid_status.any():
+        raise SuspensionEvidenceError(
+            "suspension interval evidence exact_stock_status_confirmed "
+            "must be nullable boolean"
+        )
+    for column in _INTERVAL_EVIDENCE_TEXT_COLUMNS:
+        if evidence[column].map(lambda value: type(value) is not str).any():
+            raise SuspensionEvidenceError(
+                f"suspension interval evidence {column} must be a string"
+            )
+
+    accepted = evidence["accepted"]
+    rejected = accepted.map(lambda value: not value)
+    previous_pair_mismatch = evidence["previous_close_date"].isna() != (
+        evidence["previous_close"].isna()
+    )
+    future_pair_mismatch = evidence["next_trade_date"].isna() != (
+        evidence["next_nonnull_close"].isna()
+    )
+    known_fact_date_invalid = (
+        (
+            evidence["suspension_start"].notna()
+            & evidence["suspension_start"].gt(evidence["formation_date"])
+        )
+        | (
+            evidence["previous_close_date"].notna()
+            & evidence["previous_close_date"].gt(
+                evidence["formation_date"]
+            )
+        )
+        | (
+            evidence["next_trade_date"].notna()
+            & evidence["next_trade_date"].le(evidence["formation_date"])
+        )
+        | (
+            evidence["suspension_start"].notna()
+            & evidence["suspend_type"].ne("今起停牌")
+        )
+        | (
+            evidence["previous_official_trade_date"].notna()
+            & evidence["suspension_start"].isna()
+        )
+        | (
+            evidence["previous_official_trade_date"].notna()
+            & evidence["suspension_start"].notna()
+            & evidence["previous_official_trade_date"].ge(
+                evidence["suspension_start"]
+            )
+        )
+        | (
+            evidence["previous_close_date"].notna()
+            & evidence["suspension_start"].notna()
+            & evidence["previous_close_date"].ge(
+                evidence["suspension_start"]
+            )
+        )
+    )
+    accepted_invalid = accepted & (
+        evidence["evidence_method"].ne(INTERVAL_METHOD)
+        | evidence["rejection_reason"].ne("")
+        | evidence["suspension_start"].isna()
+        | evidence["previous_official_trade_date"].isna()
+        | evidence["previous_close_date"].isna()
+        | evidence["previous_close"].isna()
+        | ~np.isfinite(evidence["previous_close"])
+        | evidence["previous_close"].le(0)
+        | evidence["suspend_type"].ne("今起停牌")
+        | evidence["list_date"].gt(evidence["formation_date"])
+        | (
+            evidence["delist_date"].notna()
+            & evidence["delist_date"].lt(evidence["formation_date"])
+        )
+        | evidence["previous_close_date"].ne(
+            evidence["previous_official_trade_date"]
+        )
+    )
+    rejected_invalid = rejected & (
+        evidence["evidence_method"].ne("")
+        | evidence["rejection_reason"].eq("")
+        | ~evidence["rejection_reason"].isin(
+            INTERVAL_REJECTION_REASONS
+        )
+    )
+    if (
+        accepted_invalid.any()
+        or rejected_invalid.any()
+        or previous_pair_mismatch.any()
+        or future_pair_mismatch.any()
+        or known_fact_date_invalid.any()
+    ):
+        raise SuspensionEvidenceError(
+            "suspension interval evidence row semantics mismatch"
+        )
+    if evidence.duplicated(["formation_date", "ts_code"], keep=False).any():
+        raise SuspensionEvidenceError(
+            "suspension interval evidence contains duplicate logical keys"
+        )
+
+    start = pd.Timestamp(required_start)
+    end = pd.Timestamp(required_end)
+    evidence.insert(
+        2,
+        "required_formation",
+        evidence["formation_date"].map(
+            lambda value: bool(start <= value <= end)
+        ),
+    )
+    return evidence.loc[:, SUSPENSION_INTERVAL_ARTIFACT_COLUMNS].sort_values(
+        ["formation_date", "ts_code"],
+        kind="stable",
+    ).reset_index(drop=True)
 
 
 def _verified_manifest_output(
@@ -2370,6 +2626,18 @@ def run_preflight(
     _invalidate_stage_manifest(output_root, "preflight")
     data_end = pd.Timestamp(data_end)
 
+    interval_evidence_path = (
+        output_root / "suspension_interval_evidence.csv"
+    )
+    interval_evidence = _empty_preflight_interval_evidence()
+    _write_csv_atomic(
+        interval_evidence,
+        interval_evidence_path,
+        index=False,
+        date_format="%Y-%m-%d",
+        na_rep="",
+    )
+
     required_start = pd.Timestamp(cfg["windows"]["discovery"][0])
     required_end = pd.Timestamp(cfg["windows"]["confirmation"][1])
     policies = list(cfg["pit"]["policies"])
@@ -2708,6 +2976,31 @@ def run_preflight(
             if blockers:
                 break
 
+    if not blockers:
+        interval_source = getattr(
+            sources,
+            "suspension_interval_evidence",
+            None,
+        )
+        if interval_source is not None:
+            try:
+                interval_evidence = _preflight_interval_evidence(
+                    interval_source(data_end),
+                    required_start,
+                    required_end,
+                )
+            except (DataBlocked, SuspensionEvidenceError) as exc:
+                row = add_audit(
+                    policy="all",
+                    formation_date=pd.NaT,
+                    required=True,
+                    check="suspension_interval_evidence",
+                    status="DATA_BLOCKED",
+                    reason_code="DATA_CONTRACT",
+                    detail=str(exc),
+                )
+                add_blocker(row)
+
     for policy in policies if not blockers else []:
         snapshots = normalized_by_policy[policy]
         for raw_date, snapshot in sorted(
@@ -2830,6 +3123,13 @@ def run_preflight(
     diagnostics_path = output_root / "exposure_diagnostics.csv"
     _write_csv_atomic(audit, audit_path, index=False)
     _write_csv_atomic(diagnostics, diagnostics_path, index=False)
+    _write_csv_atomic(
+        interval_evidence,
+        interval_evidence_path,
+        index=False,
+        date_format="%Y-%m-%d",
+        na_rep="",
+    )
     database_evidence = None
     evidence_source = getattr(sources, "database_evidence", None)
     if evidence_source is not None:
@@ -2839,7 +3139,7 @@ def run_preflight(
         "preflight",
         cfg,
         data_end,
-        [audit_path, diagnostics_path],
+        [audit_path, diagnostics_path, interval_evidence_path],
         final_status,
         blockers,
         database_source_evidence=database_evidence,

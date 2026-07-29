@@ -1,4 +1,5 @@
 from copy import deepcopy
+from dataclasses import replace
 import hashlib
 import json
 from pathlib import Path
@@ -42,6 +43,7 @@ from signals.style_basket.b3_exposures import (
 from signals.style_basket.b3_suspension import (
     CORE_EVIDENCE_COLUMNS,
     INTERVAL_METHOD,
+    SUSPENSION_INTERVAL_ARTIFACT_COLUMNS,
     SuspensionEvidenceError,
 )
 
@@ -1564,7 +1566,13 @@ def test_target_coordinate_calibration_blocks_missing_q1000_constituents():
         calibrate_target_coordinates(exposures, constituents)
 
 
-def _preflight_sources(snapshot, constituents, *, snapshot_error=None):
+def _preflight_sources(
+    snapshot,
+    constituents,
+    *,
+    snapshot_error=None,
+    interval_evidence=None,
+):
     def snapshots(*args, **kwargs):
         if snapshot_error is not None:
             raise snapshot_error
@@ -1584,6 +1592,7 @@ def _preflight_sources(snapshot, constituents, *, snapshot_error=None):
         stock_returns=forbidden,
         target_returns=forbidden,
         carry=forbidden,
+        suspension_interval_evidence=interval_evidence,
     )
 
 
@@ -1592,6 +1601,50 @@ def _single_month_preflight_config():
     cfg["windows"]["discovery"] = ["2021-01-01", "2021-01-31"]
     cfg["windows"]["confirmation"] = ["2021-01-01", "2021-01-31"]
     return cfg
+
+
+def _valid_preflight_interval_evidence():
+    return pd.DataFrame(
+        [
+            {
+                "ts_code": "B.SZ",
+                "formation_date": "2022-01-28",
+                "list_date": "2010-01-01",
+                "delist_date": None,
+                "suspension_start": None,
+                "previous_official_trade_date": None,
+                "previous_close_date": "2022-01-27",
+                "previous_close": 8.5,
+                "suspend_type": "",
+                "suspend_reason": "",
+                "evidence_method": "",
+                "accepted": False,
+                "rejection_reason": "NO_EXPLICIT_SUSPENSION_START",
+                "next_trade_date": None,
+                "next_nonnull_close": None,
+                "exact_stock_status_confirmed": pd.NA,
+            },
+            {
+                "ts_code": "A.SZ",
+                "formation_date": "2021-01-29",
+                "list_date": "2010-01-01",
+                "delist_date": None,
+                "suspension_start": "2021-01-28",
+                "previous_official_trade_date": "2021-01-27",
+                "previous_close_date": "2021-01-27",
+                "previous_close": 10.0,
+                "suspend_type": "今起停牌",
+                "suspend_reason": "重大事项",
+                "evidence_method": INTERVAL_METHOD,
+                "accepted": True,
+                "rejection_reason": "",
+                "next_trade_date": "2021-02-01",
+                "next_nonnull_close": 10.5,
+                "exact_stock_status_confirmed": True,
+            },
+        ],
+        columns=CORE_EVIDENCE_COLUMNS,
+    )
 
 
 def test_preflight_is_return_blind_and_writes_ok_artifacts(tmp_path):
@@ -1612,6 +1665,281 @@ def test_preflight_is_return_blind_and_writes_ok_artifacts(tmp_path):
     assert got.final_status == "OK"
     assert (tmp_path / "coverage_audit.csv").is_file()
     assert (tmp_path / "manifests" / "preflight.json").is_file()
+
+
+def test_preflight_publishes_sorted_hash_bound_interval_artifact(tmp_path):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    callback_dates = []
+    sources = replace(
+        _preflight_sources(snapshot, _constituents_for_snapshot(snapshot)),
+        suspension_interval_evidence=lambda data_end: (
+            callback_dates.append(data_end)
+            or _valid_preflight_interval_evidence()
+        ),
+    )
+
+    got = run_preflight(
+        cfg, sources, pd.Timestamp("2023-12-31"), tmp_path
+    )
+
+    assert got.final_status == "OK"
+    assert callback_dates == [pd.Timestamp("2023-12-31")]
+    path = tmp_path / "suspension_interval_evidence.csv"
+    evidence = pd.read_csv(path)
+    assert tuple(evidence.columns) == SUSPENSION_INTERVAL_ARTIFACT_COLUMNS
+    assert evidence[["formation_date", "ts_code"]].to_dict("records") == [
+        {"formation_date": "2021-01-29", "ts_code": "A.SZ"},
+        {"formation_date": "2022-01-28", "ts_code": "B.SZ"},
+    ]
+    assert evidence["required_formation"].tolist() == [True, False]
+    manifest = json.loads(
+        (tmp_path / "manifests" / "preflight.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert set(manifest["outputs"]) == {
+        "coverage_audit.csv",
+        "exposure_diagnostics.csv",
+        "suspension_interval_evidence.csv",
+    }
+    assert manifest["outputs"]["suspension_interval_evidence.csv"] == (
+        _file_digest(path)
+    )
+
+
+def test_preflight_without_interval_callback_writes_standard_empty_artifact(
+    tmp_path,
+):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+
+    run_preflight(
+        cfg,
+        _preflight_sources(snapshot, _constituents_for_snapshot(snapshot)),
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    evidence = pd.read_csv(tmp_path / "suspension_interval_evidence.csv")
+    assert tuple(evidence.columns) == SUSPENSION_INTERVAL_ARTIFACT_COLUMNS
+    assert evidence.empty
+
+
+def test_preflight_early_source_block_replaces_stale_interval_artifact_without_callback(
+    tmp_path,
+):
+    stale = tmp_path / "suspension_interval_evidence.csv"
+    stale.write_text("stale\nold\n", encoding="utf-8")
+    calls = []
+    snapshot = _synthetic_snapshot()
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        snapshot_error=DataBlocked("DATA_TEST_SNAPSHOT_BLOCK"),
+        interval_evidence=lambda data_end: calls.append(data_end),
+    )
+
+    got = run_preflight(
+        load_b3_config(),
+        sources,
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    assert calls == []
+    evidence = pd.read_csv(stale)
+    assert tuple(evidence.columns) == SUSPENSION_INTERVAL_ARTIFACT_COLUMNS
+    assert evidence.empty
+    manifest = json.loads(
+        (tmp_path / "manifests" / "preflight.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["outputs"]["suspension_interval_evidence.csv"] == (
+        _file_digest(stale)
+    )
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        pytest.param(lambda frame: object(), id="not-dataframe"),
+        pytest.param(
+            lambda frame: frame.drop(columns="previous_close"),
+            id="missing-column",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(extra="drift"), id="extra-column"
+        ),
+        pytest.param(
+            lambda frame: frame.rename(
+                columns={"previous_close": "previous_close_date"}
+            ),
+            id="duplicate-column",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(accepted="true"), id="string-bool"
+        ),
+        pytest.param(
+            lambda frame: frame.assign(accepted=1), id="integer-bool"
+        ),
+        pytest.param(
+            lambda frame: frame.assign(previous_close="10.0"),
+            id="string-number",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(exact_stock_status_confirmed="yes"),
+            id="report-string-bool",
+        ),
+        pytest.param(
+            lambda frame: pd.concat(
+                [frame, frame.iloc[[0]]], ignore_index=True
+            ),
+            id="duplicate-logical-key",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(
+                evidence_method="", rejection_reason=""
+            ),
+            id="accepted-method-mismatch",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(
+                evidence_method=INTERVAL_METHOD, rejection_reason=""
+            ),
+            id="rejected-method-mismatch",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(
+                rejection_reason=frame["rejection_reason"].mask(
+                    ~frame["accepted"], "NOT_A_CONTRACT_ENUM"
+                )
+            ),
+            id="unknown-rejection-enum",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(
+                suspend_type=frame["suspend_type"].mask(
+                    frame["accepted"], ""
+                )
+            ),
+            id="accepted-missing-suspend-type",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(
+                suspension_start=frame["suspension_start"].mask(
+                    frame["accepted"], "2021-02-01"
+                )
+            ),
+            id="start-after-formation",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(
+                list_date=frame["list_date"].mask(
+                    frame["accepted"], "2021-02-01"
+                )
+            ),
+            id="accepted-outside-listing-interval",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(
+                previous_close_date=frame["previous_close_date"].mask(
+                    frame["accepted"], "2021-01-26"
+                )
+            ),
+            id="accepted-previous-date-mismatch",
+        ),
+        pytest.param(
+            lambda frame: frame.assign(
+                next_trade_date=frame["next_trade_date"].mask(
+                    frame["accepted"], "2021-01-29"
+                )
+            ),
+            id="future-report-not-after-formation",
+        ),
+    ],
+)
+def test_invalid_interval_callback_contract_becomes_manifested_data_block(
+    tmp_path,
+    mutate,
+):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    raw = mutate(_valid_preflight_interval_evidence())
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        interval_evidence=lambda data_end: raw,
+    )
+
+    got = run_preflight(
+        cfg, sources, pd.Timestamp("2023-12-31"), tmp_path
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    evidence = pd.read_csv(tmp_path / "suspension_interval_evidence.csv")
+    assert tuple(evidence.columns) == SUSPENSION_INTERVAL_ARTIFACT_COLUMNS
+    assert evidence.empty
+    manifest = json.loads(
+        (tmp_path / "manifests" / "preflight.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    blockers = [
+        blocker
+        for blocker in manifest["blockers"]
+        if blocker["check"] == "suspension_interval_evidence"
+    ]
+    assert blockers
+    assert blockers[0]["status"] == "DATA_BLOCKED"
+    assert blockers[0]["reason_code"] == "DATA_CONTRACT"
+
+
+def test_preflight_manifest_is_written_after_all_three_atomic_outputs(
+    monkeypatch,
+    tmp_path,
+):
+    events = []
+    real_csv = b3_build_module._write_csv_atomic
+    real_manifest = b3_build_module._write_stage_manifest
+
+    def tracked_csv(frame, path, **kwargs):
+        events.append(("csv", Path(path).name))
+        return real_csv(frame, path, **kwargs)
+
+    def tracked_manifest(*args, **kwargs):
+        events.append(("manifest", args[1]))
+        return real_manifest(*args, **kwargs)
+
+    monkeypatch.setattr(b3_build_module, "_write_csv_atomic", tracked_csv)
+    monkeypatch.setattr(
+        b3_build_module, "_write_stage_manifest", tracked_manifest
+    )
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+
+    run_preflight(
+        cfg,
+        _preflight_sources(
+            snapshot,
+            _constituents_for_snapshot(snapshot),
+            interval_evidence=lambda data_end: (
+                _valid_preflight_interval_evidence()
+            ),
+        ),
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    manifest_index = events.index(("manifest", "preflight"))
+    final_output_events = {
+        ("csv", "coverage_audit.csv"),
+        ("csv", "exposure_diagnostics.csv"),
+        ("csv", "suspension_interval_evidence.csv"),
+    }
+    assert final_output_events.issubset(set(events[:manifest_index]))
 
 
 def test_preflight_writes_blocked_artifacts_when_snapshots_are_blocked(
@@ -2227,8 +2555,13 @@ def _file_digest(path):
 def _valid_parent_manifest(tmp_path, cfg):
     coverage = tmp_path / "coverage_audit.csv"
     diagnostics = tmp_path / "exposure_diagnostics.csv"
+    evidence = tmp_path / "suspension_interval_evidence.csv"
     coverage.write_text("coverage\n", encoding="utf-8")
     diagnostics.write_text("diagnostics\n", encoding="utf-8")
+    evidence.write_text(
+        ",".join(SUSPENSION_INTERVAL_ARTIFACT_COLUMNS) + "\n",
+        encoding="utf-8",
+    )
     return {
         "stage": "preflight",
         "config_hash": config_hash(cfg),
@@ -2238,6 +2571,7 @@ def _valid_parent_manifest(tmp_path, cfg):
         "outputs": {
             "coverage_audit.csv": _file_digest(coverage),
             "exposure_diagnostics.csv": _file_digest(diagnostics),
+            "suspension_interval_evidence.csv": _file_digest(evidence),
         },
     }
 

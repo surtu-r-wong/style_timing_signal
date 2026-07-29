@@ -3570,8 +3570,13 @@ def _write_preflight_manifest(
     root.mkdir(parents=True, exist_ok=True)
     coverage = root / "coverage_audit.csv"
     diagnostics = root / "exposure_diagnostics.csv"
+    evidence = root / "suspension_interval_evidence.csv"
     coverage.write_text("status\nOK\n", encoding="utf-8")
     diagnostics.write_text("scope\nexposure\n", encoding="utf-8")
+    evidence.write_text(
+        "ts_code,formation_date,required_formation\n",
+        encoding="utf-8",
+    )
     payload = {
         "stage": "preflight",
         "config_hash": config_hash_value,
@@ -3581,6 +3586,7 @@ def _write_preflight_manifest(
         "outputs": {
             "coverage_audit.csv": _sha256(coverage),
             "exposure_diagnostics.csv": _sha256(diagnostics),
+            "suspension_interval_evidence.csv": _sha256(evidence),
         },
     }
     if database_evidence is not _NO_DATABASE_EVIDENCE:
@@ -3720,12 +3726,47 @@ def test_preflight_contract_rejects_nonexact_requested_data_end(
         verify_preflight_manifest(tmp_path, _EXPECTED_CONFIG_HASH, requested)
 
 
-def test_preflight_contract_requires_both_bound_outputs(tmp_path):
+def test_preflight_contract_rejects_partial_and_extra_outputs(tmp_path):
     manifest_path, payload = _write_preflight_manifest(tmp_path)
-    payload["outputs"].pop("exposure_diagnostics.csv")
+    payload["outputs"].pop("suspension_interval_evidence.csv")
     _rewrite_json(manifest_path, payload)
 
-    with pytest.raises(DataBlocked, match="required outputs"):
+    with pytest.raises(DataBlocked, match="output set"):
+        verify_preflight_manifest(tmp_path, _EXPECTED_CONFIG_HASH, None)
+
+    manifest_path, payload = _write_preflight_manifest(tmp_path)
+    extra = tmp_path / "extra.csv"
+    extra.write_text("x\n", encoding="utf-8")
+    payload["outputs"]["extra.csv"] = _sha256(extra)
+    _rewrite_json(manifest_path, payload)
+
+    with pytest.raises(DataBlocked, match="output set"):
+        verify_preflight_manifest(tmp_path, _EXPECTED_CONFIG_HASH, None)
+
+
+def test_preflight_contract_rejects_missing_declared_evidence_file(tmp_path):
+    _write_preflight_manifest(tmp_path)
+    (tmp_path / "suspension_interval_evidence.csv").unlink()
+
+    with pytest.raises(DataBlocked, match="missing"):
+        verify_preflight_manifest(tmp_path, _EXPECTED_CONFIG_HASH, None)
+
+
+def test_preflight_contract_rejects_evidence_hash_and_file_tamper(tmp_path):
+    manifest_path, payload = _write_preflight_manifest(tmp_path)
+    payload["outputs"]["suspension_interval_evidence.csv"] = "A" * 64
+    _rewrite_json(manifest_path, payload)
+    with pytest.raises(DataBlocked, match="hash format"):
+        verify_preflight_manifest(tmp_path, _EXPECTED_CONFIG_HASH, None)
+
+    payload["outputs"]["suspension_interval_evidence.csv"] = _sha256(
+        tmp_path / "suspension_interval_evidence.csv"
+    )
+    _rewrite_json(manifest_path, payload)
+    (tmp_path / "suspension_interval_evidence.csv").write_text(
+        "tampered", encoding="utf-8"
+    )
+    with pytest.raises(DataBlocked, match="hash mismatch"):
         verify_preflight_manifest(tmp_path, _EXPECTED_CONFIG_HASH, None)
 
 

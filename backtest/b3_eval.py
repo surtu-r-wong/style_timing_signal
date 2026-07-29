@@ -166,6 +166,7 @@ _PIT_POLICY_RE = re.compile(r"[a-z][a-z0-9_]*")
 _PREFLIGHT_OUTPUTS = {
     "coverage_audit.csv",
     "exposure_diagnostics.csv",
+    "suspension_interval_evidence.csv",
 }
 _PREFLIGHT_BLOCKER_KEYS = {
     "pit_policy",
@@ -607,8 +608,8 @@ def verify_preflight_manifest(
         if _sha256_file(output_path) != expected_output_hash:
             raise DataBlocked(f"preflight output hash mismatch: {relative}")
         checked_outputs[relative] = expected_output_hash
-    if not _PREFLIGHT_OUTPUTS.issubset(checked_outputs):
-        raise DataBlocked("preflight required outputs are missing")
+    if set(checked_outputs) != _PREFLIGHT_OUTPUTS:
+        raise DataBlocked("preflight output set mismatch")
 
     database_evidence = None
     if "database_source_evidence" in manifest:
