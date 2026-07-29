@@ -2,7 +2,7 @@
 
 import math
 
-from numbers import Number
+from numbers import Number, Real
 
 import pandas as pd
 
@@ -159,7 +159,24 @@ def _strict_source_start(value):
     return _parse_dates(pd.DataFrame({"suspension_source_start": [value]}), ("suspension_source_start",), "suspension source start").iloc[0, 0]
 
 
+def _normalise_price_closes(frame):
+    values = []
+    for value in frame["close"]:
+        try:
+            missing = bool(pd.isna(value))
+        except (TypeError, ValueError) as exc:
+            raise SuspensionEvidenceError("prices: close values must be real numeric scalars") from exc
+        if missing:
+            values.append(float("nan"))
+        elif isinstance(value, bool) or not isinstance(value, Real):
+            raise SuspensionEvidenceError("prices: close values must be real numeric scalars")
+        else:
+            values.append(value)
+    result = frame.copy()
+    result["close"] = values
+    return result
 def _report_text(value):
+
     try:
         if bool(pd.isna(value)):
             return ""
@@ -199,8 +216,8 @@ def build_continuous_suspension_evidence(*, candidates, trading_calendar, prices
     candidates = _normalise_interval_frame(candidates, label="candidates", date_columns=("formation_date", "list_date", "delist_date"), nullable_dates=("delist_date",), keys=["ts_code", "formation_date"])
     calendar = _normalise_interval_frame(trading_calendar, label="trading calendar", date_columns=("calendar_date",), keys=["calendar_date"], tickers=False)
     calendar = _normalise_bool_column(calendar, column="sfe", label="trading calendar")
+    prices = _normalise_price_closes(prices)
     prices = _normalise_interval_frame(prices, label="prices", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
-    prices["close"] = pd.to_numeric(prices["close"], errors="coerce")
     events = _normalise_interval_frame(suspension_events, label="suspension events", date_columns=("trade_date",), keys=["ts_code", "trade_date"])
     if stock_status is None:
         status = pd.DataFrame(columns=["ts_code", "trade_date", "is_suspended"])

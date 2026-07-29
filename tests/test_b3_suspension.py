@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+import numpy as np
 
 from signals.style_basket.b3_suspension import (
     CANDIDATE_COLUMNS,
@@ -444,3 +445,21 @@ def test_malformed_interval_inputs_raise_structural_errors(frame_name, replaceme
         frames[frame_name] = replacement
     with pytest.raises(SuspensionEvidenceError, match=label):
         build_continuous_suspension_evidence(**frames, suspension_source_start=source_start)
+
+
+@pytest.mark.parametrize("close", ["10.0", True, object(), {"close": 10.0}])
+def test_rejects_non_numeric_price_close_scalars_structurally(close):
+    with pytest.raises(SuspensionEvidenceError, match="prices"):
+        _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": close}])
+
+
+@pytest.mark.parametrize("close", [1, 1.5, np.int64(2), np.float32(2.5)])
+def test_accepts_python_and_numpy_real_numeric_price_closes(close):
+    row = _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": close}]).iloc[0]
+    assert row["accepted"] is True
+
+
+@pytest.mark.parametrize("close", [None, pd.NA, float("nan")])
+def test_preserves_missing_price_values_for_classification(close):
+    row = _interval_build(prices=[{"ts_code": "A.SZ", "trade_date": "2021-09-17", "close": close}]).iloc[0]
+    assert row["rejection_reason"] == "INVALID_PREVIOUS_CLOSE"
