@@ -14,6 +14,7 @@ from signals.style_basket import b3_build as b3_build_module
 from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_build import (
     B3Sources,
+    EXACT_CARRY_METHOD,
     POLICY_LAG,
     POLICY_MAIN,
     _formation_inputs,
@@ -45,6 +46,7 @@ from signals.style_basket.b3_suspension import (
     INTERVAL_METHOD,
     SUSPENSION_INTERVAL_ARTIFACT_COLUMNS,
     SuspensionEvidenceError,
+    empty_interval_evidence,
 )
 
 
@@ -1576,6 +1578,11 @@ def _preflight_sources(
     def snapshots(*args, **kwargs):
         if snapshot_error is not None:
             raise snapshot_error
+        if isinstance(snapshot, dict):
+            return {
+                pd.Timestamp(date): frame.copy()
+                for date, frame in snapshot.items()
+            }
         return {pd.Timestamp("2021-01-29"): snapshot.copy()}
 
     def constituent_source(*args, **kwargs):
@@ -1647,6 +1654,24 @@ def _valid_preflight_interval_evidence():
     )
 
 
+def _aligned_interval_snapshots(*, accepted_method=INTERVAL_METHOD):
+    base = _synthetic_snapshot()
+    base.loc[0, "ticker"] = "A.SZ"
+    base.loc[1, "ticker"] = "B.SZ"
+    first = base.copy()
+    first.loc[first["ticker"].eq("A.SZ"), "close_method"] = accepted_method
+    first.loc[first["ticker"].eq("A.SZ"), "close_carried"] = True
+    second = base.copy()
+    second["formation_date"] = pd.Timestamp("2022-01-28")
+    return (
+        {
+            pd.Timestamp("2021-01-29"): first,
+            pd.Timestamp("2022-01-28"): second,
+        },
+        _constituents_for_snapshot(base),
+    )
+
+
 class _UnhashableColumnLabel:
     __hash__ = None
 
@@ -1705,10 +1730,10 @@ def test_preflight_is_return_blind_and_writes_ok_artifacts(tmp_path):
 
 def test_preflight_publishes_sorted_hash_bound_interval_artifact(tmp_path):
     cfg = _single_month_preflight_config()
-    snapshot = _synthetic_snapshot()
+    snapshots, constituents = _aligned_interval_snapshots()
     callback_dates = []
     sources = replace(
-        _preflight_sources(snapshot, _constituents_for_snapshot(snapshot)),
+        _preflight_sources(snapshots, constituents),
         suspension_interval_evidence=lambda data_end: (
             callback_dates.append(data_end)
             or _valid_preflight_interval_evidence()
@@ -1979,6 +2004,278 @@ def test_invalid_interval_callback_contract_becomes_manifested_data_block(
     assert blockers[0]["reason_code"] == "DATA_CONTRACT"
 
 
+@pytest.mark.parametrize("column", ["previous_close", "next_nonnull_close"])
+def test_huge_interval_numeric_becomes_field_named_manifested_block(
+    tmp_path,
+    column,
+):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    raw = _valid_preflight_interval_evidence()
+    raw[column] = raw[column].astype(object)
+    raw.loc[raw["accepted"], column] = 10**10000
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        interval_evidence=lambda data_end: raw,
+    )
+
+    got = run_preflight(
+        cfg, sources, pd.Timestamp("2023-12-31"), tmp_path
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    manifest = json.loads(
+        (tmp_path / "manifests" / "preflight.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    blockers = [
+        blocker
+        for blocker in manifest["blockers"]
+        if blocker["check"] == "suspension_interval_evidence"
+    ]
+    assert len(blockers) == 1
+    assert column in blockers[0]["detail"]
+
+
+def _mutate_rejected_row(frame, **updates):
+    result = frame.copy()
+    rejected = ~result["accepted"]
+    for column, value in updates.items():
+        result.loc[rejected, column] = value
+    return result
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param(
+            _mutate_rejected_row(
+                _valid_preflight_interval_evidence(),
+                suspension_start="2022-01-28",
+                suspend_type="今起停牌",
+            ),
+            id="no-explicit-start-with-start",
+        ),
+        pytest.param(
+            _mutate_rejected_row(
+                _valid_preflight_interval_evidence(),
+                rejection_reason="SUSPENSION_START_PRECEDES_SOURCE_COVERAGE",
+                suspension_start="2022-01-28",
+                suspend_type="今起停牌",
+            ),
+            id="coverage-start-with-start",
+        ),
+        pytest.param(
+            _mutate_rejected_row(
+                _valid_preflight_interval_evidence(),
+                rejection_reason="START_NOT_OFFICIAL_TRADING_DAY",
+            ),
+            id="start-required-without-start",
+        ),
+        pytest.param(
+            _mutate_rejected_row(
+                _valid_preflight_interval_evidence(),
+                rejection_reason="OUTSIDE_LEGAL_LISTING_INTERVAL",
+            ),
+            id="outside-reason-inside-listing",
+        ),
+        pytest.param(
+            _mutate_rejected_row(
+                _valid_preflight_interval_evidence(),
+                rejection_reason="PREVIOUS_CLOSE_NOT_PRIOR_TRADING_DAY",
+                suspension_start="2022-01-28",
+                previous_official_trade_date="2022-01-27",
+                suspend_type="今起停牌",
+            ),
+            id="previous-mismatch-reason-with-equal-dates",
+        ),
+        pytest.param(
+            _mutate_rejected_row(
+                _valid_preflight_interval_evidence(),
+                rejection_reason="INVALID_PREVIOUS_CLOSE",
+                suspension_start="2022-01-28",
+                previous_official_trade_date="2022-01-27",
+                suspend_type="今起停牌",
+            ),
+            id="invalid-reason-with-valid-previous-pair",
+        ),
+    ],
+)
+def test_self_contradictory_rejection_evidence_is_manifested_block(
+    tmp_path,
+    raw,
+):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        interval_evidence=lambda data_end: raw,
+    )
+
+    got = run_preflight(
+        cfg, sources, pd.Timestamp("2023-12-31"), tmp_path
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    assert (
+        got.audit["check"].eq("suspension_interval_evidence").sum() == 1
+    )
+
+
+def test_invalid_previous_close_allows_finite_but_stale_previous_pair():
+    raw = _mutate_rejected_row(
+        _valid_preflight_interval_evidence(),
+        rejection_reason="INVALID_PREVIOUS_CLOSE",
+        suspension_start="2022-01-28",
+        previous_official_trade_date="2022-01-27",
+        previous_close_date="2022-01-26",
+        suspend_type="今起停牌",
+    )
+
+    got = b3_build_module._preflight_interval_evidence(
+        raw,
+        pd.Timestamp("2021-01-01"),
+        pd.Timestamp("2021-01-31"),
+    )
+
+    assert len(got) == 2
+
+
+def _alignment_rows(outcome):
+    return outcome.audit[
+        outcome.audit["check"].eq(
+            "suspension_interval_evidence_alignment"
+        )
+    ]
+
+
+@pytest.mark.parametrize("mismatch", ["no-carry", "missing-ticker"])
+def test_accepted_evidence_requires_snapshot_carry_and_ticker(
+    tmp_path,
+    mismatch,
+):
+    cfg = _single_month_preflight_config()
+    snapshots, constituents = _aligned_interval_snapshots()
+    first = snapshots[pd.Timestamp("2021-01-29")]
+    if mismatch == "no-carry":
+        mask = first["ticker"].eq("A.SZ")
+        first.loc[mask, "close_method"] = ""
+        first.loc[mask, "close_carried"] = False
+    else:
+        snapshots[pd.Timestamp("2021-01-29")] = first[
+            first["ticker"].ne("A.SZ")
+        ].copy()
+
+    got = run_preflight(
+        cfg,
+        _preflight_sources(
+            snapshots,
+            constituents,
+            interval_evidence=lambda data_end: (
+                _valid_preflight_interval_evidence()
+            ),
+        ),
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    rows = _alignment_rows(got)
+    assert len(rows) == 1
+    assert mismatch.replace("-", "_") in rows.iloc[0]["detail"]
+
+
+def test_empty_artifact_blocks_snapshot_interval_carry(tmp_path):
+    cfg = _single_month_preflight_config()
+    snapshots, constituents = _aligned_interval_snapshots()
+
+    got = run_preflight(
+        cfg,
+        _preflight_sources(
+            snapshots,
+            constituents,
+            interval_evidence=lambda data_end: empty_interval_evidence(),
+        ),
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    rows = _alignment_rows(got)
+    assert len(rows) == 1
+    assert "missing_accepted_evidence" in rows.iloc[0]["detail"]
+
+
+def test_rejected_evidence_cannot_back_snapshot_interval_carry(tmp_path):
+    cfg = _single_month_preflight_config()
+    snapshots, constituents = _aligned_interval_snapshots()
+    second = snapshots[pd.Timestamp("2022-01-28")]
+    mask = second["ticker"].eq("B.SZ")
+    second.loc[mask, "close_method"] = INTERVAL_METHOD
+    second.loc[mask, "close_carried"] = True
+
+    got = run_preflight(
+        cfg,
+        _preflight_sources(
+            snapshots,
+            constituents,
+            interval_evidence=lambda data_end: (
+                _valid_preflight_interval_evidence()
+            ),
+        ),
+        pd.Timestamp("2023-12-31"),
+        tmp_path,
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    rows = _alignment_rows(got)
+    assert len(rows) == 1
+    assert "rejected_interval_carry" in rows.iloc[0]["detail"]
+
+
+@pytest.mark.parametrize(
+    "accepted_method",
+    [INTERVAL_METHOD, EXACT_CARRY_METHOD],
+)
+def test_both_policies_reconcile_interval_evidence_and_exact_shadow(
+    tmp_path,
+    accepted_method,
+):
+    cfg = _single_month_preflight_config()
+    snapshots, constituents = _aligned_interval_snapshots(
+        accepted_method=accepted_method
+    )
+    policy_calls = []
+    sources = _preflight_sources(
+        snapshots,
+        constituents,
+        interval_evidence=lambda data_end: (
+            _valid_preflight_interval_evidence()
+        ),
+    )
+    sources = replace(
+        sources,
+        snapshots=lambda policy, data_end: (
+            policy_calls.append(policy)
+            or {
+                date: frame.copy()
+                for date, frame in snapshots.items()
+            }
+        ),
+    )
+
+    got = run_preflight(
+        cfg, sources, pd.Timestamp("2023-12-31"), tmp_path
+    )
+
+    assert got.final_status == "OK"
+    assert policy_calls == list(cfg["pit"]["policies"])
+    assert _alignment_rows(got).empty
+
+
 @pytest.mark.parametrize(
     "labels,detail",
     [
@@ -2073,8 +2370,10 @@ def test_preflight_manifest_is_written_after_all_three_atomic_outputs(
     real_manifest = b3_build_module._write_stage_manifest
 
     def tracked_csv(frame, path, **kwargs):
-        events.append(("csv", Path(path).name))
-        return real_csv(frame, path, **kwargs)
+        result = real_csv(frame, path, **kwargs)
+        digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+        events.append(("csv", Path(path).name, int(len(frame)), digest))
+        return result
 
     def tracked_manifest(*args, **kwargs):
         events.append(("manifest", args[1]))
@@ -2085,13 +2384,13 @@ def test_preflight_manifest_is_written_after_all_three_atomic_outputs(
         b3_build_module, "_write_stage_manifest", tracked_manifest
     )
     cfg = _single_month_preflight_config()
-    snapshot = _synthetic_snapshot()
+    snapshots, constituents = _aligned_interval_snapshots()
 
     run_preflight(
         cfg,
         _preflight_sources(
-            snapshot,
-            _constituents_for_snapshot(snapshot),
+            snapshots,
+            constituents,
             interval_evidence=lambda data_end: (
                 _valid_preflight_interval_evidence()
             ),
@@ -2101,12 +2400,27 @@ def test_preflight_manifest_is_written_after_all_three_atomic_outputs(
     )
 
     manifest_index = events.index(("manifest", "preflight"))
-    final_output_events = {
-        ("csv", "coverage_audit.csv"),
-        ("csv", "exposure_diagnostics.csv"),
-        ("csv", "suspension_interval_evidence.csv"),
+    written_names = {
+        event[1]
+        for event in events[:manifest_index]
+        if event[0] == "csv"
     }
-    assert final_output_events.issubset(set(events[:manifest_index]))
+    assert {
+        "coverage_audit.csv",
+        "exposure_diagnostics.csv",
+        "suspension_interval_evidence.csv",
+    }.issubset(written_names)
+    evidence_writes = [
+        event
+        for event in events[:manifest_index]
+        if event[0:2] == ("csv", "suspension_interval_evidence.csv")
+    ]
+    assert [event[2] for event in evidence_writes] == [0, 2]
+    assert evidence_writes[0][3] != evidence_writes[1][3]
+    published_hash = hashlib.sha256(
+        (tmp_path / "suspension_interval_evidence.csv").read_bytes()
+    ).hexdigest()
+    assert evidence_writes[1][3] == published_hash
 
 
 def test_preflight_writes_blocked_artifacts_when_snapshots_are_blocked(
@@ -4178,7 +4492,18 @@ def test_preflight_reports_suspended_carry_forward_distribution(tmp_path):
     snapshot["close_carried"] = snapshot["close_method"].isin(
         {"EXACT_SUSPENSION", INTERVAL_METHOD}
     )
-    sources = _preflight_sources(snapshot, _constituents_for_snapshot(snapshot))
+    accepted = _valid_preflight_interval_evidence().loc[
+        lambda frame: frame["accepted"]
+    ]
+    evidence = pd.concat(
+        [accepted.assign(ts_code=ticker) for ticker in snapshot["ticker"][2:5]],
+        ignore_index=True,
+    )
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        interval_evidence=lambda data_end: evidence,
+    )
 
     got = run_preflight(cfg, sources, pd.Timestamp("2023-12-31"), tmp_path)
 

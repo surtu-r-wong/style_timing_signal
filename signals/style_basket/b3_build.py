@@ -446,7 +446,12 @@ def _preflight_interval_evidence(
                 raise SuspensionEvidenceError(
                     f"suspension interval evidence {column} must be numeric"
                 )
-            values.append(float(value))
+            try:
+                values.append(float(value))
+            except OverflowError as exc:
+                raise SuspensionEvidenceError(
+                    f"suspension interval evidence {column} must be numeric"
+                ) from exc
         evidence[column] = values
 
     if evidence["accepted"].map(lambda value: type(value) is not bool).any():
@@ -542,9 +547,75 @@ def _preflight_interval_evidence(
             INTERVAL_REJECTION_REASONS
         )
     )
+    no_start_reason = evidence["rejection_reason"].isin(
+        {
+            "NO_EXPLICIT_SUSPENSION_START",
+            "SUSPENSION_START_PRECEDES_SOURCE_COVERAGE",
+        }
+    )
+    start_required_reason = evidence["rejection_reason"].isin(
+        {
+            "START_NOT_OFFICIAL_TRADING_DAY",
+            "PREVIOUS_CLOSE_NOT_PRIOR_TRADING_DAY",
+            "PRICE_OBSERVED_DURING_INTERVAL",
+        }
+    )
+    outside_listing = evidence["list_date"].gt(
+        evidence["formation_date"]
+    ) | (
+        evidence["delist_date"].notna()
+        & evidence["delist_date"].lt(evidence["formation_date"])
+    )
+    finite_positive_previous = (
+        evidence["previous_close_date"].notna()
+        & evidence["previous_close"].notna()
+        & np.isfinite(evidence["previous_close"])
+        & evidence["previous_close"].gt(0)
+    )
+    time_valid_previous = (
+        finite_positive_previous
+        & evidence["previous_official_trade_date"].notna()
+        & evidence["previous_close_date"].eq(
+            evidence["previous_official_trade_date"]
+        )
+    )
+    previous_mismatch_reason = evidence["rejection_reason"].eq(
+        "PREVIOUS_CLOSE_NOT_PRIOR_TRADING_DAY"
+    )
+    invalid_previous_reason = evidence["rejection_reason"].eq(
+        "INVALID_PREVIOUS_CLOSE"
+    )
+    rejection_semantics_invalid = rejected & (
+        (no_start_reason & evidence["suspension_start"].notna())
+        | (
+            start_required_reason
+            & (
+                evidence["suspension_start"].isna()
+                | evidence["suspend_type"].ne("今起停牌")
+            )
+        )
+        | (
+            evidence["rejection_reason"].eq(
+                "OUTSIDE_LEGAL_LISTING_INTERVAL"
+            )
+            & ~outside_listing
+        )
+        | (
+            previous_mismatch_reason
+            & (
+                ~finite_positive_previous
+                | evidence["previous_official_trade_date"].isna()
+                | evidence["previous_close_date"].eq(
+                    evidence["previous_official_trade_date"]
+                )
+            )
+        )
+        | (invalid_previous_reason & time_valid_previous)
+    )
     if (
         accepted_invalid.any()
         or rejected_invalid.any()
+        or rejection_semantics_invalid.any()
         or previous_pair_mismatch.any()
         or future_pair_mismatch.any()
         or known_fact_date_invalid.any()
@@ -570,6 +641,57 @@ def _preflight_interval_evidence(
         ["formation_date", "ts_code"],
         kind="stable",
     ).reset_index(drop=True)
+
+
+def _validate_suspension_interval_evidence_alignment(
+    evidence: pd.DataFrame,
+    carry_contracts_by_policy: dict[
+        str, dict[pd.Timestamp, pd.DataFrame]
+    ],
+) -> None:
+    evidence_by_key = {
+        (row.formation_date, row.ts_code): bool(row.accepted)
+        for row in evidence.itertuples(index=False)
+    }
+    issues: list[str] = []
+    accepted_methods = {INTERVAL_METHOD, EXACT_CARRY_METHOD}
+    for policy, contracts in carry_contracts_by_policy.items():
+        indexed_contracts = {
+            formation_date: contract.set_index("ticker")
+            for formation_date, contract in contracts.items()
+        }
+        for (formation_date, ts_code), accepted in evidence_by_key.items():
+            contract = indexed_contracts.get(formation_date)
+            prefix = f"{policy}:{formation_date.date()}:{ts_code}"
+            if contract is None or ts_code not in contract.index:
+                issues.append(f"{prefix}:missing_ticker")
+                continue
+            snapshot = contract.loc[ts_code]
+            method = snapshot["close_method"]
+            carried = bool(snapshot["close_carried"])
+            if accepted and (
+                not carried or method not in accepted_methods
+            ):
+                issues.append(f"{prefix}:no_carry:{method or 'NONE'}")
+            if not accepted and method == INTERVAL_METHOD:
+                issues.append(f"{prefix}:rejected_interval_carry")
+
+        for formation_date, contract in contracts.items():
+            interval_tickers = contract.loc[
+                contract["close_method"].eq(INTERVAL_METHOD), "ticker"
+            ]
+            for ts_code in interval_tickers:
+                key = (formation_date, ts_code)
+                if evidence_by_key.get(key) is not True:
+                    issues.append(
+                        f"{policy}:{formation_date.date()}:{ts_code}:"
+                        "missing_accepted_evidence"
+                    )
+    if issues:
+        raise DataBlocked(
+            "suspension interval evidence alignment mismatch: "
+            + "; ".join(sorted(set(issues)))
+        )
 
 
 def _verified_manifest_output(
@@ -3040,6 +3162,24 @@ def run_preflight(
                     detail=str(exc),
                 )
                 add_blocker(row)
+
+    if not blockers:
+        try:
+            _validate_suspension_interval_evidence_alignment(
+                interval_evidence,
+                carry_contracts_by_policy,
+            )
+        except DataBlocked as exc:
+            row = add_audit(
+                policy="all",
+                formation_date=pd.NaT,
+                required=True,
+                check="suspension_interval_evidence_alignment",
+                status="DATA_BLOCKED",
+                reason_code="DATA_CONTRACT",
+                detail=str(exc),
+            )
+            add_blocker(row)
 
     for policy in policies if not blockers else []:
         snapshots = normalized_by_policy[policy]
