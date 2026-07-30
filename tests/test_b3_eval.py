@@ -63,6 +63,9 @@ from backtest.positions import production_position
 from signals.style_basket.b3_build import _write_stage_manifest
 from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_exposures import DataBlocked
+from signals.style_basket.b3_suspension import (
+    SUSPENSION_INTERVAL_ARTIFACT_COLUMNS,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -3574,7 +3577,7 @@ def _write_preflight_manifest(
     coverage.write_text("status\nOK\n", encoding="utf-8")
     diagnostics.write_text("scope\nexposure\n", encoding="utf-8")
     evidence.write_text(
-        "ts_code,formation_date,required_formation\n",
+        ",".join(SUSPENSION_INTERVAL_ARTIFACT_COLUMNS) + "\n",
         encoding="utf-8",
     )
     payload = {
@@ -3617,6 +3620,11 @@ def test_preflight_contract_verifies_outputs_and_inherits_manifest_date(tmp_path
     assert got.database_source_evidence is None
     assert got.manifest_hash == _sha256(manifest_path)
     assert dict(got.output_hashes) == payload["outputs"]
+    evidence = pd.read_csv(
+        tmp_path / "suspension_interval_evidence.csv",
+        nrows=0,
+    )
+    assert tuple(evidence.columns) == SUSPENSION_INTERVAL_ARTIFACT_COLUMNS
     with pytest.raises(TypeError):
         got.output_hashes["coverage_audit.csv"] = "b" * 64
 

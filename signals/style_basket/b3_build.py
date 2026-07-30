@@ -320,6 +320,23 @@ def _evidence_value_is_missing(value: object) -> bool:
     return bool(missing)
 
 
+def _render_evidence_column_labels(labels: list[object]) -> str:
+    rendered = []
+    for label in labels:
+        try:
+            rendered.append(repr(label))
+        except Exception as exc:
+            label_type = (
+                f"{type(label).__module__}."
+                f"{type(label).__qualname__}"
+            )
+            raise SuspensionEvidenceError(
+                "suspension interval evidence column label repr failed: "
+                f"{label_type}"
+            ) from exc
+    return "[" + ", ".join(sorted(rendered)) + "]"
+
+
 def _preflight_interval_evidence(
     raw: object,
     required_start: pd.Timestamp,
@@ -331,6 +348,28 @@ def _preflight_interval_evidence(
             "suspension interval evidence callback must return a DataFrame"
         )
     columns = list(raw.columns)
+    standard_columns = [
+        column for column in columns if type(column) is str
+    ]
+    nonstandard_columns = [
+        column for column in columns if type(column) is not str
+    ]
+    if nonstandard_columns:
+        standard_set = set(standard_columns)
+        missing = sorted(
+            set(CORE_EVIDENCE_COLUMNS).difference(standard_set)
+        )
+        extra = [
+            column
+            for column in standard_columns
+            if column not in CORE_EVIDENCE_COLUMNS
+        ]
+        extra.extend(nonstandard_columns)
+        raise SuspensionEvidenceError(
+            "suspension interval evidence schema mismatch: "
+            f"missing={_render_evidence_column_labels(missing)}, "
+            f"extra={_render_evidence_column_labels(extra)}"
+        )
     if len(columns) != len(set(columns)):
         raise SuspensionEvidenceError(
             "suspension interval evidence contains duplicate columns"
@@ -340,7 +379,8 @@ def _preflight_interval_evidence(
     if missing or extra:
         raise SuspensionEvidenceError(
             "suspension interval evidence schema mismatch: "
-            f"missing={missing}, extra={extra}"
+            f"missing={_render_evidence_column_labels(missing)}, "
+            f"extra={_render_evidence_column_labels(extra)}"
         )
 
     evidence = raw.loc[:, CORE_EVIDENCE_COLUMNS].copy()

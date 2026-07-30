@@ -1647,6 +1647,42 @@ def _valid_preflight_interval_evidence():
     )
 
 
+class _UnhashableColumnLabel:
+    __hash__ = None
+
+    def __repr__(self):
+        return "UnhashableColumnLabel()"
+
+
+class _ComparisonRaisingColumnLabel:
+    def __hash__(self):
+        return 314159
+
+    def __lt__(self, other):
+        del other
+        raise AssertionError("column labels must not be compared")
+
+    def __repr__(self):
+        return "ComparisonRaisingColumnLabel()"
+
+
+class _ReprRaisingColumnLabel:
+    def __hash__(self):
+        return 271828
+
+    def __repr__(self):
+        raise RuntimeError("column label repr failed")
+
+
+def _with_extra_column_labels(frame, labels):
+    extras = np.full((len(frame), len(labels)), "drift", dtype=object)
+    result = pd.DataFrame(
+        np.column_stack([frame.to_numpy(dtype=object), extras])
+    )
+    result.columns = [*frame.columns, *labels]
+    return result
+
+
 def test_preflight_is_return_blind_and_writes_ok_artifacts(tmp_path):
     cfg = _single_month_preflight_config()
     snapshot = _synthetic_snapshot()
@@ -1688,11 +1724,57 @@ def test_preflight_publishes_sorted_hash_bound_interval_artifact(tmp_path):
     path = tmp_path / "suspension_interval_evidence.csv"
     evidence = pd.read_csv(path)
     assert tuple(evidence.columns) == SUSPENSION_INTERVAL_ARTIFACT_COLUMNS
-    assert evidence[["formation_date", "ts_code"]].to_dict("records") == [
-        {"formation_date": "2021-01-29", "ts_code": "A.SZ"},
-        {"formation_date": "2022-01-28", "ts_code": "B.SZ"},
-    ]
     assert evidence["required_formation"].tolist() == [True, False]
+    assert evidence["accepted"].tolist() == [True, False]
+    assert evidence["previous_close"].tolist() == [10.0, 8.5]
+    assert evidence["next_nonnull_close"].iloc[0] == 10.5
+    assert pd.isna(evidence["next_nonnull_close"].iloc[1])
+    serialized = pd.read_csv(path, keep_default_na=False, dtype=str)
+    expected = pd.DataFrame(
+        [
+            {
+                "ts_code": "A.SZ",
+                "formation_date": "2021-01-29",
+                "required_formation": "True",
+                "list_date": "2010-01-01",
+                "delist_date": "",
+                "suspension_start": "2021-01-28",
+                "previous_official_trade_date": "2021-01-27",
+                "previous_close_date": "2021-01-27",
+                "previous_close": "10.0",
+                "suspend_type": "今起停牌",
+                "suspend_reason": "重大事项",
+                "evidence_method": INTERVAL_METHOD,
+                "accepted": "True",
+                "rejection_reason": "",
+                "next_trade_date": "2021-02-01",
+                "next_nonnull_close": "10.5",
+                "exact_stock_status_confirmed": "True",
+            },
+            {
+                "ts_code": "B.SZ",
+                "formation_date": "2022-01-28",
+                "required_formation": "False",
+                "list_date": "2010-01-01",
+                "delist_date": "",
+                "suspension_start": "",
+                "previous_official_trade_date": "",
+                "previous_close_date": "2022-01-27",
+                "previous_close": "8.5",
+                "suspend_type": "",
+                "suspend_reason": "",
+                "evidence_method": "",
+                "accepted": "False",
+                "rejection_reason": "NO_EXPLICIT_SUSPENSION_START",
+                "next_trade_date": "",
+                "next_nonnull_close": "",
+                "exact_stock_status_confirmed": "",
+            },
+        ],
+        columns=SUSPENSION_INTERVAL_ARTIFACT_COLUMNS,
+        dtype=str,
+    )
+    pd.testing.assert_frame_equal(serialized, expected)
     manifest = json.loads(
         (tmp_path / "manifests" / "preflight.json").read_text(
             encoding="utf-8"
@@ -1895,6 +1977,91 @@ def test_invalid_interval_callback_contract_becomes_manifested_data_block(
     assert blockers
     assert blockers[0]["status"] == "DATA_BLOCKED"
     assert blockers[0]["reason_code"] == "DATA_CONTRACT"
+
+
+@pytest.mark.parametrize(
+    "labels,detail",
+    [
+        pytest.param(
+            (1, "z"),
+            "extra=['z', 1]",
+            id="heterogeneous-hashable-labels",
+        ),
+        pytest.param(
+            (_UnhashableColumnLabel(),),
+            "extra=[UnhashableColumnLabel()]",
+            id="unhashable-label",
+        ),
+        pytest.param(
+            (_ComparisonRaisingColumnLabel(), "z"),
+            "extra=['z', ComparisonRaisingColumnLabel()]",
+            id="comparison-raising-label",
+        ),
+        pytest.param(
+            (_ReprRaisingColumnLabel(),),
+            "column label repr failed",
+            id="repr-raising-label",
+        ),
+    ],
+)
+def test_nonstandard_interval_columns_become_manifested_data_block(
+    tmp_path,
+    labels,
+    detail,
+):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+    raw = _with_extra_column_labels(
+        _valid_preflight_interval_evidence(), labels
+    )
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        interval_evidence=lambda data_end: raw,
+    )
+
+    got = run_preflight(
+        cfg, sources, pd.Timestamp("2023-12-31"), tmp_path
+    )
+
+    assert got.final_status == "DATA_BLOCKED"
+    manifest = json.loads(
+        (tmp_path / "manifests" / "preflight.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    blockers = [
+        blocker
+        for blocker in manifest["blockers"]
+        if blocker["check"] == "suspension_interval_evidence"
+    ]
+    assert len(blockers) == 1
+    assert detail in blockers[0]["detail"]
+
+
+def test_interval_callback_programming_error_is_not_manifested(tmp_path):
+    cfg = _single_month_preflight_config()
+    snapshot = _synthetic_snapshot()
+
+    def broken_callback(data_end):
+        del data_end
+        raise RuntimeError("callback programming error")
+
+    sources = _preflight_sources(
+        snapshot,
+        _constituents_for_snapshot(snapshot),
+        interval_evidence=broken_callback,
+    )
+
+    with pytest.raises(RuntimeError, match="callback programming error"):
+        run_preflight(
+            cfg,
+            sources,
+            pd.Timestamp("2023-12-31"),
+            tmp_path,
+        )
+
+    assert not (tmp_path / "manifests" / "preflight.json").exists()
 
 
 def test_preflight_manifest_is_written_after_all_three_atomic_outputs(
