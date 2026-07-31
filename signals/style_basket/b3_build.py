@@ -604,9 +604,11 @@ def _preflight_interval_evidence(
             previous_mismatch_reason
             & (
                 ~finite_positive_previous
-                | evidence["previous_official_trade_date"].isna()
-                | evidence["previous_close_date"].eq(
-                    evidence["previous_official_trade_date"]
+                | (
+                    evidence["previous_official_trade_date"].notna()
+                    & evidence["previous_close_date"].eq(
+                        evidence["previous_official_trade_date"]
+                    )
                 )
             )
         )
@@ -650,7 +652,10 @@ def _validate_suspension_interval_evidence_alignment(
     ],
 ) -> None:
     evidence_by_key = {
-        (row.formation_date, row.ts_code): bool(row.accepted)
+        (row.formation_date, row.ts_code): (
+            bool(row.accepted),
+            row.previous_close,
+        )
         for row in evidence.itertuples(index=False)
     }
     issues: list[str] = []
@@ -660,7 +665,8 @@ def _validate_suspension_interval_evidence_alignment(
             formation_date: contract.set_index("ticker")
             for formation_date, contract in contracts.items()
         }
-        for (formation_date, ts_code), accepted in evidence_by_key.items():
+        for key, (accepted, previous_close) in evidence_by_key.items():
+            formation_date, ts_code = key
             contract = indexed_contracts.get(formation_date)
             prefix = f"{policy}:{formation_date.date()}:{ts_code}"
             if contract is None or ts_code not in contract.index:
@@ -669,10 +675,15 @@ def _validate_suspension_interval_evidence_alignment(
             snapshot = contract.loc[ts_code]
             method = snapshot["close_method"]
             carried = bool(snapshot["close_carried"])
-            if accepted and (
-                not carried or method not in accepted_methods
-            ):
-                issues.append(f"{prefix}:no_carry:{method or 'NONE'}")
+            if accepted:
+                if not carried or method not in accepted_methods:
+                    issues.append(f"{prefix}:no_carry:{method or 'NONE'}")
+                elif snapshot["close"] != previous_close:
+                    issues.append(
+                        f"{prefix}:close_mismatch:"
+                        f"snapshot={float(snapshot['close'])}"
+                        f"!=evidence={float(previous_close)}"
+                    )
             if not accepted and method == INTERVAL_METHOD:
                 issues.append(f"{prefix}:rejected_interval_carry")
 
@@ -682,7 +693,8 @@ def _validate_suspension_interval_evidence_alignment(
             ]
             for ts_code in interval_tickers:
                 key = (formation_date, ts_code)
-                if evidence_by_key.get(key) is not True:
+                entry = evidence_by_key.get(key)
+                if entry is None or entry[0] is not True:
                     issues.append(
                         f"{policy}:{formation_date.date()}:{ts_code}:"
                         "missing_accepted_evidence"
@@ -957,7 +969,7 @@ def _validated_snapshot_carry_contract(
     *,
     label: str,
 ) -> pd.DataFrame:
-    carry_columns = ("ticker", "close_method", "close_carried")
+    carry_columns = ("ticker", "close", "close_method", "close_carried")
     if any(
         int(snapshot.columns.to_list().count(column)) != 1
         for column in carry_columns
@@ -972,11 +984,42 @@ def _validated_snapshot_carry_contract(
     )
     carry = snapshot.loc[
         :,
-        ["ticker", "close_method", "close_carried"],
+        ["ticker", "close", "close_method", "close_carried"],
     ].copy()
     _validate_string_keys(carry["ticker"], f"{label} carry ticker")
     if carry["ticker"].duplicated().any():
         raise DataBlocked(f"{label} carry contract contains duplicate tickers")
+    close_values = []
+    for value in carry["close"]:
+        try:
+            missing = bool(pd.isna(value))
+        except (TypeError, ValueError) as exc:
+            raise DataBlocked(
+                f"{label} close must contain real numbers or missing values"
+            ) from exc
+        if missing:
+            close_values.append(float("nan"))
+            continue
+        if isinstance(value, bool) or not isinstance(value, Real):
+            raise DataBlocked(
+                f"{label} close must contain real numbers or missing values"
+            )
+        try:
+            close_values.append(float(value))
+        except OverflowError as exc:
+            raise DataBlocked(
+                f"{label} close must contain real numbers or missing values"
+            ) from exc
+    close = pd.Series(close_values, index=carry.index, dtype=float)
+    present = close.notna()
+    invalid_present = present & (
+        ~np.isfinite(close.to_numpy(dtype=float)) | close.le(0.0)
+    )
+    if invalid_present.any():
+        raise DataBlocked(
+            f"{label} close values must be finite and positive"
+        )
+    carry["close"] = close
     _validate_allowed_values(
         carry["close_method"],
         _ALLOWED_CLOSE_METHODS,
@@ -996,6 +1039,10 @@ def _validated_snapshot_carry_contract(
             f"{label} carry method and close_carried are inconsistent"
         )
     carry["close_carried"] = actual
+    if (actual & close.isna()).any():
+        raise DataBlocked(
+            f"{label} carried rows must retain a carried close"
+        )
     return carry.sort_values("ticker", kind="mergesort").reset_index(drop=True)
 
 
@@ -2652,6 +2699,7 @@ def build_policy_snapshots(
             {
                 "ticker": base.to_numpy(),
                 "formation_date": [formation_date] * len(base),
+                "close": close.to_numpy(dtype=float),
                 "total_market_value": market_value.to_numpy(),
                 "industry": industry.to_numpy(),
                 "style_score": style_score.to_numpy(),
