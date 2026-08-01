@@ -1,7 +1,7 @@
 # B3 Wind Historical Share-Capital Tail Design
 
 **Date:** 2026-08-01
-**Status:** Interactive design approved; written specification pending user review
+**Status:** Approved for implementation
 **Priority:** Blocker for the frozen-history B3 performance evaluation
 
 ## Objective
