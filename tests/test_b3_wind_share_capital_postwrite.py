@@ -3,7 +3,7 @@
 The verifier must fail closed on every kind of damaged evidence — malformed,
 duplicate-keyed, partial, stale or hash-mismatched — and must copy B3's own
 verdicts verbatim instead of preselecting them.  The runner must execute the
-three frozen stages in order under the 8 GiB guard, stop on a failed
+three frozen stages in order under the 4 GiB guard, stop on a failed
 preflight/build, and keep an eval exit code of 2 as evidence.
 """
 
@@ -533,7 +533,7 @@ def test_runner_executes_three_guarded_stages_in_order(tmp_path, monkeypatch):
             "--user",
             "--scope",
             "-p",
-            "MemoryMax=8G",
+            "MemoryMax=4G",
             "/usr/bin/time",
         ]
         assert command[6] == "-v"

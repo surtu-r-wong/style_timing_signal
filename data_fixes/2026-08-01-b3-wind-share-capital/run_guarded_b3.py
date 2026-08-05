@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""在 8 GiB 护栏下重跑未改动的 B3 三段流水，并留下可核对的执行证据。
+"""在 4 GiB 护栏下重跑未改动的 B3 三段流水，并留下可核对的执行证据。
 
 三段顺序固定：preflight → build(all) → eval，每段都套
-``systemd-run --user --scope -p MemoryMax=8G`` 与 ``/usr/bin/time -v``。
+``systemd-run --user --scope -p MemoryMax=4G`` 与 ``/usr/bin/time -v``。
 preflight / build 非零退出立即停；eval 的退出码 2 **保留为证据**不抹平——
 统计已经产出、但一个与股本无关的 run 级闸门仍可能合法地把 final_verdict
 留在 DATA_BLOCKED。
@@ -27,7 +27,11 @@ CAMPAIGN_DIR = Path(__file__).resolve().parent
 STYLE_ROOT = CAMPAIGN_DIR.parents[1]
 DEFAULT_PYTHON = "/home/elfbob/miniconda3/bin/python"
 DATA_END = "2023-12-31"
-MEMORY_MAX = "8G"
+# 4G, not 8G: this box has 15 GiB total with ~6 GiB already in use, so an 8 GiB
+# cap leaves the machine itself at risk — an unblocked preflight walked to
+# ~8 GiB and had to be killed by hand on 2026-08-05. The cap is a guard for the
+# host, not a budget for the job; the job has to fit under it.
+MEMORY_MAX = "4G"
 RECEIPT_NAME = "b3_execution_receipt.json"
 
 _PEAK_RSS_RE = re.compile(
