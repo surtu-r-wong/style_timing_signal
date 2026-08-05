@@ -1461,6 +1461,25 @@ def _read_sql(
         conn.close()
 
 
+#: Longest observed break between two consecutive trading days in
+#: stock_daily_price (2005-2023) is 2,478 days — about 6.8 years for a name
+#: suspended across the whole stretch.  Ten years of lookback covers that with
+#: room to spare, so the bound can never decide which price the carry-forward
+#: sees; it only keeps the 1990s off the wire.
+INTERVAL_HISTORY_LOOKBACK_YEARS = 10
+
+#: Tickers per batch when loading interval history.  Every access pattern in
+#: build_continuous_suspension_evidence filters by ts_code, so tickers are
+#: independent and batching is exact; it only bounds how much price history is
+#: resident at once.  Mirrors 9e71d01, which bounded preflight the same way.
+INTERVAL_HISTORY_BATCH_TICKERS = 200
+
+
+def _interval_history_start(dates: list):
+    earliest = min(dates)
+    return earliest.replace(year=earliest.year - INTERVAL_HISTORY_LOOKBACK_YEARS)
+
+
 def _fetch_suspension_interval_history(
     db: dict,
     candidates: pd.DataFrame,
@@ -1497,12 +1516,14 @@ def _fetch_suspension_interval_history(
         for value in candidates["formation_date"].drop_duplicates()
     )
     end = pd.Timestamp(data_end).date()
-    history_params = {"tickers": tickers, "end": end}
+    start = _interval_history_start(dates)
+    history_params = {"tickers": tickers, "start": start, "end": end}
 
     price_sql = f"""
             SELECT ts_code, trade_date, close
             FROM {schema}.stock_daily_price
             WHERE ts_code = ANY(%(tickers)s)
+              AND trade_date >= %(start)s
               AND trade_date <= %(end)s
             ORDER BY ts_code, trade_date
         """
@@ -1519,6 +1540,7 @@ def _fetch_suspension_interval_history(
             SELECT ts_code, trade_date, suspend_type, suspend_reason
             FROM {schema}.stock_suspension
             WHERE ts_code = ANY(%(tickers)s)
+              AND trade_date >= %(start)s
               AND trade_date <= %(end)s
             ORDER BY ts_code, trade_date, suspend_type, suspend_reason
         """
@@ -1586,6 +1608,58 @@ def _fetch_suspension_interval_history(
         "source_start": source_start,
         "status": status,
     }
+
+
+def build_interval_evidence_in_batches(
+    db: dict,
+    candidates: pd.DataFrame,
+    data_end: pd.Timestamp,
+    recorder,
+    trading_calendar: pd.DataFrame,
+    *,
+    batch_tickers: int = INTERVAL_HISTORY_BATCH_TICKERS,
+) -> pd.DataFrame:
+    """Build interval evidence one ticker batch at a time.
+
+    Exactly equivalent to loading every candidate's history at once: the
+    evidence builder only ever reads prices, events and status filtered by
+    ``ts_code``, so tickers never interact, and the result is re-sorted on the
+    same total key the single-shot path ends with.  Batching only bounds how
+    much price history is resident at once — the full-history load walked past
+    4 GiB on the first unblocked preflight.
+    """
+
+    if candidates.empty:
+        return empty_interval_evidence()
+    if batch_tickers < 1:
+        raise DataBlocked("interval history batch size must be positive")
+
+    tickers = sorted(candidates["ts_code"].drop_duplicates().tolist())
+    frames: list[pd.DataFrame] = []
+    for offset in range(0, len(tickers), batch_tickers):
+        batch = set(tickers[offset : offset + batch_tickers])
+        subset = candidates.loc[candidates["ts_code"].isin(batch)]
+        history = _fetch_suspension_interval_history(
+            db,
+            subset,
+            data_end,
+            recorder,
+        )
+        frames.append(
+            build_continuous_suspension_evidence(
+                candidates=subset,
+                trading_calendar=trading_calendar,
+                prices=history["prices"],
+                suspension_events=history["events"],
+                suspension_source_start=history["source_start"],
+                stock_status=history["status"],
+            )
+        )
+
+    combined = pd.concat(frames, ignore_index=True)
+    return combined.sort_values(
+        ["formation_date", "ts_code"], kind="stable"
+    ).reset_index(drop=True)
 
 
 def _fetch_stock_return_status(
@@ -2088,19 +2162,12 @@ def _formation_inputs(
         if candidates.empty:
             interval_evidence = empty_interval_evidence()
         else:
-            history = _fetch_suspension_interval_history(
+            interval_evidence = build_interval_evidence_in_batches(
                 db,
                 candidates,
                 data_end,
                 recorder,
-            )
-            interval_evidence = build_continuous_suspension_evidence(
-                candidates=candidates,
-                trading_calendar=authoritative,
-                prices=history["prices"],
-                suspension_events=history["events"],
-                suspension_source_start=history["source_start"],
-                stock_status=history["status"],
+                authoritative,
             )
     except SuspensionEvidenceError as exc:
         raise DataBlocked(

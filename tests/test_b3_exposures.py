@@ -1,5 +1,6 @@
 from copy import deepcopy
 from dataclasses import replace
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -3622,6 +3623,170 @@ def _valid_formation_sql_frames(
     }
 
 
+def _interval_batch_world(n_tickers=6):
+    """Candidates plus the three history tables a batch load reads."""
+
+    formations = [pd.Timestamp("2021-01-29"), pd.Timestamp("2021-02-26")]
+    tickers = [f"T{i:02d}.SZ" for i in range(n_tickers)]
+    candidates = pd.DataFrame(
+        [
+            {
+                "ts_code": ticker,
+                "formation_date": formation,
+                "list_date": pd.Timestamp("2015-01-05"),
+                "delist_date": pd.NaT,
+            }
+            for ticker in tickers
+            for formation in formations
+        ]
+    )
+    prices = pd.DataFrame(
+        [
+            {
+                "ts_code": ticker,
+                "trade_date": day,
+                "close": 10.0 + index,
+            }
+            for index, ticker in enumerate(tickers)
+            for day in pd.date_range("2020-12-01", "2021-03-31", freq="B")
+        ]
+    )
+    events = pd.DataFrame(
+        [
+            {
+                "ts_code": ticker,
+                "trade_date": pd.Timestamp("2021-01-04"),
+                "suspend_type": "今起停牌",
+                "suspend_reason": "重大事项",
+            }
+            for ticker in tickers
+        ]
+    )
+    status = pd.DataFrame(
+        [
+            {"ts_code": ticker, "trade_date": formation, "is_suspended": True}
+            for ticker in tickers
+            for formation in formations
+        ]
+    )
+    return candidates, prices, events, status
+
+
+def _interval_batch_read_sql(prices, events, status, seen_params=None):
+    """Honour the ts_code/start/end filters so batching is really exercised."""
+
+    def fake_read_sql(db, sql, params=None):
+        if seen_params is not None and params:
+            seen_params.append(dict(params))
+        if "MIN(trade_date)" in sql:
+            return pd.DataFrame({"source_start": [pd.Timestamp("2014-01-02")]})
+        table = (
+            prices
+            if "stock_daily_price" in sql
+            else events
+            if "stock_suspension" in sql
+            else status
+        )
+        result = table.copy()
+        if params and "tickers" in params:
+            result = result[result["ts_code"].isin(set(params["tickers"]))]
+        if params and "start" in params:
+            result = result[
+                result["trade_date"] >= pd.Timestamp(params["start"])
+            ]
+        if params and "end" in params:
+            result = result[result["trade_date"] <= pd.Timestamp(params["end"])]
+        if params and "dates" in params:
+            wanted = {pd.Timestamp(value) for value in params["dates"]}
+            result = result[result["trade_date"].isin(wanted)]
+        return result.reset_index(drop=True)
+
+    return fake_read_sql
+
+
+def test_interval_evidence_batching_is_exactly_equivalent(monkeypatch):
+    candidates, prices, events, status = _interval_batch_world()
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _interval_batch_read_sql(prices, events, status),
+    )
+    calendar = _authoritative_calendar(pd.Timestamp("2021-03-31"))
+
+    def build(batch_tickers):
+        return b3_build_module.build_interval_evidence_in_batches(
+            {"schema": "market"},
+            candidates,
+            pd.Timestamp("2021-03-31"),
+            None,
+            calendar,
+            batch_tickers=batch_tickers,
+        )
+
+    single_shot = build(999)
+    fully_batched = build(1)
+    paired = build(2)
+
+    assert not single_shot.empty
+    pd.testing.assert_frame_equal(single_shot, fully_batched)
+    pd.testing.assert_frame_equal(single_shot, paired)
+
+
+def test_interval_evidence_batching_bounds_each_query(monkeypatch):
+    candidates, prices, events, status = _interval_batch_world(n_tickers=6)
+    seen: list[dict] = []
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _interval_batch_read_sql(prices, events, status, seen),
+    )
+
+    b3_build_module.build_interval_evidence_in_batches(
+        {"schema": "market"},
+        candidates,
+        pd.Timestamp("2021-03-31"),
+        None,
+        _authoritative_calendar(pd.Timestamp("2021-03-31")),
+        batch_tickers=2,
+    )
+
+    ticker_batches = [
+        params["tickers"] for params in seen if "tickers" in params
+    ]
+    assert ticker_batches, "no ticker-filtered query was issued"
+    assert max(len(batch) for batch in ticker_batches) == 2
+
+
+def test_interval_history_lower_bound_covers_the_longest_suspension():
+    # The longest observed break between consecutive trading days is 2,478
+    # days; the bound must sit well before that so it can never decide which
+    # price the carry-forward sees.
+    assert b3_build_module.INTERVAL_HISTORY_LOOKBACK_YEARS * 365 > 2_478
+
+    start = b3_build_module._interval_history_start(
+        [date(2013, 5, 31), date(2020, 6, 30)]
+    )
+    assert start == date(2003, 5, 31)
+
+
+def test_interval_history_query_carries_the_lower_bound(monkeypatch):
+    candidates, prices, events, status = _interval_batch_world(n_tickers=2)
+    seen: list[dict] = []
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _interval_batch_read_sql(prices, events, status, seen),
+    )
+
+    b3_build_module._fetch_suspension_interval_history(
+        {"schema": "market"},
+        candidates,
+        pd.Timestamp("2021-03-31"),
+        recorder=None,
+    )
+
+    bounded = [params for params in seen if "start" in params]
+    assert bounded, "history queries must carry a lower bound"
+    assert all(params["start"] == date(2011, 1, 29) for params in bounded)
+
+
 def test_suspension_interval_history_empty_candidates_is_query_free_and_typed(
     monkeypatch,
 ):
@@ -3743,6 +3908,9 @@ def test_suspension_interval_history_queries_only_candidate_coordinates(
     assert "ORDER BY ts_code, trade_date" in status_sql
     expected_history_params = {
         "tickers": ["A.SZ", "B.SZ"],
+        # Ten years before the earliest candidate formation date: far enough
+        # back that the bound can never decide which carry-forward price wins.
+        "start": pd.Timestamp("2011-01-29").date(),
         "end": pd.Timestamp("2021-03-31").date(),
     }
     assert price_params == expected_history_params
