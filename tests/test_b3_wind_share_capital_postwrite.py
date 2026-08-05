@@ -61,6 +61,7 @@ def _coverage_frame(
     missing_close: int = 0,
     formations: int = 120,
     blocked: bool = False,
+    exempted: int = 0,
 ) -> pd.DataFrame:
     rows: list[dict] = []
     for policy in POLICIES:
@@ -119,6 +120,19 @@ def _coverage_frame(
                     "reason_code": "DATA_CONTRACT",
                 }
             )
+        if exempted:
+            rows.append(
+                {
+                    "pit_policy": policy,
+                    "formation_date": _GRID_LAST,
+                    "required_formation": True,
+                    "check": "monthly_exposure",
+                    "side": "",
+                    "eligible_count": exempted,
+                    "status": "MEASURE_WITH_EXCLUSION",
+                    "reason_code": "DATA_MATERIALITY_EXEMPTION",
+                }
+            )
     return pd.DataFrame(rows)
 
 
@@ -131,6 +145,11 @@ def _run_manifest(
 ) -> dict:
     return {
         "requested_data_end": "2023-12-31",
+        "materiality_exemptions": {
+            "months": 0,
+            "max_share": 0.0,
+            "threshold": 0.0025,
+        },
         "candidate_statistical_verdicts": (
             {"size_l20": "NOT_SIGNIFICANT"} if candidates is None else candidates
         ),
@@ -285,7 +304,6 @@ def test_verifier_copies_b3_verdicts_verbatim_including_data_blocked(evidence):
     "kwargs, message",
     [
         ({"missing_shares": 55}, "DATA_MISSING_SHARES"),
-        ({"missing_close": 2}, "DATA_MISSING_CLOSE"),
         ({"formations": 119}, "required formations"),
         ({"blocked": True}, "still blocked"),
     ],
@@ -298,6 +316,47 @@ def test_verifier_fails_closed_on_coverage_regressions(evidence, kwargs, message
     _write_json(evidence["preflight_manifest"], manifest)
 
     with pytest.raises(VerificationError, match=message):
+        _summarize(evidence)
+
+
+def test_verifier_accepts_a_month_downgraded_under_the_threshold(evidence):
+    """A residual CLOSE hole is legal only inside a downgraded month."""
+
+    _coverage_frame(missing_close=2, exempted=2).to_csv(
+        evidence["coverage_audit"], index=False
+    )
+    manifest = json.loads(evidence["preflight_manifest"].read_text())
+    manifest["outputs"]["coverage_audit.csv"] = _sha(evidence["coverage_audit"])
+    _write_json(evidence["preflight_manifest"], manifest)
+    _write_json(
+        evidence["run_manifest"],
+        {
+            **_run_manifest(),
+            "materiality_exemptions": {
+                "months": 2,
+                "max_share": 0.0018,
+                "threshold": 0.0025,
+            },
+        },
+    )
+
+    summary = _summarize(evidence)
+
+    assert summary["accepted"] is True
+    assert summary["data_missing_close"]["required"] == 4
+    assert summary["months_measured_with_exclusion"] == 2
+    assert summary["materiality_exemptions"]["threshold"] == 0.0025
+
+
+def test_verifier_still_rejects_a_data_blocked_month(evidence):
+    _coverage_frame(missing_close=2, exempted=2, blocked=True).to_csv(
+        evidence["coverage_audit"], index=False
+    )
+    manifest = json.loads(evidence["preflight_manifest"].read_text())
+    manifest["outputs"]["coverage_audit.csv"] = _sha(evidence["coverage_audit"])
+    _write_json(evidence["preflight_manifest"], manifest)
+
+    with pytest.raises(VerificationError, match="still blocked"):
         _summarize(evidence)
 
 

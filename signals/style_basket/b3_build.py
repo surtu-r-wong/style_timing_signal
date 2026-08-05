@@ -188,6 +188,7 @@ def _write_stage_manifest(
     status: str,
     blockers: list[dict],
     database_source_evidence: dict | None = None,
+    exemptions: list[dict] | None = None,
 ) -> Path:
     root = Path(output_dir)
     manifest_dir = root / "manifests"
@@ -230,6 +231,8 @@ def _write_stage_manifest(
     }
     if database_source_evidence is not None:
         payload["database_source_evidence"] = database_source_evidence
+    if exemptions is not None:
+        payload["exemptions"] = list(exemptions)
     manifest_path = manifest_dir / f"{stage}.json"
     temp_path = manifest_dir / f".{stage}.json.tmp"
     rendered = json.dumps(
@@ -2878,6 +2881,7 @@ def run_preflight(
     }
     audit_rows: list[dict] = []
     diagnostic_rows: list[dict] = []
+    exemption_rows: list[dict] = []
     blockers: list[dict] = []
 
     def add_audit(
@@ -3277,6 +3281,42 @@ def run_preflight(
                 continue
 
             exposures[policy][formation_date] = result
+            if result.exemption is not None:
+                # Measured, but not clean: the month is downgraded rather than
+                # blocked, and deliberately does NOT become a run blocker.
+                exemption_rows.append(
+                    {
+                        "pit_policy": policy,
+                        "formation_date": str(formation_date.date()),
+                        "required_formation": bool(required),
+                        **{
+                            key: value
+                            for key, value in result.exemption.items()
+                            if key != "reason_codes"
+                        },
+                        "reason_codes": ",".join(
+                            result.exemption["reason_codes"]
+                        ),
+                    }
+                )
+                add_audit(
+                    policy=policy,
+                    formation_date=formation_date,
+                    required=required,
+                    affects_final=False,
+                    check="monthly_exposure",
+                    status="MEASURE_WITH_EXCLUSION",
+                    reason_code="DATA_MATERIALITY_EXEMPTION",
+                    eligible_count=int(result.exemption["excluded_names"]),
+                    detail=(
+                        f"{result.exemption['excluded_names']}/"
+                        f"{result.exemption['measurable_names']} names "
+                        f"({result.exemption['share']:.4%}) excluded within the "
+                        f"{result.exemption['threshold']:.4%} materiality "
+                        "threshold: "
+                        + ", ".join(result.exemption["reason_codes"])
+                    ),
+                )
             for axis in axes:
                 frame = result.size if axis == "size" else result.model
                 for side in ("plus", "minus"):
@@ -3371,6 +3411,7 @@ def run_preflight(
         final_status,
         blockers,
         database_source_evidence=database_evidence,
+        exemptions=exemption_rows,
     )
 
     return PreflightOutcome(

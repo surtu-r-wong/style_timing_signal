@@ -32,6 +32,7 @@ from signals.style_basket.b3_build import (
     run_exposures_stage,
 )
 from signals.style_basket.b3_exposures import (
+    DEFAULT_DATA_MATERIALITY_THRESHOLD,
     CoverageBlocked,
     DataBlocked,
     ExposureResult,
@@ -40,6 +41,7 @@ from signals.style_basket.b3_exposures import (
     _industry_design,
     _residualize,
     compute_month_exposures,
+    resolve_data_materiality_threshold,
 )
 from signals.style_basket.b3_suspension import (
     CORE_EVIDENCE_COLUMNS,
@@ -161,19 +163,77 @@ def test_thin_legal_cross_section_raises_coverage_blocked():
         compute_month_exposures(_synthetic_snapshot(n=180), load_b3_config())
 
 
-def test_missing_source_field_is_data_blocked_not_coverage_blocked():
+def _snapshot_with_data_holes(count: int) -> pd.DataFrame:
     snapshot = _synthetic_snapshot()
     snapshot["size_eligible"] = True
     snapshot["model_eligible"] = True
     snapshot["size_exclusion_reason"] = ""
     snapshot["model_exclusion_reason"] = ""
-    snapshot.loc[0, ["size_eligible", "model_eligible"]] = False
+    holes = list(range(count))
+    snapshot.loc[holes, ["size_eligible", "model_eligible"]] = False
     snapshot.loc[
-        0, ["size_exclusion_reason", "model_exclusion_reason"]
+        holes, ["size_exclusion_reason", "model_exclusion_reason"]
     ] = "DATA_MISSING_CLOSE"
+    return snapshot
+
+
+def test_material_missing_source_field_is_data_blocked_not_coverage_blocked():
+    # 20 / 2200 = 0.91%, comfortably over the 0.25% materiality threshold.
+    with pytest.raises(DataBlocked, match="DATA_MISSING_CLOSE"):
+        compute_month_exposures(_snapshot_with_data_holes(20), load_b3_config())
+
+
+def test_immaterial_data_hole_is_measured_with_a_recorded_exemption():
+    # 4 / 2200 = 0.18%, under the threshold: the month is measured anyway.
+    result = compute_month_exposures(
+        _snapshot_with_data_holes(4), load_b3_config()
+    )
+
+    assert result.exemption is not None
+    assert result.exemption["excluded_names"] == 4
+    assert result.exemption["measurable_names"] == 2200
+    assert result.exemption["reason_codes"] == ["DATA_MISSING_CLOSE"]
+    assert result.exemption["share"] == pytest.approx(4 / 2200)
+    assert result.exemption["threshold"] == pytest.approx(0.0025)
+    assert result.diagnostics["data_exempt_names"] == 4
+    assert result.diagnostics["data_exempt_share"] == pytest.approx(4 / 2200)
+
+
+def test_the_materiality_threshold_boundary_is_inclusive():
+    cfg = dict(load_b3_config())
+    cfg["data_materiality_threshold"] = 4 / 2200
+
+    assert compute_month_exposures(
+        _snapshot_with_data_holes(4), cfg
+    ).exemption is not None
+
+    cfg["data_materiality_threshold"] = 4 / 2200 - 1e-9
+    with pytest.raises(DataBlocked, match="materiality threshold"):
+        compute_month_exposures(_snapshot_with_data_holes(4), cfg)
+
+
+def test_a_zero_threshold_restores_the_all_or_nothing_gate():
+    cfg = dict(load_b3_config())
+    cfg["data_materiality_threshold"] = 0.0
 
     with pytest.raises(DataBlocked, match="DATA_MISSING_CLOSE"):
-        compute_month_exposures(snapshot, load_b3_config())
+        compute_month_exposures(_snapshot_with_data_holes(1), cfg)
+
+
+def test_the_shipped_materiality_threshold_is_a_quarter_percent():
+    """A silent widening of this default has to break a test."""
+
+    assert DEFAULT_DATA_MATERIALITY_THRESHOLD == 0.0025
+    assert resolve_data_materiality_threshold(load_b3_config()) == 0.0025
+
+
+@pytest.mark.parametrize("value", ["0.01", True, float("nan"), -0.1, 1.0])
+def test_an_invalid_materiality_threshold_fails_closed(value):
+    cfg = dict(load_b3_config())
+    cfg["data_materiality_threshold"] = value
+
+    with pytest.raises(DataBlocked, match="data_materiality_threshold"):
+        resolve_data_materiality_threshold(cfg)
 
 
 def test_explained_legal_exclusions_can_end_as_coverage_blocked():

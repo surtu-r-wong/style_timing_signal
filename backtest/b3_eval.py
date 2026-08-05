@@ -140,6 +140,7 @@ RUN_MANIFEST_FIELDS = (
     "true_first_disclosure_coverage",
     "im_launch_date",
     "invalid_formation_months",
+    "materiality_exemptions",
     "stage_manifest_hashes",
     "input_file_hashes",
     "database_source_evidence",
@@ -253,6 +254,48 @@ def _freeze_json(value: object) -> object:
     return value
 
 
+def _summarize_materiality_exemptions(raw: object) -> "_FrozenDict":
+    """Summarize preflight's per-month data-materiality exemptions.
+
+    A measured-but-downgraded month is not a blocker, so it never reaches
+    ``invalid_formation_months``; the verdict still has to say out loud how
+    many months were measured with a hole and how big the worst one was.
+    """
+
+    if raw is None:
+        return _FrozenDict({"months": 0, "max_share": 0.0, "threshold": None})
+    if type(raw) is not list:
+        raise DataBlocked("preflight exemptions must be a list")
+    months: set[str] = set()
+    max_share = 0.0
+    thresholds: set[float] = set()
+    for entry in raw:
+        if type(entry) is not dict:
+            raise DataBlocked("preflight exemption entry must be an object")
+        required = {"pit_policy", "formation_date", "share", "threshold"}
+        if not required.issubset(entry):
+            raise DataBlocked("preflight exemption entry is incomplete")
+        share = entry["share"]
+        threshold = entry["threshold"]
+        for value, label in ((share, "share"), (threshold, "threshold")):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise DataBlocked(f"preflight exemption {label} must be numeric")
+        if not 0.0 <= float(share) <= float(threshold):
+            raise DataBlocked("preflight exemption share exceeds its threshold")
+        months.add(str(entry["formation_date"]))
+        max_share = max(max_share, float(share))
+        thresholds.add(float(threshold))
+    if len(thresholds) > 1:
+        raise DataBlocked("preflight exemptions mix materiality thresholds")
+    return _FrozenDict(
+        {
+            "months": len(months),
+            "max_share": max_share,
+            "threshold": thresholds.pop() if thresholds else None,
+        }
+    )
+
+
 @dataclass(frozen=True)
 class PreflightManifestContract:
     status: str
@@ -261,6 +304,7 @@ class PreflightManifestContract:
     manifest_hash: str
     output_hashes: _FrozenDict
     database_source_evidence: _FrozenDict | None
+    materiality_exemptions: _FrozenDict = field(default_factory=_FrozenDict)
     _verification_token: object = field(
         default=None,
         repr=False,
@@ -558,10 +602,9 @@ def verify_preflight_manifest(
         "blockers",
         "outputs",
     }
-    if set(manifest) not in (
-        base_keys,
-        base_keys | {"database_source_evidence"},
-    ):
+    optional_keys = {"database_source_evidence", "exemptions"}
+    extra_keys = set(manifest) - base_keys
+    if not base_keys.issubset(manifest) or not extra_keys.issubset(optional_keys):
         raise DataBlocked("preflight manifest schema mismatch")
     if manifest["stage"] != "preflight":
         raise DataBlocked("preflight manifest stage mismatch")
@@ -623,6 +666,9 @@ def verify_preflight_manifest(
         manifest_hash=hashlib.sha256(manifest_bytes).hexdigest(),
         output_hashes=_FrozenDict(checked_outputs),
         database_source_evidence=database_evidence,
+        materiality_exemptions=_summarize_materiality_exemptions(
+            manifest.get("exemptions")
+        ),
         _verification_token=_VERIFIED_PREFLIGHT_TOKEN,
     )
 
@@ -2163,6 +2209,7 @@ def build_run_manifest(
                 if str(blocker["formation_date"]) != "NaT"
             }
         ),
+        "materiality_exemptions": dict(preflight.materiality_exemptions),
         "stage_manifest_hashes": _validated_hash_map(
             evidence.stage_manifest_hashes,
             "stage_manifest_hashes",

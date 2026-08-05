@@ -26,6 +26,38 @@ class ExposureResult:
     model: pd.DataFrame
     q: dict[str, float]
     diagnostics: dict[str, float | int]
+    #: Present only when the month was measured with an immaterial data hole.
+    exemption: dict | None = None
+
+
+DATA_MATERIALITY_THRESHOLD_KEY = "data_materiality_threshold"
+#: Fraction of the measurable universe that may be lost to data holes before a
+#: month is refused outright.  0.25% is roughly 5-12 names at the real pool
+#: sizes, against legs that hold at least 100 names under a 1% weight cap, so
+#: even a fully adversarial placement of the missing names cannot move a leg.
+#: Lives in the B3 config so that moving it changes ``config_hash`` and leaves
+#: a fingerprint on every verdict that quotes it.
+DEFAULT_DATA_MATERIALITY_THRESHOLD = 0.0025
+
+
+def resolve_data_materiality_threshold(cfg: object) -> float:
+    if not isinstance(cfg, dict):
+        return DEFAULT_DATA_MATERIALITY_THRESHOLD
+    value = cfg.get(
+        DATA_MATERIALITY_THRESHOLD_KEY, DEFAULT_DATA_MATERIALITY_THRESHOLD
+    )
+    if isinstance(value, (bool, np.bool_)) or not isinstance(
+        value, (int, float, np.integer, np.floating)
+    ):
+        raise DataBlocked(
+            f"{DATA_MATERIALITY_THRESHOLD_KEY} must be a real number"
+        )
+    threshold = float(value)
+    if not np.isfinite(threshold) or not 0.0 <= threshold < 1.0:
+        raise DataBlocked(
+            f"{DATA_MATERIALITY_THRESHOLD_KEY} must lie in [0, 1)"
+        )
+    return threshold
 
 
 def _industry_design(industry: pd.Series) -> pd.DataFrame:
@@ -178,11 +210,12 @@ def _target_coordinates(
 
 def _eligibility_masks(
     frame: pd.DataFrame,
-) -> tuple[pd.Series, pd.Series]:
+    threshold: float = 0.0,
+) -> tuple[pd.Series, pd.Series, dict | None]:
     if "size_eligible" not in frame.columns:
         size_mask = pd.Series(True, index=frame.index, dtype=bool)
         model_mask = frame["style_score"].notna()
-        return size_mask, model_mask
+        return size_mask, model_mask, None
 
     contract_columns = {
         "size_eligible",
@@ -208,8 +241,31 @@ def _eligibility_masks(
             if reason.startswith("DATA_")
         }
     )
+    exemption: dict | None = None
     if data_codes:
-        raise DataBlocked("data-blocked exclusion reasons: " + ", ".join(data_codes))
+        # The names below are already out of the eligible universe; this gate
+        # only decides whether the month is still worth measuring without them.
+        data_mask = size_reasons.str.startswith("DATA_") | model_reasons.str.startswith(
+            "DATA_"
+        )
+        excluded = int(data_mask.sum())
+        eligible = int(frame["size_eligible"].astype(bool).sum())
+        measurable = eligible + excluded
+        share = (excluded / measurable) if measurable > 0 else 1.0
+        if measurable <= 0 or share > threshold:
+            raise DataBlocked(
+                "data-blocked exclusion reasons: "
+                + ", ".join(data_codes)
+                + f" ({excluded}/{measurable} = {share:.4%} exceeds the "
+                f"{threshold:.4%} materiality threshold)"
+            )
+        exemption = {
+            "excluded_names": excluded,
+            "measurable_names": measurable,
+            "share": float(share),
+            "threshold": float(threshold),
+            "reason_codes": list(data_codes),
+        }
 
     for column in ("size_eligible", "model_eligible"):
         valid_flags = frame[column].map(
@@ -227,14 +283,20 @@ def _eligibility_masks(
     size_mask = frame["size_eligible"].astype(bool)
     model_mask = frame["model_eligible"].astype(bool)
 
-    valid_size_reasons = {"", "LISTED_LT_180D"}
+    exempt_codes = set(data_codes) if exemption is not None else set()
+
+    valid_size_reasons = {"", "LISTED_LT_180D"} | exempt_codes
     unknown_size = sorted(set(size_reasons).difference(valid_size_reasons))
     if unknown_size:
         raise DataBlocked(
             "unknown size exclusion reasons: " + ", ".join(unknown_size)
         )
 
-    valid_model_reasons = {"", "LISTED_LT_180D", "MISSING_STYLE_SCORE"}
+    valid_model_reasons = {
+        "",
+        "LISTED_LT_180D",
+        "MISSING_STYLE_SCORE",
+    } | exempt_codes
     unknown_model = sorted(set(model_reasons).difference(valid_model_reasons))
     if unknown_model:
         raise DataBlocked(
@@ -251,7 +313,7 @@ def _eligibility_masks(
         raise DataBlocked("model exclusion is unexplained by an allowed reason")
     if (model_mask & ~size_mask).any():
         raise DataBlocked("model eligibility cannot include a size-ineligible name")
-    return size_mask, model_mask
+    return size_mask, model_mask, exemption
 
 
 def compute_month_exposures(
@@ -281,7 +343,9 @@ def compute_month_exposures(
         raise DataBlocked("ticker values cannot be sorted deterministically") from exc
     frame = frame.set_index("ticker", drop=False)
 
-    size_mask, model_mask = _eligibility_masks(frame)
+    size_mask, model_mask, exemption = _eligibility_masks(
+        frame, resolve_data_materiality_threshold(cfg)
+    )
     size = frame.loc[size_mask].copy()
     model = frame.loc[model_mask].copy()
 
@@ -390,6 +454,21 @@ def compute_month_exposures(
         "s_orthogonality_error": float(s_error),
         "h_orthogonality_error": float(h_error),
         "max_orthogonality_error": float(max_error),
+        "data_exempt_names": int(
+            0 if exemption is None else exemption["excluded_names"]
+        ),
+        "data_exempt_share": float(
+            0.0 if exemption is None else exemption["share"]
+        ),
+        "data_materiality_threshold": float(
+            resolve_data_materiality_threshold(cfg)
+        ),
         **{name: float(value) for name, value in q.items()},
     }
-    return ExposureResult(size=size, model=model, q=q, diagnostics=diagnostics)
+    return ExposureResult(
+        size=size,
+        model=model,
+        q=q,
+        diagnostics=diagnostics,
+        exemption=exemption,
+    )

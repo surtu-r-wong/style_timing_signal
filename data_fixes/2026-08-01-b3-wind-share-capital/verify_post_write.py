@@ -26,6 +26,7 @@ POLICIES = ("legal_deadline", "legal_deadline_plus_one_month_end")
 REQUIRED_FORMATIONS = 120
 SHARE_REASON = "DATA_MISSING_SHARES"
 CLOSE_REASON = "DATA_MISSING_CLOSE"
+EXEMPT_STATUS = "MEASURE_WITH_EXCLUSION"
 
 
 class VerificationError(RuntimeError):
@@ -169,13 +170,13 @@ def verify_coverage_audit(audit_path: Path) -> dict:
 
     shares = _coverage_counts(audit, SHARE_REASON)
     close = _coverage_counts(audit, CLOSE_REASON)
+    # SHARES is repaired with facts, so it must be gone outright.  CLOSE is a
+    # genuine hole in a handful of names per month; it may survive only inside
+    # a month that preflight downgraded under the materiality threshold, which
+    # the monthly_exposure status check below enforces.
     _require(
         shares["all"] == 0 and shares["required"] == 0,
         f"{SHARE_REASON} is not cleared: {shares}",
-    )
-    _require(
-        close["all"] == 0 and close["required"] == 0,
-        f"{CLOSE_REASON} is not cleared: {close}",
     )
 
     required_rows = audit.loc[
@@ -194,10 +195,12 @@ def verify_coverage_audit(audit_path: Path) -> dict:
             f"{REQUIRED_FORMATIONS}",
         )
 
-    blocked = required_rows.loc[
-        (required_rows["check"].astype(str) == "monthly_exposure")
-        & (required_rows["status"].astype(str) != "OK")
+    exposure_rows = required_rows.loc[
+        required_rows["check"].astype(str) == "monthly_exposure"
     ]
+    statuses = exposure_rows["status"].astype(str)
+    exempted = exposure_rows.loc[statuses == EXEMPT_STATUS]
+    blocked = exposure_rows.loc[~statuses.isin({"OK", EXEMPT_STATUS})]
     _require(
         blocked.empty,
         f"{len(blocked)} required monthly_exposure formations are still blocked",
@@ -207,6 +210,7 @@ def verify_coverage_audit(audit_path: Path) -> dict:
         "data_missing_close": close,
         "required_formations_by_policy": by_policy,
         "blocked_monthly_exposures": int(len(blocked)),
+        "months_measured_with_exclusion": int(len(exempted)),
         "note": (
             "coverage_audit.csv expands by pit_policy x check; the counts above "
             "are sums of eligible_count and are only used as zero/non-zero gates"
@@ -243,6 +247,7 @@ def verify_run_manifest(run_manifest_path: Path) -> dict:
         # Copied verbatim: a legal DATA_BLOCKED result is preserved, not rewritten.
         "final_verdict": manifest["final_verdict"],
         "invalid_formation_months": list(invalid),
+        "materiality_exemptions": manifest.get("materiality_exemptions"),
     }
 
 
@@ -304,6 +309,8 @@ def build_summary(
         "data_missing_shares": coverage["data_missing_shares"],
         "data_missing_close": coverage["data_missing_close"],
         "required_formations_by_policy": coverage["required_formations_by_policy"],
+        "months_measured_with_exclusion": coverage["months_measured_with_exclusion"],
+        "materiality_exemptions": evaluation["materiality_exemptions"],
         "family_statistical_verdict": evaluation["family_statistical_verdict"],
         "final_verdict": evaluation["final_verdict"],
         "candidate_statistical_verdicts": evaluation[
