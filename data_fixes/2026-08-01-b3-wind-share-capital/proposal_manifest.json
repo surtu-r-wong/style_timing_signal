@@ -1,0 +1,207 @@
+{
+  "anchors": {
+    "directory": "/home/elfbob/claude-code/.worktrees/style_timing_signal/b3-wind-share-capital/data_fixes/2026-07-25-share-capital-par",
+    "invariants": {
+      "coordinates": 5781,
+      "required_rows": 5445,
+      "tickers": 56
+    },
+    "sha256": {
+      "impact_audit_manifest.json": "777818dd48a0fc4513f74391ce9c57b8bca0f5750173590ba894c93be22b1f74",
+      "shares_tail_impact_by_ticker.csv": "ff8a9123504d430225c0ea0618c6a07c06373b07f2826af8bff450d6a55d7a40",
+      "shares_tail_impact_detail.csv": "a2fd07c9cdf5ba6b1defb89850eaf5bea629c7e76cf372c95931c745eedead13",
+      "tail.csv": "93653f5ad7cade2d03872bd7796966e60e94074d7445eaa8192e4885b0995223"
+    }
+  },
+  "artifacts": {
+    "README.md": {
+      "byte_count": 733,
+      "sha256": "f87ad8b2e942b68f6f4f283076ac34417d64de694c7ab78b58f2cf0a98b7aaee"
+    },
+    "existing_rows_backup.csv": {
+      "byte_count": 14396,
+      "columns": [
+        "ts_code",
+        "effective_date",
+        "total_shares",
+        "par_value",
+        "available_date",
+        "source",
+        "quality_flag",
+        "updated_at"
+      ],
+      "row_count": 149,
+      "sha256": "7ab6b2322e89c698f8dc3619a4deb7c6d618052b04208adab171a175db7da1d1"
+    },
+    "proposal_actions.csv": {
+      "byte_count": 68775,
+      "columns": [
+        "ts_code",
+        "effective_date",
+        "planned_action",
+        "reason",
+        "total_shares",
+        "available_date",
+        "source",
+        "old_total_shares",
+        "old_par_value",
+        "old_available_date",
+        "old_source",
+        "old_quality_flag",
+        "old_updated_at"
+      ],
+      "row_count": 496,
+      "sha256": "620a320a8bd621692afbaf4c81e3340f61dfc8262f659010764b12006f62750c"
+    },
+    "proposal_nodes.csv": {
+      "byte_count": 36129,
+      "columns": [
+        "ts_code",
+        "effective_date",
+        "total_shares",
+        "par_value",
+        "available_date",
+        "source",
+        "quality_flag"
+      ],
+      "row_count": 496,
+      "sha256": "ea68676c3cfbcf46e51eaf79c41407ad76588aa90c4a613fb48965f92fbf9bcb"
+    },
+    "rollback_insert_keys.csv": {
+      "byte_count": 25288,
+      "columns": [
+        "ts_code",
+        "effective_date",
+        "total_shares",
+        "par_value",
+        "available_date",
+        "source",
+        "quality_flag"
+      ],
+      "row_count": 347,
+      "sha256": "0c2b5410904fefe8c49503a7adbdd257312b12dbcff03412140d5435ecaf947b"
+    },
+    "wind_monthly_observations.csv": {
+      "byte_count": 908102,
+      "columns": [
+        "ts_code",
+        "formation_date",
+        "total_shares",
+        "mkt_cap_ard",
+        "close",
+        "implied_shares",
+        "relative_error",
+        "is_target_coordinate",
+        "cdr_unit_ratio",
+        "proposed_shares",
+        "cross_field_tier",
+        "cross_field_evidence"
+      ],
+      "row_count": 7168,
+      "sha256": "6580a3c5caec8070c59a90b34f0506f90983f5c6c70d6f87a42938e67c080f38"
+    }
+  },
+  "campaign_lock_key": "b3-wind-share-capital-2026-08-01",
+  "commits": {
+    "stock_selector_code_commit": "f8a41157d828bae3f53a36f1d68fd1b85d6263f4",
+    "style_input_commit": "a1bb57e7525c92a73803c97f97d772345b0e322e"
+  },
+  "counts": {
+    "BLOCK_CONFLICT": 0,
+    "CROSS_FIELD_EXACT": 5723,
+    "CROSS_FIELD_LAGGED_MKT_CAP": 54,
+    "CROSS_FIELD_PARTIAL_MKT_CAP": 4,
+    "INSERT": 347,
+    "KEEP_IDENTICAL": 0,
+    "UPGRADE_PAR_UNKNOWN": 149,
+    "depositary_receipt_coordinates": 33,
+    "existing_rows": 149,
+    "proposal_nodes": 496,
+    "rollback_insert_keys": 347,
+    "target_coordinates": 5781,
+    "tickers": 56,
+    "wind_observations": 7168
+  },
+  "declarations": {
+    "block_conflict_free": true,
+    "complete_output": true
+  },
+  "diagnostics": {
+    "cross_field_tiers": {
+      "CROSS_FIELD_EXACT": 5723,
+      "CROSS_FIELD_LAGGED_MKT_CAP": 54,
+      "CROSS_FIELD_PARTIAL_MKT_CAP": 4
+    },
+    "depositary_receipt_coordinates": 33,
+    "depositary_receipt_unit_ratios": {
+      "689009.SH": 10
+    },
+    "max_relative_error": 0.8830297266328043,
+    "round_trip_mismatches": 0,
+    "round_trip_rows": 5781
+  },
+  "gateway": {
+    "health_after": {
+      "status": "ok",
+      "wind_ready": true
+    },
+    "health_before": {
+      "status": "ok",
+      "wind_ready": true
+    },
+    "quota_after": {
+      "date": "2026-08-05",
+      "max": 500000000,
+      "used": 5418222
+    },
+    "quota_before": {
+      "date": "2026-08-05",
+      "max": 500000000,
+      "used": 4763526
+    }
+  },
+  "generated_utc": "2026-08-05T10:45:59.608363+00:00",
+  "response_evidence": [
+    {
+      "body_sha256": "85feb65534b481f85705d9b264fb6a7463f2bd474f4c34acf10d9330450d53f6",
+      "content_length": 33,
+      "path": "/health",
+      "status_code": 200
+    },
+    {
+      "body_sha256": "e92dba3fd30323ff81756e9ae7235ba14c1d95b5f251a52f23bd8a09ed3ebd3b",
+      "content_length": 52,
+      "path": "/quota",
+      "status_code": 200
+    },
+    {
+      "body_sha256": "c609f270535903f01ee1dc34be6fce2655261e9722efa0a1a43adf52a7d22820",
+      "content_length": 416419,
+      "path": "/fetch/financial_quarterly",
+      "status_code": 200
+    },
+    {
+      "body_sha256": "628e266db8e30410a6c579e303fcf53beb4431ceabd73be77e32b41cdbdb94b2",
+      "content_length": 52,
+      "path": "/quota",
+      "status_code": 200
+    },
+    {
+      "body_sha256": "85feb65534b481f85705d9b264fb6a7463f2bd474f4c34acf10d9330450d53f6",
+      "content_length": 33,
+      "path": "/health",
+      "status_code": 200
+    }
+  ],
+  "schema": "b3-wind-share-capital-proposal",
+  "source_table": "stock_selector.stock_share_capital",
+  "version": 1,
+  "wind_request": {
+    "end": "2023-12-31",
+    "endpoint": "/fetch/financial_quarterly",
+    "fields": "total_shares,mkt_cap_ard,close",
+    "options": "Period=M;PriceAdj=U;unit=1",
+    "start": "2013-05-01",
+    "tickers": 56
+  }
+}
