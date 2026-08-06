@@ -13,6 +13,8 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 import pandas as pd
 import pytest
@@ -519,7 +521,7 @@ def test_runner_executes_three_guarded_stages_in_order(tmp_path, monkeypatch):
         run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0])
     )
 
-    receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py")
+    receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
 
     assert [stage["name"] for stage in receipt["stages"]] == [
         "preflight",
@@ -571,7 +573,7 @@ def test_runner_stops_immediately_on_a_failed_preflight(tmp_path, monkeypatch):
         run_guarded_b3.subprocess, "run", _fake_runner(commands, [2, 0, 0])
     )
 
-    receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py")
+    receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
 
     assert len(commands) == 1
     assert receipt["stopped_at"] == "preflight"
@@ -584,7 +586,7 @@ def test_runner_stops_on_a_failed_build(tmp_path, monkeypatch):
         run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 1, 0])
     )
 
-    receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py")
+    receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
 
     assert len(commands) == 2
     assert receipt["stopped_at"] == "build"
@@ -596,7 +598,7 @@ def test_runner_keeps_an_eval_exit_code_of_two_as_evidence(tmp_path, monkeypatch
         run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 2])
     )
 
-    receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py")
+    receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
 
     assert len(commands) == 3
     assert receipt["stages"][2]["exit_code"] == 2
@@ -622,9 +624,155 @@ def test_runner_uses_campaign_scoped_output_directories(tmp_path, monkeypatch):
         run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0])
     )
 
-    run_guarded_b3.run_stages(tmp_path / "run", python="/py")
+    run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
 
     joined = " ".join(" ".join(command) for command in commands)
     assert str(tmp_path / "run" / "research") in joined
     assert str(tmp_path / "run" / "backtest") in joined
     assert "output/style_basket/b3 " not in joined
+
+
+# ------------------------------------------------- windows execution platform
+
+
+def test_the_linux_guard_wraps_every_stage_in_a_four_gib_scope(tmp_path):
+    time_path = tmp_path / "preflight.time.txt"
+
+    command = run_guarded_b3.guarded_command(
+        ["/py", "-m", "signals.style_basket.b3_build"],
+        time_path,
+        platform="linux",
+    )
+
+    assert command == [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "-p",
+        "MemoryMax=4G",
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        str(time_path),
+        "/py",
+        "-m",
+        "signals.style_basket.b3_build",
+    ]
+
+
+def test_windows_drops_the_guard_and_measures_through_the_peak_runner(tmp_path):
+    time_path = tmp_path / "preflight.time.txt"
+
+    command = run_guarded_b3.guarded_command(
+        ["/py", "-m", "signals.style_basket.b3_build"],
+        time_path,
+        platform="windows",
+    )
+
+    assert command == [
+        "/py",
+        str(run_guarded_b3.WINDOWS_PEAK_RUNNER),
+        "--report",
+        str(time_path),
+        "--",
+        "/py",
+        "-m",
+        "signals.style_basket.b3_build",
+    ]
+
+
+def test_the_peak_runner_writes_a_report_the_existing_parser_understands(tmp_path):
+    report = tmp_path / "stage.time.txt"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(run_guarded_b3.WINDOWS_PEAK_RUNNER),
+            "--report",
+            str(report),
+            "--",
+            sys.executable,
+            "-c",
+            "import time; block = bytearray(200_000_000); time.sleep(0.5); print(len(block))",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    peak = run_guarded_b3.peak_rss_kib(report)
+    assert peak is not None
+    assert peak > 100_000
+
+
+def test_the_peak_runner_propagates_the_child_exit_code(tmp_path):
+    report = tmp_path / "stage.time.txt"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(run_guarded_b3.WINDOWS_PEAK_RUNNER),
+            "--report",
+            str(report),
+            "--",
+            sys.executable,
+            "-c",
+            "raise SystemExit(2)",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2, completed.stderr
+    assert run_guarded_b3.peak_rss_kib(report) is not None
+
+
+def test_describe_interpreter_reads_module_versions_not_distribution_metadata():
+    import numpy
+
+    report = run_guarded_b3.describe_interpreter(sys.executable)
+
+    assert report is not None
+    assert report["library_versions"]["numpy"] == numpy.__version__
+
+
+def test_describe_interpreter_reports_nothing_when_the_interpreter_is_absent(tmp_path):
+    assert run_guarded_b3.describe_interpreter(str(tmp_path / "absent-python")) is None
+
+
+def test_the_receipt_records_the_platform_and_the_stage_interpreter(tmp_path, monkeypatch):
+    commands: list[list[str]] = []
+    monkeypatch.setattr(
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0])
+    )
+    monkeypatch.setattr(
+        run_guarded_b3,
+        "describe_interpreter",
+        lambda python: {
+            "python_version": "3.13.9",
+            "library_versions": {"numpy": "2.3.4"},
+        },
+    )
+
+    receipt = run_guarded_b3.run_stages(
+        tmp_path / "run", python="/py", platform="windows"
+    )
+
+    assert receipt["platform"] == "windows"
+    assert receipt["memory_max"] is None
+    assert receipt["python_version"] == "3.13.9"
+    assert receipt["library_versions"] == {"numpy": "2.3.4"}
+
+
+def test_the_linux_receipt_still_records_the_four_gib_cap(tmp_path, monkeypatch):
+    commands: list[list[str]] = []
+    monkeypatch.setattr(
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0])
+    )
+
+    receipt = run_guarded_b3.run_stages(
+        tmp_path / "run", python="/py", platform="linux"
+    )
+
+    assert receipt["platform"] == "linux"
+    assert receipt["memory_max"] == "4G"

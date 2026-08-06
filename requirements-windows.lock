@@ -1,0 +1,25 @@
+# B3 执行机（Windows 128G）的依赖锁 —— 2026-08-06
+#
+# 与开发机 /home/elfbob/miniconda3/bin/python (Python 3.13.9) 逐版本对齐。
+# 目的是让 Windows 上跑出的 B3 产物与开发机同源；见
+# docs/plans/2026-08-06-b3-windows-execution-migration-design.md。
+#
+# ⚠️ 这份 lock **不是** pip freeze 出来的，也不要用 pip freeze 更新它。
+# 开发机 site-packages 里同时躺着 numpy-2.3.4.dist-info 与 numpy-2.4.2.dist-info
+# 两份元数据，而实际 import 到的是 2.3.4。pip freeze / importlib.metadata 会报
+# 2.4.2——一个从未产出过任何 B3 产物的版本。以下全部钉 <module>.__version__
+# 的实际值（2026-08-06 逐个核对：只有 numpy 一项存在这个偏差）。
+#
+# 全仓库第三方 import 只有 pandas / numpy / psycopg2 / yaml 四个。
+# requests、dash、plotly 只服务 dashboard/，B3 三段用不到，不部署。
+
+pandas==2.3.3
+numpy==2.3.4
+psycopg2-binary==2.9.11
+PyYAML==6.0.3
+
+# win_peak_run.py 用它测子进程内存峰值（Windows 无 cgroup / 无 GNU time）
+psutil==7.2.2
+
+# 平台闸门：部署后在执行机上跑 tests/ 才算打通
+pytest==9.0.2

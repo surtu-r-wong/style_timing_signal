@@ -27,6 +27,11 @@ CAMPAIGN_DIR = Path(__file__).resolve().parent
 STYLE_ROOT = CAMPAIGN_DIR.parents[1]
 DEFAULT_PYTHON = "/home/elfbob/miniconda3/bin/python"
 DATA_END = "2023-12-31"
+
+LINUX = "linux"
+WINDOWS = "windows"
+#: Windows 上没有 cgroup 也没有 GNU time，峰值由这个包装器测并写成同样的格式。
+WINDOWS_PEAK_RUNNER = CAMPAIGN_DIR / "win_peak_run.py"
 # 4G, not 8G: this box has 15 GiB total with ~6 GiB already in use, so an 8 GiB
 # cap leaves the machine itself at risk — an unblocked preflight walked to
 # ~8 GiB and had to be killed by hand on 2026-08-05. The cap is a guard for the
@@ -97,7 +102,31 @@ def stage_specs(
     )
 
 
-def guarded_command(argv: list[str], time_path: Path) -> list[str]:
+def current_platform() -> str:
+    return WINDOWS if os.name == "nt" else LINUX
+
+
+def guarded_command(
+    argv: list[str],
+    time_path: Path,
+    *,
+    platform: str | None = None,
+) -> list[str]:
+    """Wrap one stage so it is both bounded and measured on this platform.
+
+    Linux keeps the cgroup cap: the box it runs on cannot survive the job.
+    Windows drops it — the execution box has 128 GB, and there is no systemd
+    to cap with anyway — but still measures, through ``win_peak_run.py``.
+    """
+    if (platform or current_platform()) == WINDOWS:
+        return [
+            argv[0],
+            str(WINDOWS_PEAK_RUNNER),
+            "--report",
+            str(time_path),
+            "--",
+            *argv,
+        ]
     return [
         "systemd-run",
         "--user",
@@ -110,6 +139,42 @@ def guarded_command(argv: list[str], time_path: Path) -> list[str]:
         str(time_path),
         *argv,
     ]
+
+
+#: 只问模块自己的 ``__version__``，**不问发行元数据**：开发机的 site-packages 里
+#: 同时躺着 numpy 2.3.4 与 2.4.2 两份 dist-info，`importlib.metadata` 会报一个
+#: 从未被 import 过的版本。回执要记的是真正跑出这批产物的那个版本。
+_VERSION_PROBE = """
+import json, sys
+report = {"python_version": sys.version.split()[0], "library_versions": {}}
+for name in ("pandas", "numpy", "psycopg2", "yaml", "psutil"):
+    try:
+        module = __import__(name)
+    except Exception:
+        continue
+    report["library_versions"][name] = getattr(module, "__version__", "")
+print(json.dumps(report))
+"""
+
+
+def describe_interpreter(python: str) -> dict | None:
+    """Ask the stage interpreter to report its own versions; None if it cannot."""
+    try:
+        process = subprocess.Popen(
+            [python, "-c", _VERSION_PROBE],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        raw, _ = process.communicate()
+    except (OSError, ValueError):
+        return None
+    if process.returncode != 0:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
 
 
 def _sha256(path: Path) -> str | None:
@@ -140,9 +205,15 @@ def _write_json_atomic(path: Path, payload: dict) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def run_stages(run_dir: Path, *, python: str = DEFAULT_PYTHON) -> dict:
+def run_stages(
+    run_dir: Path,
+    *,
+    python: str = DEFAULT_PYTHON,
+    platform: str | None = None,
+) -> dict:
     """Run the three stages in order and return the execution receipt payload."""
 
+    platform = platform or current_platform()
     run_dir = Path(run_dir)
     research_dir = run_dir / "research"
     backtest_dir = run_dir / "backtest"
@@ -157,7 +228,7 @@ def run_stages(run_dir: Path, *, python: str = DEFAULT_PYTHON) -> dict:
         stdout_path = logs_dir / f"{name}.stdout.log"
         stderr_path = logs_dir / f"{name}.stderr.log"
         time_path = logs_dir / f"{name}.time.txt"
-        command = guarded_command(spec["argv"], time_path)
+        command = guarded_command(spec["argv"], time_path, platform=platform)
 
         started = time.monotonic()
         with open(stdout_path, "wb") as out, open(stderr_path, "wb") as err:
@@ -195,11 +266,16 @@ def run_stages(run_dir: Path, *, python: str = DEFAULT_PYTHON) -> dict:
             stopped_at = name
             break
 
+    interpreter = describe_interpreter(python) or {}
     return {
         "schema": "b3-wind-share-capital-execution",
         "version": 1,
         "data_end": DATA_END,
-        "memory_max": MEMORY_MAX,
+        "platform": platform,
+        # 128 GB 的执行机不设帽，回执如实记 null，不要假装有个上限。
+        "memory_max": MEMORY_MAX if platform == LINUX else None,
+        "python_version": interpreter.get("python_version"),
+        "library_versions": interpreter.get("library_versions"),
         "run_dir": str(run_dir),
         "research_output_dir": str(research_dir),
         "backtest_output_dir": str(backtest_dir),
@@ -214,10 +290,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", default=str(CAMPAIGN_DIR / "run"))
     parser.add_argument("--python", default=DEFAULT_PYTHON)
+    parser.add_argument(
+        "--platform",
+        choices=(LINUX, WINDOWS),
+        default=None,
+        help="覆盖平台判定；缺省按 os.name 自动判定",
+    )
     args = parser.parse_args(argv)
 
     run_dir = Path(args.run_dir)
-    receipt = run_stages(run_dir, python=args.python)
+    receipt = run_stages(run_dir, python=args.python, platform=args.platform)
     _write_json_atomic(run_dir / RECEIPT_NAME, receipt)
     print(json.dumps(receipt, ensure_ascii=False, indent=2, default=str))
     return 0 if receipt["complete"] else 1

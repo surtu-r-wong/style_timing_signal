@@ -109,9 +109,13 @@ import 到的是 **2.3.4**。`importlib.metadata` / `pip freeze` 会报 2.4.2—
 
 ### 测试
 
-- 现有四个执行器测试保持绿，Linux 分支的命令前缀断言逐字不动。
-- 新增：Windows 分支的命令拼装断言；`win_peak_run.py` 写出的 report 能被
-  `peak_rss_kib()` 解析回同一个数。
+- 现有执行器测试的**断言逐字不动**；只有 5 处 `run_stages(...)` 调用显式补上
+  `platform="linux"`。这一步是必要的：平台闸门要在 Windows 上跑这同一个文件，
+  若让它们走自动判定，那几条钉 `systemd-run` 前缀的断言会在执行机上全红。
+- 新增：两个平台的命令拼装断言；`win_peak_run.py` 写出的 report 能被
+  `peak_rss_kib()` 解析回一个合理的峰值；子进程退出码逐字透传；
+  `describe_interpreter` 读的是 `module.__version__` 而**不是**发行元数据
+  ——这条测试在开发机上直接压住 numpy 2.3.4/2.4.2 那个偏差。
 
 ## 迁移步骤
 
