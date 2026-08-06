@@ -1447,7 +1447,7 @@ def _validate_model_domain(
                     affects_verdict=True,
                 )
             for window, affects_verdict in (
-                ("2014-2017", True),
+                ("2015-2017", True),
                 ("2018-2020", True),
                 ("2021-2023", True),
                 ("2014-2020", False),
@@ -2842,7 +2842,12 @@ def _frozen_config_types_match(actual: object, expected: object) -> bool:
 
 def _evaluation_config(cfg: dict) -> EvaluationSettings:
     expected_windows = {
-        "discovery": ["2014-01-01", "2020-12-31"],
+        # 2026-08-06 明示改动：起点自 2014-01-01 后移。中证1000 于 2014-10-17
+        # 才发布，在此之前 q1000 无所指——目标坐标改为直接测量真实成份后，
+        # 这 9 个月无法有定义。代价是 discovery 由 84 个月缩至 75 个月，
+        # M0/M1 的估计系数随之改变，此为用户拍板接受的取舍。
+        # 见 docs/plans/2026-08-06-q500-direct-measurement-design.md。
+        "discovery": ["2014-10-01", "2020-12-31"],
         "confirmation": ["2021-01-01", "2023-12-31"],
         "report_only": ["2024-01-01", "2026-12-31"],
     }

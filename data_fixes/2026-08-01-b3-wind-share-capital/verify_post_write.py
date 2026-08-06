@@ -23,7 +23,9 @@ CAMPAIGN_DIR = Path(__file__).resolve().parent
 FINAL_VERIFICATION_NAME = "final_verification.json"
 DATA_END = "2023-12-31"
 POLICIES = ("legal_deadline", "legal_deadline_plus_one_month_end")
-REQUIRED_FORMATIONS = 120
+# 111 = 2014-10..2023-12。窗口起点自 2014-01 后移，因为中证1000 于
+# 2014-10-17 才发布，在此之前 q1000 无所指。
+REQUIRED_FORMATIONS = 111
 SHARE_REASON = "DATA_MISSING_SHARES"
 CLOSE_REASON = "DATA_MISSING_CLOSE"
 EXEMPT_STATUS = "MEASURE_WITH_EXCLUSION"

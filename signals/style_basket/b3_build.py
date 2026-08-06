@@ -1222,95 +1222,37 @@ def _validated_constituents(
     return pool
 
 
-def calibrate_target_coordinates(
-    exposures: dict[pd.Timestamp, ExposureResult],
+#: 目标坐标 -> 指数代码。q500 控 IC、q1000 控 IM（spec §10.1）。
+TARGET_INDEX_CODES = {"q500": "000905.SH", "q1000": "000852.SH"}
+
+
+def index_members_by_formation(
     constituents: pd.DataFrame,
-) -> dict[str, float]:
+    formation_dates,
+) -> dict[pd.Timestamp, dict[str, set[str]]]:
+    """按 formation 日**精确**取成份成员，不做 as-of 降级。
+
+    as-of 会在快照缺失时悄悄用上一期成份冒充本期。代理时代那只影响一道校验，
+    改为直接测量之后它会静默改变 q 的含义——所以这里要求 effective_date 恰好
+    落在 formation 日；缺就是缺，由 compute_month_exposures 抛 DataBlocked，
+    进而在该月留下 monthly_exposure 的阻断记录。
+    """
     pool = _validated_constituents(constituents)
-
-    targets = {
-        "q500": "000905.SH",
-        "q1000": "000852.SH",
+    grouped = {
+        date: frame for date, frame in pool.groupby("effective_date", sort=False)
     }
-    available_codes = set(pool["index_code"])
-    for index_code in targets.values():
-        if index_code not in available_codes:
-            raise DataBlocked(f"missing constituents for {index_code}")
-
-    q500_errors: list[float] = []
-    q1000_errors: list[float] = []
-    ordered_months = 0
-    calibrated_months = 0
-    for formation_date, result in sorted(exposures.items()):
-        formation = pd.Timestamp(formation_date)
-        if formation < pd.Timestamp("2021-01-01"):
-            continue
-        if not {"ticker", "m_perp"}.issubset(result.size.columns):
-            raise DataBlocked("size exposure columns are missing")
-        size = pd.to_numeric(
-            result.size.set_index("ticker")["m_perp"],
-            errors="coerce",
-        )
-
-        actual: dict[str, float] = {}
-        for coordinate, index_code in targets.items():
-            history = pool[
-                pool["index_code"].eq(index_code)
-                & pool["effective_date"].le(formation)
-            ]
-            if history.empty:
-                raise DataBlocked(
-                    f"missing constituents for {index_code} "
-                    f"at {formation.date()}"
-                )
-            effective = history["effective_date"].max()
-            members = history.loc[
-                history["effective_date"].eq(effective),
-                "ticker",
-            ].drop_duplicates()
-            member_exposure = size.reindex(members).dropna()
-            if member_exposure.empty:
-                raise DataBlocked(
-                    f"missing constituent exposures for {index_code} "
-                    f"at {formation.date()}"
-                )
-            value = float(member_exposure.median())
-            if not np.isfinite(value):
-                raise DataBlocked(
-                    f"invalid constituent exposure for {index_code} "
-                    f"at {formation.date()}"
-                )
-            actual[coordinate] = value
-
-        q500_errors.append(
-            abs(actual["q500"] - float(result.q["q500"]))
-        )
-        q1000_errors.append(
-            abs(actual["q1000"] - float(result.q["q1000"]))
-        )
-        ordered_months += int(
-            float(result.q["q1000"]) > float(result.q["q500"])
-        )
-        calibrated_months += 1
-
-    if calibrated_months == 0:
-        raise DataBlocked("no 2021+ calibration months")
-
-    diagnostics = {
-        "q500_mean_abs_error": float(np.mean(q500_errors)),
-        "q1000_mean_abs_error": float(np.mean(q1000_errors)),
-        "q_order_share": float(ordered_months / calibrated_months),
-    }
-    if (
-        diagnostics["q500_mean_abs_error"] > 0.25
-        or diagnostics["q1000_mean_abs_error"] > 0.25
-        or diagnostics["q_order_share"] < 0.90
-    ):
-        raise DataBlocked(
-            "target-coordinate calibration thresholds failed: "
-            + json.dumps(diagnostics, sort_keys=True)
-        )
-    return diagnostics
+    out: dict[pd.Timestamp, dict[str, set[str]]] = {}
+    for raw_date in formation_dates:
+        date = pd.Timestamp(raw_date)
+        day = grouped.get(date)
+        members: dict[str, set[str]] = {}
+        if day is not None:
+            for name, code in TARGET_INDEX_CODES.items():
+                tickers = set(day.loc[day["index_code"].eq(code), "ticker"])
+                if tickers:
+                    members[name] = tickers
+        out[date] = members
+    return out
 
 
 def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
@@ -2839,8 +2781,7 @@ def default_sources(db: dict) -> B3Sources:
                        ts_code AS ticker,
                        effective_date
                 FROM {db['schema']}.index_constituent
-                WHERE effective_date >= '2021-01-01'
-                  AND index_code IN ('000905.SH', '000852.SH')
+                WHERE index_code IN ('000905.SH', '000852.SH')
                 ORDER BY index_code, effective_date, ts_code
             """
         frame = _read_sql(
@@ -3306,6 +3247,22 @@ def run_preflight(
             )
             add_blocker(row)
 
+    # 成份按 formation 日精确取；缺哪一日，那一日的暴露就阻断在 monthly_exposure。
+    members_by_date = (
+        index_members_by_formation(
+            constituents,
+            sorted(
+                {
+                    date
+                    for policy_snapshots in normalized_by_policy.values()
+                    for date in policy_snapshots
+                }
+            ),
+        )
+        if not blockers
+        else {}
+    )
+
     for policy in policies if not blockers else []:
         snapshots = normalized_by_policy[policy]
         for raw_date, snapshot in sorted(
@@ -3323,7 +3280,11 @@ def run_preflight(
                 snapshot,
             )
             try:
-                result = compute_month_exposures(snapshot, cfg)
+                result = compute_month_exposures(
+                    snapshot,
+                    cfg,
+                    index_members=members_by_date.get(formation_date, {}),
+                )
             except DataBlocked as exc:
                 detail = str(exc)
                 row = add_audit(
@@ -3411,39 +3372,6 @@ def run_preflight(
                     **result.diagnostics,
                 }
             )
-
-    if not blockers:
-        try:
-            for policy in policies:
-                calibration = calibrate_target_coordinates(
-                    exposures[policy],
-                    constituents,
-                )
-                diagnostic_rows.append(
-                    {
-                        "pit_policy": policy,
-                        "formation_date": pd.NaT,
-                        "scope": "target_calibration",
-                        **calibration,
-                    }
-                )
-        except (DataBlocked, CoverageBlocked) as exc:
-            status = (
-                "DATA_BLOCKED"
-                if isinstance(exc, DataBlocked)
-                else "COVERAGE_BLOCKED"
-            )
-            detail = str(exc)
-            row = add_audit(
-                policy="all",
-                formation_date=pd.NaT,
-                required=True,
-                check="target_coordinate_calibration",
-                status=status,
-                reason_code="TARGET_COORDINATE_CALIBRATION",
-                detail=detail,
-            )
-            add_blocker(row)
 
     statuses = {blocker["status"] for blocker in blockers}
     if "DATA_BLOCKED" in statuses:

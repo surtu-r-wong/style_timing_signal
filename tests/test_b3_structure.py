@@ -42,7 +42,7 @@ def _structure_panel(
     rng = np.random.default_rng(19)
     rows = []
     returns = []
-    for date in pd.date_range("2014-01-31", periods=36, freq="ME"):
+    for date in pd.date_range("2015-01-31", periods=36, freq="ME"):
         for number in range(240):
             ticker = f"S{number:03d}"
             s = rng.normal()
@@ -106,7 +106,7 @@ def _surface_inputs(
     include_final_return=False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     if dates is None:
-        dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+        dates = pd.to_datetime(["2015-01-31", "2015-02-28"])
     exposure_rows = []
     return_rows = []
     for policy_number, policy in enumerate(policies):
@@ -258,7 +258,7 @@ def test_hard_sort_surface_emits_31_cells_and_14_fixed_diagnostics_per_month():
 
 
 def test_hard_sort_corner_and_linear_residual_use_frozen_directions():
-    dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+    dates = pd.to_datetime(["2015-01-31", "2015-02-28"])
     exposures, returns = _surface_inputs(dates=dates)
     month = exposures[
         exposures["formation_date"].eq(dates[0])
@@ -312,7 +312,7 @@ def test_hard_sort_corner_and_linear_residual_use_frozen_directions():
 
 def test_hard_sort_surface_reports_empty_legal_cells_without_selecting_around_them():
     exposures, returns = _surface_inputs(
-        dates=["2014-01-31", "2014-02-28"]
+        dates=["2015-01-31", "2015-02-28"]
     )
     exposures = exposures.copy()
     exposures["s_perp"] = exposures["m_perp"] ** 3
@@ -330,7 +330,7 @@ def test_hard_sort_surface_reports_empty_legal_cells_without_selecting_around_th
 
 def test_hard_sort_surface_uses_only_model_universe():
     exposures, returns = _surface_inputs(
-        dates=["2014-01-31", "2014-02-28"]
+        dates=["2015-01-31", "2015-02-28"]
     )
     extra = exposures.iloc[[0]].copy()
     extra["ticker"] = "SIZE_ONLY"
@@ -347,7 +347,7 @@ def test_hard_sort_surface_uses_only_model_universe():
 
 @pytest.mark.parametrize("mutation", ["missing_key", "duplicate_key", "middle_gap"])
 def test_hard_sort_surface_refuses_silent_inner_join_or_month_selection(mutation):
-    dates = pd.to_datetime(["2014-01-31", "2014-02-28", "2014-03-31"])
+    dates = pd.to_datetime(["2015-01-31", "2015-02-28", "2015-03-31"])
     exposures, returns = _surface_inputs(dates=dates)
     if mutation == "missing_key":
         returns = returns.drop(index=returns.index[0])
@@ -361,7 +361,7 @@ def test_hard_sort_surface_refuses_silent_inner_join_or_month_selection(mutation
 
 
 def test_hard_sort_surface_rejects_common_missing_formation_month():
-    dates = pd.to_datetime(["2014-01-31", "2014-02-28", "2014-03-31"])
+    dates = pd.to_datetime(["2015-01-31", "2015-02-28", "2015-03-31"])
     exposures, returns = _surface_inputs(dates=dates)
     exposures = exposures[~exposures["formation_date"].eq(dates[1])]
     returns = returns[~returns["formation_date"].eq(dates[1])]
@@ -371,7 +371,7 @@ def test_hard_sort_surface_rejects_common_missing_formation_month():
 
 
 def test_hard_sort_surface_requires_full_and_model_formation_grids_to_match():
-    dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+    dates = pd.to_datetime(["2015-01-31", "2015-02-28"])
     exposures, returns = _surface_inputs(dates=dates)
     exposures.loc[
         exposures["formation_date"].eq(dates[1]),
@@ -384,7 +384,7 @@ def test_hard_sort_surface_requires_full_and_model_formation_grids_to_match():
 
 
 def test_hard_sort_surface_rejects_multiple_formations_in_one_calendar_month():
-    dates = pd.to_datetime(["2014-01-30", "2014-01-31", "2014-02-28"])
+    dates = pd.to_datetime(["2015-01-30", "2015-01-31", "2015-02-28"])
     exposures, returns = _surface_inputs(dates=dates)
 
     with pytest.raises(DataBlocked, match="one formation.*calendar month"):
@@ -392,7 +392,7 @@ def test_hard_sort_surface_rejects_multiple_formations_in_one_calendar_month():
 
 
 def test_hard_sort_surface_allows_only_the_unrealized_final_formation_to_be_absent():
-    dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+    dates = pd.to_datetime(["2015-01-31", "2015-02-28"])
     exposures, returns = _surface_inputs(dates=dates)
     returns = returns[returns["formation_date"].eq(dates[0])]
 
@@ -402,7 +402,7 @@ def test_hard_sort_surface_allows_only_the_unrealized_final_formation_to_be_abse
 
 
 def test_hard_sort_surface_rejects_return_for_unproven_final_holding_period():
-    dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+    dates = pd.to_datetime(["2015-01-31", "2015-02-28"])
     exposures, returns = _surface_inputs(
         dates=dates,
         include_final_return=True,
@@ -414,7 +414,8 @@ def test_hard_sort_surface_rejects_return_for_unproven_final_holding_period():
 
 def test_structure_coefficients_freeze_schema_windows_and_verdict_flags():
     dates = pd.date_range(
-        "2014-01-31",
+        # 窗口起点，随 discovery 一起自 2014-01 后移。
+        "2014-10-31",
         "2024-02-29",
         freq="ME",
     )
@@ -451,15 +452,21 @@ def test_structure_coefficients_freeze_schema_windows_and_verdict_flags():
     for policy, policy_frame in got.groupby("pit_policy"):
         monthly = policy_frame[policy_frame["row_type"].eq("monthly")]
         summary = policy_frame[policy_frame["row_type"].eq("summary")]
-        assert len(monthly) == 121
+        # 113 个输入月 − 3 − 1 = 109。首期取整年 2015-2017 之后，discovery 起点的
+        # 2014-10..12 三个月映射不到任何 WINDOW_SPECS 分期（monthly 行按
+        # _window_for_date 过滤），因此不产出结构行；末月无前向收益再去掉一个。
+        # 那三个月仍参与 M0/M1 估计，也仍在 state coverage 的 2014-2020 全期检查内。
+        assert len(monthly) == 109
         assert list(summary["window"]) == [
-            "2014-2017",
+            "2015-2017",
             "2018-2020",
             "2021-2023",
             "2024-2026-report-only",
         ]
         assert list(summary["affects_verdict"]) == [True, True, True, False]
-        assert list(summary["n"]) == [48, 36, 36, 1]
+        # 首期 48 → 36：分期首段自 2014-2017 改为整年 2015-2017，这正是本次
+        # 取舍本身（affects_verdict=True 的一期样本缩短，检验功效随之下降）。
+        assert list(summary["n"]) == [36, 36, 36, 1]
         assert np.allclose(summary["beta_h"], 0.03, atol=1.0e-10)
         assert monthly.loc[
             monthly["window"].eq("2024-2026-report-only"),
@@ -469,7 +476,7 @@ def test_structure_coefficients_freeze_schema_windows_and_verdict_flags():
 
 def _write_structure_parents(tmp_path, cfg, data_end):
     policies = tuple(cfg["pit"]["policies"])
-    dates = pd.to_datetime(["2014-01-31", "2014-02-28"])
+    dates = pd.to_datetime(["2015-01-31", "2015-02-28"])
     exposures, returns = _surface_inputs(dates=dates, policies=policies)
 
     exposure_path = tmp_path / "monthly_exposures.csv.gz"
@@ -492,7 +499,7 @@ def _write_structure_parents(tmp_path, cfg, data_end):
     axis = pd.DataFrame(
         [
             {
-                "date": pd.Timestamp("2014-02-03"),
+                "date": pd.Timestamp("2015-02-03"),
                 "pit_policy": policy,
                 "style": 0.01,
                 "size": -0.01,
@@ -507,7 +514,7 @@ def _write_structure_parents(tmp_path, cfg, data_end):
     legs = pd.DataFrame(
         [
             {
-                "date": pd.Timestamp("2014-02-03"),
+                "date": pd.Timestamp("2015-02-03"),
                 "pit_policy": policy,
                 "q": q,
                 "growth_ret": 0.01,
@@ -541,7 +548,7 @@ def _write_structure_parents(tmp_path, cfg, data_end):
         for q in ("qblend", "q500", "q1000"):
             state_rows.append(
                 {
-                    "date": pd.Timestamp("2014-02-03"),
+                    "date": pd.Timestamp("2015-02-03"),
                     "pit_policy": policy,
                     "q": q,
                     "growth_ret": 0.01,
@@ -630,7 +637,7 @@ def test_structure_runner_hash_checks_parents_and_writes_deterministic_outputs(
     tmp_path,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     _write_structure_parents(tmp_path, cfg, data_end)
     compact_dir = tmp_path / "compact"
 
@@ -667,7 +674,7 @@ def test_structure_runner_rejects_tampered_parent_and_removes_stale_outputs(
     artifact,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     paths, _, _ = _write_structure_parents(tmp_path, cfg, data_end)
     compact_dir = tmp_path / "compact"
     _run_short_structure(cfg, data_end, tmp_path, compact_dir)
@@ -685,7 +692,7 @@ def test_structure_runner_invalidates_outputs_before_config_validation(
     tmp_path,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     _write_structure_parents(tmp_path, cfg, data_end)
     compact_dir = tmp_path / "compact"
     result = _run_short_structure(cfg, data_end, tmp_path, compact_dir)
@@ -717,7 +724,7 @@ def test_structure_runner_invalidates_outputs_before_config_validation(
 
 def test_structure_runner_validates_injected_model_output_contract(tmp_path):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     _write_structure_parents(tmp_path, cfg, data_end)
     compact_dir = tmp_path / "compact"
     index = pd.DatetimeIndex([data_end])
@@ -751,7 +758,7 @@ def test_structure_runner_third_write_failure_removes_all_outputs(
     monkeypatch,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     _write_structure_parents(tmp_path, cfg, data_end)
     compact_dir = tmp_path / "compact"
     original = pd.DataFrame.to_csv
@@ -781,12 +788,12 @@ def test_structure_runner_rejects_incomplete_cutoff_month_formation(
     tmp_path,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-14")
+    data_end = pd.Timestamp("2015-03-14")
     paths, _, _ = _write_structure_parents(tmp_path, cfg, data_end)
     policies = tuple(cfg["pit"]["policies"])
     exposures, returns = _surface_inputs(
         dates=pd.to_datetime(
-            ["2014-01-31", "2014-02-28", "2014-03-14"]
+            ["2015-01-31", "2015-02-28", "2015-03-14"]
         ),
         policies=policies,
     )
@@ -855,7 +862,7 @@ def test_structure_runner_reads_and_validates_auxiliary_caches(
     artifact,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     paths, _, _ = _write_structure_parents(tmp_path, cfg, data_end)
     if artifact == "axis":
         frame = pd.read_csv(paths["axis"]).drop(columns="interaction")
@@ -892,7 +899,7 @@ def test_structure_runner_blocks_rehashed_primary_cache_with_missing_schema(
     tmp_path,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     paths, _, _ = _write_structure_parents(tmp_path, cfg, data_end)
     malformed = pd.read_csv(paths["exposures"]).drop(
         columns="formation_date"
@@ -920,11 +927,11 @@ def test_structure_runner_requires_axis_and_state_daily_grids_to_match(
     tmp_path,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     paths, _, _ = _write_structure_parents(tmp_path, cfg, data_end)
     states = pd.read_csv(paths["states"])
     extra = states.copy()
-    extra["date"] = "2014-02-04"
+    extra["date"] = "2015-02-04"
     pd.concat([states, extra], ignore_index=True).to_csv(
         paths["states"],
         index=False,
@@ -946,7 +953,7 @@ def test_structure_runner_requires_axis_and_state_daily_grids_to_match(
 def test_structure_coefficients_require_both_frozen_pit_policies():
     cfg = load_b3_config()
     exposures, returns = _surface_inputs(
-        dates=["2014-01-31", "2014-02-28"]
+        dates=["2015-01-31", "2015-02-28"]
     )
 
     with pytest.raises(DataBlocked, match="policy"):
@@ -961,7 +968,7 @@ def test_structure_cli_returns_data_blocked_when_states_parent_is_absent(
     exit_code = main(
         [
             "--data-end",
-            "2014-03-31",
+            "2015-03-31",
             "--research-output-dir",
             str(tmp_path),
             "--backtest-output-dir",
@@ -979,22 +986,22 @@ def test_equal_weight_control_file_freezes_schema_keys_and_cutoff(tmp_path):
     path = tmp_path / "equal_weight_signal_20d40z.csv"
     pd.DataFrame(
         {
-            "date": ["2014-01-31", "2014-02-28", "2014-03-31"],
+            "date": ["2015-01-31", "2015-02-28", "2015-03-31"],
             "factor_value": [0.1, -0.2, 0.3],
         }
     ).to_csv(path, index=False)
 
-    got = _load_equal_weight_control(path, pd.Timestamp("2014-02-28"))
+    got = _load_equal_weight_control(path, pd.Timestamp("2015-02-28"))
 
     assert list(got.index) == list(
-        pd.to_datetime(["2014-01-31", "2014-02-28"])
+        pd.to_datetime(["2015-01-31", "2015-02-28"])
     )
     assert list(got) == pytest.approx([0.1, -0.2])
     duplicated = pd.read_csv(path)
     duplicated = pd.concat([duplicated, duplicated.iloc[[0]]])
     duplicated.to_csv(path, index=False)
     with pytest.raises(DataBlocked, match="duplicate"):
-        _load_equal_weight_control(path, pd.Timestamp("2014-03-31"))
+        _load_equal_weight_control(path, pd.Timestamp("2015-03-31"))
 
 
 def test_structure_cli_uses_default_cash_loader_and_equal_weight_path(
@@ -1002,7 +1009,7 @@ def test_structure_cli_uses_default_cash_loader_and_equal_weight_path(
     monkeypatch,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     _write_structure_parents(tmp_path, cfg, data_end)
     index = pd.DatetimeIndex([data_end])
     calls = []
@@ -1056,7 +1063,7 @@ def test_structure_runner_reports_coverage_blocked_but_writes_full_audit(
     tmp_path,
 ):
     cfg = load_b3_config()
-    data_end = pd.Timestamp("2014-03-31")
+    data_end = pd.Timestamp("2015-03-31")
     paths, exposures, _ = _write_structure_parents(tmp_path, cfg, data_end)
     exposures["s_perp"] = exposures["m_perp"] ** 3
     exposures.to_csv(
@@ -1089,7 +1096,7 @@ def test_structure_runner_reports_coverage_blocked_but_writes_full_audit(
 
 
 def _monthly_model_frame() -> pd.DataFrame:
-    dates = pd.date_range("2014-01-31", "2026-12-31", freq="ME")
+    dates = pd.date_range("2015-01-31", "2026-12-31", freq="ME")
     rng = np.random.default_rng(23)
     frame = pd.DataFrame(index=dates)
     frame["F_U"] = rng.normal(size=len(frame))
@@ -1178,7 +1185,7 @@ def test_stability_and_three_window_state_coverage_are_hard_gates():
 
     coverage_dates = []
     coverage_states = []
-    for year in (2014, 2018, 2021):
+    for year in (2015, 2018, 2021):
         for number, state in enumerate(("UU", "DD", "DIV") * 4):
             coverage_dates.append(
                 pd.Timestamp(year=year, month=1, day=number + 1)
@@ -1196,7 +1203,7 @@ def test_stability_and_three_window_state_coverage_are_hard_gates():
     )
 
     assert passed["pass"]
-    assert passed["2014-2017_DIV"] == pytest.approx(1.0 / 3.0)
+    assert passed["2015-2017_DIV"] == pytest.approx(1.0 / 3.0)
     assert not failed["pass"]
 
 
@@ -1204,7 +1211,7 @@ def test_state_coverage_rejects_unordered_dates():
     state = pd.Series(
         ["UU", "DD", "DIV"],
         index=pd.DatetimeIndex(
-            ["2014-01-02", "2014-01-01", "2014-01-03"]
+            ["2015-01-02", "2015-01-01", "2015-01-03"]
         ),
     )
 
@@ -1247,7 +1254,7 @@ def test_next_formation_targets_fail_closed_on_invalid_inputs(mutation):
 
 def test_report_only_mutation_cannot_change_frozen_model():
     frame = _monthly_model_frame()
-    train = frame.loc["2014-01-01":"2020-12-31"]
+    train = frame.loc["2015-01-01":"2020-12-31"]
     baseline = fit_model(train, ["F_U", "F_D", "F_X"], "target")
     mutated = frame.copy()
     report_dates = mutated.index >= pd.Timestamp("2024-01-01")
@@ -1257,7 +1264,7 @@ def test_report_only_mutation_cannot_change_frozen_model():
     ] = 1.0e9
 
     changed = fit_model(
-        mutated.loc["2014-01-01":"2020-12-31"],
+        mutated.loc["2015-01-01":"2020-12-31"],
         ["F_U", "F_D", "F_X"],
         "target",
     )
@@ -1268,7 +1275,7 @@ def test_report_only_mutation_cannot_change_frozen_model():
 def _model_comparison_inputs():
     cfg = load_b3_config()
     policies = tuple(cfg["pit"]["policies"])
-    calendar = pd.bdate_range("2014-01-01", "2026-12-31")
+    calendar = pd.bdate_range("2015-01-01", "2026-12-31")
     formations = pd.DatetimeIndex(
         pd.Series(calendar, index=calendar)
         .groupby(calendar.to_period("M"))
@@ -1369,7 +1376,7 @@ def _model_comparison_inputs():
 
     coefficient_rows = []
     for policy in policies:
-        for window in ("2014-2017", "2018-2020", "2021-2023"):
+        for window in ("2015-2017", "2018-2020", "2021-2023"):
             coefficient_rows.append(
                 {
                     "pit_policy": policy,
@@ -1388,7 +1395,7 @@ def _model_comparison_inputs():
             )
         for formation in formations[:-1]:
             if formation <= pd.Timestamp("2017-12-31"):
-                window = "2014-2017"
+                window = "2015-2017"
                 affects_verdict = True
             elif formation <= pd.Timestamp("2020-12-31"):
                 window = "2018-2020"
@@ -1419,7 +1426,7 @@ def _model_comparison_inputs():
 
     surface_rows = []
     required_formations = formations[
-        (formations >= pd.Timestamp("2014-01-01"))
+        (formations >= pd.Timestamp("2015-01-01"))
         & (formations <= pd.Timestamp("2023-12-31"))
     ]
     cells = [("2x3", cell) for cell in (
@@ -1710,7 +1717,7 @@ def test_post_2020_target_mutation_cannot_change_discovery_or_stability():
 
     changed = build_model_comparison(*inputs)
     protected = baseline["window"].isin(
-        {"2014-2017", "2018-2020", "2014-2020"}
+        {"2015-2017", "2018-2020", "2014-2020"}
     ) | baseline["gate_name"].eq("stability")
     baseline_protected = baseline[protected].reset_index(drop=True)
     protected_keys = set(

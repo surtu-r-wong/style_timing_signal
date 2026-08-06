@@ -25,7 +25,6 @@ from signals.style_basket.b3_build import (
     _write_stage_manifest,
     apply_pit_policy,
     build_policy_snapshots,
-    calibrate_target_coordinates,
     flatten_exposures,
     main,
     require_parent_manifest,
@@ -41,7 +40,7 @@ from signals.style_basket.b3_exposures import (
     _capped_weights,
     _industry_design,
     _residualize,
-    compute_month_exposures,
+    compute_month_exposures as _compute_month_exposures,
     resolve_data_materiality_threshold,
 )
 from signals.style_basket.b3_suspension import (
@@ -59,7 +58,8 @@ def test_b3_config_freezes_candidates_windows_and_execution():
 
     assert cfg["candidates"] == ["B3_unified", "B3_dual_target"]
     assert cfg["windows"] == {
-        "discovery": ["2014-01-01", "2020-12-31"],
+        # 2014-10：中证1000 于 2014-10-17 发布，此前 q1000 无所指。
+        "discovery": ["2014-10-01", "2020-12-31"],
         "confirmation": ["2021-01-01", "2023-12-31"],
         "report_only": ["2024-01-01", "2026-12-31"],
     }
@@ -93,6 +93,25 @@ def test_b3_config_rejects_candidate_expansion(tmp_path):
 
     with pytest.raises(ValueError, match="exactly"):
         load_b3_config(path)
+
+
+def _band_members(snapshot):
+    """测试用成员集合，沿用旧排名带的形状，使既有断言的语义保持不变。"""
+    ordered = snapshot.sort_values(
+        ["total_market_value", "ticker"], ascending=[False, True]
+    )["ticker"].tolist()
+    return {"q500": set(ordered[300:800]), "q1000": set(ordered[800:1800])}
+
+
+def compute_month_exposures(snapshot, cfg, *, index_members=None):
+    """测试包装器：不关心 q 语义的用例无需自带成员集合。
+
+    真正检验 q 定义的用例显式传 index_members；其余用例沿用旧排名带形状，
+    这样这次重构不会把 orthogonality、权重上限等无关断言一并搅动。
+    """
+    if index_members is None:
+        index_members = _band_members(snapshot)
+    return _compute_month_exposures(snapshot, cfg, index_members=index_members)
 
 
 def _synthetic_snapshot(n=2200):
@@ -1597,38 +1616,27 @@ def _constituents_for_snapshot(snapshot):
     return pd.concat([q500, q1000], ignore_index=True)
 
 
-def test_target_coordinate_calibration_matches_synthetic_constituents():
-    cfg = load_b3_config()
-    formation = pd.Timestamp("2021-01-29")
-    snapshot = _synthetic_snapshot()
-    exposures = {
-        formation: compute_month_exposures(snapshot, cfg),
-    }
+def test_index_members_are_taken_at_the_exact_formation_date():
+    """精确取当日成份；缺当日快照就是缺，绝不回落到上一期。
 
-    got = calibrate_target_coordinates(
-        exposures,
-        _constituents_for_snapshot(snapshot),
+    代理时代 as-of 降级只影响一道校验；改为直接测量之后，悄悄用上一期成份
+    冒充本期会静默改变 q 的含义，所以这里必须是精确匹配。
+    """
+    formation = pd.Timestamp("2021-01-29")
+    constituents = pd.DataFrame(
+        {
+            "index_code": ["000905.SH", "000852.SH", "000905.SH"],
+            "ticker": ["A", "B", "C"],
+            "effective_date": [formation, formation, pd.Timestamp("2020-12-31")],
+        }
     )
 
-    assert got["q500_mean_abs_error"] <= 0.25
-    assert got["q1000_mean_abs_error"] <= 0.25
-    assert got["q_order_share"] >= 0.90
+    got = b3_build_module.index_members_by_formation(
+        constituents, [formation, pd.Timestamp("2021-02-26")]
+    )
 
-
-def test_target_coordinate_calibration_blocks_missing_q1000_constituents():
-    cfg = load_b3_config()
-    formation = pd.Timestamp("2021-01-29")
-    snapshot = _synthetic_snapshot()
-    exposures = {
-        formation: compute_month_exposures(snapshot, cfg),
-    }
-    constituents = _constituents_for_snapshot(snapshot)
-    constituents = constituents[
-        constituents["index_code"].ne("000852.SH")
-    ]
-
-    with pytest.raises(DataBlocked, match="000852.SH"):
-        calibrate_target_coordinates(exposures, constituents)
+    assert got[formation] == {"q500": {"A"}, "q1000": {"B"}}
+    assert got[pd.Timestamp("2021-02-26")] == {}
 
 
 def _preflight_sources(
@@ -2899,13 +2907,11 @@ def test_cli_preflight_stage_does_not_run_exposures(
 
 
 def _required_formation_grid():
-    return list(
-        pd.period_range(
-            "2014-01",
-            "2023-12",
-            freq="M",
-        ).to_timestamp("M")
-    )
+    """从 config 推导，别写死——窗口起点已经因中证1000 的发布日改过一次。"""
+    windows = load_b3_config()["windows"]
+    start = windows["discovery"][0][:7]
+    end = windows["confirmation"][1][:7]
+    return list(pd.period_range(start, end, freq="M").to_timestamp("M"))
 
 
 def _lightweight_exposure_result():
@@ -2994,7 +3000,7 @@ def _snapshot_map(dates):
 def _patch_lightweight_exposures(monkeypatch):
     monkeypatch.setattr(
         "signals.style_basket.b3_build.compute_month_exposures",
-        lambda snapshot, cfg: _lightweight_exposure_result(),
+        lambda snapshot, cfg, **kwargs: _lightweight_exposure_result(),
     )
 
 
@@ -5180,3 +5186,74 @@ def test_exact_carry_query_never_asks_for_a_close_dated_on_the_formation_day(
         pd.to_datetime(carried["close_date"])
         < pd.to_datetime(carried["formation_date"])
     ).all()
+
+
+# ------------------------------------------- 目标坐标改为直接测量真实成份
+
+
+def _members_avoiding_the_old_bands(snapshot):
+    """刻意避开 301-800 / 801-1800：若还在用排名带，断言必红。"""
+    tickers = list(snapshot["ticker"])
+    return {
+        "q500": set(tickers[1200:1700]),
+        "q1000": set(tickers[1700:2200]),
+    }
+
+
+def test_target_coordinates_are_the_median_m_perp_of_the_real_index_members():
+    snapshot = _synthetic_snapshot()
+    members = _members_avoiding_the_old_bands(snapshot)
+
+    got = compute_month_exposures(
+        snapshot, load_b3_config(), index_members=members
+    )
+
+    m_perp = got.size.set_index("ticker")["m_perp"]
+    for name in ("q500", "q1000"):
+        expected = float(m_perp.reindex(sorted(members[name])).median())
+        assert got.q[name] == pytest.approx(expected)
+    assert got.q["qblend"] == pytest.approx(
+        (got.q["q500"] + got.q["q1000"]) / 2.0
+    )
+
+
+def test_index_members_missing_from_the_size_universe_block_below_coverage():
+    """成员大量掉出 size universe 时中位数是在子集上算的，必须阻断。"""
+    snapshot = _synthetic_snapshot()
+    members = _members_avoiding_the_old_bands(snapshot)
+    members["q500"] = set(members["q500"]) | {f"GHOST{i:04d}" for i in range(60)}
+
+    with pytest.raises(DataBlocked, match="size universe"):
+        compute_month_exposures(
+            snapshot, load_b3_config(), index_members=members
+        )
+
+
+def test_target_coordinates_require_q1000_above_q500():
+    """m_perp 越大越小盘，所以 q1000 必须高于 q500；反了就是数据错了。"""
+    snapshot = _synthetic_snapshot()
+    tickers = list(snapshot["ticker"])
+    reversed_members = {
+        "q500": set(tickers[1700:2200]),
+        "q1000": set(tickers[1200:1700]),
+    }
+
+    with pytest.raises(DataBlocked, match="q1000"):
+        compute_month_exposures(
+            snapshot, load_b3_config(), index_members=reversed_members
+        )
+
+
+def test_weights_still_span_the_full_model_universe_after_direct_measurement():
+    """原不变量必须存活：成员集合之外的股票在暴露非零时仍能进组合。"""
+    snapshot = _synthetic_snapshot()
+    members = _members_avoiding_the_old_bands(snapshot)
+
+    got = compute_month_exposures(
+        snapshot, load_b3_config(), index_members=members
+    )
+
+    outside = got.model.iloc[:300]
+    assert (
+        (outside["w_q500_plus"] > 0.0) | (outside["w_q500_minus"] > 0.0)
+    ).any()

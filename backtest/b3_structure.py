@@ -92,10 +92,15 @@ CELLS_5X5 = [
     for size in range(1, 6)
     for style in range(1, 6)
 ]
+#: 首期自 2015 起：discovery 窗口 2026-08-06 后移到 2014-10（中证1000 于
+#: 2014-10-17 才发布），2014 只剩 10-12 三个月。3 个月的零头既不好命名
+#: 也不好解释，而这一期是 affects_gate=True 的，样本再缩会削弱其功效，
+#: 故首期取整年 2015-2017，那三个月只进不设闸的全期检查。
+#: 见 docs/plans/2026-08-06-q500-direct-measurement-design.md。
 WINDOW_SPECS = [
     (
-        "2014-2017",
-        pd.Timestamp("2014-01-01"),
+        "2015-2017",
+        pd.Timestamp("2015-01-01"),
         pd.Timestamp("2017-12-31"),
         True,
     ),
@@ -399,10 +404,13 @@ def state_coverage_gate(
     ):
         raise DataBlocked("state coverage minimum is invalid")
     windows = {
-        "2014-2017": ("2014-01-01", "2017-12-31", True),
+        # 首期取整年，理由见 WINDOW_SPECS 上方注释。
+        "2015-2017": ("2015-01-01", "2017-12-31", True),
         "2018-2020": ("2018-01-01", "2020-12-31", True),
         "2021-2023": ("2021-01-01", "2023-12-31", True),
-        "2014-2020": ("2014-01-01", "2020-12-31", False),
+        # 全 discovery 期，与 config 的 windows.discovery 对齐；不设闸，
+        # 2014-10..12 那三个月只在这里被看到。
+        "2014-2020": ("2014-10-01", "2020-12-31", False),
     }
     result: dict[str, float | bool] = {}
     passed = True
@@ -1134,7 +1142,9 @@ def _window_for_date(
 
 def _validate_structure_config(cfg: dict) -> None:
     expected_windows = {
-        "discovery": ["2014-01-01", "2020-12-31"],
+        # 2026-08-06 明示改动，与 b3_eval 的预注册同步；理由见
+        # docs/plans/2026-08-06-q500-direct-measurement-design.md。
+        "discovery": ["2014-10-01", "2020-12-31"],
         "confirmation": ["2021-01-01", "2023-12-31"],
         "report_only": ["2024-01-01", "2026-12-31"],
     }
@@ -1613,7 +1623,7 @@ def _hard_sort_gate_passes(
     formations: pd.DatetimeIndex,
 ) -> bool:
     required_dates = formations[
-        (formations >= pd.Timestamp("2014-01-01"))
+        (formations >= pd.Timestamp("2014-10-01"))
         & (formations <= pd.Timestamp("2023-12-31"))
     ]
     cells = surface[
@@ -2090,11 +2100,12 @@ def build_model_comparison(
                 q_state["state"],
                 minimum_coverage,
             )
+            # 与本文件上方 windows / WINDOW_SPECS 同源，改一处必须改三处。
             coverage_windows = {
-                "2014-2017": ("2014-01-01", "2017-12-31", True),
+                "2015-2017": ("2015-01-01", "2017-12-31", True),
                 "2018-2020": ("2018-01-01", "2020-12-31", True),
                 "2021-2023": ("2021-01-01", "2023-12-31", True),
-                "2014-2020": ("2014-01-01", "2020-12-31", False),
+                "2014-2020": ("2014-10-01", "2020-12-31", False),
             }
             for window, (start, end, affects_verdict) in (
                 coverage_windows.items()

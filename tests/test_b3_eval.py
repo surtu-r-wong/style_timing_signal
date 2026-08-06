@@ -690,9 +690,11 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
                 formations[1:],
                 index=formations[:-1],
             ).reindex(training.index)
+            # 从 cfg 推导，别写死——discovery 起点已随中证1000 的发布日改过一次。
+            discovery_start, discovery_end = cfg["windows"]["discovery"]
             training = training.loc[
-                training.index.to_series().ge(pd.Timestamp("2014-01-01"))
-                & period_end.le(pd.Timestamp("2020-12-31"))
+                training.index.to_series().ge(pd.Timestamp(discovery_start))
+                & period_end.le(pd.Timestamp(discovery_end))
             ]
             model = fit_model(
                 training,
@@ -1075,7 +1077,7 @@ def _model_comparison(cfg):
                     )
                 )
             for window, affects_verdict in (
-                ("2014-2017", True),
+                ("2015-2017", True),
                 ("2018-2020", True),
                 ("2021-2023", True),
                 ("2014-2020", False),
@@ -5221,7 +5223,17 @@ def test_flatten_exposures_output_passes_eval_disclosure_validators(tmp_path):
     ]
     size_only_ticker = snapshot.iloc[-1]["ticker"]
     snapshot.loc[snapshot["ticker"].eq(size_only_ticker), "style_score"] = np.nan
-    result = compute_month_exposures(snapshot, cfg)
+    ordered = snapshot.sort_values(
+        ["total_market_value", "ticker"], ascending=[False, True]
+    )["ticker"].tolist()
+    result = compute_month_exposures(
+        snapshot,
+        cfg,
+        index_members={
+            "q500": set(ordered[300:800]),
+            "q1000": set(ordered[800:1800]),
+        },
+    )
     policies = tuple(cfg["pit"]["policies"])
     # The frozen config needs the full 2,200-name snapshot to compute, but
     # the schema contract survives row selection; a small slice keeps the

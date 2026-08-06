@@ -54,14 +54,15 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-_GRID_LAST = (pd.Timestamp("2014-01-31") + pd.offsets.MonthEnd(119)).date()
+# 111 = 2014-10..2023-12，窗口起点随中证1000 的发布日后移。
+_GRID_LAST = (pd.Timestamp("2014-10-31") + pd.offsets.MonthEnd(110)).date()
 
 
 def _coverage_frame(
     *,
     missing_shares: int = 0,
     missing_close: int = 0,
-    formations: int = 120,
+    formations: int = 111,
     blocked: bool = False,
     exempted: int = 0,
 ) -> pd.DataFrame:
@@ -69,7 +70,7 @@ def _coverage_frame(
     for policy in POLICIES:
         for index in range(formations):
             formation_date = (
-                pd.Timestamp("2014-01-31") + pd.offsets.MonthEnd(index)
+                pd.Timestamp("2014-10-31") + pd.offsets.MonthEnd(index)
             ).date()
             rows.append(
                 {
@@ -280,8 +281,8 @@ def test_verifier_accepts_a_complete_evidence_tree(evidence):
     assert summary["data_missing_shares"] == {"all": 0, "required": 0}
     assert summary["data_missing_close"] == {"all": 0, "required": 0}
     assert summary["required_formations_by_policy"] == {
-        "legal_deadline": 120,
-        "legal_deadline_plus_one_month_end": 120,
+        "legal_deadline": 111,
+        "legal_deadline_plus_one_month_end": 111,
     }
     assert summary["candidate_statistical_verdicts"] == {
         "size_l20": "NOT_SIGNIFICANT"

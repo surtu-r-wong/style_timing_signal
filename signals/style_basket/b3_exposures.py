@@ -182,28 +182,41 @@ def _capped_weights(
 
 
 def _target_coordinates(
-    size: pd.DataFrame, bands: dict[str, list[int]]
+    size: pd.DataFrame,
+    members: dict[str, set[str]] | None,
+    min_coverage: float,
 ) -> dict[str, float]:
-    q1000_upper = int(bands["q1000"][1])
-    if len(size) < q1000_upper:
-        raise DataBlocked(
-            f"q1000 target rank requires {q1000_upper} names; got {len(size)}"
-        )
+    """q = 真实指数成份在本月截面上的 m_perp 中位数。
 
-    ordered = size.reset_index(drop=True).copy()
-    ordered["_target_market_value"] = pd.to_numeric(
-        ordered["total_market_value"], errors="coerce"
-    )
-    ordered = ordered.sort_values(
-        ["_target_market_value", "ticker"],
-        ascending=[False, True],
-        kind="mergesort",
-    ).reset_index(drop=True)
+    此处曾用排名带（301-800 / 801-1800）代理指数位置。2026-08-06 首次跑到
+    spec §5.5 的校准闸门即失败：代理系统性偏离真实成份 0.252σ（36 个月 100%
+    同号），且偏离随时间漂移——后者直接证伪了"常数偏移"这类修补。目的既然是
+    "中证500 实际所在的市值坐标"，就直接量它，不再留一个需要被校准的代理。
+    见 docs/plans/2026-08-06-q500-direct-measurement-design.md。
+    """
+    indexed = size.set_index("ticker")["m_perp"]
 
     q: dict[str, float] = {}
     for name in ("q500", "q1000"):
-        lower, upper = (int(value) for value in bands[name])
-        q[name] = float(ordered.iloc[lower - 1 : upper]["m_perp"].median())
+        wanted = members.get(name) if members else None
+        if not wanted:
+            raise DataBlocked(f"{name} index members are missing")
+        present = indexed.reindex(sorted(wanted)).dropna()
+        coverage = len(present) / len(wanted)
+        if coverage < min_coverage:
+            raise DataBlocked(
+                f"{name} members present in size universe: "
+                f"{len(present)}/{len(wanted)} ({coverage:.1%}), "
+                f"below {min_coverage:.0%}"
+            )
+        q[name] = float(present.median())
+
+    if not q["q1000"] > q["q500"]:
+        raise DataBlocked(
+            f"q1000 ({q['q1000']:.4f}) must exceed q500 ({q['q500']:.4f}): "
+            "m_perp rises as capitalisation falls"
+        )
+
     q["qblend"] = float((q["q500"] + q["q1000"]) / 2.0)
     return q
 
@@ -317,7 +330,10 @@ def _eligibility_masks(
 
 
 def compute_month_exposures(
-    snapshot: pd.DataFrame, cfg: dict
+    snapshot: pd.DataFrame,
+    cfg: dict,
+    *,
+    index_members: dict[str, set[str]] | None = None,
 ) -> ExposureResult:
     required = {
         "ticker",
@@ -410,7 +426,11 @@ def compute_month_exposures(
         model["h_raw"], interaction_controls, "h_perp"
     )
 
-    q = _target_coordinates(size, portfolio_cfg["q_bands"])
+    q = _target_coordinates(
+        size,
+        index_members,
+        float(portfolio_cfg["min_index_member_coverage"]),
+    )
     for name in ("qblend", "q500", "q1000"):
         model[f"x_{name}"] = model["s_perp"] + q[name] * model["h_perp"]
 
