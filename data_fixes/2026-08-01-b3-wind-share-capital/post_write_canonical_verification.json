@@ -1,0 +1,8 @@
+{
+  "coordinates": 5781,
+  "generated_utc": "2026-08-06T06:30:57.813623+00:00",
+  "mismatches": 0,
+  "proposal_manifest_sha256": "b68c7a200f505c43e84fb516d6e7ba0d7b6a434b8c6ed8c395e4f0c53e9fae84",
+  "target": "production",
+  "wind_sourced_coordinates": 5781
+}
