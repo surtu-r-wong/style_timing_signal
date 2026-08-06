@@ -165,6 +165,29 @@ B3 三段同样以 venv 解释器启动，不修则整份峰值证据作废。
 
 无帽运行会让真实峰值直接显形。这不是本次迁移的目标，但是它的免费副产品。
 
+## 平台闸门抓到的问题（2026-08-06 首次打通）
+
+按顺序记下来，因为每一条都只有在真机上跑才会暴露，而重新发现的成本很高。
+
+1. **离线 wheel 少了 `colorama`**。pytest 在 win32 上条件依赖它，而
+   `pip download --platform win_amd64` **不按目标平台求值环境标记**——marker 用的
+   是本机的 `sys_platform`。补下载即可，但说明"只留 lock 不留 wheel"不算备份。
+2. **venv 的 python 是转发器**，见上节。峰值测量必须连子孙一起量。
+3. **`scipy` 是运行期必需但无处 import**。pandas 在 `nanops` 里惰性 import 它算
+   秩相关，B3 到处用 spearman。漏装不在 import 期报错，只在跑到秩 IC 时炸——
+   真实三段上就是几小时后才炸。首次全套 37 个失败里 16 个是它。
+4. **`git` 不在执行机上，而快照又没有 `.git`**。`b3_eval.git_commit()` 调裸
+   `git rev-parse HEAD` 记溯源，取不到就 `DataBlocked`，三段会立刻全灭。
+   处置：装 Git for Windows（PATH 集成）+ **改用 `git bundle` 部署**——`.git`
+   才 17 MB，clone 出来的 HEAD 就是开发机那个 commit，既不动 B3 的 fail-closed
+   闸门，也不必先 push origin。
+5. **两条测试断言写死了 POSIX 约定**（`/tmp/x` 在 Windows 上不绝对；
+   `endswith("a/b/c")` 撞上反斜杠）。被测代码两处都正确，是断言不可移植。
+6. **长跑的起法**。`Start-Process` 起的进程随 SSH 会话结束而死；
+   `Win32_Process::Create` 被 360 拒绝（`ReturnValue=2`，它是典型横向移动手法）。
+   可用的是**计划任务**。另外 `.cmd` 必须 **CRLF + 纯 ASCII + 绝对路径**：
+   cmd.exe 按 OEM 代码页读 .cmd，且任务从 `System32` 起步。
+
 ## 不做
 
 - 不改 `_fetch_raw_financial` / `build_policy_snapshots`。
