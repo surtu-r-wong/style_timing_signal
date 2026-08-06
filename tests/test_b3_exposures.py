@@ -5104,3 +5104,79 @@ def test_preflight_classifies_invalid_constituent_dates_and_writes_manifest(
 
     assert got.final_status == "DATA_BLOCKED"
     assert (tmp_path / "manifests" / "preflight.json").is_file()
+
+
+def test_same_day_carried_close_is_rejected(tmp_path):
+    """带旧价只能带更早的价：同日收盘价不是 carry。
+
+    这条 fail-closed 分支此前没有任何测试覆盖。
+    """
+    formation = pd.Timestamp("2021-01-29")
+    same_day = pd.DataFrame(
+        {
+            "formation_date": [formation],
+            "ts_code": ["A"],
+            "close_date": [formation],
+            "close": [10.0],
+        }
+    )
+
+    with pytest.raises(DataBlocked, match="must precede formation_date"):
+        b3_build_module._validated_carried_closes(
+            same_day,
+            label="exact carried closes",
+            method=b3_build_module.EXACT_CARRY_METHOD,
+        )
+
+
+def test_exact_carry_query_never_asks_for_a_close_dated_on_the_formation_day(
+    monkeypatch,
+):
+    """查询本身必须与它的契约一致，否则真库一定会把契约撞红。
+
+    触发形状取自真实数据：某票在 formation 当日被标停牌，但当日仍有行情
+    （盘中/半日停牌，交易所照发日线）。假的 _read_sql 照查询自己的比较符
+    决定给不给同日那一行——真库就是这么做的，不这样模拟，这个不变量在不接
+    库的测试里根本无法被证伪。
+    """
+    formation = pd.Timestamp("2021-01-29")
+    frames = _valid_formation_sql_frames(calendar_end="2021-03-31")
+    frames["stock_suspension"] = pd.DataFrame(
+        {"trade_date": [formation], "ts_code": ["A"]}
+    )
+    base = _formation_sql_source(list(frames.items()))
+
+    def fake_read_sql(db, sql, params=None):
+        if "JOIN LATERAL" in sql:
+            carried_same_day = "q.trade_date <= s.trade_date" in sql
+            return pd.DataFrame(
+                {
+                    "formation_date": [formation],
+                    "ts_code": ["A"],
+                    "close_date": [
+                        formation
+                        if carried_same_day
+                        else formation - pd.Timedelta(days=1)
+                    ],
+                    "close": [10.0 if carried_same_day else 9.5],
+                }
+            )
+        return base(db, sql, params)
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        fake_read_sql,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    got = _formation_inputs({"schema": "public"}, pd.Timestamp("2021-03-31"))
+
+    carried = got["carried_closes"]
+    assert not carried.empty
+    assert (
+        pd.to_datetime(carried["close_date"])
+        < pd.to_datetime(carried["formation_date"])
+    ).all()

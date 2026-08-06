@@ -2119,7 +2119,13 @@ def _formation_inputs(
                 SELECT q.trade_date, q.close
                 FROM {schema}.stock_daily_price q
                 WHERE q.ts_code = s.ts_code
-                  AND q.trade_date <= s.trade_date
+                  -- 严格早于：带旧价带的是**更早**的价，同日价不是 carry。
+                  -- 盘中/半日停牌的票当日仍有行情（全库 2014-2023 有 2,107 行
+                  -- 这种重叠），用 <= 会取到同日那行，撞上 _validated_carried_closes
+                  -- 的 close_date 必须早于 formation_date。那些行本来也用不上：
+                  -- closes 矩阵取自同一张表同一批日期，所以它们对应的票必有当日
+                  -- 真实收盘价，而 carry 只在 close.isna() 时才被采纳。
+                  AND q.trade_date < s.trade_date
                 ORDER BY q.trade_date DESC
                 LIMIT 1
             ) p ON TRUE
