@@ -3291,10 +3291,16 @@ def test_parent_manifest_rejects_invalid_output_hashes(
         )
 
 
+#: 「绝对」是平台相关的：Windows 上 "/tmp/x" 没有盘符，并不绝对，于是这一格
+#: 走不到 unsafe 分支（闸门仍然拒绝它，只是换了个理由码）。用当前卷的 anchor
+#: 拼出真正的绝对路径；在 POSIX 上取值仍是 "/tmp/coverage_audit.csv"。
+_ABSOLUTE_OUTPUT_PATH = str(Path(Path.cwd().anchor) / "tmp" / "coverage_audit.csv")
+
+
 @pytest.mark.parametrize(
     "unsafe_path",
     [
-        pytest.param("/tmp/coverage_audit.csv", id="absolute"),
+        pytest.param(_ABSOLUTE_OUTPUT_PATH, id="absolute"),
         pytest.param("../coverage_audit.csv", id="parent-traversal"),
     ],
 )

@@ -1,6 +1,7 @@
 import hashlib
 import json
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -1041,8 +1042,11 @@ def test_structure_cli_uses_default_cash_loader_and_equal_weight_path(
     assert exit_code == 0
     assert calls == ["blend", "500", "1000"]
     assert len(control_paths) == 1
-    assert str(control_paths[0][0]).endswith(
-        "output/equal_weight/equal_weight_signal_20d40z.csv"
+    # 比较路径分量而不是字符串后缀：分隔符在 Windows 上是反斜杠。
+    assert Path(control_paths[0][0]).parts[-3:] == (
+        "output",
+        "equal_weight",
+        "equal_weight_signal_20d40z.csv",
     )
     assert control_paths[0][1] == data_end
     assert (tmp_path / "compact" / "model_comparison.csv").is_file()
