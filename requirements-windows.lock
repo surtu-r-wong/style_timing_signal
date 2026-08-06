@@ -10,13 +10,21 @@
 # 2.4.2——一个从未产出过任何 B3 产物的版本。以下全部钉 <module>.__version__
 # 的实际值（2026-08-06 逐个核对：只有 numpy 一项存在这个偏差）。
 #
-# 全仓库第三方 import 只有 pandas / numpy / psycopg2 / yaml 四个。
+# 直接 import 的第三方只有 pandas / numpy / psycopg2 / yaml 四个。
 # requests、dash、plotly 只服务 dashboard/，B3 三段用不到，不部署。
 
 pandas==2.3.3
 numpy==2.3.4
 psycopg2-binary==2.9.11
 PyYAML==6.0.3
+
+# ⚠️ scipy 全仓库没有一处直接 import，但**是运行期必需**：pandas 在
+# nanops.py 里惰性 import 它来算秩相关，而 B3 到处在用 spearman
+# （signals/style_basket/decompose.py、backtest/rotation_probe.py、
+# signals/hybrid20/optimize_signal.py 等）。漏装不会在 import 期报错，
+# 只会在跑到秩 IC 时炸——2026-08-06 首次在执行机跑全套时由 37 个
+# ModuleNotFoundError 暴露。别因为 grep 不到 import 就把它删了。
+scipy==1.17.1
 
 # win_peak_run.py 用它测子进程内存峰值（Windows 无 cgroup / 无 GNU time）
 psutil==7.2.2
