@@ -183,10 +183,13 @@ B3 三段同样以 venv 解释器启动，不修则整份峰值证据作废。
    闸门，也不必先 push origin。
 5. **两条测试断言写死了 POSIX 约定**（`/tmp/x` 在 Windows 上不绝对；
    `endswith("a/b/c")` 撞上反斜杠）。被测代码两处都正确，是断言不可移植。
-6. **长跑的起法**。`Start-Process` 起的进程随 SSH 会话结束而死；
-   `Win32_Process::Create` 被 360 拒绝（`ReturnValue=2`，它是典型横向移动手法）。
-   可用的是**计划任务**。另外 `.cmd` 必须 **CRLF + 纯 ASCII + 绝对路径**：
-   cmd.exe 按 OEM 代码页读 .cmd，且任务从 `System32` 起步。
+6. **长跑的起法，以及 360 的渐进封锁**。`Start-Process` 起的进程随 SSH 会话结束
+   而死；`Win32_Process::Create` 被 360 拒绝（`ReturnValue=2`，它是典型横向移动
+   手法）；计划任务一度可用并跑完两轮，**随后任务被删、`schtasks.exe` 本身变成
+   "拒绝访问"**。这不是一次性故障而是逐步收紧，兜底是在保持连接的 SSH 会话里
+   前台跑（`ServerAliveInterval=30`）。另外 `.cmd` 必须 **CRLF + 纯 ASCII +
+   绝对路径**：cmd.exe 按 OEM 代码页读 .cmd，且任务从 `System32` 起步。
+   长期方案是由用户给执行目录加白名单——不关杀软，那台机器上还有 Wind 终端。
 
 ## 不做
 
