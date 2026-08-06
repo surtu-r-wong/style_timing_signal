@@ -693,7 +693,7 @@ def test_the_peak_runner_writes_a_report_the_existing_parser_understands(tmp_pat
             "--",
             sys.executable,
             "-c",
-            "import time; block = bytearray(200_000_000); time.sleep(0.5); print(len(block))",
+            "import time; block = bytearray(200_000_000); time.sleep(1.0); print(len(block))",
         ],
         capture_output=True,
         text=True,
@@ -776,3 +776,35 @@ def test_the_linux_receipt_still_records_the_four_gib_cap(tmp_path, monkeypatch)
 
     assert receipt["platform"] == "linux"
     assert receipt["memory_max"] == "4G"
+
+
+def test_the_peak_runner_counts_memory_held_by_a_grandchild(tmp_path):
+    report = tmp_path / "stage.time.txt"
+    # 复现 Windows 上的真实形状：venv 的 Scripts\python.exe 会把基础解释器作为
+    # 子进程拉起来，于是真正吃内存的是孙进程，直接子进程只是个 6 MB 的转发器。
+    # 只量直接子进程会把每一段都记成空壳，所以这个要求必须跨平台成立。
+    spawner = (
+        "import subprocess, sys; "
+        "subprocess.run([sys.executable, '-c', "
+        "'import time; block = bytearray(200_000_000); time.sleep(1.0)'])"
+    )
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(run_guarded_b3.WINDOWS_PEAK_RUNNER),
+            "--report",
+            str(report),
+            "--",
+            sys.executable,
+            "-c",
+            spawner,
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    peak = run_guarded_b3.peak_rss_kib(report)
+    assert peak is not None
+    assert peak > 100_000
