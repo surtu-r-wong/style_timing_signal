@@ -127,7 +127,20 @@ def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.Da
     known_max = known_days.rolling(n, min_periods=n).max()
 
     out.iloc[n - 1 :, out.columns.get_loc("slope")] = rel
-    out["known_date"] = pd.to_datetime(known_max.to_numpy(), unit="D")
+
+    # 直接由整数天数转 datetime64，不走 pd.to_datetime(unit="D")。
+    # 后者内部在 errstate(over="raise") 里做 cast_from_unit_vectorized，会把
+    # **上游遗留的待决浮点标志**在此引爆：执行机实测显示 np.geterr() 当时是正常的
+    # "warn"、立即用同一数组原样重调即通过、单独回放也不炸——即数组本身无辜，
+    # 炸的是别人留下的标志。这里本来就只是把天数换成日期，没有必要引入那条路径。
+    days = known_max.to_numpy()
+    known_dates = np.full(len(days), np.datetime64("NaT"), dtype="datetime64[ns]")
+    settled = np.isfinite(days)
+    if settled.any():
+        known_dates[settled] = (
+            days[settled].astype("int64").astype("datetime64[D]")
+        )
+    out["known_date"] = known_dates
     out["slope"] = out["slope"].where(out["known_date"].notna())
     return out
 
