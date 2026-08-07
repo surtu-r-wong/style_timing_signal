@@ -409,3 +409,67 @@ def test_stock_style_factors_excludes_cfp_for_financials():
     )
     assert np.isnan(got["cfp"])
     assert got["bp"] == pytest.approx(1000.0 / 500.0)  # 其它价值因子不受影响
+
+
+def test_rolling_growth_slope_survives_an_all_unknown_window():
+    """整窗可知日缺失时应返回 NaT，而不是崩溃。
+
+    NaT 转 datetime64[D] 再转 float 得到的是哨兵值 −9.22e18，不是 NaN；
+    rolling max 取到它之后 pd.to_datetime(..., unit="D") 会在乘算中溢出。
+    2026-08-07 回填退市股票、universe 变宽后由真实数据触发（整段缺披露日的
+    财务事实），此前从未走到。函数本就允许 known_date 为 NaT——
+    末尾 slope.where(known_date.notna()) 正是为此写的。
+    """
+    from signals.common.factors import rolling_growth_slope
+
+    n = 4
+    ttm = pd.Series(
+        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        index=pd.to_datetime(
+            [
+                "2020-03-31",
+                "2020-06-30",
+                "2020-09-30",
+                "2020-12-31",
+                "2021-03-31",
+                "2021-06-30",
+            ]
+        ),
+    )
+    known = pd.Series([pd.NaT] * len(ttm), index=ttm.index)
+
+    got = rolling_growth_slope(ttm, known, n=n)
+
+    assert got["known_date"].isna().all()
+    assert got["slope"].isna().all()
+
+
+def test_rolling_growth_slope_refuses_a_window_with_an_unknown_disclosure_date():
+    """窗内任一期披露日未知，斜率就不可算——文档语义如此。
+
+    NaT 转 datetime64[D] 再转 float 得到的是哨兵 −9.22e18，而它是个合法浮点数，
+    于是 rolling(min_periods=n) 把它算作有效观测、max() 又把它忽略，结果是
+    "少了一期披露日却照样宣布斜率可知"——PIT 语义被破坏。同一个缺陷在
+    Windows 上还会让 pd.to_datetime 溢出崩溃（2026-08-07 回填退市股后触发）。
+    """
+    from signals.common.factors import rolling_growth_slope
+
+    n = 4
+    index = pd.to_datetime(
+        ["2020-03-31", "2020-06-30", "2020-09-30", "2020-12-31"]
+    )
+    ttm = pd.Series([1.0, 2.0, 3.0, 4.0], index=index)
+    known = pd.Series(
+        [
+            pd.Timestamp("2020-05-01"),
+            pd.NaT,  # 这一期的披露日未知
+            pd.Timestamp("2020-11-01"),
+            pd.Timestamp("2021-02-01"),
+        ],
+        index=index,
+    )
+
+    got = rolling_growth_slope(ttm, known, n=n)
+
+    assert pd.isna(got["known_date"].iloc[-1])
+    assert pd.isna(got["slope"].iloc[-1])

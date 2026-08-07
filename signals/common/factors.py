@@ -103,8 +103,15 @@ def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.Da
     means = np.abs(windows.mean(axis=1))
     rel = np.where(means < 1e-12, np.nan, slopes / means)
 
+    # NaT 必须先变成 NaN 再进 rolling：datetime64 的 NaT 直接 astype(float)
+    # 得到的是哨兵 −9.22e18，而它是个合法浮点数，于是 min_periods 把它算作
+    # 有效观测、max() 又把它忽略——结果是"少了一期披露日却照样宣布斜率可知"，
+    # PIT 语义被破坏；该值送进 pd.to_datetime(unit="D") 还会在乘算中溢出。
+    # 2026-08-07 回填退市股票、universe 变宽后由真实数据触发。
+    known_raw = known.to_numpy(dtype="datetime64[D]")
     known_days = pd.Series(
-        known.to_numpy(dtype="datetime64[D]").astype(float), index=idx
+        np.where(np.isnat(known_raw), np.nan, known_raw.astype(float)),
+        index=idx,
     )
     known_max = known_days.rolling(n, min_periods=n).max()
 
