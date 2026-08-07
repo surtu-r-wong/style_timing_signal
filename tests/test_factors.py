@@ -473,3 +473,28 @@ def test_rolling_growth_slope_refuses_a_window_with_an_unknown_disclosure_date()
 
     assert pd.isna(got["known_date"].iloc[-1])
     assert pd.isna(got["slope"].iloc[-1])
+
+
+def test_rolling_growth_slope_never_divides_by_a_near_zero_window_mean():
+    """窗口均值近零时不得真的执行除法。
+
+    np.where(cond, nan, slopes / means) 会先把整个除法算完再选，于是 means≈0
+    的条目照样产生 inf 并置上浮点错误标志。默认 errstate 下只是 RuntimeWarning，
+    但 pandas 的 cast_from_unit_vectorized 工作在 errstate(over="raise") 里，
+    那个待决标志会在随后一次完全无辜的 to_datetime 上炸成 FloatingPointError
+    ——2026-08-07 回填退市股票后由真实数据触发（TTM 序列跨零、量级 1e9）。
+    这里用 errstate 把当时的条件复现出来。
+    """
+    from signals.common.factors import rolling_growth_slope
+
+    n = 12
+    index = pd.date_range("2015-03-31", periods=n + 2, freq="QE")
+    ttm = pd.Series([1e9, -1e9] * ((n + 2) // 2), index=index)
+    known = pd.Series(index + pd.Timedelta(days=30), index=index)
+
+    with np.errstate(over="raise", divide="raise", invalid="raise"):
+        got = rolling_growth_slope(ttm, known, n=n)
+
+    assert len(got) == len(ttm)
+    # 均值≈0 的窗口本就不该有相对斜率，结果应为 NaN 而非 inf。
+    assert pd.isna(got["slope"].iloc[-1])

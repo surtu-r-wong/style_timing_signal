@@ -101,7 +101,18 @@ def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.Da
     w = (x - x.mean()) / ((x - x.mean()) ** 2).sum()
     slopes = windows @ w
     means = np.abs(windows.mean(axis=1))
-    rel = np.where(means < 1e-12, np.nan, slopes / means)
+    # 用 where= 而不是 np.where：后者会**先把整个除法算完再选**，于是 means≈0
+    # 的条目照样执行除法、产生 inf 并置上浮点错误标志。默认 errstate 下那只是
+    # RuntimeWarning，但 pandas 的 cast_from_unit_vectorized 工作在
+    # errstate(over="raise") 里，那个待决标志会在随后一次完全无辜的 to_datetime
+    # 上炸成 FloatingPointError。2026-08-07 回填退市股票后由真实数据触发
+    # （TTM 序列跨零、量级 1e9，12 期窗口均值可能恰好≈0）。
+    rel = np.divide(
+        slopes,
+        means,
+        out=np.full_like(slopes, np.nan),
+        where=means >= 1e-12,
+    )
 
     # NaT 必须先变成 NaN 再进 rolling：datetime64 的 NaT 直接 astype(float)
     # 得到的是哨兵 −9.22e18，而它是个合法浮点数，于是 min_periods 把它算作
