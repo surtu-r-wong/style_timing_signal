@@ -519,7 +519,7 @@ def _fake_runner(commands, exit_codes):
 def test_runner_executes_three_guarded_stages_in_order(tmp_path, monkeypatch):
     commands: list[list[str]] = []
     monkeypatch.setattr(
-        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0])
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0, 0])
     )
 
     receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
@@ -527,6 +527,7 @@ def test_runner_executes_three_guarded_stages_in_order(tmp_path, monkeypatch):
     assert [stage["name"] for stage in receipt["stages"]] == [
         "preflight",
         "build",
+        "structure",
         "eval",
     ]
     assert receipt["complete"] is True
@@ -562,6 +563,14 @@ def test_runner_executes_three_guarded_stages_in_order(tmp_path, monkeypatch):
     assert commands[2][9:14] == [
         "/py",
         "-m",
+        "backtest.b3_structure",
+        "--data-end",
+        "2023-12-31",
+    ]
+    # structure 必须排在 eval 之前：eval 读它写的 structure_manifest.json。
+    assert commands[3][9:14] == [
+        "/py",
+        "-m",
         "backtest.b3_eval",
         "--data-end",
         "2023-12-31",
@@ -571,7 +580,7 @@ def test_runner_executes_three_guarded_stages_in_order(tmp_path, monkeypatch):
 def test_runner_stops_immediately_on_a_failed_preflight(tmp_path, monkeypatch):
     commands: list[list[str]] = []
     monkeypatch.setattr(
-        run_guarded_b3.subprocess, "run", _fake_runner(commands, [2, 0, 0])
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [2, 0, 0, 0])
     )
 
     receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
@@ -584,7 +593,7 @@ def test_runner_stops_immediately_on_a_failed_preflight(tmp_path, monkeypatch):
 def test_runner_stops_on_a_failed_build(tmp_path, monkeypatch):
     commands: list[list[str]] = []
     monkeypatch.setattr(
-        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 1, 0])
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 1, 0, 0])
     )
 
     receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
@@ -596,13 +605,13 @@ def test_runner_stops_on_a_failed_build(tmp_path, monkeypatch):
 def test_runner_keeps_an_eval_exit_code_of_two_as_evidence(tmp_path, monkeypatch):
     commands: list[list[str]] = []
     monkeypatch.setattr(
-        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 2])
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0, 2])
     )
 
     receipt = run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
 
-    assert len(commands) == 3
-    assert receipt["stages"][2]["exit_code"] == 2
+    assert len(commands) == 4
+    assert receipt["stages"][3]["exit_code"] == 2
     assert receipt["stopped_at"] is None
     assert receipt["complete"] is True
 
@@ -622,7 +631,7 @@ def test_runner_records_peak_rss_from_the_gnu_time_report(tmp_path):
 def test_runner_uses_campaign_scoped_output_directories(tmp_path, monkeypatch):
     commands: list[list[str]] = []
     monkeypatch.setattr(
-        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0])
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0, 0])
     )
 
     run_guarded_b3.run_stages(tmp_path / "run", python="/py", platform="linux")
@@ -744,7 +753,7 @@ def test_describe_interpreter_reports_nothing_when_the_interpreter_is_absent(tmp
 def test_the_receipt_records_the_platform_and_the_stage_interpreter(tmp_path, monkeypatch):
     commands: list[list[str]] = []
     monkeypatch.setattr(
-        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0])
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0, 0])
     )
     monkeypatch.setattr(
         run_guarded_b3,
@@ -768,7 +777,7 @@ def test_the_receipt_records_the_platform_and_the_stage_interpreter(tmp_path, mo
 def test_the_linux_receipt_still_records_the_four_gib_cap(tmp_path, monkeypatch):
     commands: list[list[str]] = []
     monkeypatch.setattr(
-        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0])
+        run_guarded_b3.subprocess, "run", _fake_runner(commands, [0, 0, 0, 0])
     )
 
     receipt = run_guarded_b3.run_stages(

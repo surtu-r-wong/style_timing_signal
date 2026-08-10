@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""在 4 GiB 护栏下重跑未改动的 B3 三段流水，并留下可核对的执行证据。
+"""重跑未改动的 B3 流水并留下可核对的执行证据。
 
-三段顺序固定：preflight → build(all) → eval，每段都套
+四段顺序固定：preflight → build(all) → structure → eval。structure 必须在
+eval 之前——eval 要读它写的 structure_manifest.json 做溯源。Linux 下每段套
 ``systemd-run --user --scope -p MemoryMax=4G`` 与 ``/usr/bin/time -v``。
 preflight / build 非零退出立即停；eval 的退出码 2 **保留为证据**不抹平——
 统计已经产出、但一个与股本无关的 run 级闸门仍可能合法地把 final_verdict
@@ -82,6 +83,25 @@ def stage_specs(
                 str(research_dir),
             ],
             "allowed_exit_codes": (0,),
+        },
+        {
+            # eval 读 backtest 目录里的 structure_manifest.json 做溯源，
+            # 所以 structure 必须排在它之前。第十四跑漏了这一段，eval 以
+            # STRUCTURE_PROVENANCE_MISSING 在 0.5 秒内拒跑。
+            "name": "structure",
+            "argv": [
+                python,
+                "-m",
+                "backtest.b3_structure",
+                "--data-end",
+                DATA_END,
+                "--research-output-dir",
+                str(research_dir),
+                "--backtest-output-dir",
+                str(backtest_dir),
+            ],
+            # 3 = COVERAGE_BLOCKED，与 eval 的 2 同理保留为证据。
+            "allowed_exit_codes": (0, 3),
         },
         {
             "name": "eval",
@@ -223,7 +243,8 @@ def run_stages(
 
     stages: list[dict] = []
     stopped_at: str | None = None
-    for spec in stage_specs(research_dir, backtest_dir, python=python):
+    specs = stage_specs(research_dir, backtest_dir, python=python)
+    for spec in specs:
         name = spec["name"]
         stdout_path = logs_dir / f"{name}.stdout.log"
         stderr_path = logs_dir / f"{name}.stderr.log"
@@ -282,7 +303,8 @@ def run_stages(
         "stage_order": [spec["name"] for spec in stage_specs(research_dir, backtest_dir)],
         "stages": stages,
         "stopped_at": stopped_at,
-        "complete": stopped_at is None and len(stages) == 3,
+        # 从 spec 推导，别写死段数——2026-08-10 加 structure 段时这里漏改过。
+        "complete": stopped_at is None and len(stages) == len(specs),
     }
 
 
