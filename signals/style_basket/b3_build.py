@@ -1719,6 +1719,42 @@ def _fetch_stock_return_status(
         values="is_suspended",
     )
 
+    # 第三个停牌证据源：Wind tradesuspend。stock_status 是稀疏快照——
+    # 2020-04-30 之前一行没有，之后 891 个交易日里也只有 42 天有行——承担不了
+    # "这天这只票停牌了吗"这个日频问题；而 stock_suspension 是日频事件表
+    # （同期 888 天），B3 暴露侧的"带旧价"本来就以它为准。重叠区间实测两者
+    # **零矛盾**（Wind 判停牌的 10,759 天里 97.1% 在 status 里连行都没有，
+    # 2.9% 有行且一致，反向矛盾 0）。同一个语义问题只该有一个答案。
+    wind_suspension = _read_sql(
+        db,
+        f"""SELECT ts_code AS ticker, trade_date
+            FROM {db['schema']}.stock_suspension
+            WHERE trade_date BETWEEN '2013-05-01' AND %(end)s
+            ORDER BY trade_date, ts_code""",
+        {"end": end.date()},
+    )
+    _require_columns(
+        wind_suspension,
+        {"ticker", "trade_date"},
+        "wind suspension evidence",
+    )
+    wind_suspension = _validate_datetime_columns(
+        wind_suspension,
+        ("trade_date",),
+        "wind suspension evidence",
+    )
+    _validate_string_keys(
+        wind_suspension["ticker"], "wind suspension ticker"
+    )
+    wind_wide = (
+        wind_suspension.assign(is_suspended=True)
+        .drop_duplicates(["trade_date", "ticker"])
+        .pivot(index="trade_date", columns="ticker", values="is_suspended")
+        .astype("boolean")
+        .fillna(False)
+        .astype(bool)
+    )
+
     calendar_frame = _read_sql(
         db,
         f"""SELECT trade_date
@@ -1746,7 +1782,11 @@ def _fetch_stock_return_status(
     if not calendar.is_monotonic_increasing:
         raise DataBlocked("stock return calendar is not sorted")
 
-    columns = returns.columns.union(status_wide.columns).sort_values()
+    columns = (
+        returns.columns.union(status_wide.columns)
+        .union(wind_wide.columns)
+        .sort_values()
+    )
     returns = returns.reindex(index=calendar, columns=columns)
     suspended = (
         suspended_from_price.reindex(
@@ -1754,6 +1794,10 @@ def _fetch_stock_return_status(
             columns=columns,
         ).fillna(False)
         | status_wide.reindex(
+            index=calendar,
+            columns=columns,
+        ).fillna(False)
+        | wind_wide.reindex(
             index=calendar,
             columns=columns,
         ).fillna(False)

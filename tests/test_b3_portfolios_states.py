@@ -325,6 +325,11 @@ def _patch_stock_loader_sql(monkeypatch, frames):
     def fake_read_sql(db, sql, params=None):
         if "stock_daily_price_qfq" in sql:
             return prices.copy()
+        if "stock_suspension" in sql:
+            # 这些用例只考察价格与 status 两个源，Wind 证据留空。
+            return pd.DataFrame(
+                {"ticker": [], "trade_date": pd.to_datetime([])}
+            ).astype({"ticker": object})
         if "stock_status" in sql:
             return status.copy()
         if "index_daily" in sql:
@@ -1428,3 +1433,51 @@ def test_states_stage_is_byte_deterministic(tmp_path):
     assert (
         tmp_path / "manifests" / "states.json"
     ).read_bytes() == first_manifest
+
+
+def test_stock_return_status_loader_honours_wind_suspension_evidence(monkeypatch):
+    """行情整段缺行、stock_status 又无记录时，Wind 停牌证据必须能解释它。
+
+    stock_status 是稀疏快照——2020-05..2023-12 的 891 个交易日里只有 42 天有行，
+    而且 2020-04-30 之前一行没有；它承担不了"这天这只票停牌了吗"这个日频问题。
+    stock_suspension 是日频事件表（同期 888 天）且与 stock_status 零矛盾，
+    B3 暴露侧本来就在用它。2026-08-10 build 首次运行即因此阻断
+    （000020.SZ 2014-11-03 长期停牌，行情无行、status 无行）。
+    """
+    dates = pd.to_datetime(["2021-01-29", "2021-02-01", "2021-02-02"])
+    prices = pd.DataFrame(
+        {
+            "ticker": ["A", "B", "A", "A"],
+            "trade_date": [dates[0], dates[0], dates[1], dates[2]],
+            "close": [10.0, 20.0, 11.0, 12.0],
+            "pre_close": [10.0, 20.0, 10.0, 11.0],
+            "volume": [100.0, 100.0, 100.0, 100.0],
+        }
+    )
+    status = pd.DataFrame(
+        {"ticker": [], "trade_date": pd.to_datetime([]), "is_suspended": []}
+    ).astype({"ticker": object, "is_suspended": bool})
+    suspension = pd.DataFrame({"ticker": ["B"], "trade_date": [dates[1]]})
+    calendar = pd.DataFrame({"trade_date": dates})
+
+    def fake_read_sql(db, sql, params=None):
+        if "stock_daily_price_qfq" in sql:
+            return prices.copy()
+        if "stock_suspension" in sql:
+            return suspension.copy()
+        if "stock_status" in sql:
+            return status.copy()
+        if "index_daily" in sql:
+            return calendar.copy()
+        raise AssertionError(f"unexpected SQL: {sql}")
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql", fake_read_sql
+    )
+
+    returns, suspended = _fetch_stock_return_status(
+        {"schema": "public"}, pd.Timestamp("2021-02-02")
+    )
+
+    assert bool(suspended.loc[dates[1], "B"])
+    assert pd.isna(returns.loc[dates[1], "B"])
