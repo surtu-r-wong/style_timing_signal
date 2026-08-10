@@ -86,6 +86,14 @@
 
 ### Batch 3：Python 3.13.9 + 仓库部署 + 平台闸门（Tier 1）
 
+**（Batch 2 双审后追加的前置事项，2026-08-10）**
+- **Step 0a**：`.wslconfig` `[wsl2]` 段加 `vmIdleTimeout=604800000`（用户已拍板）+ `wsl --shutdown`，复测 boot_id 跨 ≥180s 空闲不变；在此之前不得开任何长跑。
+- **Step 0b**：入口协议修正——2223 不唤醒已关机 VM；分离式 `Start-Process wsl … sleep` 保活无效（实测不留进程）；唤醒只能经 2222 前台 `wsl -d ubuntu2404 -e`。runbook 按此写。
+- **Step 0c**：把目标机 staging 的 `fw_apply.txt`/`fw_apply2.txt`/`fw_probe.txt` scp 归档到 evidence/batch2/（规则建成的唯一原始凭据）。
+- **Step 0d**：VM 保活后消解防火墙规则必要性：删 `WSL2-sshd-2223` → 直测 2223 → 通则留删、不通则按记录命令复建。
+- **共存约束**：宿主上有 B3 正式批（run_guarded_b3.py）与 Wind 网关在跑；宿主侧命令走快路径（禁 `[System.IO.*]` 与防火墙 cmdlet，另案的内核锁风暴未解）；重负载测试推迟到 Batch 4 且需确认 B3 批已结束。
+- **镜像注意**：TUNA 已按 IP 封禁该机（apt 已改阿里云）；pip 镜像先小包试 TUNA，403 即改阿里云。
+
 **Step 1** scp CPython standalone 包进 WSL，装至 `/opt/python3.13.9`，`python3 --version` 逐字 `Python 3.13.9`。
 **Step 2** 仓库部署：优先 WSL 内直接 `git clone ssh://elfbob@<开发机 Tailscale IP>/home/elfbob/claude-code/style_timing_signal`（连通性 Batch 2 已证）；不通则复用 bundle scp 流。HEAD 对齐开发机当前 commit（含 `d0462d2` 两条 POSIX 断言修正之后的提交），`git rev-parse HEAD` 比对。
 **Step 3** venv + 依赖：清华 PyPI 镜像安装；版本清单与开发机 `pip freeze` diff，差异入证据。
