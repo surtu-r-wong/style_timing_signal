@@ -1604,6 +1604,23 @@ def build_interval_evidence_in_batches(
     ).reset_index(drop=True)
 
 
+def _delisted_mask(
+    delisting: pd.DataFrame,
+    calendar: pd.DatetimeIndex,
+    columns: pd.Index,
+) -> pd.DataFrame:
+    """摘牌日（含）之后的每一天，缺价都算已解释。"""
+    mask = pd.DataFrame(False, index=calendar, columns=columns)
+    dates = (
+        delisting.set_index("ticker")["delist_date"]
+        .reindex(columns)
+        .dropna()
+    )
+    for ticker, delist_date in dates.items():
+        mask.loc[calendar >= delist_date, ticker] = True
+    return mask
+
+
 def _fetch_stock_return_status(
     db: dict,
     data_end: pd.Timestamp,
@@ -1755,6 +1772,23 @@ def _fetch_stock_return_status(
         .astype(bool)
     )
 
+    # 摘牌日起不再是定价日：持仓在那天已被处置，要求它有价格是没有意义的。
+    # 实证（stock_selector 全库扫描 2026-08-10）：窗口内每一只退市 A 股在自己
+    # 摘牌日都无价格行、无一例外；Wind trade_status 当日返回 null 而非"退市"，
+    # 所以这不是能靠补数据解决的缺口，是口径问题。
+    delisting = _read_sql(
+        db,
+        f"""SELECT ts_code AS ticker, delist_date
+            FROM {db['schema']}.stock_meta
+            WHERE delist_date IS NOT NULL
+            ORDER BY ts_code""",
+    )
+    _require_columns(delisting, {"ticker", "delist_date"}, "delisting dates")
+    delisting = _validate_datetime_columns(
+        delisting, ("delist_date",), "delisting dates"
+    )
+    _validate_string_keys(delisting["ticker"], "delisting ticker")
+
     calendar_frame = _read_sql(
         db,
         f"""SELECT trade_date
@@ -1801,6 +1835,7 @@ def _fetch_stock_return_status(
             index=calendar,
             columns=columns,
         ).fillna(False)
+        | _delisted_mask(delisting, calendar, columns)
     ).astype(bool)
     returns.index.name = "trade_date"
     suspended.index.name = "trade_date"

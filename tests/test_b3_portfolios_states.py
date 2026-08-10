@@ -330,6 +330,10 @@ def _patch_stock_loader_sql(monkeypatch, frames):
             return pd.DataFrame(
                 {"ticker": [], "trade_date": pd.to_datetime([])}
             ).astype({"ticker": object})
+        if "stock_meta" in sql:
+            return pd.DataFrame(
+                {"ticker": [], "delist_date": pd.to_datetime([])}
+            ).astype({"ticker": object})
         if "stock_status" in sql:
             return status.copy()
         if "index_daily" in sql:
@@ -1465,6 +1469,10 @@ def test_stock_return_status_loader_honours_wind_suspension_evidence(monkeypatch
             return prices.copy()
         if "stock_suspension" in sql:
             return suspension.copy()
+        if "stock_meta" in sql:
+            return pd.DataFrame(
+                {"ticker": [], "delist_date": pd.to_datetime([])}
+            ).astype({"ticker": object})
         if "stock_status" in sql:
             return status.copy()
         if "index_daily" in sql:
@@ -1481,3 +1489,61 @@ def test_stock_return_status_loader_honours_wind_suspension_evidence(monkeypatch
 
     assert bool(suspended.loc[dates[1], "B"])
     assert pd.isna(returns.loc[dates[1], "B"])
+
+
+def test_stock_return_status_loader_explains_days_from_delisting(monkeypatch):
+    """摘牌日起不再是定价日——持仓在那天已被处置，不该要求它有价格。
+
+    实证（stock_selector 全库扫描，2026-08-10）：窗口内每一只退市 A 股在自己
+    摘牌日都无价格行、无一例外；Wind trade_status 当日返回 null 而非"退市"，
+    所以补数据也补不出 is_suspended=True。摘牌日对该券根本不是交易日。
+
+    formation 侧的活跃判定改右端只管住"formation 日恰好是摘牌日"；真正会撞闸
+    的是持有期中途摘牌——第十三跑即如此（000562.SZ 最后成交 2014-12-09、
+    2015-01-26 摘牌，在 2014-12-31 的 formation 被选中，摘牌日落在持有期内）。
+    """
+    dates = pd.to_datetime(["2021-01-29", "2021-02-01", "2021-02-02"])
+    prices = pd.DataFrame(
+        {
+            "ticker": ["A", "B", "A", "A"],
+            "trade_date": [dates[0], dates[0], dates[1], dates[2]],
+            "close": [10.0, 20.0, 11.0, 12.0],
+            "pre_close": [10.0, 20.0, 10.0, 11.0],
+            "volume": [100.0, 100.0, 100.0, 100.0],
+        }
+    )
+    empty_status = pd.DataFrame(
+        {"ticker": [], "trade_date": pd.to_datetime([]), "is_suspended": []}
+    ).astype({"ticker": object, "is_suspended": bool})
+    empty_susp = pd.DataFrame(
+        {"ticker": [], "trade_date": pd.to_datetime([])}
+    ).astype({"ticker": object})
+    meta = pd.DataFrame({"ticker": ["B"], "delist_date": [dates[1]]})
+    calendar = pd.DataFrame({"trade_date": dates})
+
+    def fake_read_sql(db, sql, params=None):
+        if "stock_daily_price_qfq" in sql:
+            return prices.copy()
+        if "stock_suspension" in sql:
+            return empty_susp.copy()
+        if "stock_status" in sql:
+            return empty_status.copy()
+        if "stock_meta" in sql:
+            return meta.copy()
+        if "index_daily" in sql:
+            return calendar.copy()
+        raise AssertionError(f"unexpected SQL: {sql}")
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql", fake_read_sql
+    )
+
+    returns, suspended = _fetch_stock_return_status(
+        {"schema": "public"}, pd.Timestamp("2021-02-02")
+    )
+
+    # 摘牌当日与其后，缺价都算已解释
+    assert bool(suspended.loc[dates[1], "B"])
+    assert bool(suspended.loc[dates[2], "B"])
+    # 摘牌之前不受影响
+    assert not bool(suspended.loc[dates[0], "B"])
