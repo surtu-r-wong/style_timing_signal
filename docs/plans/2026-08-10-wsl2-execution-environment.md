@@ -75,7 +75,7 @@
 ### Batch 2：导入发行版 + 内存/网络/SSH 入口（Tier 1）
 
 **Step 1** 重启后确认 `wsl --status`（默认版本 2）。
-**Step 2** scp Ubuntu 镜像 + `.wslconfig`（→ `C:\Users\ghls\.wslconfig`）；`wsl --import ubuntu2404 D:\wsl\ubuntu2404 <镜像> --version 2`。
+**Step 2** scp Ubuntu 镜像 + `.wslconfig`（→ `C:\Users\ghls\.wslconfig`）；`wsl --import ubuntu2404 D:\wsl\ubuntu2404 <镜像> --version 2`。**（Batch 0 QA F2）**mirrored 模式下 WSL 经宿主已分配 IP（100.120.152.1）访问宿主需 `hostAddressLoopback=true`（按当时官方文档核对该键所属段落）；`localhost` 访问宿主网关不受影响。
 **Step 3** WSL 内初始化（scp 脚本执行）：建用户、`wsl.conf`、apt 换清华/华为源、装 `openssh-server tmux git`；`wsl --shutdown` 后重进使配置生效。
 **Step 4** 资源验证：`free -g` 总量 ≈ 100G；`nproc` = 核数-2。
 **Step 5** 网络四连测（WSL → Debian `100.65.111.79`）+ 到开发机 + 到宿主 Wind 网关端口（mirrored 下 `localhost`）。mirrored 不通 → 改 `.wslconfig` 为 NAT 复测；NAT 下网关经宿主网关 IP。两条都记录证据。若最终需要 WSL 内装 tailscale 独立节点，先报用户再动。
