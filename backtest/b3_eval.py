@@ -34,6 +34,13 @@ from backtest.b3_structure import (
     fit_model,
     next_formation_targets,
 )
+from backtest.b3_windows import (
+    MODEL_DISCOVERY_END,
+    MODEL_DISCOVERY_START,
+    MODEL_PERIOD_WINDOWS,
+    MODEL_STATE_COVERAGE_WINDOWS,
+    STRUCTURAL_DISCOVERY_START,
+)
 from backtest.metrics import ann_return, max_drawdown, sharpe, turnover
 from backtest.positions import production_position
 from backtest.rotation_probe import partial_rank_ic
@@ -186,6 +193,19 @@ _PREFLIGHT_BLOCKER_KEYS = {
 }
 _VERIFIED_PREFLIGHT_TOKEN = object()
 
+_FROZEN_MODEL_END = max(
+    end
+    for _, _, end, affects_verdict in MODEL_PERIOD_WINDOWS
+    if affects_verdict
+)
+_FROZEN_EVIDENCE_BOUNDARY_MONTH = _FROZEN_MODEL_END.to_period("M") + 1
+_MODEL_DISCOVERY_WINDOW = (
+    f"{MODEL_DISCOVERY_START.year}-{MODEL_DISCOVERY_END.year}"
+)
+_MODEL_HISTORY_WINDOW = (
+    f"{MODEL_DISCOVERY_START.year}-{_FROZEN_MODEL_END.year}"
+)
+
 TRADING_CALENDAR_QUERY_TEMPLATE = """SELECT calendar_date, sfe
 FROM public.trading_calendar
 WHERE calendar_date BETWEEN '2013-05-01' AND %(calendar_end)s
@@ -196,7 +216,8 @@ TRADING_CALENDAR_QUERY_TEMPLATE_HASH = hashlib.sha256(
 ).hexdigest()
 TRUE_DISCLOSURE_COVERAGE_BASIS = (
     "explicit true_first_disclosure_verified on model rows for every frozen "
-    "PIT policy and formation month from 2014-01 through 2023-12"
+    f"PIT policy and formation month from "
+    f"{STRUCTURAL_DISCOVERY_START:%Y-%m} through {_FROZEN_MODEL_END:%Y-%m}"
 )
 
 
@@ -900,7 +921,11 @@ def compute_true_disclosure_coverage(
     ]
     model["_formation_date"] = model_dates
     periods = pd.PeriodIndex(model["_formation_date"], freq="M")
-    required_periods = pd.period_range("2014-01", "2023-12", freq="M")
+    required_periods = pd.period_range(
+        STRUCTURAL_DISCOVERY_START.to_period("M"),
+        _FROZEN_MODEL_END.to_period("M"),
+        freq="M",
+    )
     required_mask = periods.isin(required_periods)
     required = model.loc[required_mask].copy()
     if required.empty:
@@ -1446,7 +1471,7 @@ def _validate_model_domain(
                     candidate,
                     q,
                     target,
-                    "2014-2020",
+                    _MODEL_DISCOVERY_WINDOW,
                     "M1",
                     "",
                 ),
@@ -1504,12 +1529,7 @@ def _validate_model_domain(
                     ),
                     affects_verdict=True,
                 )
-            for window, affects_verdict in (
-                ("2015-2017", True),
-                ("2018-2020", True),
-                ("2021-2023", True),
-                ("2014-2020", False),
-            ):
+            for window, _, _, affects_verdict in MODEL_STATE_COVERAGE_WINDOWS:
                 add(
                     (
                         policy,
@@ -2584,30 +2604,43 @@ def _validate_formations(
         pd.period_range(periods[0], periods[-1], freq="M")
     ):
         raise DataBlocked("formation dates must be monthly continuous")
+    if periods[0] != STRUCTURAL_DISCOVERY_START.to_period("M"):
+        raise DataBlocked(
+            "formation dates must start in "
+            f"{STRUCTURAL_DISCOVERY_START:%Y-%m}"
+        )
+    if periods[-1] < _FROZEN_EVIDENCE_BOUNDARY_MONTH:
+        raise DataBlocked(
+            "formation dates must extend through "
+            f"{_FROZEN_EVIDENCE_BOUNDARY_MONTH} next-formation boundary"
+        )
     if not formations.isin(calendar).all():
         raise DataBlocked("formation dates must lie on the daily calendar")
-    required_periods = pd.period_range("2014-01", "2023-12", freq="M")
-    required_formations = formations[periods.isin(required_periods)]
-    if not required_formations.to_period("M").equals(required_periods):
-        raise DataBlocked(
-            "formation dates must cover every fixed-window month"
-        )
     calendar_periods = calendar.to_period("M")
     expected_month_ends = pd.DatetimeIndex(
         [
             calendar[calendar_periods == period][-1]
-            for period in required_periods
+            for period in periods
             if (calendar_periods == period).any()
         ]
     )
     if (
-        len(expected_month_ends) != len(required_periods)
-        or not required_formations.equals(expected_month_ends)
+        len(expected_month_ends) != len(formations)
+        or not formations.equals(expected_month_ends)
     ):
         raise DataBlocked(
-            "formation dates must equal fixed-window monthly last trading days"
+            "formation dates must equal monthly last trading days"
         )
-    return formations
+    model_formations = formations[formations >= MODEL_DISCOVERY_START]
+    if (
+        len(model_formations) < 2
+        or model_formations[0].to_period("M")
+        != MODEL_DISCOVERY_START.to_period("M")
+    ):
+        raise DataBlocked(
+            "model formation dates must start in 2015-01 and contain two months"
+        )
+    return model_formations
 
 
 def _validate_score_inputs(
@@ -2629,9 +2662,8 @@ def _validate_score_inputs(
     _evaluation_config(cfg)
     try:
         policies = tuple(cfg["pit"]["policies"])
-        discovery_values = cfg["windows"]["discovery"]
     except (KeyError, TypeError) as exc:
-        raise DataBlocked("B3 configuration lacks PIT or discovery settings") from exc
+        raise DataBlocked("B3 configuration lacks PIT settings") from exc
     if (
         not policies
         or len(set(policies)) != len(policies)
@@ -2643,14 +2675,7 @@ def _validate_score_inputs(
         )
     ):
         raise DataBlocked("B3 PIT policies must be unique canonical strings")
-    if not isinstance(discovery_values, list) or len(discovery_values) != 2:
-        raise DataBlocked("B3 discovery window must contain two dates")
-    discovery = (
-        _strict_timestamp(discovery_values[0], "discovery start"),
-        _strict_timestamp(discovery_values[1], "discovery end"),
-    )
-    if discovery[0] > discovery[1]:
-        raise DataBlocked("B3 discovery window is reversed")
+    discovery = (MODEL_DISCOVERY_START, MODEL_DISCOVERY_END)
 
     if not isinstance(target_returns, dict) or set(target_returns) != {
         "blend",
@@ -2675,7 +2700,18 @@ def _validate_score_inputs(
         raise DataBlocked("blend target returns must equal the 50/50 cash blend")
     control = _validate_finite_series(equal_weight_signal, "equal_weight signal")
     _require_same_grid(calendar, control, "equal_weight signal")
-    formations = _validate_formations(formation_dates, calendar)
+    model_formations = _validate_formations(formation_dates, calendar)
+    model_calendar = calendar[calendar >= model_formations.min()]
+    if model_calendar.empty:
+        raise DataBlocked("model daily calendar is empty")
+    targets = {
+        name: values.loc[model_calendar].copy()
+        for name, values in targets.items()
+    }
+    control = control.loc[model_calendar].copy()
+    for name, values in targets.items():
+        _require_same_grid(model_calendar, values, f"{name} target returns")
+    _require_same_grid(model_calendar, control, "equal_weight signal")
 
     required = {"date", "pit_policy", "q", "state", "F_U", "F_D", "F_X"}
     if (
@@ -2706,6 +2742,10 @@ def _validate_score_inputs(
     keys = ["date", "pit_policy", "q"]
     if states.duplicated(keys).any():
         raise DataBlocked("state components contain duplicate keys")
+    states = states.loc[
+        states["date"].ge(model_calendar.min())
+        & states["date"].le(model_calendar.max())
+    ].copy()
     for column in ("F_U", "F_D", "F_X"):
         if states[column].map(lambda value: isinstance(value, (bool, np.bool_))).any():
             raise DataBlocked(f"state components {column} cannot be boolean")
@@ -2721,9 +2761,9 @@ def _validate_score_inputs(
                     "date",
                 ].sort_values(kind="mergesort")
             )
-            if not dates.equals(calendar):
+            if not dates.equals(model_calendar):
                 raise DataBlocked("state component daily grids must match cash returns")
-    return states, targets, control, formations, policies, discovery
+    return states, targets, control, model_formations, policies, discovery
 
 
 def fit_frozen_m1_scores(
@@ -3932,7 +3972,7 @@ def _validate_yearly_output(
         raise RuntimeError("yearly PIT policy set changed")
     if set(output["candidate"]) != {"B3_unified", "B3_dual_target"}:
         raise RuntimeError("yearly candidate family changed")
-    mandatory_windows = {"2021-2023", "2014-2023"}
+    mandatory_windows = {"2021-2023", _MODEL_HISTORY_WINDOW}
     allowed_windows = mandatory_windows | {"2024-2026-report-only"}
     actual_windows = set(output["window"])
     if not mandatory_windows.issubset(actual_windows) or not actual_windows.issubset(
@@ -3960,7 +4000,9 @@ def _validate_yearly_output(
 
     expected_years = {
         "2021-2023": {2021, 2022, 2023},
-        "2014-2023": set(range(2014, 2024)),
+        _MODEL_HISTORY_WINDOW: set(
+            range(MODEL_DISCOVERY_START.year, _FROZEN_MODEL_END.year + 1)
+        ),
     }
     if "2024-2026-report-only" in actual_windows:
         report_years = set(
@@ -4007,7 +4049,7 @@ def _validate_yearly_output(
                     or len(group) != len(required_years) + 1
                 ):
                     raise RuntimeError("yearly row semantics have wrong year coverage")
-                expected_in_sample = window == "2014-2023"
+                expected_in_sample = window == _MODEL_HISTORY_WINDOW
                 if not group["is_in_sample"].eq(expected_in_sample).all():
                     raise RuntimeError("yearly row semantics have wrong sample label")
                 if (
@@ -4168,12 +4210,13 @@ def build_evaluation(
         raise DataBlocked("common carry calendar contains an internal gap")
     cash_500 = targets["500"].loc[calendar]
     cash_1000 = targets["1000"].loc[calendar]
+    model_control = control
     control = control.loc[calendar]
     full_scores = fit_frozen_m1_scores(
-        states,
-        targets,
+        state_components,
+        target_returns,
         equal_weight_signal,
-        formations,
+        formation_dates,
         cfg,
     )
     scores = {key: value.loc[calendar] for key, value in full_scores.items()}
@@ -4372,7 +4415,7 @@ def build_evaluation(
             value, partial_n = _monthly_partial_for_window(
                 full_scores[(policy, q)],
                 targets[target_name],
-                equal_weight_signal,
+                model_control,
                 formations,
                 im_launch,
                 confirmation_end,
@@ -4470,17 +4513,21 @@ def build_evaluation(
                 }
             )
 
-        history_end = min(pd.Timestamp("2023-12-31"), calendar.max())
+        history_end = min(_FROZEN_MODEL_END, calendar.max())
         full_history = calendar[
-            (calendar >= pd.Timestamp("2014-01-01"))
+            (calendar >= MODEL_DISCOVERY_START)
             & (calendar <= history_end)
         ]
         if (
             not len(full_history)
-            or full_history.min().to_period("M") != pd.Period("2014-01", freq="M")
-            or full_history.max().to_period("M") != pd.Period("2023-12", freq="M")
+            or full_history.min().to_period("M")
+            != MODEL_DISCOVERY_START.to_period("M")
+            or full_history.max().to_period("M")
+            != _FROZEN_MODEL_END.to_period("M")
         ):
-            raise DataBlocked("2014-2023 yearly diagnostic window is incomplete")
+            raise DataBlocked(
+                f"{_MODEL_HISTORY_WINDOW} yearly diagnostic window is incomplete"
+            )
         for candidate, positions in candidate_positions.items():
             history_positions = tuple(
                 position.loc[full_history] for position in positions
@@ -4508,7 +4555,7 @@ def build_evaluation(
                     policy,
                     candidate,
                     history_returns,
-                    "2014-2023",
+                    _MODEL_HISTORY_WINDOW,
                     True,
                 )
             )
