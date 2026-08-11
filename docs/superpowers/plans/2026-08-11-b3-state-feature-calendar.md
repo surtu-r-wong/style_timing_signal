@@ -464,17 +464,22 @@ git commit -m "fix(b3): split structural and model calendars"
 In `_evaluation_inputs`, start the synthetic calendar at `2014-10-01`. Set `F_U`, `F_D`, and `F_X` to NaN before `2015-01-01`, then add:
 
 ```python
-def test_eval_accepts_structural_warmup_but_trims_scores_to_model_calendar():
-    cfg, _, formations, states, targets, equal_weight, _ = _evaluation_inputs()
+def test_eval_accepts_structural_warmup_but_trims_only_before_model_calendar():
+    cfg, calendar, formations, states, targets, equal_weight, _ = _evaluation_inputs()
+    data_end = pd.Timestamp("2024-12-31")
 
     validated = _validate_score_inputs(
-        states, targets, equal_weight, formations, cfg
+        states, targets, equal_weight, formations, cfg, data_end
     )
-    validated_states, validated_targets, _, model_formations, _, discovery = validated
+    validated_states, validated_targets, control, model_formations, _, discovery = validated
 
     assert model_formations[0].to_period("M") == pd.Period("2015-01")
+    model_calendar = calendar[calendar >= model_formations.min()]
     assert validated_states["date"].min() == model_formations[0]
     assert validated_targets["500"].index.min() == model_formations[0]
+    assert validated_states["date"].max() == calendar.max()
+    assert validated_targets["500"].index.max() == calendar.max()
+    assert control.index.equals(model_calendar)
     assert discovery == (
         pd.Timestamp("2015-01-01"),
         pd.Timestamp("2020-12-31"),
@@ -483,7 +488,7 @@ def test_eval_accepts_structural_warmup_but_trims_scores_to_model_calendar():
 
 Import `_validate_score_inputs` and the shared window constants in the test file.
 
-- [ ] **Step 2: Write the failing eval model-gap test**
+- [ ] **Step 2: Write the failing cutoff-boundary and eval model-gap tests**
 
 ```python
 def test_eval_still_blocks_nonfinite_feature_on_model_calendar():
@@ -496,33 +501,56 @@ def test_eval_still_blocks_nonfinite_feature_on_model_calendar():
 
     with pytest.raises(DataBlocked, match="F_X.*finite"):
         _validate_score_inputs(
-            states, targets, equal_weight, formations, cfg
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            pd.Timestamp("2024-12-31"),
         )
 ```
+
+Also add focused regressions with explicit `data_end` values:
+
+- `test_eval_preserves_midmonth_report_tail_after_last_formation`: with a `2024-07-10` cutoff and formations ending on the June last trading day, require every validated daily grid and the report-only output to retain the July tail;
+- `test_eval_rejects_incomplete_cutoff_month_formation`: with the same midmonth cutoff, reject a supplied July formation because the cutoff month is incomplete;
+- `test_eval_requires_december_2023_frozen_evidence_boundary`: formations through November 2023 are insufficient;
+- `test_eval_accepts_exact_december_boundary_at_formal_cutoff`: a `2023-12-31` cutoff accepts the exact December 2023 last trading day. It does not require a January 2024 formation.
 
 - [ ] **Step 3: Run the new eval tests and verify RED**
 
 ```bash
 python3 -m pytest \
-  tests/test_b3_eval.py::test_eval_accepts_structural_warmup_but_trims_scores_to_model_calendar \
+  tests/test_b3_eval.py::test_eval_accepts_structural_warmup_but_trims_only_before_model_calendar \
+  tests/test_b3_eval.py::test_eval_preserves_midmonth_report_tail_after_last_formation \
+  tests/test_b3_eval.py::test_eval_rejects_incomplete_cutoff_month_formation \
   tests/test_b3_eval.py::test_eval_still_blocks_nonfinite_feature_on_model_calendar \
+  tests/test_b3_eval.py::test_eval_requires_december_2023_frozen_evidence_boundary \
+  tests/test_b3_eval.py::test_eval_accepts_exact_december_boundary_at_formal_cutoff \
   -q
 ```
 
-Expected: the warm-up test fails because eval currently requires every pre-2015 feature to be finite and treats config's 2014-10 structural start as the model discovery start.
+Expected before implementation: the tests expose the pre-2015 finiteness requirement, the implicit cutoff, the missing frozen-evidence boundary, and the incorrect loss of daily rows after the final completed formation month.
 
 - [ ] **Step 4: Validate the structural proof and return model formations**
 
-Import the shared constants. In `_validate_formations`, require the structural period range from `2014-10` through `2023-12`, verify exact last trading days, then return the frozen model subset:
+Import the shared constants and add a required `data_end` argument to `_validate_formations`. Normalize it with `_strict_timestamp`, reject a source calendar or formation after that cutoff, and require continuous monthly formations starting in `2014-10` and extending at least through the frozen-evidence boundary of `2023-12`. December 2023 is the proof boundary; January 2024 is not required. For a midmonth cutoff, reject any formation in the still-incomplete cutoff month. Verify every supplied formation, including post-proof months, against the exact last observed trading day in its calendar month, then return the frozen model subset:
 
 ```python
-    required_periods = pd.period_range("2014-10", "2023-12", freq="M")
+    cutoff = _strict_timestamp(data_end, "evaluation data_end")
+    if calendar.max() > cutoff:
+        raise DataBlocked("evaluation source calendar contains dates after data_end")
+    periods = formations.to_period("M")
     if periods[0] != STRUCTURAL_DISCOVERY_START.to_period("M"):
         raise DataBlocked("formation dates must start in 2014-10")
-    required_formations = formations[periods.isin(required_periods)]
-    if not required_formations.to_period("M").equals(required_periods):
-        raise DataBlocked("formation dates must cover every structural month")
-    # Keep the existing exact-last-trading-day check here.
+    if periods[-1] < pd.Period("2023-12", freq="M"):
+        raise DataBlocked("formation dates must extend through 2023-12")
+    if formations.max() > cutoff:
+        raise DataBlocked("formation dates cannot extend after data_end")
+    if not cutoff.is_month_end and (periods == cutoff.to_period("M")).any():
+        raise DataBlocked("formation dates contain an incomplete cutoff-month formation")
+    # Check monthly continuity and every supplied formation against the
+    # calendar's exact last observed trading day for its month.
     model_formations = formations[formations >= MODEL_DISCOVERY_START]
     if (
         len(model_formations) < 2
@@ -533,21 +561,22 @@ Import the shared constants. In `_validate_formations`, require the structural p
     return model_formations
 ```
 
-- [ ] **Step 5: Trim score inputs only after validating the full sources**
+- [ ] **Step 5: Propagate the explicit cutoff and trim only the calendar start**
 
-In `_validate_score_inputs`, keep full-series finite/grid/blend checks first. After `_validate_formations`, define the exact model daily calendar:
+Make `data_end` a required argument with no implicit default in `_validate_score_inputs`, `fit_frozen_m1_scores`, and `build_evaluation`, and pass it through every call. In `run_evaluation`, derive `cutoff = pd.Timestamp(preflight.data_end)` after preflight validation and pass that cutoff into `build_evaluation`.
+
+In `_validate_score_inputs`, keep full-source finite/grid/blend checks first and reject a source calendar after the normalized cutoff. After `_validate_formations`, define the exact model daily calendar by trimming only dates before the first model formation:
 
 ```python
-    formations = _validate_formations(formation_dates, calendar)
-    model_calendar = calendar[
-        (calendar >= formations.min()) & (calendar <= formations.max())
-    ]
+    cutoff = _strict_timestamp(data_end, "evaluation data_end")
+    model_formations = _validate_formations(formation_dates, calendar, cutoff)
+    model_calendar = calendar[calendar >= model_formations.min()]
     targets = {name: series.loc[model_calendar] for name, series in targets.items()}
     control = control.loc[model_calendar]
     discovery = (MODEL_DISCOVERY_START, MODEL_DISCOVERY_END)
 ```
 
-Filter state rows to `model_calendar.min()` through `model_calendar.max()` before numeric finiteness checks, then require every policy/q date grid to equal `model_calendar`. Return the trimmed targets, control, states, and model formations.
+Do not upper-bound `model_calendar` at `model_formations.max()`: the validated full source calendar, including any daily report tail through `data_end`, remains in scope after the final completed formation. Filter state rows to `model_calendar.min()` through the full `model_calendar.max()` before numeric finiteness checks, then require every policy/q date grid to equal `model_calendar`. Return the trimmed targets, control, states, and model formations.
 
 - [ ] **Step 6: Update every eval model-window consumer**
 
