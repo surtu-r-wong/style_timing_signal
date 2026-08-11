@@ -1840,7 +1840,7 @@ def test_model_comparison_still_blocks_missing_model_formation_feature():
 def test_model_comparison_blocks_missing_frozen_evidence_boundary():
     inputs = list(_model_comparison_inputs())
     inputs[6] = inputs[6][
-        inputs[6].to_period("M") <= pd.Period("2024-01", freq="M")
+        inputs[6].to_period("M") <= pd.Period("2023-12", freq="M")
     ]
 
     complete = build_model_comparison(*inputs)
@@ -1848,7 +1848,7 @@ def test_model_comparison_blocks_missing_frozen_evidence_boundary():
     hard_sort = complete[
         complete["gate_name"].eq("hard_sort_complete")
     ]
-    assert hard_sort["n"].eq(111).all()
+    assert hard_sort["n"].eq(110).all()
     assert hard_sort["gate_pass"].eq(True).all()
     confirmation_name = MODEL_PERIOD_WINDOWS[2][0]
     axis_gate = complete[
@@ -1859,20 +1859,20 @@ def test_model_comparison_blocks_missing_frozen_evidence_boundary():
         & complete["gate_name"].eq("")
         & complete["model"].isin({"M0", "M1"})
     ]
-    # 2023-12 -> 2024-01 是跨 confirmation 末端的 holding period；按
-    # _closed_formation_window 的冻结语义，它只补齐结构审计，不进入模型指标。
+    # cutoff 月的 formation 只作为最后 boundary，不产 forward-return row；
+    # 因此 2023-12 截止时结构审计止于 2023-11，confirmation 仍为 35 期。
     assert len(axis_gate) == 2
     assert axis_gate["n"].eq(35).all()
     assert len(confirmation_metrics) == 12
     assert confirmation_metrics["n"].eq(35).all()
 
     inputs[6] = inputs[6][
-        inputs[6].to_period("M") <= pd.Period("2023-12", freq="M")
+        inputs[6].to_period("M") <= pd.Period("2023-11", freq="M")
     ]
 
     with pytest.raises(
         DataBlocked,
-        match="through 2024-01 next-formation boundary for frozen evidence",
+        match="through 2023-12.*frozen evidence",
     ):
         build_model_comparison(*inputs)
 

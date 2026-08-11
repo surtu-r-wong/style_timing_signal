@@ -108,9 +108,7 @@ _FROZEN_EVIDENCE_END = max(
     for _, _, end, affects_verdict in MODEL_PERIOD_WINDOWS
     if affects_verdict
 )
-_FROZEN_EVIDENCE_BOUNDARY_MONTH = (
-    _FROZEN_EVIDENCE_END.to_period("M") + 1
-)
+_FROZEN_EVIDENCE_END_MONTH = _FROZEN_EVIDENCE_END.to_period("M")
 _REPORT_WINDOW_NAME = next(
     name
     for name, _, _, affects_verdict in MODEL_PERIOD_WINDOWS
@@ -1350,11 +1348,10 @@ def _validated_model_comparison_inputs(
         )
     if periods[0] != STRUCTURAL_DISCOVERY_START.to_period("M"):
         raise DataBlocked("structural formation dates must start in 2014-10")
-    if periods[-1] < _FROZEN_EVIDENCE_BOUNDARY_MONTH:
+    if periods[-1] < _FROZEN_EVIDENCE_END_MONTH:
         raise DataBlocked(
             "structural formation dates must extend through "
-            f"{_FROZEN_EVIDENCE_BOUNDARY_MONTH} next-formation boundary "
-            "for frozen evidence"
+            f"{_FROZEN_EVIDENCE_END_MONTH} for frozen evidence"
         )
     model_formations = structural_formations[
         structural_formations >= MODEL_DISCOVERY_START
