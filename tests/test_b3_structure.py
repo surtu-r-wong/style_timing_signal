@@ -522,7 +522,7 @@ def test_structure_coefficients_freeze_schema_windows_and_verdict_flags():
         # 113 个输入月 − 3 − 1 = 109。首期取整年 2015-2017 之后，discovery 起点的
         # 2014-10..12 三个月映射不到任何 WINDOW_SPECS 分期（monthly 行按
         # _window_for_date 过滤），因此不产出结构行；末月无前向收益再去掉一个。
-        # 那三个月仍参与 M0/M1 估计，也仍在 state coverage 的 2014-2020 全期检查内。
+        # 那三个月只参加 exposure / hard-sort / structural audit，不进入模型日历。
         assert len(monthly) == 109
         assert list(summary["window"]) == [
             "2015-2017",
@@ -1458,7 +1458,7 @@ def test_report_only_mutation_cannot_change_frozen_model():
 def _model_comparison_inputs():
     cfg = load_b3_config()
     policies = tuple(cfg["pit"]["policies"])
-    calendar = pd.bdate_range("2015-01-01", "2026-12-31")
+    calendar = pd.bdate_range("2014-10-01", "2026-12-31")
     formations = pd.DatetimeIndex(
         pd.Series(calendar, index=calendar)
         .groupby(calendar.to_period("M"))
@@ -1519,6 +1519,10 @@ def _model_comparison_inputs():
                     }
                 )
     states = pd.DataFrame(state_rows)
+    states.loc[
+        states["date"].lt(pd.Timestamp("2015-01-01")),
+        ["F_U", "F_D", "F_X", "F_T"],
+    ] = np.nan
 
     target_returns = {}
     target_q = {"blend": "qblend", "500": "q500", "1000": "q1000"}
@@ -1577,6 +1581,8 @@ def _model_comparison_inputs():
                 }
             )
         for formation in formations[:-1]:
+            if formation < pd.Timestamp("2015-01-01"):
+                continue
             if formation <= pd.Timestamp("2017-12-31"):
                 window = "2015-2017"
                 affects_verdict = True
@@ -1609,7 +1615,7 @@ def _model_comparison_inputs():
 
     surface_rows = []
     required_formations = formations[
-        (formations >= pd.Timestamp("2015-01-01"))
+        (formations >= pd.Timestamp("2014-10-01"))
         & (formations <= pd.Timestamp("2023-12-31"))
     ]
     cells = [("2x3", cell) for cell in (
@@ -1761,6 +1767,116 @@ def test_model_comparison_emits_public_leg_and_dual_and_gates():
     assert dual["gate_pass"].eq(False).all()
 
 
+def test_model_comparison_excludes_structural_prefix_from_model_calendar():
+    inputs = list(_model_comparison_inputs())
+
+    baseline = build_model_comparison(*inputs)
+
+    discovery = baseline[
+        baseline["window"].eq("2015-2020")
+        & baseline["model"].eq("M1")
+        & baseline["gate_name"].eq("")
+    ]
+    hard_sort = baseline[baseline["gate_name"].eq("hard_sort_complete")]
+    assert len(discovery) == 6
+    assert hard_sort["gate_pass"].eq(True).all()
+
+    surface = inputs[3]
+    inputs[3] = surface[
+        surface["formation_date"].ge(pd.Timestamp("2015-01-01"))
+    ].copy()
+
+    changed = build_model_comparison(*inputs)
+
+    baseline_non_hard_sort = baseline[
+        baseline["gate_name"].ne("hard_sort_complete")
+    ].reset_index(drop=True)
+    changed_non_hard_sort = changed[
+        changed["gate_name"].ne("hard_sort_complete")
+    ].reset_index(drop=True)
+    pd.testing.assert_frame_equal(
+        baseline_non_hard_sort,
+        changed_non_hard_sort,
+    )
+
+    changed_hard_sort = changed[
+        changed["gate_name"].eq("hard_sort_complete")
+    ].reset_index(drop=True)
+    hard_sort = hard_sort.reset_index(drop=True)
+    policies = inputs[7]["pit"]["policies"]
+    assert set(
+        hard_sort[
+            ["pit_policy", "candidate", "window", "gate_name"]
+        ].itertuples(index=False, name=None)
+    ) == {
+        (policy, "PUBLIC", "structure", "hard_sort_complete")
+        for policy in policies
+    }
+    assert hard_sort["q"].eq("").all()
+    assert hard_sort["target"].eq("").all()
+    assert hard_sort["model"].eq("").all()
+    assert hard_sort["n"].eq(111).all()
+    assert hard_sort["affects_verdict"].eq(True).all()
+    pd.testing.assert_frame_equal(
+        hard_sort.drop(columns="gate_pass"),
+        changed_hard_sort.drop(columns="gate_pass"),
+    )
+    assert changed_hard_sort["gate_pass"].eq(False).all()
+
+
+def test_model_comparison_still_blocks_missing_model_formation_feature():
+    inputs = list(_model_comparison_inputs())
+    formation = inputs[6][
+        inputs[6] >= pd.Timestamp("2015-01-01")
+    ][0]
+    states = inputs[0].copy()
+    states.loc[states["date"].eq(formation), "F_X"] = np.nan
+    inputs[0] = states
+
+    with pytest.raises(DataBlocked, match="F_X|formation features"):
+        build_model_comparison(*inputs)
+
+
+def test_model_comparison_blocks_missing_frozen_evidence_boundary():
+    inputs = list(_model_comparison_inputs())
+    inputs[6] = inputs[6][
+        inputs[6].to_period("M") <= pd.Period("2024-01", freq="M")
+    ]
+
+    complete = build_model_comparison(*inputs)
+
+    hard_sort = complete[
+        complete["gate_name"].eq("hard_sort_complete")
+    ]
+    assert hard_sort["n"].eq(111).all()
+    assert hard_sort["gate_pass"].eq(True).all()
+    confirmation_name = MODEL_PERIOD_WINDOWS[2][0]
+    axis_gate = complete[
+        complete["gate_name"].eq("interaction_axis_corr")
+    ]
+    confirmation_metrics = complete[
+        complete["window"].eq(confirmation_name)
+        & complete["gate_name"].eq("")
+        & complete["model"].isin({"M0", "M1"})
+    ]
+    # 2023-12 -> 2024-01 是跨 confirmation 末端的 holding period；按
+    # _closed_formation_window 的冻结语义，它只补齐结构审计，不进入模型指标。
+    assert len(axis_gate) == 2
+    assert axis_gate["n"].eq(35).all()
+    assert len(confirmation_metrics) == 12
+    assert confirmation_metrics["n"].eq(35).all()
+
+    inputs[6] = inputs[6][
+        inputs[6].to_period("M") <= pd.Period("2023-12", freq="M")
+    ]
+
+    with pytest.raises(
+        DataBlocked,
+        match="through 2024-01 next-formation boundary for frozen evidence",
+    ):
+        build_model_comparison(*inputs)
+
+
 def test_model_comparison_adds_one_run_level_pit_policy_flip_row():
     baseline = _build_synthetic_model_comparison()
     pit = baseline[baseline["gate_name"].eq("PIT_POLICY_FLIP")]
@@ -1900,7 +2016,7 @@ def test_post_2020_target_mutation_cannot_change_discovery_or_stability():
 
     changed = build_model_comparison(*inputs)
     protected = baseline["window"].isin(
-        {"2015-2017", "2018-2020", "2014-2020"}
+        {"2015-2017", "2018-2020", "2015-2020"}
     ) | baseline["gate_name"].eq("stability")
     baseline_protected = baseline[protected].reset_index(drop=True)
     protected_keys = set(
