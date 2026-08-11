@@ -1,9 +1,13 @@
 # B3 state/model calendar + equal-weight provenance handoff
 
-**Updated:** 2026-08-11 Asia/Shanghai  
-**Local integration clone:** `/tmp/b3-equal-weight-merge.8ZS8FO/repo`  
-**Local branch:** `merge-equal-weight`  
-**Formal Windows repo:** `D:/style_timing_signal`  
+**Updated:** 2026-08-11 Asia/Shanghai
+
+**Local integration clone:** `/tmp/b3-equal-weight-merge.8ZS8FO/repo`
+
+**Local branch:** `merge-equal-weight`
+
+**Formal Windows repo:** `D:/style_timing_signal`
+
 **Formal branch:** `fix/b3-wind-share-capital-tail`
 
 ## Objective
@@ -88,6 +92,12 @@ At `9a18090`:
 - Independent spec review: PASS.
 - Independent quality review: Ready Yes, no Critical/Important/Minor findings.
 
+At the deployed handoff head:
+
+- Full repository: `1145 passed, 25 warnings`.
+- Remote Windows/WSL eval module: `343 passed in 81.14s`.
+- Formal states → structure → eval completed with audit artifacts.
+
 The warnings are existing pandas FutureWarnings in `b3_build.py` and
 `b3_portfolios.py`.
 
@@ -136,8 +146,13 @@ The only expected Windows Git status entry is:
 
 ## Deployment state
 
-Formal branch HEAD is currently `14efbfee355b6c94a58bceab5041c657424f87f9`.
-Commit `9a18090` and this handoff document are not yet deployed.
+All implementation commits through `9a18090` and this handoff document have been
+fast-forwarded to the formal branch. The final docs-only status update follows the
+audited `5e7a9025a97674034584923772b8d3f0479bb32c` run. The run manifest correctly
+records `5e7a902` as the exact code/working-tree snapshot that generated the audit
+artifacts. A later docs-only handoff commit does not change inputs or executable
+code and does not require another campaign-stage run; formal `HEAD` may therefore
+be one docs-only descendant of `run_manifest.code_commit`.
 
 The old states outputs were copied to:
 
@@ -236,26 +251,66 @@ date denotes no SalG dependency, not malformed provenance.
 
 Commit `9a18090` changes `salg_valid_through` to skip missing latest-row
 non-dependencies, reject an all-missing latest formation, and keep strict parsing
-for every nonmissing dependency. On the formal data the expected result is
-`2020-04-30`, which should produce a `SALG_FRESHNESS` final blocker rather than
-pre-audit failure.
+for every nonmissing dependency. The formal data produced `2020-04-30`, then
+correctly emitted a `SALG_FRESHNESS` final blocker rather than a pre-audit failure.
 
-## Exact next actions
+## Completed formal eval result
 
-1. Build an incremental bundle from formal `14efbfe` to the reviewed head,
-   transfer it to `/mnt/d/deploy_stage/wsl2/`, verify SHA, fetch, and fast-forward
-   using Windows Git.
-2. Run remote eval tests.
-3. Reconfirm the equal-weight file SHA and structure manifest SHA have not changed.
-4. Rerun only formal eval. Do not refresh equal-weight between structure and eval.
-5. Expected terminal state is likely exit 2 / `DATA_BLOCKED` with audit artifacts,
-   because SalG freshness, true-disclosure coverage, and/or carry freshness are
-   designed run-level blockers. A pre-audit exception or provenance/calendar
-   blocker is not acceptable.
-6. Verify `verdicts.csv` and `run_manifest.json`, reason codes, stage manifest
-   hashes, input hashes, code commit, and final/statistical verdicts.
-7. Run the final local full suite and final code review, then record the exact
-    formal branch HEAD and Windows Git status.
+The third eval attempt completed the full audit and wrote all five frozen outputs.
+The WSL process returned the CLI's audited-block status through Windows OpenSSH as
+SSH exit 1; the artifacts distinguish this from the earlier pre-audit failures.
+
+```text
+family_statistical_verdict  STOP
+final_verdict               DATA_BLOCKED
+salg_valid_through          2020-04-30
+shadow_start_allowed        false
+run blockers                SALG_FRESHNESS, TRUE_DISCLOSURE_COVERAGE
+true disclosure coverage    0 / 626,732 (0.0)
+```
+
+The final row also records `PIT_POLICY_FLIP`; candidate statistical verdicts are
+all `STOP`. No carry freshness blocker was emitted because both raw carry series
+extend beyond the requested historical cash end.
+
+Every manifest/input hash was recomputed and matched:
+
+```text
+preflight manifest          f3e8bfecf268f2bc7ae1008d00dc31d2146959c529054b795fdd4cf4be7aeb82
+exposures manifest          efd078f1b6d1ec37ebd21a9810e7f11256d48cf51dd84946c6c4f03eef15bc43
+states manifest             e912b596cfe78791ef453c65ce79c873d2491d831bf5673db2a95d49513073a2
+structure manifest          0621d96c4be830a48756627fcc9b65088b7bf1636a434d098cd4b406239917de
+monthly_exposures.csv.gz    8c3365508abef5cff12230da12ce4b8e1377f4df06c9a18f77b3af76d0c928db
+state_components.csv        77dc3a2f79ed01248ac87e444adbde897e06fc89c3db2d72a8c24aa0107ec1f4
+model_comparison.csv        aee6ea2977904e16a6cdaa31dd6be90ea07202c703686fecb189a914fba30b9f
+structure_coefficients.csv  4bae44445e144dc409fc54a1bb0683f02f92e8b1cd3514abc7d9b8bea160083a
+equal-weight source         5d3fb8c90c836f40b86918f649b3c8844ec905b8f22bc0c4f5efdc26e25e4f64
+```
+
+Audit output hashes from the completed run at `5e7a902`:
+
+```text
+verdicts.csv                1413c5ea3aeff7a0ea649e4a5b142462bc0518fab60b03a2631da257489729b9
+production_metrics.csv      709666560e13faea5e5e2677297b97f74dee66f1a9c65ec3b626917f0498410e
+yearly_contribution.csv     822a981a3678a986c64c34ab5bfc7e10584b19a0e47c01809a38151e484b006a
+bootstrap.csv               92bb98b5e726c570c531863853fc6a0253f6699e00116cd3c19a7dd32db9b051
+run_manifest.json           382ec014e2e033ec147452df6b0c832f0e6c72d740191a5b98746df176dcdd56
+```
+
+## Remaining work after this handoff
+
+No implementation or campaign-stage rerun remains for this task. The next
+substantive work is upstream data remediation:
+
+1. Extend/rebuild the stale SalG dependencies beyond `2020-04-30`.
+2. Backfill explicit true-first-disclosure provenance; current verified coverage
+   is 0/626,732.
+3. Only after those inputs and their manifests are refreshed should the affected
+   B3 stages be rerun. Shadow start is not allowed under the current evidence.
+
+For a read-only audit, verify the formal Windows Git `HEAD`, the expected sole
+untracked run directory, and the hashes above. Do not repeat the current run unless
+an upstream input or code commit changes.
 
 ## Safety notes
 
