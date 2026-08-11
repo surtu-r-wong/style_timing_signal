@@ -4750,8 +4750,41 @@ def test_salg_valid_through_takes_earliest_latest_formation_dependency():
     assert salg_valid_through(frame) == "2026-04-30"
 
 
-@pytest.mark.parametrize("source_end", [None, "2025-06-29", True])
-def test_salg_valid_through_rejects_missing_or_nonquarter_latest_dependency(
+@pytest.mark.parametrize(
+    "missing",
+    [None, np.nan, pd.NA, pd.NaT],
+    ids=["none", "nan", "pd-na", "nat"],
+)
+def test_salg_valid_through_skips_missing_latest_non_dependencies(missing):
+    frame = _salg_rows(
+        "2023-09-30",
+        "2019-12-31",
+        missing,
+        formation_date="2023-12-29",
+    )
+
+    assert salg_valid_through(frame) == "2020-04-30"
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [None, np.nan, pd.NA, pd.NaT],
+    ids=["none", "nan", "pd-na", "nat"],
+)
+def test_salg_valid_through_requires_a_latest_model_dependency(missing):
+    with pytest.raises(DataBlocked, match=r"SalG.*dependenc|salg_source"):
+        salg_valid_through(_salg_rows(missing))
+
+
+@pytest.mark.parametrize(
+    "source_end",
+    [
+        "2025-06-29",
+        True,
+        pd.Timestamp("2025-06-30 01:00:00"),
+    ],
+)
+def test_salg_valid_through_rejects_malformed_nonmissing_dependency(
     source_end,
 ):
     with pytest.raises(DataBlocked, match="salg_source_end_date|quarter-end"):

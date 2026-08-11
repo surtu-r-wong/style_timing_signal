@@ -1013,6 +1013,11 @@ def salg_valid_through(monthly_exposures: pd.DataFrame) -> str:
         (12, 31): (1, 4, 30),
     }
     for value in latest_rows["salg_source_end_date"]:
+        missing = pd.isna(value)
+        if value is None or (
+            isinstance(missing, (bool, np.bool_)) and bool(missing)
+        ):
+            continue
         source_end = _strict_frame_date(value, "salg_source_end_date")
         rule = mapping.get((source_end.month, source_end.day))
         if rule is None:
@@ -1024,6 +1029,10 @@ def salg_valid_through(monthly_exposures: pd.DataFrame) -> str:
                 month=month,
                 day=day,
             )
+        )
+    if not valid_through:
+        raise DataBlocked(
+            "SalG freshness has no latest-formation dependencies"
         )
     return str(min(valid_through).date())
 
