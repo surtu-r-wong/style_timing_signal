@@ -501,6 +501,10 @@ def test_passes_tail_gate_rejects_invalid_inputs(adjusted_tail, threshold):
         passes_tail_gate(adjusted_tail, threshold)
 
 
+_DEFAULT_EVALUATION_DATA_END = pd.Timestamp("2024-12-31")
+_MIDMONTH_EVALUATION_DATA_END = pd.Timestamp("2024-07-10")
+
+
 def _evaluation_inputs(end="2024-12-31"):
     cfg = deepcopy(load_b3_config())
     calendar = pd.bdate_range("2014-10-01", end)
@@ -600,6 +604,7 @@ def test_eval_accepts_structural_warmup_but_trims_only_before_model_calendar():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
 
     assert model_formations[0].to_period("M") == MODEL_DISCOVERY_START.to_period(
@@ -644,6 +649,7 @@ def test_eval_preserves_midmonth_report_tail_after_last_formation():
         equal_weight,
         formations,
         cfg,
+        _MIDMONTH_EVALUATION_DATA_END,
     )
     validated_states, validated_targets, validated_control = validated[:3]
     expected_model_calendar = calendar[calendar >= validated[3].min()]
@@ -671,6 +677,7 @@ def test_eval_preserves_midmonth_report_tail_after_last_formation():
         equal_weight,
         formations,
         cfg,
+        _MIDMONTH_EVALUATION_DATA_END,
     )
 
     report_calendar = calendar[calendar >= pd.Timestamp("2024-01-01")]
@@ -684,6 +691,24 @@ def test_eval_preserves_midmonth_report_tail_after_last_formation():
         & got.yearly["row_type"].eq("year")
     ]
     assert report_years["n_obs"].eq(len(report_calendar)).all()
+
+
+def test_eval_rejects_incomplete_cutoff_month_formation():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs("2024-07-10")
+    )
+    assert formations[-1] == pd.Timestamp("2024-07-10")
+    assert formations[-1].to_period("M") == calendar.max().to_period("M")
+
+    with pytest.raises(DataBlocked, match="incomplete cutoff-month formation"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            _MIDMONTH_EVALUATION_DATA_END,
+        )
 
 
 def test_eval_still_blocks_nonfinite_feature_on_model_calendar():
@@ -700,6 +725,7 @@ def test_eval_still_blocks_nonfinite_feature_on_model_calendar():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -719,6 +745,7 @@ def test_eval_still_blocks_nonfinite_feature_on_midmonth_report_tail():
             equal_weight,
             formations,
             cfg,
+            _MIDMONTH_EVALUATION_DATA_END,
         )
 
 
@@ -812,6 +839,7 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
 
     assert set(got) == {
@@ -867,6 +895,7 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     for key in got:
         pd.testing.assert_series_equal(got[key], target_mutation[key], check_exact=True)
@@ -880,6 +909,7 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     for key in got:
         pd.testing.assert_series_equal(
@@ -906,6 +936,7 @@ def test_fit_frozen_m1_scores_rejects_nonexact_daily_inputs():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -929,6 +960,7 @@ def test_fit_frozen_m1_scores_requires_exact_50_50_blend():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -951,6 +983,7 @@ def test_fit_frozen_m1_scores_rejects_evaluation_config_mutations(mutation):
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -984,6 +1017,7 @@ def test_eval_entrypoints_require_authoritative_fixed_window_formations(
                 equal_weight,
                 broken,
                 cfg,
+                _DEFAULT_EVALUATION_DATA_END,
             )
         elif entrypoint == "build":
             build_evaluation(
@@ -994,24 +1028,26 @@ def test_eval_entrypoints_require_authoritative_fixed_window_formations(
                 equal_weight,
                 broken,
                 cfg,
+                _DEFAULT_EVALUATION_DATA_END,
             )
         else:
             raise AssertionError(f"unsupported entrypoint: {entrypoint}")
 
 
-def test_eval_requires_january_2024_next_formation_boundary():
+def test_eval_requires_december_2023_frozen_evidence_boundary():
     cfg, _, formations, states, targets, equal_weight, _ = _evaluation_inputs()
-    through_2023 = formations[
-        formations.to_period("M") <= pd.Period("2023-12", freq="M")
+    through_november = formations[
+        formations.to_period("M") <= pd.Period("2023-11", freq="M")
     ]
 
-    with pytest.raises(DataBlocked, match=r"formation.*2024-01|next-formation"):
+    with pytest.raises(DataBlocked, match=r"through 2023-12.*frozen evidence"):
         _validate_score_inputs(
             states,
             targets,
             equal_weight,
-            through_2023,
+            through_november,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -1035,27 +1071,72 @@ def test_eval_rejects_non_month_end_formation_after_frozen_evidence(period):
             equal_weight,
             supplied,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
-def test_eval_accepts_exact_january_boundary_without_full_report_formations():
+def test_eval_accepts_exact_december_boundary_at_formal_cutoff():
     cfg, calendar, formations, states, targets, equal_weight, _ = (
-        _evaluation_inputs()
+        _evaluation_inputs("2023-12-31")
     )
-    through_boundary = formations[
-        formations.to_period("M") <= pd.Period("2024-01", freq="M")
-    ]
 
     _, validated_targets, _, model_formations, _, _ = _validate_score_inputs(
         states,
         targets,
         equal_weight,
-        through_boundary,
+        formations,
         cfg,
+        pd.Timestamp("2023-12-31"),
     )
 
-    assert model_formations[-1] == pd.Timestamp("2024-01-31")
+    assert model_formations[-1] == pd.Timestamp("2023-12-29")
     assert validated_targets["500"].index.max() == calendar.max()
+
+
+@pytest.mark.parametrize(
+    "data_end",
+    [
+        True,
+        pd.Timestamp("2024-07-10 01:00:00"),
+        pd.Timestamp("2024-07-10", tz="Asia/Shanghai"),
+    ],
+)
+def test_eval_rejects_invalid_explicit_data_end(data_end):
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs("2024-07-10")
+    )
+    formations = formations[
+        formations.to_period("M") < calendar.max().to_period("M")
+    ]
+
+    with pytest.raises(DataBlocked, match="data_end.*normalized"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            data_end,
+        )
+
+
+def test_eval_rejects_source_calendar_after_explicit_data_end():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs("2024-07-10")
+    )
+    formations = formations[
+        formations.to_period("M") < calendar.max().to_period("M")
+    ]
+
+    with pytest.raises(DataBlocked, match="calendar.*after data_end"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            pd.Timestamp("2024-07-09"),
+        )
 
 
 def test_yearly_contributions_has_exact_schema_and_strongest_exclusion():
@@ -1346,6 +1427,7 @@ def _build_fixture():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     return (
         cfg,
@@ -2690,6 +2772,7 @@ def test_structure_pass_is_exact_public_and_candidate_and_failed_tail_is_one():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     policy_rows = got.bootstrap[got.bootstrap["pit_policy"].eq(first_policy)]
     dual = policy_rows[
@@ -2723,6 +2806,7 @@ def test_structure_pass_is_exact_public_and_candidate_and_failed_tail_is_one():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -2793,6 +2877,7 @@ def test_model_evidence_validator_freezes_required_row_semantics(mutation):
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -2858,6 +2943,7 @@ def test_model_evidence_rejects_in_sample_gates_and_invalid_partial_bounds(
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -3049,6 +3135,7 @@ def test_report_and_yearly_mutations_cannot_change_verdict_inputs():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
 
     baseline_verdict = baseline.production_metrics[
@@ -3126,6 +3213,7 @@ def test_common_carry_tail_must_cover_every_original_confirmation_date():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -3147,6 +3235,7 @@ def test_common_carry_tail_after_confirmation_only_crops_report_window():
         equal_weight,
         formations,
         cfg,
+        pd.Timestamp("2026-12-31"),
     )
 
     expected_report_days = int(
@@ -3194,6 +3283,7 @@ def test_fixed_window_metrics_reset_engine_before_confirmation_and_post_im(
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     index = calendar[
         (calendar >= pd.Timestamp(start)) & (calendar <= pd.Timestamp(end))
@@ -3214,6 +3304,7 @@ def test_fixed_window_metrics_reset_engine_before_confirmation_and_post_im(
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     baseline_position = production_position(equal_weight.loc[index])
     p500 = production_position(
@@ -3289,6 +3380,7 @@ def test_report_yearly_is_emitted_for_two_plus_years_and_is_firewalled():
         equal_weight,
         formations,
         cfg,
+        pd.Timestamp("2026-12-31"),
     )
     report = baseline.yearly[
         baseline.yearly["window"].eq("2024-2026-report-only")
@@ -3318,6 +3410,7 @@ def test_report_yearly_is_emitted_for_two_plus_years_and_is_firewalled():
         equal_weight,
         formations,
         cfg,
+        pd.Timestamp("2026-12-31"),
     )
     pd.testing.assert_frame_equal(
         baseline.production_metrics[
@@ -3361,6 +3454,7 @@ def test_report_yearly_accepts_exactly_two_available_natural_years():
         equal_weight,
         formations,
         cfg,
+        pd.Timestamp("2025-12-31"),
     )
     report_years = got.yearly[
         got.yearly["window"].eq("2024-2026-report-only")

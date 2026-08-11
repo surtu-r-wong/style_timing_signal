@@ -198,7 +198,7 @@ _FROZEN_MODEL_END = max(
     for _, _, end, affects_verdict in MODEL_PERIOD_WINDOWS
     if affects_verdict
 )
-_FROZEN_EVIDENCE_BOUNDARY_MONTH = _FROZEN_MODEL_END.to_period("M") + 1
+_FROZEN_EVIDENCE_END_MONTH = _FROZEN_MODEL_END.to_period("M")
 _MODEL_DISCOVERY_WINDOW = (
     f"{MODEL_DISCOVERY_START.year}-{MODEL_DISCOVERY_END.year}"
 )
@@ -2595,7 +2595,11 @@ def _strict_timestamp(value: object, label: str) -> pd.Timestamp:
 def _validate_formations(
     formation_dates: pd.DatetimeIndex,
     calendar: pd.DatetimeIndex,
+    data_end: object,
 ) -> pd.DatetimeIndex:
+    cutoff = _strict_timestamp(data_end, "evaluation data_end")
+    if calendar.max() > cutoff:
+        raise DataBlocked("evaluation source calendar contains dates after data_end")
     formations = _validate_datetime_index(formation_dates, "formation dates")
     if len(formations) < 2:
         raise DataBlocked("formation dates must contain at least two dates")
@@ -2609,10 +2613,19 @@ def _validate_formations(
             "formation dates must start in "
             f"{STRUCTURAL_DISCOVERY_START:%Y-%m}"
         )
-    if periods[-1] < _FROZEN_EVIDENCE_BOUNDARY_MONTH:
+    if periods[-1] < _FROZEN_EVIDENCE_END_MONTH:
         raise DataBlocked(
             "formation dates must extend through "
-            f"{_FROZEN_EVIDENCE_BOUNDARY_MONTH} next-formation boundary"
+            f"{_FROZEN_EVIDENCE_END_MONTH} for frozen evidence"
+        )
+    if formations.max() > cutoff:
+        raise DataBlocked("formation dates cannot extend after data_end")
+    if (
+        not cutoff.is_month_end
+        and (periods == cutoff.to_period("M")).any()
+    ):
+        raise DataBlocked(
+            "formation dates contain an incomplete cutoff-month formation"
         )
     if not formations.isin(calendar).all():
         raise DataBlocked("formation dates must lie on the daily calendar")
@@ -2649,6 +2662,7 @@ def _validate_score_inputs(
     equal_weight_signal: pd.Series,
     formation_dates: pd.DatetimeIndex,
     cfg: dict,
+    data_end: object,
 ) -> tuple[
     pd.DataFrame,
     dict[str, pd.Series],
@@ -2659,6 +2673,7 @@ def _validate_score_inputs(
 ]:
     if not isinstance(cfg, dict):
         raise DataBlocked("B3 configuration must be a mapping")
+    cutoff = _strict_timestamp(data_end, "evaluation data_end")
     _evaluation_config(cfg)
     try:
         policies = tuple(cfg["pit"]["policies"])
@@ -2700,7 +2715,13 @@ def _validate_score_inputs(
         raise DataBlocked("blend target returns must equal the 50/50 cash blend")
     control = _validate_finite_series(equal_weight_signal, "equal_weight signal")
     _require_same_grid(calendar, control, "equal_weight signal")
-    model_formations = _validate_formations(formation_dates, calendar)
+    if calendar.max() > cutoff:
+        raise DataBlocked("evaluation source calendar contains dates after data_end")
+    model_formations = _validate_formations(
+        formation_dates,
+        calendar,
+        cutoff,
+    )
     model_calendar = calendar[calendar >= model_formations.min()]
     if model_calendar.empty:
         raise DataBlocked("model daily calendar is empty")
@@ -2772,6 +2793,7 @@ def fit_frozen_m1_scores(
     equal_weight_signal: pd.Series,
     formation_dates: pd.DatetimeIndex,
     cfg: dict,
+    data_end: object,
 ) -> dict[tuple[str, str], pd.Series]:
     states, targets, _, formations, policies, discovery = _validate_score_inputs(
         state_components,
@@ -2779,6 +2801,7 @@ def fit_frozen_m1_scores(
         equal_weight_signal,
         formation_dates,
         cfg,
+        data_end,
     )
     target_for_q = {"qblend": "blend", "q500": "500", "q1000": "1000"}
     period_end = pd.Series(
@@ -4154,6 +4177,7 @@ def build_evaluation(
     equal_weight_signal: pd.Series,
     formation_dates: pd.DatetimeIndex,
     cfg: dict,
+    data_end: object,
 ) -> EvaluationFrames:
     settings = _evaluation_config(cfg)
     (
@@ -4169,6 +4193,7 @@ def build_evaluation(
         equal_weight_signal,
         formation_dates,
         cfg,
+        data_end,
     )
     structure, full_partials = _validated_model_evidence(
         model_comparison,
@@ -4218,6 +4243,7 @@ def build_evaluation(
         equal_weight_signal,
         formation_dates,
         cfg,
+        data_end,
     )
     scores = {key: value.loc[calendar] for key, value in full_scores.items()}
     baseline_position = production_position(control).astype(int)
@@ -4856,6 +4882,7 @@ def run_evaluation(
         equal_weight_signal,
         formation_dates,
         cfg,
+        cutoff,
     )
 
     # Data-dependent run blockers become derivable only after the series load;
