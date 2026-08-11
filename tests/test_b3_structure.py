@@ -656,6 +656,24 @@ def test_structure_runner_hash_checks_parents_and_writes_deterministic_outputs(
     assert len(surface) == 2 * 1 * 45
     assert len(coefficients) == 2 * (1 + 4)
     assert list(model.columns) == MODEL_COMPARISON_COLUMNS
+    manifest = json.loads(
+        (compact_dir / "structure_manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    expected_control = (
+        "date,factor_value\n"
+        "2015-03-31,0.0\n"
+    ).encode("utf-8")
+    assert manifest["inputs"] == {
+        "equal_weight_control": {
+            "source_kind": "in_memory",
+            "path": None,
+            "sha256": hashlib.sha256(expected_control).hexdigest(),
+            "date_column": "date",
+            "value_column": "factor_value",
+        }
+    }
     first_surface = result.surface_path.read_bytes()
     first_coefficients = result.coefficients_path.read_bytes()
     first_model = result.model_path.read_bytes()
@@ -763,7 +781,7 @@ def test_structure_runner_third_write_failure_removes_all_outputs(
     compact_dir = tmp_path / "compact"
     original = pd.DataFrame.to_csv
 
-    def failing_to_csv(frame, path, *args, **kwargs):
+    def failing_to_csv(frame, path=None, *args, **kwargs):
         if str(path).endswith(".model_comparison.csv.tmp"):
             raise OSError("model write failed")
         return original(frame, path, *args, **kwargs)
@@ -991,7 +1009,10 @@ def test_equal_weight_control_file_freezes_schema_keys_and_cutoff(tmp_path):
         }
     ).to_csv(path, index=False)
 
-    got = _load_equal_weight_control(path, pd.Timestamp("2015-02-28"))
+    got = _load_equal_weight_control(
+        path,
+        pd.Timestamp("2015-02-28"),
+    ).series
 
     assert list(got.index) == list(
         pd.to_datetime(["2015-01-31", "2015-02-28"])
@@ -1002,6 +1023,94 @@ def test_equal_weight_control_file_freezes_schema_keys_and_cutoff(tmp_path):
     duplicated.to_csv(path, index=False)
     with pytest.raises(DataBlocked, match="duplicate"):
         _load_equal_weight_control(path, pd.Timestamp("2015-03-31"))
+
+
+def test_equal_weight_control_accepts_production_columns_and_binds_input(
+    tmp_path,
+):
+    path = tmp_path / "equal_weight_signal_20d40z.csv"
+    pd.DataFrame(
+        {
+            "date": ["2014-01-31", "2014-02-28", "2014-03-31"],
+            "pair_01_factor_20": [0.8, 0.7, 0.6],
+            "raw_signal_20": [0.4, 0.3, 0.2],
+            "factor_value_raw": [0.4, 0.3, 0.2],
+            "factor_value": [0.1, -0.2, 0.3],
+        }
+    ).to_csv(path, index=False)
+
+    loaded = _load_equal_weight_control(
+        path,
+        pd.Timestamp("2014-02-28"),
+    )
+
+    assert list(loaded.series.index) == list(
+        pd.to_datetime(["2014-01-31", "2014-02-28"])
+    )
+    assert list(loaded.series) == pytest.approx([0.1, -0.2])
+    assert loaded.provenance.source_kind == "file"
+    assert loaded.provenance.path == str(path.resolve())
+    assert loaded.provenance.sha256 == hashlib.sha256(
+        path.read_bytes()
+    ).hexdigest()
+    assert loaded.provenance.date_column == "date"
+    assert loaded.provenance.value_column == "factor_value"
+
+
+def test_equal_weight_control_rejects_duplicate_raw_headers(tmp_path):
+    path = tmp_path / "equal_weight_signal_20d40z.csv"
+    path.write_text(
+        "date,factor_value,factor_value\n"
+        "2014-01-31,0.1,0.9\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DataBlocked, match="duplicate columns"):
+        _load_equal_weight_control(path, pd.Timestamp("2014-01-31"))
+
+
+def test_structure_manifest_binds_equal_weight_control_file(tmp_path):
+    cfg = load_b3_config()
+    data_end = pd.Timestamp("2015-03-31")
+    _write_structure_parents(tmp_path, cfg, data_end)
+    compact_dir = tmp_path / "compact"
+    path = tmp_path / "equal_weight_signal_20d40z.csv"
+    pd.DataFrame(
+        {
+            "date": [data_end],
+            "factor_value_raw": [0.9],
+            "factor_value": [0.0],
+        }
+    ).to_csv(path, index=False)
+    targets = {
+        target: pd.Series(0.0, index=pd.DatetimeIndex([data_end]))
+        for target in ("blend", "500", "1000")
+    }
+
+    run_structure(
+        cfg,
+        data_end,
+        tmp_path,
+        compact_dir,
+        target_returns=targets,
+        equal_weight_path=path,
+        model_comparison_builder=_stub_model_comparison,
+    )
+
+    manifest = json.loads(
+        (compact_dir / "structure_manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["inputs"] == {
+        "equal_weight_control": {
+            "source_kind": "file",
+            "path": str(path.resolve()),
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "date_column": "date",
+            "value_column": "factor_value",
+        }
+    }
 
 
 def test_structure_cli_uses_default_cash_loader_and_equal_weight_path(
@@ -1023,7 +1132,14 @@ def test_structure_cli_uses_default_cash_loader_and_equal_weight_path(
 
     def load_control(path, cutoff):
         control_paths.append((path, cutoff))
-        return pd.Series(0.0, index=index)
+        return b3_structure.EqualWeightControlLoad(
+            series=pd.Series(0.0, index=index),
+            provenance=b3_structure.EqualWeightControlProvenance(
+                source_kind="file",
+                path=str(path.resolve()),
+                sha256="a" * 64,
+            ),
+        )
 
     monkeypatch.setattr("backtest.data.load_underlying_returns", loader)
     monkeypatch.setattr(
