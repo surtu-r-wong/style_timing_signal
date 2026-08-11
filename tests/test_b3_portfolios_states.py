@@ -24,6 +24,7 @@ from signals.style_basket.b3_portfolios import (
     stock_period_returns,
 )
 from signals.style_basket.b3_states import (
+    _causal_transform,
     build_state_features,
     decompose_states,
 )
@@ -950,6 +951,42 @@ def test_state_transform_uses_full_past_windows_and_never_future_data():
     )
     features = ["F_U", "F_D", "F_X", "F_T"]
     assert original[features].iloc[:62].isna().all().all()
+
+
+def test_causal_transform_maps_only_complete_zero_variance_windows_to_zero():
+    index = pd.bdate_range("2019-01-01", periods=85)
+    component = pd.Series(0.0, index=index)
+    component.iloc[80:] = 0.01
+
+    raw, feature = _causal_transform(
+        component,
+        raw_window=20,
+        z_window=40,
+        tanh_scale=2.0,
+        smoothing_window=5,
+    )
+
+    assert raw.iloc[:19].isna().all()
+    assert feature.iloc[:62].isna().all()
+    assert feature.iloc[62:80].eq(0.0).all()
+    assert np.isfinite(feature.iloc[80:]).all()
+
+
+def test_causal_transform_does_not_turn_a_real_gap_into_zero():
+    index = pd.bdate_range("2019-01-01", periods=150)
+    component = pd.Series(np.sin(np.arange(150) / 11.0), index=index)
+    component.iloc[90] = np.nan
+
+    _, feature = _causal_transform(
+        component,
+        raw_window=20,
+        z_window=40,
+        tanh_scale=2.0,
+        smoothing_window=5,
+    )
+
+    assert feature.iloc[89] == pytest.approx(float(feature.iloc[89]))
+    assert feature.iloc[90:149].isna().all()
 
 
 def _state_leg_rows(cfg):

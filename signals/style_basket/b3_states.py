@@ -133,9 +133,15 @@ def _causal_transform(
         z_window,
         min_periods=z_window,
     ).std(ddof=1)
-    z_score = (raw - mean) / standard_deviation.where(
-        standard_deviation >= 1.0e-8
+    ready = raw.notna() & mean.notna() & standard_deviation.notna()
+    variable = ready & standard_deviation.ge(1.0e-8)
+    constant = ready & standard_deviation.lt(1.0e-8)
+    z_score = pd.Series(np.nan, index=component.index, dtype=float)
+    z_score.loc[variable] = (
+        (raw.loc[variable] - mean.loc[variable])
+        / standard_deviation.loc[variable]
     )
+    z_score.loc[constant] = 0.0
     transformed = np.tanh(z_score / tanh_scale)
     smoothed = transformed.rolling(
         smoothing_window,
