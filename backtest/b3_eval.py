@@ -2714,7 +2714,10 @@ def _validate_score_inputs(
     ):
         raise DataBlocked("blend target returns must equal the 50/50 cash blend")
     control = _validate_finite_series(equal_weight_signal, "equal_weight signal")
-    _require_same_grid(calendar, control, "equal_weight signal")
+    if not control.index.isin(calendar).all():
+        raise DataBlocked(
+            "equal_weight signal contains dates outside the benchmark calendar"
+        )
     if calendar.max() > cutoff:
         raise DataBlocked("evaluation source calendar contains dates after data_end")
     model_formations = _validate_formations(
@@ -2729,6 +2732,10 @@ def _validate_score_inputs(
         name: values.loc[model_calendar].copy()
         for name, values in targets.items()
     }
+    if not model_calendar.isin(control.index).all():
+        raise DataBlocked(
+            "equal_weight signal is missing required model calendar dates"
+        )
     control = control.loc[model_calendar].copy()
     for name, values in targets.items():
         _require_same_grid(model_calendar, values, f"{name} target returns")

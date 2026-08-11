@@ -635,6 +635,73 @@ def test_eval_accepts_structural_warmup_but_trims_only_before_model_calendar():
             assert state_grid.min() >= MODEL_DISCOVERY_START
 
 
+def test_eval_accepts_control_missing_only_pre_model_benchmark_prefix():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs()
+    )
+    first_model_formation = formations[
+        formations >= MODEL_DISCOVERY_START
+    ][0]
+    control = equal_weight.loc[first_model_formation:].copy()
+    assert targets["500"].index.min() < control.index.min()
+
+    validated = _validate_score_inputs(
+        states,
+        targets,
+        control,
+        formations,
+        cfg,
+        _DEFAULT_EVALUATION_DATA_END,
+    )
+
+    model_calendar = calendar[calendar >= first_model_formation]
+    assert validated[2].index.equals(model_calendar)
+
+
+def test_eval_rejects_control_missing_first_model_calendar_date():
+    cfg, _, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs()
+    )
+    first_model_formation = formations[
+        formations >= MODEL_DISCOVERY_START
+    ][0]
+    control = equal_weight.drop(index=first_model_formation)
+
+    with pytest.raises(DataBlocked, match="missing required model calendar dates"):
+        _validate_score_inputs(
+            states,
+            targets,
+            control,
+            formations,
+            cfg,
+            _DEFAULT_EVALUATION_DATA_END,
+        )
+
+
+def test_eval_rejects_control_date_outside_benchmark_calendar():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs()
+    )
+    extra_date = pd.Timestamp("2015-01-31")
+    assert extra_date not in calendar
+    extra = pd.Series(
+        [0.0],
+        index=pd.DatetimeIndex([extra_date]),
+        name=equal_weight.name,
+    )
+    control = pd.concat([equal_weight, extra]).sort_index()
+
+    with pytest.raises(DataBlocked, match="dates outside the benchmark calendar"):
+        _validate_score_inputs(
+            states,
+            targets,
+            control,
+            formations,
+            cfg,
+            _DEFAULT_EVALUATION_DATA_END,
+        )
+
+
 def test_eval_preserves_midmonth_report_tail_after_last_formation():
     cfg, calendar, formations, states, targets, equal_weight, carry = (
         _evaluation_inputs("2024-07-10")
