@@ -8,6 +8,14 @@ import pandas as pd
 import pytest
 
 import backtest.b3_structure as b3_structure
+from backtest.b3_windows import (
+    MODEL_DISCOVERY_END,
+    MODEL_DISCOVERY_START,
+    MODEL_PERIOD_WINDOWS,
+    MODEL_STATE_COVERAGE_WINDOWS,
+    STRUCTURAL_DISCOVERY_END,
+    STRUCTURAL_DISCOVERY_START,
+)
 from backtest.b3_structure import (
     MODEL_COMPARISON_COLUMNS,
     MODEL_ROW_ID_COLUMNS,
@@ -34,6 +42,65 @@ from backtest.b3_eval import verify_structure_provenance
 from signals.style_basket.b3_build import _write_stage_manifest
 from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_exposures import DataBlocked
+
+
+def test_structural_and_model_calendars_are_frozen_separately():
+    assert STRUCTURAL_DISCOVERY_START == pd.Timestamp("2014-10-01")
+    assert STRUCTURAL_DISCOVERY_END == pd.Timestamp("2020-12-31")
+    assert MODEL_DISCOVERY_START == pd.Timestamp("2015-01-01")
+    assert MODEL_DISCOVERY_END == pd.Timestamp("2020-12-31")
+    assert MODEL_PERIOD_WINDOWS == (
+        (
+            "2015-2017",
+            pd.Timestamp("2015-01-01"),
+            pd.Timestamp("2017-12-31"),
+            True,
+        ),
+        (
+            "2018-2020",
+            pd.Timestamp("2018-01-01"),
+            pd.Timestamp("2020-12-31"),
+            True,
+        ),
+        (
+            "2021-2023",
+            pd.Timestamp("2021-01-01"),
+            pd.Timestamp("2023-12-31"),
+            True,
+        ),
+        (
+            "2024-2026-report-only",
+            pd.Timestamp("2024-01-01"),
+            pd.Timestamp("2026-12-31"),
+            False,
+        ),
+    )
+    assert MODEL_STATE_COVERAGE_WINDOWS == (
+        (
+            "2015-2017",
+            pd.Timestamp("2015-01-01"),
+            pd.Timestamp("2017-12-31"),
+            True,
+        ),
+        (
+            "2018-2020",
+            pd.Timestamp("2018-01-01"),
+            pd.Timestamp("2020-12-31"),
+            True,
+        ),
+        (
+            "2021-2023",
+            pd.Timestamp("2021-01-01"),
+            pd.Timestamp("2023-12-31"),
+            True,
+        ),
+        (
+            "2015-2020",
+            pd.Timestamp("2015-01-01"),
+            pd.Timestamp("2020-12-31"),
+            False,
+        ),
+    )
 
 
 def _structure_panel(
