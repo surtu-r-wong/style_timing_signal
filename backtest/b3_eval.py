@@ -21,9 +21,11 @@ from backtest.b3_structure import (
     DEFAULT_BACKTEST_OUTPUT_DIR,
     DEFAULT_EQUAL_WEIGHT_SIGNAL_PATH,
     DEFAULT_RESEARCH_OUTPUT_DIR,
+    EqualWeightControlProvenance,
     MODEL_COMPARISON_COLUMNS,
     MODEL_ROW_ID_COLUMNS,
     ROOT,
+    _bind_equal_weight_control_series,
     _increment_direction,
     _load_equal_weight_control,
     _validated_model_comparison_output,
@@ -653,6 +655,50 @@ class StructureProvenanceContract:
     model_comparison: pd.DataFrame
     manifest_hash: str
     output_hashes: _FrozenDict
+    equal_weight_control: EqualWeightControlProvenance
+
+
+def _validated_equal_weight_control_provenance(
+    raw: object,
+) -> EqualWeightControlProvenance:
+    if type(raw) is not dict or set(cast(dict, raw)) != {
+        "source_kind",
+        "path",
+        "sha256",
+        "date_column",
+        "value_column",
+    }:
+        raise DataBlocked("equal_weight control provenance schema mismatch")
+    payload = cast(dict[str, object], raw)
+    source_kind = payload["source_kind"]
+    if (
+        type(source_kind) is not str
+        or source_kind not in {"file", "in_memory"}
+    ):
+        raise DataBlocked("equal_weight control source kind is invalid")
+    path = payload["path"]
+    if source_kind == "file":
+        if (
+            type(path) is not str
+            or not path
+            or "\x00" in path
+            or not Path(path).is_absolute()
+        ):
+            raise DataBlocked("equal_weight control path is invalid")
+    elif path is not None:
+        raise DataBlocked("in-memory equal_weight control cannot claim a path")
+    if payload["date_column"] != "date":
+        raise DataBlocked("equal_weight control date column mismatch")
+    if payload["value_column"] != "factor_value":
+        raise DataBlocked("equal_weight control value column mismatch")
+    return EqualWeightControlProvenance(
+        source_kind=cast(str, source_kind),
+        path=cast("str | None", path),
+        sha256=_require_sha256(
+            payload["sha256"],
+            "equal_weight control input",
+        ),
+    )
 
 
 def verify_structure_provenance(
@@ -686,6 +732,7 @@ def verify_structure_provenance(
         "config_hash",
         "data_end",
         "status",
+        "inputs",
         "outputs",
     }:
         raise DataBlocked("structure manifest schema mismatch")
@@ -701,6 +748,16 @@ def verify_structure_provenance(
         raise DataBlocked("structure data_end mismatch")
     if manifest["status"] != "OK":
         raise DataBlocked("structure status must be OK")
+
+    raw_inputs = manifest["inputs"]
+    if (
+        type(raw_inputs) is not dict
+        or set(cast(dict, raw_inputs)) != {"equal_weight_control"}
+    ):
+        raise DataBlocked("structure input set mismatch")
+    equal_weight_control = _validated_equal_weight_control_provenance(
+        cast(dict[str, object], raw_inputs)["equal_weight_control"]
+    )
 
     raw_outputs = manifest["outputs"]
     expected_outputs = {
@@ -737,6 +794,7 @@ def verify_structure_provenance(
         model_comparison=comparison,
         manifest_hash=hashlib.sha256(manifest_bytes).hexdigest(),
         output_hashes=_FrozenDict(checked_hashes),
+        equal_weight_control=equal_weight_control,
     )
 
 
@@ -4676,18 +4734,20 @@ def run_evaluation(
         for leg, series in raw_carry.items()
     }
     if equal_weight_signal is None:
-        equal_weight_signal = _load_equal_weight_control(
+        control_load = _load_equal_weight_control(
             equal_weight_path
             if equal_weight_path is not None
             else DEFAULT_EQUAL_WEIGHT_SIGNAL_PATH,
             cutoff,
         )
     else:
-        equal_weight_signal = _validated_runner_series(
+        control_load = _bind_equal_weight_control_series(
             equal_weight_signal,
-            "equal_weight control",
             cutoff,
         )
+    if control_load.provenance != structure.equal_weight_control:
+        raise DataBlocked("equal_weight control provenance mismatch")
+    equal_weight_signal = control_load.series
 
     frames = build_evaluation(
         state_components,

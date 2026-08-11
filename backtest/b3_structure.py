@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
+import io
 import json
 import sys
 from collections.abc import Callable
@@ -2329,12 +2331,50 @@ def _validated_runner_series(
     return numeric.loc[:cutoff].copy()
 
 
+@dataclass(frozen=True)
+class EqualWeightControlProvenance:
+    source_kind: str
+    path: str | None
+    sha256: str
+    date_column: str = "date"
+    value_column: str = "factor_value"
+
+    def as_manifest(self) -> dict[str, object]:
+        return {
+            "source_kind": self.source_kind,
+            "path": self.path,
+            "sha256": self.sha256,
+            "date_column": self.date_column,
+            "value_column": self.value_column,
+        }
+
+
+@dataclass(frozen=True)
+class EqualWeightControlLoad:
+    series: pd.Series
+    provenance: EqualWeightControlProvenance
+
+
 def _load_equal_weight_control(
     path: str | Path,
     cutoff: pd.Timestamp,
-) -> pd.Series:
-    frame = _read_cache(Path(path), "equal_weight control")
-    if list(frame.columns) != ["date", "factor_value"]:
+) -> EqualWeightControlLoad:
+    source_path = Path(path)
+    try:
+        raw = source_path.read_bytes()
+        header = next(csv.reader(io.StringIO(raw.decode("utf-8-sig"))))
+        frame = pd.read_csv(io.BytesIO(raw))
+    except (
+        EOFError,
+        OSError,
+        StopIteration,
+        UnicodeDecodeError,
+        ValueError,
+    ) as exc:
+        raise DataBlocked("equal_weight control cache cannot be read") from exc
+    if len(header) != len(set(header)):
+        raise DataBlocked("equal_weight control contains duplicate columns")
+    if not {"date", "factor_value"}.issubset(frame.columns):
         raise DataBlocked("equal_weight control schema mismatch")
     dates = _strict_dates(frame["date"], "equal_weight control.date")
     if dates.duplicated().any():
@@ -2344,7 +2384,44 @@ def _load_equal_weight_control(
         index=pd.DatetimeIndex(dates),
         name="factor_value",
     ).sort_index()
-    return _validated_runner_series(values, "equal_weight control", cutoff)
+    series = _validated_runner_series(values, "equal_weight control", cutoff)
+    return EqualWeightControlLoad(
+        series=series,
+        provenance=EqualWeightControlProvenance(
+            source_kind="file",
+            path=str(source_path.resolve()),
+            sha256=hashlib.sha256(raw).hexdigest(),
+        ),
+    )
+
+
+def _bind_equal_weight_control_series(
+    values: pd.Series,
+    cutoff: pd.Timestamp,
+) -> EqualWeightControlLoad:
+    series = _validated_runner_series(
+        values,
+        "equal_weight control",
+        cutoff,
+    )
+    canonical = pd.DataFrame(
+        {
+            "date": series.index,
+            "factor_value": series.to_numpy(),
+        }
+    ).to_csv(
+        index=False,
+        date_format="%Y-%m-%d",
+        lineterminator="\n",
+    ).encode("utf-8")
+    return EqualWeightControlLoad(
+        series=series,
+        provenance=EqualWeightControlProvenance(
+            source_kind="in_memory",
+            path=None,
+            sha256=hashlib.sha256(canonical).hexdigest(),
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -2605,6 +2682,7 @@ def _write_structure_manifest(
     manifest_path: Path,
     cfg: dict,
     data_end: pd.Timestamp,
+    equal_weight_control: EqualWeightControlProvenance,
     coefficients_path: Path,
     model_path: Path,
     status: str,
@@ -2617,6 +2695,9 @@ def _write_structure_manifest(
         "config_hash": config_hash(cfg),
         "data_end": str(pd.Timestamp(data_end).date()),
         "status": status,
+        "inputs": {
+            "equal_weight_control": equal_weight_control.as_manifest(),
+        },
         "outputs": {
             "structure_coefficients.csv": _sha256_file(coefficients_path),
             "model_comparison.csv": _sha256_file(model_path),
@@ -2776,13 +2857,13 @@ def run_structure(
         for target in ("blend", "500", "1000")
     }
     if equal_weight_signal is None:
-        control = _load_equal_weight_control(equal_weight_path, cutoff)
+        control_load = _load_equal_weight_control(equal_weight_path, cutoff)
     else:
-        control = _validated_runner_series(
+        control_load = _bind_equal_weight_control_series(
             equal_weight_signal,
-            "equal_weight control",
             cutoff,
         )
+    control = control_load.series
     builder = (
         build_model_comparison
         if model_comparison_builder is None
@@ -2818,6 +2899,7 @@ def run_structure(
         manifest_path,
         cfg,
         cutoff,
+        control_load.provenance,
         coefficients_path,
         model_path,
         status,

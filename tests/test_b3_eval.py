@@ -53,6 +53,8 @@ from backtest.b3_eval import (
 )
 from backtest.b3_structure import (
     MODEL_COMPARISON_COLUMNS,
+    _bind_equal_weight_control_series,
+    _load_equal_weight_control,
     apply_model,
     fit_model,
     next_formation_targets,
@@ -3919,6 +3921,18 @@ def _write_structure_manifest(root, *, data_end="2026-07-10"):
         "config_hash": _EXPECTED_CONFIG_HASH,
         "data_end": data_end,
         "status": "OK",
+        "inputs": {
+            "equal_weight_control": {
+                "source_kind": "file",
+                "path": (
+                    "/repo/output/equal_weight/"
+                    "equal_weight_signal_20d40z.csv"
+                ),
+                "sha256": "c" * 64,
+                "date_column": "date",
+                "value_column": "factor_value",
+            }
+        },
         "outputs": {
             "model_comparison.csv": _sha256(comparison),
             "structure_coefficients.csv": _sha256(coefficients),
@@ -3942,12 +3956,92 @@ def test_structure_provenance_verifies_before_returning_frames(tmp_path):
     assert got.data_end == "2026-07-10"
     assert got.manifest_hash == _sha256(manifest)
     assert dict(got.output_hashes) == payload["outputs"]
+    assert got.equal_weight_control.source_kind == "file"
+    assert got.equal_weight_control.path == (
+        "/repo/output/equal_weight/equal_weight_signal_20d40z.csv"
+    )
+    assert got.equal_weight_control.sha256 == "c" * 64
+    assert got.equal_weight_control.date_column == "date"
+    assert got.equal_weight_control.value_column == "factor_value"
     assert got.structure_coefficients.to_dict("records") == [
         {"model": "M1", "coefficient": 0.25}
     ]
     assert got.model_comparison.to_dict("records") == [
         {"model": "M1", "oos_r2": 0.10}
     ]
+
+
+@pytest.mark.parametrize(
+    "field,value,match",
+    [
+        ("source_kind", "database", "source kind"),
+        ("source_kind", [], "source kind"),
+        ("path", "relative/control.csv", "path"),
+        ("sha256", "A" * 64, "hash format"),
+        ("date_column", "trading_day", "date column"),
+        ("value_column", "factor_value_raw", "value column"),
+    ],
+)
+def test_structure_provenance_rejects_invalid_equal_weight_input(
+    tmp_path,
+    field,
+    value,
+    match,
+):
+    manifest, payload = _write_structure_manifest(tmp_path)
+    payload["inputs"]["equal_weight_control"][field] = value
+    _rewrite_json(manifest, payload)
+
+    with pytest.raises(DataBlocked, match=match):
+        verify_structure_provenance(
+            tmp_path,
+            _EXPECTED_CONFIG_HASH,
+            "2026-07-10",
+        )
+
+
+def test_structure_provenance_rejects_partial_and_extra_inputs(tmp_path):
+    manifest, payload = _write_structure_manifest(tmp_path)
+    payload["inputs"] = {}
+    _rewrite_json(manifest, payload)
+    with pytest.raises(DataBlocked, match="input set"):
+        verify_structure_provenance(
+            tmp_path,
+            _EXPECTED_CONFIG_HASH,
+            "2026-07-10",
+        )
+
+    payload["inputs"] = {
+        "equal_weight_control": {
+            "source_kind": "file",
+            "path": "/repo/equal_weight.csv",
+            "sha256": "c" * 64,
+            "date_column": "date",
+            "value_column": "factor_value",
+        },
+        "extra_control": {},
+    }
+    _rewrite_json(manifest, payload)
+    with pytest.raises(DataBlocked, match="input set"):
+        verify_structure_provenance(
+            tmp_path,
+            _EXPECTED_CONFIG_HASH,
+            "2026-07-10",
+        )
+
+
+def test_in_memory_equal_weight_provenance_cannot_claim_file_path(tmp_path):
+    manifest, payload = _write_structure_manifest(tmp_path)
+    control = payload["inputs"]["equal_weight_control"]
+    control["source_kind"] = "in_memory"
+    _rewrite_json(manifest, payload)
+
+    with pytest.raises(DataBlocked, match="cannot claim a path"):
+        verify_structure_provenance(
+            tmp_path,
+            _EXPECTED_CONFIG_HASH,
+            "2026-07-10",
+        )
 
 
 def test_missing_structure_manifest_never_reads_untrusted_csv(tmp_path, monkeypatch):
@@ -4977,7 +5071,13 @@ def _write_eval_exposures(path, formations, policies):
     return frame
 
 
-def _write_eval_structure(compact, cfg, comparison, data_end):
+def _write_eval_structure(
+    compact,
+    cfg,
+    comparison,
+    data_end,
+    equal_weight,
+):
     compact.mkdir(parents=True, exist_ok=True)
     coefficients = compact / "structure_coefficients.csv"
     model = compact / "model_comparison.csv"
@@ -4988,6 +5088,14 @@ def _write_eval_structure(compact, cfg, comparison, data_end):
         "config_hash": config_hash(cfg),
         "data_end": data_end,
         "status": "OK",
+        "inputs": {
+            "equal_weight_control": (
+                _bind_equal_weight_control_series(
+                    equal_weight,
+                    pd.Timestamp(data_end),
+                ).provenance.as_manifest()
+            ),
+        },
         "outputs": {
             "structure_coefficients.csv": _sha256(coefficients),
             "model_comparison.csv": _sha256(model),
@@ -5017,7 +5125,13 @@ def _unblocked_run_layout(tmp_path, *, data_end="2024-12-31"):
     states.to_csv(state_path, index=False)
     _write_stage_manifest(research, "states", cfg, cutoff, [state_path], "OK", [])
 
-    _write_eval_structure(compact, cfg, comparison, data_end)
+    _write_eval_structure(
+        compact,
+        cfg,
+        comparison,
+        data_end,
+        equal_weight,
+    )
 
     _write_preflight_manifest(
         research,
@@ -5027,6 +5141,53 @@ def _unblocked_run_layout(tmp_path, *, data_end="2024-12-31"):
         config_hash_value=config_hash(cfg),
     )
     return cfg, research, compact, targets, carry, equal_weight, data_end
+
+
+def test_run_evaluation_rejects_refreshed_equal_weight_control(
+    tmp_path,
+    monkeypatch,
+):
+    cfg, research, compact, targets, carry, equal_weight, data_end = (
+        _unblocked_run_layout(tmp_path)
+    )
+    control_path = tmp_path / "equal_weight_signal_20d40z.csv"
+    pd.DataFrame(
+        {
+            "date": equal_weight.index,
+            "factor_value_raw": equal_weight.to_numpy() + 0.5,
+            "factor_value": equal_weight.to_numpy(),
+        }
+    ).to_csv(control_path, index=False)
+    manifest_path = compact / "structure_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["inputs"]["equal_weight_control"] = _load_equal_weight_control(
+        control_path,
+        pd.Timestamp(data_end),
+    ).provenance.as_manifest()
+    _rewrite_json(manifest_path, manifest)
+    refreshed = pd.read_csv(control_path)
+    refreshed.loc[0, "factor_value"] += 0.01
+    refreshed.to_csv(control_path, index=False)
+
+    def forbidden_build(*args, **kwargs):
+        del args, kwargs
+        raise AssertionError("mismatched control reached build_evaluation")
+
+    monkeypatch.setattr(b3_eval_module, "build_evaluation", forbidden_build)
+
+    with pytest.raises(
+        DataBlocked,
+        match="equal_weight control provenance mismatch",
+    ):
+        b3_eval_module.run_evaluation(
+            cfg,
+            data_end,
+            research,
+            compact,
+            underlying_return_loader=lambda leg: targets[leg],
+            carry_loader=lambda leg: carry[leg],
+            equal_weight_path=control_path,
+        )
 
 
 def test_run_evaluation_unblocked_writes_seven_products_and_concludes(tmp_path):
@@ -5372,6 +5533,17 @@ def test_eval_cli_unblocked_run_exits_zero_with_default_loaders(
             "factor_value": equal_weight.to_numpy(),
         }
     ).to_csv(control_path, index=False)
+    structure_manifest_path = compact / "structure_manifest.json"
+    structure_manifest = json.loads(
+        structure_manifest_path.read_text(encoding="utf-8")
+    )
+    structure_manifest["inputs"]["equal_weight_control"] = (
+        _load_equal_weight_control(
+            control_path,
+            pd.Timestamp(data_end),
+        ).provenance.as_manifest()
+    )
+    _rewrite_json(structure_manifest_path, structure_manifest)
     import backtest.data as data_module
 
     monkeypatch.setattr(
