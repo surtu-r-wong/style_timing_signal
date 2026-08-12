@@ -4,6 +4,9 @@
 > 目标是让一个完全没有历史上下文的人照着就能进环境、跑长任务、出问题时定位、以及在需要时把整套环境干净拆掉。
 > 每条结论都可回溯到 `/home/elfbob/claude-code/deploy_backups/2026-08-10-wsl2/evidence/` 下的原始证据文件。
 > 建设过程与决策依据见同目录 `2026-08-10-wsl2-execution-environment.md`（实施计划）。
+>
+> **验收后修订（2026-08-12）**：补入两项验收后的宿主变更——H8 删除 staging 明文口令副本（§3.1 末）、
+> H9 部署启动文件夹锚（§5.3，**已部署但尚未生效，需一次登录事件**）。证据在 `evidence/post-accept/`。
 
 **机器：** DESKTOP-P7MGEIR，Windows 11 专业版 Build 26200（25H2），32 逻辑核 / 127.66 GiB RAM / D: 约 1.79T。
 **身份：** `ghls`，Tailscale `100.120.152.1`。
@@ -84,6 +87,7 @@ WSL 服务是 `Automatic` 启动，但 **VM 不会自己起**，需要一次 `ws
    （**注意**：以 `ghls` 身份不加 `sudo` 调 `systemctl` 会报 `Failed to connect to bus`，
    那是 systemd **user** session 的噪音，不是服务故障；冷唤醒后约 20 秒自行稳定。）
 3. 之后 VM 会常驻（见 ②），无需反复唤醒。
+4. **重启同时是 H9 锚的触发时机**：登录后按 §5.3 的三条验收跑一遍，通过了才算"断线无感"到手。
 
 宿主重启同时会中断 Wind 终端与 market monitor，**Wind 需人工登录**才恢复——重启窗口必须由用户拍板。
 
@@ -223,7 +227,9 @@ mkdir -p output/style_basket/cache output/style_basket/b3 backtest/output/b3
 两者从 WSL 内均已实测可达（Batch 2 的 PG 应用层握手 + Batch 4 全程 `GW8080=OPEN`）。
 
 > ⚠️ **凭据卫生**：该文件是明文口令。传输后它会在宿主 `D:\deploy_stage\wsl2\settings.yaml`
-> 留下一份副本。部署完成后建议删除该副本（WSL 内那份才是运行时需要的）。
+> 留下一份副本，**用完必须删掉**（WSL 内那份才是运行时需要的）。
+> 本次部署留下的那份已于 2026-08-11 删除（台账 H8，证据 `evidence/post-accept/settings-yaml-removal.txt`；
+> 2026-08-12 复核 `Test-Path` = `False`）。**以后每次走这条通道补配置，都要在用完后重复这一步。**
 
 ### 4.3 真实负载实测（B3 preflight）与容量口径
 
@@ -298,22 +304,40 @@ ssh ... -p 2222 "wsl -d ubuntu2404 -e bash -lc 'ps -p 1 -o etimes=; tmux ls </de
 - 取峰值内存用 `/usr/bin/time -v <cmd>` 包裹，读 `Maximum resident set size`。
 - `tmux ls` 实测不加重定向也正常；本文统一加 `</dev/null` 只是把纪律拉齐。
 
-### 5.3 未决：抗断线的锚（**尚未实施，需用户拍板**）
+### 5.3 抗断线的锚：**已部署，但尚未生效**（台账 H9）
 
-上面的锚由开发机的 ssh 持有，**开发机一断线锚就没了**，等于没有"断线无感"。
-要真正做到断线无感，需要一个**宿主侧、抗断线**的锚。推荐形态：
+5.2 的锚由开发机的 ssh 持有，**开发机一断线锚就没了**，等于没有"断线无感"。
+宿主侧抗断线的锚已于 2026-08-11 用户批准落地，形态是**启动文件夹脚本**（不走被 360 封过的 schtasks / WMI）：
 
 ```
-开机自启的 Windows 计划任务：wsl.exe -d ubuntu2404 -e sleep infinity
+%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\wsl2-anchor.vbs   (706 B, 2026-08-11 18:33)
+  -> WScript.Shell.Run "C:\Windows\System32\wsl.exe -d ubuntu2404 -e sleep infinity", 0, False
 ```
 
-这台机器上 B3 长跑本来就走计划任务（Services 会话），是已验证可行的模式（WMI 方式被 360 拒）。
-代价 = 发行版常驻及其内存占用；回滚 = 删任务。
+副本与说明见 `evidence/post-accept/wsl2-anchor.vbs`。代价 = 发行版常驻及其内存占用；
+回滚 = 从启动文件夹删掉该文件，再 `wsl --shutdown`。
 
-**已知无效的做法**：`Start-Process wsl … sleep` 分离式保活（Batch 2 实测 wsl.exe 不留存）。
+> 🚧 **它到现在一次都没跑过。** 宿主自 2026-08-10 16:19 起是同一个登录会话，而脚本是 8-11 18:33 才放进去的，
+> **启动文件夹只在登录时触发**。2026-08-12 实测 `Get-Process wsl` 为空 = 当前无锚。
+> **在下一次登录事件（注销重登 / 重启）之前，本环境仍然只支持"有人值守 / 发起方保持连接"的长跑。**
 
-> Batch 4 未实施该计划任务：它超出本部署的宿主写入白名单，且属于需用户拍板的宿主变更。
-> **在它落地之前，本环境只支持"有人值守 / 发起方保持连接"的长跑。**
+**不要试图从 ssh 远端把它激活**——已实测是死路（2026-08-12，证据 `evidence/post-accept/anchor-activation-attempt.txt`）：
+`wscript` 拉起来的 `wsl.exe` 在同一 ssh 会话内能稳活 ≥90 s，但**会话一断就随之被杀**（< 97 s 内消失）。
+根因是 Windows OpenSSH 把会话内派生的进程放进一个 job object，会话关闭时整组终结；
+`WScript.Shell.Run` 的分离式启动逃不出去——与 Batch 2 实测 `Start-Process wsl … sleep` **不留存**是同一类失效。
+登录触发路径的父进程是交互会话的 explorer/userinit，不在该 job object 内，因此**只有真实登录才能验收**。
+
+**下次登录后的验收（三条，缺一不可）**：
+
+```powershell
+# 1) 锚起来了，且起始时刻 ≈ 登录时刻
+Get-Process wsl | Select-Object Id,StartTime
+# 2) 断开所有 ssh，隔 >=5 分钟再连——它必须还在（这才证明不依赖远端会话）
+# 3) 发行版实例真的常驻（勿用 lstart=，内核时钟慢 2.7%，见 5.1）
+wsl -d ubuntu2404 -e bash -lc 'ps -p 1 -o etimes='
+```
+
+三条全过之前，**别把 H9 当成已生效**，也别据此安排无人值守长跑。
 
 ---
 
@@ -373,14 +397,18 @@ Batch 3 的 `fw_check3.ps1` / `fw_remove.ps1` 只留在宿主 `D:\deploy_stage\w
 
 | # | 回退动作 | 命令 | 说明 |
 |---|---|---|---|
-| 1 | 停 WSL VM（临时还内存） | `wsl --shutdown` | 只影响 VM，随时可做，下次 `wsl -e` 自动拉起。 |
-| 2 | 恢复 60 秒空闲关机 | 删 `C:\Users\ghls\.wslconfig` 中 `vmIdleTimeout=604800000` 一行，再 `wsl --shutdown` | 改前副本 `evidence/batch3/wslconfig.before`（2204 B）。 |
-| 3 | 整份 `.wslconfig` 复原 | 把 `wslconfig.before` scp 回 `C:\Users\ghls\.wslconfig` | 该文件在本部署前**不存在**，也可直接删除。 |
-| 4 | 删除发行版（连数据） | `wsl --unregister ubuntu2404` | **不可逆**，会删掉 `/opt/python3.13.9`、`/home/ghls/style_timing_signal` 及 `.venv`。 |
-| 5 | 删 VHDX 残留 | `cmd /c rmdir /s /q D:\wsl\ubuntu2404` | `--unregister` 后若目录仍在。 |
-| 6 | 清 staging | `cmd /c rmdir /s /q D:\deploy_stage\wsl2` | 36+ 个安装/证据文件，删前确认已归档到 `deploy_backups/`。 |
-| 7 | 卸载 WSL runtime | `msiexec /x D:\deploy_stage\wsl2\wsl.2.7.11.0.x64.msi /qn /norestart` | 需在第 6 步之前做（要用到 MSI 文件）。 |
-| 8 | 关闭虚拟机平台功能 | `dism /online /disable-feature /featurename:VirtualMachinePlatform /norestart` | **需重启生效**，必须走用户拍板的重启窗口。本机 VBS 已在运行，理论上不受影响，但仍属系统级操作。 |
+| 1 | 撤掉开机自启锚（H9） | 从启动文件夹删 `wsl2-anchor.vbs`，再 `wsl --shutdown` | 只影响"断线无感"，不影响其余任何能力；副本留在 `evidence/post-accept/`。 |
+| 2 | 停 WSL VM（临时还内存） | `wsl --shutdown` | 只影响 VM，随时可做，下次 `wsl -e` 自动拉起。 |
+| 3 | 恢复 60 秒空闲关机 | 删 `C:\Users\ghls\.wslconfig` 中 `vmIdleTimeout=604800000` 一行，再 `wsl --shutdown` | 改前副本 `evidence/batch3/wslconfig.before`（2204 B）。 |
+| 4 | 整份 `.wslconfig` 复原 | 把 `wslconfig.before` scp 回 `C:\Users\ghls\.wslconfig` | 该文件在本部署前**不存在**，也可直接删除。 |
+| 5 | 删除发行版（连数据） | `wsl --unregister ubuntu2404` | **不可逆**，会删掉 `/opt/python3.13.9`、`/home/ghls/style_timing_signal` 及 `.venv`。 |
+| 6 | 删 VHDX 残留 | `cmd /c rmdir /s /q D:\wsl\ubuntu2404` | `--unregister` 后若目录仍在。 |
+| 7 | 清 staging | `cmd /c rmdir /s /q D:\deploy_stage\wsl2` | 36+ 个安装/证据文件，删前确认已归档到 `deploy_backups/`。**注意该目录已被另一条 B3 model-calendar 工作线在用**（H8 记录），不是本部署独占。 |
+| 8 | 卸载 WSL runtime | `msiexec /x D:\deploy_stage\wsl2\wsl.2.7.11.0.x64.msi /qn /norestart` | 需在第 7 步之前做（要用到 MSI 文件）。 |
+| 9 | 关闭虚拟机平台功能 | `dism /online /disable-feature /featurename:VirtualMachinePlatform /norestart` | **需重启生效**，必须走用户拍板的重启窗口。本机 VBS 已在运行，理论上不受影响，但仍属系统级操作。 |
+
+> ⚠️ 第 9 行的 "VBS" 指 Windows 的 **Virtualization-Based Security**，与 H9 那个 `wsl2-anchor.vbs`
+> （VBScript 脚本）毫无关系，别看串。
 
 **防火墙无需回退**：Hyper-V 规则 `WSL2-sshd-2223` 已在 Batch 3 删除且证明不必要；
 本部署**从未**创建经典 Windows 防火墙规则或 portproxy 条目（`netsh` 双双核实为空）。
@@ -440,3 +468,7 @@ B3 长跑走**计划任务**（Services 会话即由此而来；WMI 方式被 36
 
 全部原始证据在 `/home/elfbob/claude-code/deploy_backups/2026-08-10-wsl2/evidence/`，
 索引与用途见同目录上一级的 `manifest.json`（`evidence_index` 段）。
+
+- `batch0/` – `batch4/`、`diagnostics/`：建设期证据（Batch 0–4 双审，含各批 `qa_review.md` 与 `adjudication.md`）。
+- `post-accept/`：**验收之后**发生的宿主变更与观测（H8 删除 staging 明文口令副本、H9 启动文件夹锚及其
+  2026-08-12 激活尝试的失败取证）。这部分不属于 Batch 0–4 的双审范围，按变更逐条留证。
