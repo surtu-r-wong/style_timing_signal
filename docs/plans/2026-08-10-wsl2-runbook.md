@@ -6,7 +6,8 @@
 > 建设过程与决策依据见同目录 `2026-08-10-wsl2-execution-environment.md`（实施计划）。
 >
 > **验收后修订（2026-08-12）**：补入两项验收后的宿主变更——H8 删除 staging 明文口令副本（§3.1 末）、
-> H9 部署启动文件夹锚（§5.3，**已部署但尚未生效，需一次登录事件**）。证据在 `evidence/post-accept/`。
+> H9 开机自启的抗断线锚（§5.3，**当日重启后三条验收全过、已生效**）。证据在 `evidence/post-accept/`。
+> 两条连带变化：**长跑不再需要有人值守**（§5.2），**2223 直登升级为常通入口**（§1.3）。
 
 **机器：** DESKTOP-P7MGEIR，Windows 11 专业版 Build 26200（25H2），32 逻辑核 / 127.66 GiB RAM / D: 约 1.79T。
 **身份：** `ghls`，Tailscale `100.120.152.1`。
@@ -74,8 +75,12 @@ WSL 内 sshd 监听 **2223**（key-only，`permitrootlogin no`，`passwordauthen
 （删除后持会话态 3/3 通），宿主现在**没有**任何为 WSL 新增的防火墙规则或 portproxy。
 证据：`evidence/batch3/batch3_manifest.txt` STEP 0d 的完整观测集。
 
-**结论：2223 不是主入口，是便利入口。** 使用窗口 = 你已经通过 2222 起了一个长会话（例如 `wsl -e sleep 600`）时，
-可以在旁边开 2223 直连做交互调试。**不要**为了修 2223 去碰防火墙——那是已排除的错误方向，且 `*-NetFirewall*` 全族在本机是分钟级毒药（见 ⑥）。
+**不要**为了修 2223 去碰防火墙——那是已排除的错误方向，且 `*-NetFirewall*` 全族在本机是分钟级毒药（见 ⑥）。
+
+> ✅ **2026-08-12 起，上面那个前提由 H9 锚永久满足**（§5.3）：开机自启的锚常驻一个 `wsl.exe`，
+> 因此 **2223 现在是常通的**——实测在本方不持任何会话时 3/3 直登成功。
+> 但它**依赖 H9**：一旦按 ⑦ 回退表第 1 行撤掉锚，2223 立刻退回上面的 attach-state。
+> 判断顺序永远是"先看宿主有没有 `wsl.exe`"，不是"先怀疑网络"。
 
 ### 1.4 宿主重启后的唤醒流程
 
@@ -87,7 +92,8 @@ WSL 服务是 `Automatic` 启动，但 **VM 不会自己起**，需要一次 `ws
    （**注意**：以 `ghls` 身份不加 `sudo` 调 `systemctl` 会报 `Failed to connect to bus`，
    那是 systemd **user** session 的噪音，不是服务故障；冷唤醒后约 20 秒自行稳定。）
 3. 之后 VM 会常驻（见 ②），无需反复唤醒。
-4. **重启同时是 H9 锚的触发时机**：登录后按 §5.3 的三条验收跑一遍，通过了才算"断线无感"到手。
+4. **实际上第 1 步通常已被 H9 锚代劳**：登录后约 20 秒锚就会把发行版拉起来（2026-08-12 实测）。
+   重启后先 `Get-Process wsl` 确认锚在——在，就直接干活；不在，按 §5.3 排查。
 
 宿主重启同时会中断 Wind 终端与 market monitor，**Wind 需人工登录**才恢复——重启窗口必须由用户拍板。
 
@@ -280,15 +286,20 @@ Batch 2/3 用 boot_id 判定"VM 常驻"是对的，但它对本失效模式是**
 **别用 `lstart=`（QA F-2）**：本机 WSL 内核时钟比墙钟**慢约 2.7%**，`lstart` 的表观时间每小时前漂
 约 100 秒，挂锚约 19 分钟后就会让表观 systemd 时间反超任务起始时间、**假报"任务已死"**；
 `etimes` 与心跳日志不受此漂移影响。（这个 2.7% 同样意味着 WSL 内 `sleep N` 实际比墙钟 N 秒更长。）
+**补充观测（2026-08-12 重启后）**：漂移**不复现**——Δ`etimes` 350 == 墙钟 Δ350（若仍慢 2.7% 应约 340.5），
+宿主与 WSL 时钟差 < 1 秒。说明漂移是长寿实例上累积出来的，重启会复位，新实例不带。
+**判据不变，继续用 `etimes` + 心跳日志**：两种情形下它都对，而 `lstart` 只要实例活得够久就会再次骗人。
 
 > 这同时解释了 ①1.3 的 2223 attach-state：不是端口被挡，是 **sshd 随发行版一起被拆了**。两者是同一个机制。
 
-### 5.2 起长跑（当前唯一可靠的姿势）
+### 5.2 起长跑
 
 **必须先有锚。** 锚 = 宿主上任何一个长命 `wsl.exe` 进程。
+**2026-08-12 起 H9 已生效**（§5.3），开机自启就有一个常驻锚，**第 0 步通常可以跳过**——
+但每次起长跑前**必须先确认锚在**（`Get-Process wsl`），确认不了就按第 0 步自己挂一条。
 
 ```bash
-# 0. 起锚（当前形态：由发起方从开发机后台挂一条。断线即失锚，见 5.3）
+# 0. 起锚（仅在 H9 锚缺失时才需要：由发起方从开发机后台挂一条，断线即失锚）
 ssh ... -p 2222 "wsl -d ubuntu2404 -e sleep 86400" &
 
 # 1. 投递脚本（base64 载荷，见 1.2），落盘后比对 md5
@@ -304,7 +315,7 @@ ssh ... -p 2222 "wsl -d ubuntu2404 -e bash -lc 'ps -p 1 -o etimes=; tmux ls </de
 - 取峰值内存用 `/usr/bin/time -v <cmd>` 包裹，读 `Maximum resident set size`。
 - `tmux ls` 实测不加重定向也正常；本文统一加 `</dev/null` 只是把纪律拉齐。
 
-### 5.3 抗断线的锚：**已部署，但尚未生效**（台账 H9）
+### 5.3 抗断线的锚：**已生效**（台账 H9）
 
 5.2 的锚由开发机的 ssh 持有，**开发机一断线锚就没了**，等于没有"断线无感"。
 宿主侧抗断线的锚已于 2026-08-11 用户批准落地，形态是**启动文件夹脚本**（不走被 360 封过的 schtasks / WMI）：
@@ -317,27 +328,26 @@ ssh ... -p 2222 "wsl -d ubuntu2404 -e bash -lc 'ps -p 1 -o etimes=; tmux ls </de
 副本与说明见 `evidence/post-accept/wsl2-anchor.vbs`。代价 = 发行版常驻及其内存占用；
 回滚 = 从启动文件夹删掉该文件，再 `wsl --shutdown`。
 
-> 🚧 **它到现在一次都没跑过。** 宿主自 2026-08-10 16:19 起是同一个登录会话，而脚本是 8-11 18:33 才放进去的，
-> **启动文件夹只在登录时触发**。2026-08-12 实测 `Get-Process wsl` 为空 = 当前无锚。
-> **在下一次登录事件（注销重登 / 重启）之前，本环境仍然只支持"有人值守 / 发起方保持连接"的长跑。**
+> ✅ **2026-08-12 宿主重启后首次触发，三条验收全过 —— H9 生效，本环境自此支持无人值守长跑。**
+> 证据 `evidence/post-accept/anchor-acceptance-20260812.txt`。
 
-**不要试图从 ssh 远端把它激活**——已实测是死路（2026-08-12，证据 `evidence/post-accept/anchor-activation-attempt.txt`）：
-`wscript` 拉起来的 `wsl.exe` 在同一 ssh 会话内能稳活 ≥90 s，但**会话一断就随之被杀**（< 97 s 内消失）。
-根因是 Windows OpenSSH 把会话内派生的进程放进一个 job object，会话关闭时整组终结；
-`WScript.Shell.Run` 的分离式启动逃不出去——与 Batch 2 实测 `Start-Process wsl … sleep` **不留存**是同一类失效。
-登录触发路径的父进程是交互会话的 explorer/userinit，不在该 job object 内，因此**只有真实登录才能验收**。
+| 验收 | 实测 | 结果 |
+|---|---|---|
+| 锚自动起来，起始 ≈ 登录时刻 | 重启 09:13:07 → 登录（explorer）09:13:37 → `wsl` 22080/22136 **09:13:57**（+20 s） | PASS |
+| 断开所有 ssh ≥5 分钟后仍在 | 静默 330 s（09:28:07→09:33:54），重连后**同一对 pid、StartTime 未变** | PASS |
+| 发行版实例真的常驻 | `etimes` 846→1196（Δ350 = 墙钟 Δ350），`boot_id` 未变，与内核 uptime 始终只差 4 s | PASS |
 
-**下次登录后的验收（三条，缺一不可）**：
+重启前 09:05 实测 `wsl.exe` 计数 = 0，故这对锚确系本次登录新起，不是遗留进程。`ssh.service` 亦随开机自启（`is-active` → `active`）。
 
-```powershell
-# 1) 锚起来了，且起始时刻 ≈ 登录时刻
-Get-Process wsl | Select-Object Id,StartTime
-# 2) 断开所有 ssh，隔 >=5 分钟再连——它必须还在（这才证明不依赖远端会话）
-# 3) 发行版实例真的常驻（勿用 lstart=，内核时钟慢 2.7%，见 5.1）
-wsl -d ubuntu2404 -e bash -lc 'ps -p 1 -o etimes='
-```
+**日常只需一条**：`Get-Process wsl` 有货 = 锚在。没货就是 H9 掉了（被回退、或登录会话异常），
+此时环境退回"有人值守"模式，按 §5.2 第 0 步自己挂锚。
 
-三条全过之前，**别把 H9 当成已生效**，也别据此安排无人值守长跑。
+> ⚠️ **不要试图从 ssh 远端激活或重挂这个锚**——已实测是死路（证据 `evidence/post-accept/anchor-activation-attempt.txt`）：
+> `wscript` 拉起来的 `wsl.exe` 在同一 ssh 会话内能稳活 ≥90 s，但**会话一断就随之被杀**（< 97 s 内消失）。
+> 根因是 Windows OpenSSH 把会话内派生的进程放进一个 job object，会话关闭时整组终结；
+> `WScript.Shell.Run` 的分离式启动逃不出去——与 Batch 2 实测 `Start-Process wsl … sleep` **不留存**是同一类失效。
+> 只有登录路径（父进程是交互会话的 explorer/userinit，不在该 job object 内）才有效。
+> **所以 H9 掉了的唯一正规修法是让用户注销重登 / 重启，远端补不上。**
 
 ---
 
@@ -397,7 +407,7 @@ Batch 3 的 `fw_check3.ps1` / `fw_remove.ps1` 只留在宿主 `D:\deploy_stage\w
 
 | # | 回退动作 | 命令 | 说明 |
 |---|---|---|---|
-| 1 | 撤掉开机自启锚（H9） | 从启动文件夹删 `wsl2-anchor.vbs`，再 `wsl --shutdown` | 只影响"断线无感"，不影响其余任何能力；副本留在 `evidence/post-accept/`。 |
+| 1 | 撤掉开机自启锚（H9） | 从启动文件夹删 `wsl2-anchor.vbs`，再 `wsl --shutdown` | **连带失去两项能力**：无人值守长跑（退回 §5.2 第 0 步自挂锚）、2223 常通（退回 §1.3 attach-state）。其余能力不受影响；副本留在 `evidence/post-accept/`。 |
 | 2 | 停 WSL VM（临时还内存） | `wsl --shutdown` | 只影响 VM，随时可做，下次 `wsl -e` 自动拉起。 |
 | 3 | 恢复 60 秒空闲关机 | 删 `C:\Users\ghls\.wslconfig` 中 `vmIdleTimeout=604800000` 一行，再 `wsl --shutdown` | 改前副本 `evidence/batch3/wslconfig.before`（2204 B）。 |
 | 4 | 整份 `.wslconfig` 复原 | 把 `wslconfig.before` scp 回 `C:\Users\ghls\.wslconfig` | 该文件在本部署前**不存在**，也可直接删除。 |
@@ -470,5 +480,7 @@ B3 长跑走**计划任务**（Services 会话即由此而来；WMI 方式被 36
 索引与用途见同目录上一级的 `manifest.json`（`evidence_index` 段）。
 
 - `batch0/` – `batch4/`、`diagnostics/`：建设期证据（Batch 0–4 双审，含各批 `qa_review.md` 与 `adjudication.md`）。
-- `post-accept/`：**验收之后**发生的宿主变更与观测（H8 删除 staging 明文口令副本、H9 启动文件夹锚及其
-  2026-08-12 激活尝试的失败取证）。这部分不属于 Batch 0–4 的双审范围，按变更逐条留证。
+- `post-accept/`：**验收之后**发生的宿主变更与观测，不属于 Batch 0–4 的双审范围，按变更逐条留证：
+  `settings-yaml-removal.txt`（H8 删除 staging 明文口令副本）、`wsl2-anchor.vbs`（H9 锚脚本副本）、
+  `anchor-activation-attempt.txt`（H9 远端激活是死路的取证）、
+  `anchor-acceptance-20260812.txt`（**H9 三条验收全过，生效**）。
