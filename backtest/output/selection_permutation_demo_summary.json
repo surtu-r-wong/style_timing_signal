@@ -1,0 +1,45 @@
+{
+  "WARNING_NOT_A_PROBE": "⚠️ 本运行是**机器演示**，不是探针：不构成任何轴的 PASS / STOP，不进任何裁决表（候选 ⓪ 是基建，无 STOP/GO 闸门）。",
+  "summary": {
+    "statistic": "worst_tv_sharpe(train,val)",
+    "n_variants": 40,
+    "n_perm": 1000,
+    "seed": 0,
+    "scheme": "rotation",
+    "best_variant": "(('lookback', 20), ('smoothing', 0), ('z_window', 100))",
+    "observed_best": 1.6276249913311567,
+    "p_selected": 0.006993006993006993,
+    "p_min_p": 0.014985014985014986,
+    "p_naive_UNCORRECTED": 0.000999000999000999,
+    "selection_inflation": 7.0,
+    "null_selected_mean": 0.36940815481237005,
+    "null_selected_p95": 0.7651557641685859,
+    "n_distinct_null_winners": 40
+  },
+  "run": {
+    "n_obs": 3065,
+    "cost_bps": 3.0,
+    "first_date": "2014-01-02",
+    "last_date": "2026-08-11",
+    "db_host": "100.75.102.44",
+    "windows": {
+      "train_14_20": [
+        "2014-01-01",
+        "2020-12-31"
+      ],
+      "val_21_23": [
+        "2021-01-01",
+        "2023-12-31"
+      ]
+    },
+    "selection_rule": "argmax over worst(train, val) sharpe（照抄 scan.py）"
+  },
+  "null_selected_quantiles": {
+    "p5": -0.0543126851568254,
+    "p25": 0.19729116784874318,
+    "p50": 0.3609155055261998,
+    "p75": 0.5370254899877835,
+    "p95": 0.7651557641685859,
+    "p99": 1.4245331191996475
+  }
+}
