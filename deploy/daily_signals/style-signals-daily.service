@@ -1,0 +1,20 @@
+[Unit]
+Description=style_timing_signal daily signal chain (3 signals + recommended positions)
+Documentation=file:///home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/README.md
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/elfbob/claude-code/style_timing_signal
+ExecStart=/home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/run_daily_signals.sh
+# 脚本内部也会 export，这里再设一次是为了 systemctl start 单跑时的可复现性。
+Environment=PYTHONIOENCODING=utf-8
+Environment=PYTHONUTF8=1
+Environment=LC_ALL=C.UTF-8
+# 整链正常 <1min；给 topup（Wind gateway 拉数）留足余量后仍设上限，避免挂死占锁。
+TimeoutStartSec=3600
+# 本链路只处理 4000×15 量级的小表；2G 是宽裕上限，兼作跑飞护栏。
+MemoryMax=2G
+Nice=5
+
+[Install]
+WantedBy=default.target

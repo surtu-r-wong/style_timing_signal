@@ -1,0 +1,15 @@
+[Unit]
+Description=Run style_timing_signal daily signal chain (weekdays 18:30 Asia/Shanghai)
+Documentation=file:///home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/README.md
+
+[Timer]
+# 上游 stock_selector 的 daily_index 在工作日 17:30 抓 index_daily，这里晚一小时。
+OnCalendar=Mon-Fri 18:30 Asia/Shanghai
+AccuracySec=1min
+RandomizedDelaySec=2min
+# 关机/休眠错过的触发在下次启动后补跑（本项目停更 35 天的直接对策之一）。
+Persistent=true
+Unit=style-signals-daily.service
+
+[Install]
+WantedBy=timers.target
