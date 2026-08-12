@@ -191,7 +191,9 @@ def main() -> int:
     ap.add_argument("--run-log", default=None, help="本次运行日志路径（记入状态文件）")
     ap.add_argument("--started-at", default=None, help="运行开始时间 ISO 串")
     ap.add_argument("--topup", default="UNKNOWN",
-                    help="topup 步骤结果 OK/DEGRADED/SKIPPED")
+                    help="topup 步骤结果 OK/DEGRADED/TOPUP_SKIPPED/SUSPECT")
+    ap.add_argument("--topup-reason", default="",
+                    help="topup 被跳过/降级/存疑的原因，原样记入状态文件")
     ap.add_argument("--steps", default=None, help="各步骤耗时 JSON 数组")
     ap.add_argument("--failed-step", default=None,
                     help="给定则记账为失败（不连库、不做新鲜度检查）")
@@ -204,6 +206,7 @@ def main() -> int:
         "started_at": args.started_at,
         "finished_at": now,
         "topup": args.topup,
+        "topup_reason": args.topup_reason or None,
         "steps": parse_steps(args.steps),
         "run_log": args.run_log,
     }
