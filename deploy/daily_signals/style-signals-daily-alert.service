@@ -1,0 +1,14 @@
+[Unit]
+Description=Alert when the style_timing_signal daily chain fails
+Documentation=file:///home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/README.md
+
+[Service]
+Type=oneshot
+ExecStart=/home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/alert_on_failure.sh
+Environment=PYTHONIOENCODING=utf-8
+Environment=PYTHONUTF8=1
+Environment=LC_ALL=C.UTF-8
+TimeoutStartSec=60
+
+# 无 [Install]：本单元只由 style-signals-daily.service 的 OnFailure= 拉起，
+# 不该被 enable 成独立单元。

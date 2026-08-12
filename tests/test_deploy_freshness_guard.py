@@ -129,6 +129,67 @@ def test_date_off_calendar_is_a_breach(tmp_path):
     assert "不在 index_daily 交易日历上" in breaches[0]
 
 
+# ────────────────── 上游冻结护栏（QA 2026-08-12 Important 4）──────────────────
+#
+# 盲区：三条产出是从 index_daily 算出来的，上游一冻结，「产出 vs 上游」恒为 0 落后、
+# 恒报 OK —— 恰恰是本批立项要治的那种「停摆无人知」。所以要单独盯上游自己。
+
+def test_upstream_fresh_passes():
+    behind, breach = guard.check_upstream_freeze("2026-08-11", "2026-08-12")
+    assert behind == 1 and breach is None
+
+
+def test_upstream_at_threshold_passes():
+    _, breach = guard.check_upstream_freeze("2026-08-05", "2026-08-12")  # 7 天
+    assert breach is None
+
+
+def test_upstream_frozen_beyond_threshold_breaches():
+    behind, breach = guard.check_upstream_freeze("2026-08-04", "2026-08-12")  # 8 天
+    assert behind == 8
+    assert breach is not None and "可能已冻结" in breach
+
+
+def test_upstream_holiday_window_relaxes_threshold():
+    """国庆窗口内 8 天不报警（固定日期长假内置）。"""
+    _, breach = guard.check_upstream_freeze("2026-09-30", "2026-10-08")
+    assert breach is None
+
+
+def test_upstream_still_breaches_even_in_holiday_when_way_too_stale():
+    _, breach = guard.check_upstream_freeze("2026-09-10", "2026-10-08")  # 28 天
+    assert breach is not None
+
+
+def test_upstream_extra_holiday_window_silences_lunar_new_year():
+    """农历假期靠 --holiday-window 登记（春节日期逐年变，不内置）。"""
+    _, breach = guard.check_upstream_freeze("2027-02-05", "2027-02-16")
+    assert breach is not None, "未登记春节窗口时应当报警"
+    _, breach = guard.check_upstream_freeze(
+        "2027-02-05", "2027-02-16", [("2027-02-06", "2027-02-17")])
+    assert breach is None, "登记窗口后应消音"
+
+
+@pytest.mark.parametrize("day,expected", [
+    ("2026-01-02", True), ("2026-05-03", True), ("2026-10-05", True),
+    ("2026-08-12", False), ("2026-03-15", False),
+])
+def test_fixed_holiday_windows(day, expected):
+    assert guard.in_holiday_window(day) is expected
+
+
+def test_parse_holiday_windows():
+    assert guard.parse_holiday_windows("2027-02-06:2027-02-17, 2028-01-25:2028-02-02") == [
+        ("2027-02-06", "2027-02-17"), ("2028-01-25", "2028-02-02")]
+    assert guard.parse_holiday_windows("") == []
+    assert guard.parse_holiday_windows(None) == []
+
+
+def test_parse_holiday_windows_rejects_malformed():
+    with pytest.raises(ValueError):
+        guard.parse_holiday_windows("2027-02-06")
+
+
 def test_gated_set_matches_production_signals():
     """护栏必须覆盖 backtest.baseline.SIGNALS 的三条生产信号 + 三份推荐持仓。"""
     from backtest.baseline import SIGNALS

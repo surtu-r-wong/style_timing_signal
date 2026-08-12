@@ -13,6 +13,8 @@
 | `run_daily_signals.sh` | 链路 runner：topup → 三条信号 → 推荐持仓 → 护栏；带 flock、分步计时、日志、状态文件 |
 | `check_freshness.py` | 新鲜度护栏（只读 PG）+ 状态 JSON 写入器 |
 | `topup_guard.py` | topup 写库护栏：前置闸门（只读 gateway+PG）+ 事后审计（只读 PG） |
+| `alert_on_failure.sh` | 失败告警器：写 `logs/ALERT_daily_signals` + best-effort `notify-send` |
+| `style-signals-daily-alert.service` | 告警单元，由主 service 的 `OnFailure=` 拉起 |
 | `SKIP_TOPUP`（可选） | 存在即跳过 topup，文件第一行是原因；见下「Wind wsd 额度耗尽时怎么办」 |
 | `style-signals-daily.service` | systemd user service（oneshot），单元副本 |
 | `style-signals-daily.timer` | systemd user timer，工作日 18:30 Asia/Shanghai，`Persistent=true` |
@@ -48,6 +50,25 @@ deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
   上游自身相对今天的滞后只出 `WARN`，不影响退出码（长假期间必然变大）。
 - **PG 只读**：护栏与信号脚本都只读 `stock_selector.index_daily`；链路里唯一的写库方是
   步骤 0 的 `tools/topup_index_daily.sh`（stock_selector 的 backfill CLI，幂等 upsert）。
+- **上游冻结护栏**：三条产出是从 `index_daily` 算出来的，上游一冻结，「产出 vs 上游」
+  恒为 0 落后、恒报 OK —— 正是本项目停更 35 天没被发现的那种盲区。所以还单独盯上游：
+  `index_daily` 最新交易日距今 > 7 个自然日且不在已知假期窗口 → `result: UPSTREAM_STALE`
+  + 非零退出。固定日期长假（元旦/劳动节/国庆）内置放宽到 15 天；**春节等农历假期日期
+  逐年变，须显式登记**，否则会在长假误报：
+
+  ```bash
+  # 二选一：CLI 参数（可重复）或环境变量（逗号分隔）
+  python3 deploy/daily_signals/check_freshness.py --holiday-window 2027-02-06:2027-02-17
+  systemctl --user edit style-signals-daily.service   # Environment=STYLE_SIGNALS_HOLIDAY_WINDOWS=...
+  ```
+
+  宁可长假多报一次假警（一条窗口登记即可消音），也不要在上游真冻结时保持沉默。
+- **失败告警**：主 service 的 `OnFailure=` 会拉起 `style-signals-daily-alert.service`，
+  写 `logs/ALERT_daily_signals`（时间 + `status.json` 摘要 + 日志路径 + 处置指引）并
+  best-effort 弹 `notify-send`。链路会在 topup 审计判可疑/无法验证时**主动中止**——
+  中止只有被人知道才安全，否则又是一次无人发现的停摆。
+  **告警文件不自动清除**（下次成功也不清），处置完手动 `rm logs/ALERT_daily_signals`，
+  免得夜里失败、白天自愈、没人看见。
 
 ## Wind wsd 额度耗尽时怎么办 ⚠️
 
@@ -71,6 +92,22 @@ deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
 | 前置闸门 `topup_guard.py --mode preflight` | 每次自动 | `/ping`+`/health`+`/quota`+"是否真有新交易日"四查，任一不过 → 不调用 topup（零写入），链路降级继续；护栏自身出错也判不过（fail-closed） |
 | 事后审计 `topup_guard.py --mode audit` | topup 调用后 | 只读比对调用前后快照；发现未来日期/非法价/前值复制/历史被改写 → `TOPUP_SUSPECT`，**在信号重算之前中止链路**，可疑数据进不了 committed 信号 CSV |
 
+审计的两种失败要分开读（别把「查不了」说成「脏了」）：
+
+| 退出码 | 状态 | 含义 | 处置 |
+|---|---|---|---|
+| 1 | `SUSPECT` | 审计做成了，**判定写入可疑** | 先判成因：上游对历史的**合法回溯修订**（如 CSI 指数重述、除权口径更正）同样会命中「历史被改写」规则。确属合法修订 → 记录后重跑链路（新快照即新基线）；否则置 `SKIP_TOPUP` 并交 stock_selector 侧核对 |
+| 2 | `TOPUP_VERIFY_FAILED` | 审计**没能执行**（快照丢失 / PG 抖动），写入**无法验证**≠ 已确认有问题 | 重跑审计即可：`python3 deploy/daily_signals/topup_guard.py --mode audit --snapshot logs/.topup_pre_snapshot.json`；通过就重跑链路 |
+
+**审计窗口下沿必须对齐**（2026-08-12 修）：`take_snapshot()` 默认取「最近 30 个交易日」，
+窗口下沿随数据浮动。topup 每补进一个新交易日，after 窗口整体右移一格，before 最老的
+那天就掉出 after，「历史不得被删」规则于是必然命中 —— 审计会变成「topup 什么都没干才
+通过、一旦真补上数据就判 SUSPECT」。所以 `run_audit` 用
+`take_snapshot(since=before["window_start"])` 把 after 的下沿钉在 before 的下沿，
+after 成为 before 的时间超集，规则恢复成它本来的语义：**同一段历史**有没有被改写。
+回归测试见 `tests/test_deploy_topup_guard.py::test_audit_false_positive_when_after_window_slides`
+（钉住缺陷本身）与 `::test_audit_clean_when_after_window_is_anchored_to_before`（钉住修法）。
+
 前置闸门为什么不是"先落临时文件再校验后导入"：topup 把取数与写库融在 stock_selector 的
 一次 CLI 调用里，本项目不得改动 stock_selector，所以可得的最强保证是**存疑就不调用**。
 
@@ -84,7 +121,14 @@ EOF
 
 # 解除
 rm deploy/daily_signals/SKIP_TOPUP
+git commit -m "..." deploy/daily_signals/SKIP_TOPUP    # ← 必须一起提交删除
 ```
+
+> ⚠️ **`SKIP_TOPUP` 是版本控制文件**（有意为之：置上/解除都留审计痕迹）。因此
+> **`rm` 之后必须提交这次删除**——否则任何 `git checkout` / `git restore` /
+> 切分支都会把它**静默复活**，topup 从此再不执行而链路照样报绿（只是 `topup` 字段
+> 一直是 `TOPUP_SKIPPED`）。排查"topup 怎么又不跑了"时，第一件事是
+> `git status deploy/daily_signals/SKIP_TOPUP` 和 `ls` 它。
 
 置上后日志会出现 `TOPUP_SKIPPED(标志文件 …: <原因>)`，`status.json` 里
 `"topup": "TOPUP_SKIPPED"` + `"topup_reason": "..."`。**信号侧零损失**：额度耗尽当天本就
@@ -107,7 +151,9 @@ rm deploy/daily_signals/SKIP_TOPUP
 | 产物 | 说明 |
 |---|---|
 | `logs/daily_signals_YYYYMMDD.log` | 按日滚动的运行日志（同时进 journal） |
-| `logs/daily_signals_status.json` | 最新一次运行的状态：结果、失败步骤、各步耗时、上游最新交易日、每份产出的末行日期与落后交易日数 |
+| `logs/daily_signals_status.json` | 最新一次运行的状态：结果、失败步骤、各步耗时、topup 结果与原因、上游最新交易日与是否冻结、每份产出的末行日期与落后交易日数 |
+| `logs/ALERT_daily_signals` | 失败告警文件（只在失败时出现，**不自动清除**，处置完手动 `rm`） |
+| `logs/.topup_pre_snapshot.json` | topup 调用前的 PG 快照，供事后审计比对 |
 | `logs/.daily_signals.lock` | flock 锁文件 |
 
 `logs/` 已在 `.gitignore` 中，不入库。
@@ -118,11 +164,17 @@ rm deploy/daily_signals/SKIP_TOPUP
 cd /home/elfbob/claude-code/style_timing_signal
 mkdir -p ~/.config/systemd/user
 cp deploy/daily_signals/style-signals-daily.{service,timer} ~/.config/systemd/user/
+cp deploy/daily_signals/style-signals-daily-alert.service ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now style-signals-daily.timer
+systemctl --user enable --now style-signals-daily.timer   # 只 enable timer
 loginctl enable-linger "$USER"      # 未登录/重启后 timer 仍生效，普通用户可自设
 systemctl --user list-timers style-signals-daily.timer
 ```
+
+**只 enable timer，不要 enable service。** 两个 service 单元都**故意不带 `[Install]` 段**
+（`systemctl --user is-enabled style-signals-daily.service` 应显示 `static`）：
+主 service 由 timer 拉起，告警 service 由主 service 的 `OnFailure=` 拉起。
+给它们加 `[Install]` 再 enable 会导致每次登录额外跑一次（双跑）。
 
 单元文件里的路径是绝对路径（本机 `/home/elfbob/claude-code/style_timing_signal`）；
 换机器部署需同步改 `WorkingDirectory` 与 `ExecStart`。

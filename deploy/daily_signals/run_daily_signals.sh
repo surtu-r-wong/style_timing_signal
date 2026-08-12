@@ -172,13 +172,29 @@ topup_stage() {
   log "▶ topup 事后审计: topup_guard.py --mode audit"
   local audit_rc=0
   "${PYTHON}" "${TOPUP_GUARD}" --mode audit --snapshot "${TOPUP_SNAPSHOT}" || audit_rc=$?
+  if [[ ${audit_rc} -eq 2 ]]; then
+    # 审计**没能做成**（快照丢失 / PG 抖动）≠ 写入有问题。别把"查不了"说成"脏了"，
+    # 那会把人推向回滚共享表这种高成本处置。
+    TOPUP_STATUS="TOPUP_VERIFY_FAILED"
+    TOPUP_REASON="事后审计未能执行（exit 2，快照缺失或 PG 不可达）"
+    record_step "topup" "TOPUP_VERIFY_FAILED" "$((SECONDS - t0))"
+    log "TOPUP_VERIFY_FAILED: 本次写入**无法验证**（不是「已确认有问题」）"
+    log "TOPUP_VERIFY_FAILED: 处置 = 重跑审计即可："
+    log "TOPUP_VERIFY_FAILED:   ${PYTHON} ${TOPUP_GUARD} --mode audit --snapshot ${TOPUP_SNAPSHOT}"
+    log "TOPUP_VERIFY_FAILED: 审计通过就重跑本链路；仍失败再按 TOPUP_SUSPECT 处置"
+    return 1
+  fi
   if [[ ${audit_rc} -ne 0 ]]; then
     TOPUP_STATUS="SUSPECT"
+    TOPUP_REASON="事后审计判定写入可疑（exit ${audit_rc}）"
     record_step "topup" "SUSPECT" "$((SECONDS - t0))"
     log "TOPUP_SUSPECT: 已写入 index_daily 的内容未通过事后审计（exit ${audit_rc}）"
     log "TOPUP_SUSPECT: 本次**不重算信号**，committed CSV 维持上一次可信结果"
-    log "TOPUP_SUSPECT: 处置 = 置 deploy/daily_signals/SKIP_TOPUP 标志阻断后续写入，"
-    log "TOPUP_SUSPECT:        并把 index_daily 的可疑区间交 stock_selector 侧核对/回滚"
+    log "TOPUP_SUSPECT: 先判成因——**未必是脏数据**：上游对历史的合法回溯修订"
+    log "TOPUP_SUSPECT:   （如 CSI 指数重述、除权口径更正）同样会命中「历史被改写」规则"
+    log "TOPUP_SUSPECT: 若确属合法修订 → 记录后重跑链路即可（新快照即新基线）"
+    log "TOPUP_SUSPECT: 若不是 → 置 deploy/daily_signals/SKIP_TOPUP 阻断后续写入，"
+    log "TOPUP_SUSPECT:        并把 index_daily 的可疑区间交 stock_selector 侧核对"
     return 1
   fi
   [[ "${TOPUP_STATUS}" == "DEGRADED" ]] || TOPUP_STATUS="OK"
@@ -188,7 +204,7 @@ topup_stage() {
 
 topup_rc=0
 topup_stage || topup_rc=$?
-[[ ${topup_rc} -eq 0 ]] || fail "topup_audit" 1
+[[ ${topup_rc} -eq 0 ]] || fail "topup_audit(${TOPUP_STATUS})" 1
 
 # ── 步骤 1-6：三条信号线 + 推荐持仓（均为全量重算覆写）────────────────────────
 run_step "hybrid20_growth_stability" \

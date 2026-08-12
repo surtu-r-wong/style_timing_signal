@@ -1,6 +1,8 @@
 [Unit]
 Description=style_timing_signal daily signal chain (3 signals + recommended positions)
 Documentation=file:///home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/README.md
+# 链路会在 topup 审计判可疑/无法验证时主动中止——中止只有被人知道才安全。
+OnFailure=style-signals-daily-alert.service
 
 [Service]
 Type=oneshot
@@ -16,5 +18,5 @@ TimeoutStartSec=3600
 MemoryMax=2G
 Nice=5
 
-[Install]
-WantedBy=default.target
+# 无 [Install]：本单元由 style-signals-daily.timer 拉起。若再 enable 成
+# default.target 的 wants，每次登录都会额外跑一次（双跑），故意不给 [Install]。

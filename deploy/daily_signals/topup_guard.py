@@ -200,8 +200,18 @@ def load_gateway_config() -> dict:
     return gw
 
 
-def take_snapshot(days: int = SNAPSHOT_DAYS) -> dict:
-    """只读 PG：本项目输入码的 max(trade_date) + 最近 days 个交易日的收盘价。"""
+def take_snapshot(days: int = SNAPSHOT_DAYS, since: str | None = None) -> dict:
+    """只读 PG：本项目输入码的 max(trade_date) + 一段窗口内的收盘价。
+
+    `since=None`（调用前快照）：取最近 `days` 个交易日，窗口下沿随数据浮动。
+    `since='YYYY-MM-DD'`（调用后快照）：**下沿钉死在给定日期**。
+
+    为什么必须能钉死下沿：滑动窗口是有毒的。topup 每补进一个新交易日，若 after 仍取
+    "最近 30 个交易日"，窗口整体右移一格，before 里最老的那天就掉出 after ——
+    审计规则 4「历史不得被删」于是必然命中，得出「topup 一旦真的补上数据就判 SUSPECT、
+    只有它什么都没干时才通过」的荒谬结论。对齐下沿后，after 是 before 的时间超集，
+    规则 4 恢复成它本来的语义：**同一段历史**有没有被改写。
+    """
     import psycopg2
 
     from signals.common.config import load_db_config
@@ -216,18 +226,22 @@ def take_snapshot(days: int = SNAPSHOT_DAYS) -> dict:
     )
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT DISTINCT trade_date FROM {db['schema']}.index_daily "
-                "WHERE index_code = ANY(%s) ORDER BY trade_date DESC LIMIT %s",
-                (codes, days),
-            )
-            recent = sorted(r[0].isoformat() for r in cur.fetchall())
-            if not recent:
-                raise RuntimeError("index_daily 中查不到本项目任何输入码的交易日")
+            if since is None:
+                cur.execute(
+                    f"SELECT DISTINCT trade_date FROM {db['schema']}.index_daily "
+                    "WHERE index_code = ANY(%s) ORDER BY trade_date DESC LIMIT %s",
+                    (codes, days),
+                )
+                recent = sorted(r[0].isoformat() for r in cur.fetchall())
+                if not recent:
+                    raise RuntimeError("index_daily 中查不到本项目任何输入码的交易日")
+                window_start = recent[0]
+            else:
+                window_start = since
             cur.execute(
                 f"SELECT index_code, trade_date, close FROM {db['schema']}.index_daily "
                 "WHERE index_code = ANY(%s) AND trade_date >= %s::date",
-                (codes, recent[0]),
+                (codes, window_start),
             )
             closes: dict[str, dict[str, float | None]] = {}
             for code, day, close in cur.fetchall():
@@ -236,10 +250,14 @@ def take_snapshot(days: int = SNAPSHOT_DAYS) -> dict:
                 )
     finally:
         conn.close()
+    all_days = {day for series in closes.values() for day in series}
+    if not all_days:
+        raise RuntimeError(
+            f"index_daily 中 {window_start} 之后查不到本项目任何输入码的收盘价")
     return {
         "taken_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "max_trade_date": recent[-1],
-        "window_start": recent[0],
+        "max_trade_date": max(all_days),
+        "window_start": window_start,
         "closes": closes,
     }
 
@@ -293,7 +311,9 @@ def run_audit(snapshot_path: Path, now: datetime) -> int:
         print(f"AUDIT_ERROR: 找不到调用前快照 {snapshot_path}")
         return EXIT_ERROR
     before = json.loads(snapshot_path.read_text(encoding="utf-8"))
-    after = take_snapshot()
+    # 关键：after 的窗口下沿必须与 before 对齐，否则 topup 每补一天都会把 before
+    # 最老的一天挤出 after，规则 4 必然误报「历史被删」（详见 take_snapshot docstring）。
+    after = take_snapshot(since=before.get("window_start"))
     problems = audit_changes(before, after, now.date().isoformat())
     print(f"审计窗口: {before['window_start']}..{after['max_trade_date']}；"
           f"调用前 max={before['max_trade_date']} → 调用后 max={after['max_trade_date']}")

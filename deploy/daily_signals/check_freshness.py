@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -39,6 +40,19 @@ INFORMATIONAL = {
     "hybrid20_growth_stability": "output/hybrid20/growth_stability_signal.csv",
     "equal_weight_5d20z": "output/equal_weight/equal_weight_signal_5d20z.csv",
 }
+
+# 上游冻结护栏：本项目产出与 index_daily 是同步的，上游一旦不动，
+# 「产出 vs 上游」的比对就恒为 0 落后、恒报 OK —— 这正是本批立项要治的盲区
+# （2026-07-09~08-12 停更 35 天无人发现）。所以还要单独盯上游自己。
+UPSTREAM_MAX_LAG_DAYS = 7          # 自然日；平日 A 股最长连休（含调休）也到不了
+UPSTREAM_HOLIDAY_MAX_LAG_DAYS = 15  # 已知长假窗口内放宽
+# 固定日期的长假（月, 日）→（月, 日），含首尾。春节等农历假期日期逐年变，
+# 由 --holiday-window / STYLE_SIGNALS_HOLIDAY_WINDOWS 显式补进来。
+FIXED_HOLIDAY_WINDOWS = [
+    ((1, 1), (1, 5)),      # 元旦
+    ((5, 1), (5, 6)),      # 劳动节
+    ((10, 1), (10, 9)),    # 国庆（含中秋叠加年份）
+]
 
 
 def last_date_of(csv_path: Path) -> str | None:
@@ -97,6 +111,57 @@ def lag_trading_days(days: list[str], last: str | None) -> int | None:
         return None
 
 
+def parse_holiday_windows(raw: str | None) -> list[tuple[str, str]]:
+    """'2027-02-06:2027-02-17,2028-01-25:2028-02-02' → [(start, end), ...]。"""
+    windows: list[tuple[str, str]] = []
+    for chunk in (raw or "").split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        start, _, end = chunk.partition(":")
+        start, end = start.strip(), end.strip()
+        if not start or not end:
+            raise ValueError(f"假期窗口格式应为 YYYY-MM-DD:YYYY-MM-DD，收到 {chunk!r}")
+        windows.append((start, end))
+    return windows
+
+
+def in_holiday_window(day: str, extra: list[tuple[str, str]] | None = None) -> bool:
+    """day 是否落在已知假期窗口内（固定日期长假 + 显式传入的农历假期窗口）。"""
+    for start, end in extra or []:
+        if start <= day <= end:
+            return True
+    d = date.fromisoformat(day)
+    for (m1, d1), (m2, d2) in FIXED_HOLIDAY_WINDOWS:
+        if (m1, d1) <= (d.month, d.day) <= (m2, d2):
+            return True
+    return False
+
+
+def check_upstream_freeze(
+    upstream_max: str, today: str, extra_windows: list[tuple[str, str]] | None = None,
+    max_days: int = UPSTREAM_MAX_LAG_DAYS,
+    holiday_max_days: int = UPSTREAM_HOLIDAY_MAX_LAG_DAYS,
+) -> tuple[int, str | None]:
+    """上游自身是否冻结。返回 (落后自然日数, 违规说明或 None)。
+
+    落在已知假期窗口内时放宽到 holiday_max_days —— 宁可在春节多报一次假警
+    （一条 --holiday-window 即可消音），也不要在上游真冻结时保持沉默。
+    """
+    behind = (date.fromisoformat(today) - date.fromisoformat(upstream_max)).days
+    limit = max_days
+    holiday = in_holiday_window(today, extra_windows) or \
+        in_holiday_window(upstream_max, extra_windows)
+    if holiday:
+        limit = holiday_max_days
+    if behind > limit:
+        window = "已知假期窗口" if holiday else "非假期窗口"
+        return behind, (
+            f"上游 index_daily 最新交易日 {upstream_max} 距今 {behind} 个自然日 "
+            f"> {limit}（{window}）—— 上游可能已冻结")
+    return behind, None
+
+
 def evaluate(days: list[str], root: Path, max_lag: int) -> tuple[dict, list[str], int]:
     """纯函数：给定交易日历与数据根目录，算出每份产出的落后天数与违规清单。
 
@@ -127,10 +192,13 @@ def evaluate(days: list[str], root: Path, max_lag: int) -> tuple[dict, list[str]
     return files, breaches, worst
 
 
-def build_report(max_lag: int, root: Path | None = None) -> tuple[dict, bool]:
+def build_report(max_lag: int, root: Path | None = None,
+                 holiday_windows: list[tuple[str, str]] | None = None,
+                 upstream_max_days: int = UPSTREAM_MAX_LAG_DAYS) -> tuple[dict, bool]:
     days, upstream_max = load_calendar()
     today = date.today().isoformat()
-    behind_today = (date.fromisoformat(today) - date.fromisoformat(upstream_max)).days
+    behind_today, upstream_breach = check_upstream_freeze(
+        upstream_max, today, holiday_windows, max_days=upstream_max_days)
     files, breaches, worst = evaluate(days, root or ROOT, max_lag)
 
     report = {
@@ -139,14 +207,17 @@ def build_report(max_lag: int, root: Path | None = None) -> tuple[dict, bool]:
             "table": "stock_selector.index_daily",
             "max_trade_date": upstream_max,
             "calendar_days_behind_today": behind_today,
+            "max_days_allowed": upstream_max_days,
+            "frozen": upstream_breach is not None,
             "checked_on": today,
         },
         "files": files,
         "max_lag_trading_days": worst,
         "max_lag_allowed": max_lag,
         "breaches": breaches,
+        "upstream_breach": upstream_breach,
     }
-    return report, not breaches
+    return report, not breaches and upstream_breach is None
 
 
 def print_report(report: dict, ok: bool) -> None:
@@ -158,16 +229,24 @@ def print_report(report: dict, ok: bool) -> None:
         lag = info["lag_trading_days"]
         lag_s = "N/A" if lag is None else f"{lag} 交易日"
         print(f"  [{mark}] {label:26s} 末行 {str(info['last_date']):12s} 落后 {lag_s}")
-    if up["calendar_days_behind_today"] > 4:
+    if report.get("upstream_breach"):
+        print("UPSTREAM_STALE: 上游自己冻结了 ——")
+        print(f"  UPSTREAM_STALE  {report['upstream_breach']}")
+        print("  UPSTREAM_STALE  本项目产出与上游同步，上游不动则「产出 vs 上游」恒为 0 落后，")
+        print("  UPSTREAM_STALE  只盯那一项会永远报 OK；处置 = 查 stock_selector 的 daily_index 调度器。")
+        print("  UPSTREAM_STALE  若确属长假，用 --holiday-window 或 "
+              "STYLE_SIGNALS_HOLIDAY_WINDOWS 登记该窗口消音。")
+    elif up["calendar_days_behind_today"] > 4:
         print(f"WARN: 上游 index_daily 已 {up['calendar_days_behind_today']} 个自然日未更新"
               f"（长假期间属正常；否则检查 stock_selector 的 daily_index 调度器）")
-    if ok:
-        print(f"FRESHNESS OK（最大落后 {report['max_lag_trading_days']} 交易日 "
-              f"<= {report['max_lag_allowed']}）")
-    else:
+    if report["breaches"]:
         print("STALE: 新鲜度护栏未通过 —— 下列产出没有追平上游：")
         for b in report["breaches"]:
             print(f"  STALE  {b}")
+    if ok:
+        print(f"FRESHNESS OK（最大落后 {report['max_lag_trading_days']} 交易日 "
+              f"<= {report['max_lag_allowed']}；上游距今 "
+              f"{up['calendar_days_behind_today']} 自然日 <= {up['max_days_allowed']}）")
 
 
 def parse_steps(raw: str | None) -> list[dict]:
@@ -194,6 +273,13 @@ def main() -> int:
                     help="topup 步骤结果 OK/DEGRADED/TOPUP_SKIPPED/SUSPECT")
     ap.add_argument("--topup-reason", default="",
                     help="topup 被跳过/降级/存疑的原因，原样记入状态文件")
+    ap.add_argument("--holiday-window", action="append", default=None,
+                    metavar="YYYY-MM-DD:YYYY-MM-DD",
+                    help="已知假期窗口（可重复）；农历假期如春节须在此登记，"
+                         "否则上游冻结护栏会在长假误报。也可用 "
+                         "STYLE_SIGNALS_HOLIDAY_WINDOWS 环境变量（逗号分隔）")
+    ap.add_argument("--upstream-max-days", type=int, default=UPSTREAM_MAX_LAG_DAYS,
+                    help=f"上游允许多少自然日不更新，默认 {UPSTREAM_MAX_LAG_DAYS}")
     ap.add_argument("--steps", default=None, help="各步骤耗时 JSON 数组")
     ap.add_argument("--failed-step", default=None,
                     help="给定则记账为失败（不连库、不做新鲜度检查）")
@@ -216,8 +302,13 @@ def main() -> int:
         print(f"FAILED: 链路在步骤 {args.failed_step} 失败，未做新鲜度检查")
         rc = 1
     else:
+        windows = parse_holiday_windows(
+            ",".join(args.holiday_window) if args.holiday_window
+            else os.environ.get("STYLE_SIGNALS_HOLIDAY_WINDOWS", ""))
         try:
-            report, ok = build_report(args.max_lag, Path(args.root) if args.root else None)
+            report, ok = build_report(
+                args.max_lag, Path(args.root) if args.root else None,
+                holiday_windows=windows, upstream_max_days=args.upstream_max_days)
         except Exception as exc:  # 连库失败等：如实记账，不吞
             status["result"] = "CHECK_ERROR"
             status["error"] = f"{type(exc).__name__}: {exc}"
@@ -225,7 +316,14 @@ def main() -> int:
             rc = 2
         else:
             status.update(report)
-            status["result"] = "OK" if ok else "STALE"
+            if ok:
+                status["result"] = "OK"
+            elif report.get("upstream_breach") and not report["breaches"]:
+                status["result"] = "UPSTREAM_STALE"
+            elif report.get("upstream_breach"):
+                status["result"] = "STALE+UPSTREAM_STALE"
+            else:
+                status["result"] = "STALE"
             print_report(report, ok)
             rc = 0 if ok else 1
 
