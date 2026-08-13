@@ -1,0 +1,16 @@
+window,pair_set,k,offset,ic,n_obs,t_stat,p_value,row,challenger,reference,alpha,bonferroni_m,diff_ic,ci_lo,ci_hi,boot_mean,boot_sd,n_boot,seed,ci_excludes_zero
+selection_2014_2023,A_four_pairs_incumbent,20,0,0.198156,122,2.214602,0.028676,level,,,,,,,,,,,,
+selection_2014_2023,E_four_plus_dividend_leg,20,0,0.201659,122,2.255393,0.025921,level,,,,,,,,,,,,
+train_2014_2020,A_four_pairs_incumbent,20,0,0.200746,86,1.878102,0.063837,level,,,,,,,,,,,,
+train_2014_2020,E_four_plus_dividend_leg,20,0,0.207124,86,1.940401,0.055686,level,,,,,,,,,,,,
+val_2021_2023,A_four_pairs_incumbent,20,0,0.357515,37,2.264775,0.029825,level,,,,,,,,,,,,
+val_2021_2023,E_four_plus_dividend_leg,20,0,0.386202,37,2.47698,0.018227,level,,,,,,,,,,,,
+holdout_2024_2026,A_four_pairs_incumbent,20,0,0.218548,31,1.206075,0.237537,level,,,,,,,,,,,,
+holdout_2024_2026,E_four_plus_dividend_leg,20,0,0.230645,31,1.276479,0.211914,level,,,,,,,,,,,,
+full_2014_2026,A_four_pairs_incumbent,20,0,0.214537,153,2.699124,0.007745,level,,,,,,,,,,,,
+full_2014_2026,E_four_plus_dividend_leg,20,0,0.226951,153,2.863545,0.004786,level,,,,,,,,,,,,
+selection_2014_2023,,20,0,,122,,0.880612,diff,E_four_plus_dividend_leg,A_four_pairs_incumbent,0.05,1.0,0.003503,-0.042951,0.049272,0.003534,0.023323,10000.0,0.0,False
+train_2014_2020,,20,0,,86,,0.830817,diff,E_four_plus_dividend_leg,A_four_pairs_incumbent,0.05,1.0,0.006378,-0.054627,0.067261,0.00654,0.030833,10000.0,0.0,False
+val_2021_2023,,20,0,,37,,0.389161,diff,E_four_plus_dividend_leg,A_four_pairs_incumbent,0.05,1.0,0.028687,-0.035676,0.10301,0.027837,0.034884,10000.0,0.0,False
+holdout_2024_2026,,20,0,,31,,0.70373,diff,E_four_plus_dividend_leg,A_four_pairs_incumbent,0.05,1.0,0.012097,-0.0583,0.085761,0.010434,0.035558,10000.0,0.0,False
+full_2014_2026,,20,0,,153,,0.521748,diff,E_four_plus_dividend_leg,A_four_pairs_incumbent,0.05,1.0,0.012414,-0.025675,0.050692,0.012223,0.019426,10000.0,0.0,False

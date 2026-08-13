@@ -1,0 +1,243 @@
+{
+  "PROBE": "候选 ⑤b 红利腿换伙伴补测（单候选 E = 现役四对 + 沪深300/中证红利腿）",
+  "prereg": "docs/plans/2026-08-13-probe-5b-dividend-partner-prereg.md（§0-§5 冻结）",
+  "verdict": "STOP",
+  "first_failed_gate": "0_rank_ic",
+  "sets": {
+    "A_four_pairs_incumbent": [
+      "300",
+      "500",
+      "1000",
+      "2000"
+    ],
+    "E_four_plus_dividend_leg": [
+      "300",
+      "500",
+      "1000",
+      "2000",
+      "dividend_vs_broad"
+    ]
+  },
+  "dividend_leg": {
+    "left_column": "沪深300",
+    "right_column": "中证红利",
+    "codes": {
+      "000300.SH": "沪深300",
+      "000922.CSI": "中证红利"
+    },
+    "sign_prior": "+z = 宽基跑赢红利 = 风险偏好上行（与成长腿同号）",
+    "note": "两条都是价格指数；全收益版（H00922）是 Batch 11 的教训，本次不用"
+  },
+  "not_tested_registered": {
+    "其他伙伴构造": "000905 / 合成代理 / 885000.WI —— 预登记 §1 明示不测",
+    "权重优化": "预登记明写不做（永久）",
+    "参数网格": "lookback/z_window/smoothing 锁死在现役生产值，不进任何网格",
+    "5 对 / 6 对配置": "不在本次预登记内"
+  },
+  "coverage_preflight": {
+    "complete": true,
+    "n_days": 3065,
+    "first_date": "2014-01-02",
+    "last_date": "2026-08-11",
+    "columns_checked": [
+      "沪深300成长",
+      "沪深300价值",
+      "中证500成长",
+      "中证500价值",
+      "中证1000成长",
+      "中证1000价值",
+      "中证2000成长",
+      "中证2000价值",
+      "沪深300",
+      "中证红利"
+    ],
+    "n_missing_total": 0,
+    "n_missing_by_column": {}
+  },
+  "partner_gate": {
+    "n_days_aligned_panel": 3065,
+    "n_days_factor_overlap": 3065,
+    "first_date": "2014-01-02",
+    "last_date": "2026-08-11",
+    "corr_vs_incumbent_aggregate": 0.5575117727724157,
+    "corr_vs_pair_300": 0.4636170618324563,
+    "corr_vs_pair_500": 0.5273878874344128,
+    "corr_vs_pair_1000": 0.48661429455198624,
+    "corr_vs_pair_2000": 0.49223314207565255,
+    "max_abs_corr_vs_incumbent_family": 0.5575117727724157,
+    "threshold": 0.9,
+    "same_source_verdict": false,
+    "daily_return_corr_between_two_legs": 0.8484389229395035,
+    "level_ratio_first": 0.9777022004515116,
+    "level_ratio_last": 1.1860120506745941,
+    "implied_annual_drift_of_ratio": 0.015440934950941676,
+    "relative_return_mean_daily": 5.6162415312093075e-05,
+    "relative_return_annualized": 0.013759791751462804,
+    "relative_return_std_daily": 0.007291279720789294,
+    "relative_return_share_negative_days": 0.4804177545691906,
+    "relative_return_share_abs_gt_50bp": 0.36357702349869453
+  },
+  "production_trace": {
+    "max_abs_diff": 4.9966071478557694e-05,
+    "n_overlap": 3065,
+    "tolerance": 5e-05,
+    "within_tolerance": true,
+    "production_csv": "output/equal_weight/equal_weight_signal_20d40z.csv"
+  },
+  "worst_tv_sharpe": {
+    "A_four_pairs_incumbent": 1.000930606530241,
+    "E_four_plus_dividend_leg": 1.10317642797791
+  },
+  "by_window": {
+    "A_four_pairs_incumbent": {
+      "selection_2014_2023": {
+        "net_sharpe": 1.5388540534815431,
+        "net_ann": 0.241284440383352,
+        "maxdd": -0.1348188666457083,
+        "calmar": 1.7896934337641743,
+        "turnover": 10.468364831553,
+        "hit": 0.5559157212317666,
+        "long_frac": 0.485620377978636,
+        "sharpe_ex_top1": 1.2364738417959498,
+        "sharpe_ex_top2": 1.0808981780430635
+      },
+      "train_2014_2020": {
+        "net_sharpe": 1.7053473108535933,
+        "net_ann": 0.29105636828351,
+        "maxdd": -0.1348188666457083,
+        "calmar": 2.1588697155300944,
+        "turnover": 11.338605741066198,
+        "hit": 0.5634638196915777,
+        "long_frac": 0.4715875805506737,
+        "sharpe_ex_top1": 1.316892849093497,
+        "sharpe_ex_top2": 1.1022999244952278
+      },
+      "val_2021_2023": {
+        "net_sharpe": 1.000930606530241,
+        "net_ann": 0.11722551300644438,
+        "maxdd": -0.1312448943202561,
+        "calmar": 0.8931815108967024,
+        "turnover": 8.42503438789546,
+        "hit": 0.5384615384615384,
+        "long_frac": 0.5185694635488308,
+        "sharpe_ex_top1": 0.9755081302471748,
+        "sharpe_ex_top2": 0.6815889576542977
+      },
+      "holdout_2024_2026": {
+        "net_sharpe": 1.8588901569075682,
+        "net_ann": 0.3406490195657319,
+        "maxdd": -0.16666686242381534,
+        "calmar": 2.0438917167559034,
+        "turnover": 10.8716323296355,
+        "hit": 0.5765765765765766,
+        "long_frac": 0.5055467511885895,
+        "sharpe_ex_top1": 1.1382059062637342,
+        "sharpe_ex_top2": 0.8381247592393609
+      },
+      "full_2014_2026": {
+        "net_sharpe": 1.609892322100946,
+        "net_ann": 0.26174090024112745,
+        "maxdd": -0.166666862423816,
+        "calmar": 1.5704435568934414,
+        "turnover": 10.551386623164763,
+        "hit": 0.5603063178047224,
+        "long_frac": 0.48972267536704733,
+        "sharpe_ex_top1": 1.3956838275664307,
+        "sharpe_ex_top2": 1.202934257850821
+      }
+    },
+    "E_four_plus_dividend_leg": {
+      "selection_2014_2023": {
+        "net_sharpe": 1.3170522720949018,
+        "net_ann": 0.22584517768453494,
+        "maxdd": -0.24699779799604848,
+        "calmar": 0.9143610976165385,
+        "turnover": 10.267050123253902,
+        "hit": 0.5541972290138549,
+        "long_frac": 0.48315529991783074,
+        "sharpe_ex_top1": 1.0272788061278626,
+        "sharpe_ex_top2": 0.8683007705243019
+      },
+      "train_2014_2020": {
+        "net_sharpe": 1.3899111877951746,
+        "net_ann": 0.2632162495338648,
+        "maxdd": -0.24699779799604848,
+        "calmar": 1.0656623324960808,
+        "turnover": 11.338605741066198,
+        "hit": 0.5602409638554217,
+        "long_frac": 0.46397188049209137,
+        "sharpe_ex_top1": 0.9967493383361662,
+        "sharpe_ex_top2": 0.7597622536889185
+      },
+      "val_2021_2023": {
+        "net_sharpe": 1.10317642797791,
+        "net_ann": 0.13090352854526655,
+        "maxdd": -0.1312448943202562,
+        "calmar": 0.9973990167255065,
+        "turnover": 7.751031636863824,
+        "hit": 0.5404040404040404,
+        "long_frac": 0.5281980742778541,
+        "sharpe_ex_top1": 1.0913447393580362,
+        "sharpe_ex_top2": 0.7565655922437199
+      },
+      "holdout_2024_2026": {
+        "net_sharpe": 1.6258157995944682,
+        "net_ann": 0.2999103579904302,
+        "maxdd": -0.1708697001538837,
+        "calmar": 1.755199182302852,
+        "turnover": 9.318541996830428,
+        "hit": 0.5739644970414202,
+        "long_frac": 0.5166402535657686,
+        "sharpe_ex_top1": 0.8127235827914135,
+        "sharpe_ex_top2": 1.2193685500753506
+      },
+      "full_2014_2026": {
+        "net_sharpe": 1.3839169297886096,
+        "net_ann": 0.2410931805468579,
+        "maxdd": -0.24699779799604848,
+        "calmar": 0.9760944530797597,
+        "turnover": 10.071778140293638,
+        "hit": 0.5584664536741214,
+        "long_frac": 0.4900489396411093,
+        "sharpe_ex_top1": 1.1773354965706817,
+        "sharpe_ex_top2": 0.9784853703671154
+      }
+    }
+  },
+  "gate_readings": {
+    "order": "前置诊断闸 → ⓪ → 收益层；前一道不过即 STOP，收益层读数仍全表入档",
+    "pre": "红利腿 z 序列 vs 现役合成因子 A 及四对分量 max|corr| > 0.9 → 同源出局",
+    "gate0": "非重叠 20 日 rank IC：E 在 train 与 val 双窗均 > A，且配对 IC 差的 95% CI 在 train 或 val 窗排除 0。单候选 → α=0.05，**无 Bonferroni**",
+    "gate1": "worst(train,val) 净 Sharpe ≥ 现役 +0.15（blend / long-flat）",
+    "gate2": "选择窗（2014-2023）年化换手 ≤ 现役同窗值",
+    "gate3": "选择窗剔最强年 Sharpe（yearly.concentration_summary）≥ 现役同窗值",
+    "family_tax": "E 是 ⑤ 家族第 4 个挑战者集合（B/C/D 已 STOP）——任何 GO 的引用必须带'家族第 4 次尝试'的上下文，且 GO 只触发另立部署批次+用户拍板"
+  },
+  "run": {
+    "n_boot": 10000,
+    "seed": 0,
+    "cost_bps": 3.0,
+    "k_forward": 20,
+    "ic_offset": 0,
+    "alpha": 0.05,
+    "bonferroni_m": 1,
+    "lookback": 20,
+    "z_window": 40,
+    "smoothing": 5,
+    "n_obs_selection": 2434,
+    "selection_window": [
+      "2014-01-01",
+      "2023-12-31"
+    ],
+    "sample_first_date": "2014-01-02",
+    "sample_last_date": "2026-08-11",
+    "n_obs_full": 3065,
+    "calendar_n_days": 3065,
+    "incumbent_vs_production_csv_max_abs_diff": 4.9966071478557694e-05,
+    "db_host": "settings.yaml default",
+    "carry_policy": "每口径各用各的 carry（500→IC、1000→IM、blend→50/50）；闸门只用 blend",
+    "holdout_policy": "2024-2026 只报告不选择、不进任何闸门（预登记 §3.4）",
+    "permutation_policy": "单候选无选择集 → 不跑 selection_permutation（预登记 §3.5）",
+    "deploy_policy": "不改 deploy/、signals/、production.py；GO 只出立项草案，用户拍板"
+  }
+}

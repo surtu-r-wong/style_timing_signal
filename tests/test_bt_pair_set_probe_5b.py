@@ -607,7 +607,27 @@ def test_evaluate_gate_rows_never_read_holdout(long_prices):
     assert not gate_rows["metric"].astype(str).str.contains("holdout").any()
 
 
-def test_module_writes_no_official_products_on_import():
-    """判例集不得留下正式产物（本批次只交付代码与判例）。"""
+def test_evaluate_writes_nothing_to_the_products_directory(long_prices):
+    """产物**只能由 `main()`** 落盘：import 与 `evaluate()` 都不得写 `backtest/output/`。
+
+    ⚠️ 初版这条判例断言的是"目录里不存在 5b 产物"——那是 Batch 13 **交付阶段**的相位约束，
+    正式跑落盘后必然失效（且失效方式是误报）。这里换成**长期不变式**：纯计算路径不落盘，
+    判例才不会随批次相位翻脸。
+
+    **已知边界**：快照只取 `is_file()` → **新建子目录不捕捉**（目录本身的变化看不见）；
+    且对**并发写 `backtest/output/`** 敏感——与别的探针同时跑会误报。
+    取向是"宁可误报不可漏报"，与它要守的不变式同向。
+    """
     out_dir = ROOT / "backtest" / "output"
-    assert not list(out_dir.glob(f"{m5b.OUTPUT_PREFIX}*"))
+
+    def snapshot():
+        return {p.name: (p.stat().st_size, p.stat().st_mtime_ns)
+                for p in out_dir.iterdir() if p.is_file()}
+
+    before = snapshot()
+    rng = np.random.default_rng(23)
+    idx = long_prices.index
+    und = {kj: _series(idx, rng) for kj in psp.KOU_JING_REPORT}
+    carry = {kj: _series(idx, rng, 0.05, 0.02) for kj in psp.KOU_JING_REPORT}
+    m5b.evaluate(long_prices, und, carry, n_boot=50, seed=0)
+    assert snapshot() == before

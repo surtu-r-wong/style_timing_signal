@@ -1,0 +1,37 @@
+pair_set,gate,metric,value,threshold,pass
+E_four_plus_dividend_leg,PRE_partner_corr,max|corr| vs 现役四对族,0.5575117727724157,0.9,True
+E_four_plus_dividend_leg,PRE_partner_corr,相关性覆盖天数（诊断）,3065.0,,
+E_four_plus_dividend_leg,0_rank_ic,rank_ic_train_2014_2020,0.20712395454711574,0.20074626513863209,True
+E_four_plus_dividend_leg,0_rank_ic,rank_ic_val_2021_2023,0.3862019914651494,0.35751541014698907,True
+E_four_plus_dividend_leg,0_rank_ic,"paired_ic_diff_CI_excl_0(train或val窗, α=0.05, 无 Bonferroni)",0.0,1.0,False
+E_four_plus_dividend_leg,0_rank_ic,闸门⓪汇总,0.0,1.0,False
+E_four_plus_dividend_leg,1_worst_tv_sharpe,"worst(train,val) 净 Sharpe",1.10317642797791,1.150930606530241,False
+E_four_plus_dividend_leg,1_worst_tv_sharpe,margin_vs_incumbent,0.10224582144766892,0.15,False
+E_four_plus_dividend_leg,2_turnover_not_up,选择窗年化换手,10.267050123253902,10.468364831553,True
+E_four_plus_dividend_leg,3_concentration,选择窗剔最强年 Sharpe,1.0272788061278626,1.2364738417959498,False
+E_four_plus_dividend_leg,3_concentration,剔最强两年 Sharpe（诊断）,0.8683007705243019,1.0808981780430635,
+E_four_plus_dividend_leg,ORDER,first_failed_gate=0_rank_ic,,,
+E_four_plus_dividend_leg,OVERALL,STOP（判据顺序在 0_rank_ic 终止；其后读数仅入档不改裁决）,0.0,,False
+-,META,verdict,STOP,,
+-,META,first_failed_gate,0_rank_ic,,
+-,META,partner_same_source_verdict,False,,
+-,META,partner_max_abs_corr,0.5575117727724157,,
+-,META,partner_corr_overlap_days,3065,,
+-,META,worst_tv_sharpe_A_four_pairs_incumbent,1.000930606530241,,
+-,META,worst_tv_sharpe_E_four_plus_dividend_leg,1.10317642797791,,
+-,META,n_boot,10000,,
+-,META,seed,0,,
+-,META,alpha,0.05,,
+-,META,bonferroni_m,1,,
+-,META,cost_bps,3.0,,
+-,META,k_forward,20,,
+-,META,n_obs_selection,2434,,
+-,META,sample_first_date,2014-01-02,,
+-,META,sample_last_date,2026-08-11,,
+-,META,calendar_n_days,3065,,
+-,META,incumbent_vs_production_csv_max_abs_diff,4.9966071478557694e-05,,
+-,META,db_host,settings.yaml default,,
+-,META,carry_policy,每口径各用各的 carry（500→IC、1000→IM、blend→50/50）；闸门只用 blend,,
+-,META,holdout_policy,2024-2026 只报告不选择、不进任何闸门（预登记 §3.4）,,
+-,META,deploy_policy,不改 deploy/、signals/、production.py；GO 只出立项草案，用户拍板,,
+-,META,permutation_policy,单候选无选择集 → 不跑 selection_permutation（预登记 §3.5）,,
