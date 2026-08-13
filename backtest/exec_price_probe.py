@@ -14,12 +14,14 @@
   全样本同秤对比 shift(1) vs shift(2)，差异显著性用配对 moving-block bootstrap。
 - **A（期货开盘价）**：空头段改记在**期货主力价格系**上（同一合约衔接，换月不产生虚假损益），
   并**去掉该段的引擎 carry 项**（期货价格已内含基差收敛，避免双算）；多头/空仓一切照旧。
-  预登记四读法（先写进报告再跑，防读法购物）：
+  预登记读法（先写进报告再跑，防读法购物）：
     (i)   现行记账 = 现货收盘成交 + 空头付 carry（committed 口径，基准）
+    (i.5) 现货价格系 + **去掉空头 carry**（把 (ii)−(i) 拆成两段的中间读法）
     (ii)  期货价格系 + T 收盘成交（隔离「换标的」效应）
     (iii) 期货价格系 + 空头**开仓** T+1 开盘成交（开仓日收益 = open→close），平仓与多头不变
     (iv)  期货价格系 + 空头开仓与平仓都在 T+1 开盘（对称性对照）
-  **(iii)−(ii) 才是纯「开仓时点 / 隔夜缺口」效应**；(ii)−(i) 是换标的效应。
+  **(iii)−(ii) 才是纯「开仓时点 / 隔夜缺口」效应**；
+  (ii)−(i) 是换标的效应，且 = (i.5)−(i)「去 carry」+ (ii)−(i.5)「换价格系」两段之和。
 
 数据边界（诚实边界，报告须复述）：
 - 现货指数开盘价全库缺失（index_daily 3,265 行仅 30 行有 open）→ 路线 A 只能走期货价格系；
@@ -60,10 +62,14 @@ PRIMARY_SIGNAL = "equal_weight"   # 现役主信号（勿重开清单第 2 条�
 PRIMARY_KOU_JING = "blend"        # headline 口径
 DEFAULT_DB_HOST = "100.75.102.44"  # Pi5 备端（本任务硬护栏：只读、只走备端）
 
-# 预登记四读法（顺序即报告顺序；改动须先改这里再跑）
+# 预登记读法（顺序即报告顺序；改动须先改这里再跑）
+# (i.5) 为 QA 终审 I2 追加的**中间读法**：只去掉空头 carry、价格系仍是现货，
+# 用来把 (ii)−(i) 这个合成效应拆成「去 carry」与「换价格系」两段。
 READINGS: dict[str, dict] = {
     "i_spot_close": dict(short_source="spot", short_entry="close",
                          short_exit="close", short_carry=True),
+    "i5_spot_close_nocarry": dict(short_source="spot", short_entry="close",
+                                  short_exit="close", short_carry=False),
     "ii_fut_close": dict(short_source="fut", short_entry="close",
                          short_exit="close", short_carry=False),
     "iii_fut_open_entry": dict(short_source="fut", short_entry="open",
@@ -71,12 +77,14 @@ READINGS: dict[str, dict] = {
     "iv_fut_open_both": dict(short_source="fut", short_entry="open",
                              short_exit="open", short_carry=False),
 }
-# 预登记对比对（分解口径：换标的 / 开仓时点 / 平仓对称性 / 总效应）
+# 预登记对比对（分解口径：去 carry / 换价格系 / 开仓时点 / 平仓对称性 / 合成 / 总效应）
 READING_PAIRS = [
-    ("ii_fut_close", "i_spot_close"),           # 换标的效应
-    ("iii_fut_open_entry", "ii_fut_close"),     # 纯开仓时点（隔夜缺口）效应 ★
+    ("i5_spot_close_nocarry", "i_spot_close"),   # 去空头 carry 的贡献
+    ("ii_fut_close", "i5_spot_close_nocarry"),   # 换到期货价格系的贡献
+    ("ii_fut_close", "i_spot_close"),            # 上两者的合成（换标的效应）
+    ("iii_fut_open_entry", "ii_fut_close"),      # 纯开仓时点（隔夜缺口）效应 ★
     ("iv_fut_open_both", "iii_fut_open_entry"),  # 平仓也挪到开盘的增量
-    ("iii_fut_open_entry", "i_spot_close"),     # 目标读法 vs 现行记账（总效应）
+    ("iii_fut_open_entry", "i_spot_close"),      # 目标读法 vs 现行记账（总效应）
 ]
 
 
@@ -346,33 +354,91 @@ def run_strategy_dual(position: pd.Series, spot_ret: pd.Series, fut: pd.DataFram
                          "cost": cost, "carry": carry_ret, "exit_pnl": exit_pnl})
 
 
-def overnight_gap_diagnostics(position: pd.Series, fut: pd.DataFrame,
-                              shift: int = 1) -> dict:
-    """空头开仓日的期货隔夜缺口（前收→开盘）分布。
+def effective_position(position: pd.Series, shift: int = 1,
+                       position_full: pd.Series | None = None) -> pd.Series:
+    """有效仓位 `pos_eff`。
+
+    给了 `position_full`（**未切片**的整条仓位）就用它算 shift 再对齐到窗口 —— 否则
+    窗口首日的 `shift().fillna(0)` 会把「跨窗界持有的空头」误判成一次**新开仓**
+    （QA 终审 M1：500 × 2024-2026 的 2024-01-03 即一次伪开仓，导致分窗合计 61 ≠ full 的 60）。
+    **只用于描述性诊断**；收益侧仍按 house harness 的切片后 shift 口径（见审计报告 §6.15）。
+    """
+    if position_full is None:
+        return position.astype(float).shift(shift).fillna(0.0)
+    return (position_full.astype(float).shift(shift).fillna(0.0)
+            .reindex(position.index).fillna(0.0))
+
+
+def overnight_gap_diagnostics(position: pd.Series, fut: pd.DataFrame, shift: int = 1,
+                              position_full: pd.Series | None = None) -> dict:
+    """空头开仓日的期货隔夜缺口（前收→开盘）分布 + 两个显著性检验。
 
     符号约定：gap>0 = 高开。空头晚到开盘成交时，
     **gap>0 → 躲过一段亏损**（少赔 gap），**gap<0 → 错过一段利润**（少赚 |gap|）。
     `missed_pnl_sum` = Σ(−gap) = 若在前收成交、空头本可多赚的隔夜合计（正 = 净错过）。
+
+    显著性（QA 终审 I4：方向性描述不得被当作"稳定事实"）：
+    - `binom_p_up`：高开/低开次数对 H0=50% 的双侧二项检验（剔除 gap 恰为 0 的日）；
+    - `t_p_mean`：缺口均值对 H0=0 的单样本双侧 t 检验。
     """
-    pos_eff = position.astype(float).shift(shift).fillna(0.0)
+    pos_eff = effective_position(position, shift, position_full)
+    # 前一日的有效仓位同样从**未切片**序列取（多滞后一期），否则窗首 prev_short 恒为 False
+    # → 跨窗界的持空会被重记成一次新开仓。position_full=None 时与朴素 shift 完全等价。
     is_short = pos_eff < 0
-    prev_short = is_short.shift(1, fill_value=False).astype(bool)
+    prev_short = effective_position(position, shift + 1, position_full) < 0
     open_day = is_short & ~prev_short
     g = fut["gap"].reindex(pos_eff.index).astype(float)[open_day].dropna()
     flip_days = int(((pos_eff > 0) & prev_short).sum())  # −1→+1 直翻日（读法 iv 隔夜重叠）
     if len(g) == 0:
         return {"n_short_open": 0, "flip_short_to_long": flip_days}
+
+    from scipy import stats
+    n_up, n_dn = int((g > 0).sum()), int((g < 0).sum())
+    binom_p = (float(stats.binomtest(n_up, n_up + n_dn, 0.5).pvalue)
+               if n_up + n_dn > 0 else float("nan"))
+    t_p = (float(stats.ttest_1samp(g, 0.0).pvalue)
+           if len(g) > 1 and g.std(ddof=1) > 0 else float("nan"))
     return {
         "n_short_open": int(len(g)),
         "gap_mean": float(g.mean()), "gap_median": float(g.median()),
         "gap_std": float(g.std(ddof=1)) if len(g) > 1 else float("nan"),
         "gap_p10": float(np.percentile(g, 10)), "gap_p90": float(np.percentile(g, 90)),
+        "n_gap_up": n_up, "n_gap_down": n_dn,
         "pct_gap_up_short_avoids_loss": float((g > 0).mean()),
         "pct_gap_down_short_misses_gain": float((g < 0).mean()),
+        "binom_p_up": binom_p, "t_p_mean": t_p,
         "missed_pnl_sum": float((-g).sum()),
         "missed_pnl_mean": float((-g).mean()),
         "flip_short_to_long": flip_days,
     }
+
+
+def roll_cost_estimate(position: pd.Series, fut: pd.DataFrame, cost_bps: float = 3.0,
+                       shift: int = 1, position_full: pd.Series | None = None) -> dict:
+    """期货腿**换月**的往返成本估计（QA 终审 I7：本审计未把它计入路线 A 收益，故单列）。
+
+    换月日 = `symbol_held` 变化的那天（blend 的 `symbol_held` 是两腿拼接，按腿分别计、
+    各按 1/腿数 的仓位权重）。单次换月 = 平旧 + 开新 = **2 × cost_bps**；只有落在
+    **持空日**的换月才与路线 A 的空头段读数相关。
+    (iii)−(ii) 两读法的换月完全相同、配对相消，**不受此污染**；受影响的是 (ii)−(i)。
+    """
+    pos_eff = effective_position(position, shift, position_full)
+    syms = (fut["symbol_held"].reindex(pos_eff.index).astype(str)
+            .str.split("|", expand=True))
+    w = 1.0 / syms.shape[1]
+    short = pos_eff < 0
+    n_roll = n_roll_short = 0
+    cost = 0.0
+    for c in syms.columns:
+        chg = syms[c].ne(syms[c].shift(1)) & syms[c].shift(1).notna()
+        n_roll += int(chg.sum())
+        n_roll_short += int((chg & short).sum())
+        cost += int((chg & short).sum()) * 2.0 * cost_bps / 1e4 * w
+    n_days = max(len(pos_eff), 1)
+    return {"n_legs": int(syms.shape[1]), "n_roll_days": n_roll,
+            "n_roll_days_short": n_roll_short,
+            "roll_cost_total": float(cost),
+            "roll_cost_ann": float(cost / n_days * ANN)}
 
 
 def _route_a_legs(raw: pd.Series) -> dict[str, pd.Series]:
@@ -432,9 +498,11 @@ def build_route_a(block: int = 20, n_boot: int = 10000, seed: int = 0,
                         "ci_excludes_zero": bool(boot["ci_lo"] > 0 or boot["ci_hi"] < 0),
                     })
                 if leg in ("symmetric", "short_seg"):
-                    gap_rows.append({"kou_jing": kj, "window": win, "leg": leg,
-                                     "start": str(idx[0].date()), "end": str(idx[-1].date()),
-                                     **overnight_gap_diagnostics(p, f)})
+                    gap_rows.append({
+                        "kou_jing": kj, "window": win, "leg": leg,
+                        "start": str(idx[0].date()), "end": str(idx[-1].date()),
+                        **overnight_gap_diagnostics(p, f, position_full=pos_full),
+                        **roll_cost_estimate(p, f, cost_bps, position_full=pos_full)})
     return pd.DataFrame(met_rows), pd.DataFrame(pair_rows), pd.DataFrame(gap_rows)
 
 

@@ -11,9 +11,9 @@ sys.path.insert(0, str(ROOT))
 
 from backtest.engine import run_strategy  # noqa: E402
 from backtest.exec_price_probe import (  # noqa: E402
-    READING_PAIRS, READINGS, blend_futures_frame, build_legs, held_contract_frame,
-    main_contract_series, overnight_gap_diagnostics, run_strategy_dual,
-    run_strategy_shift,
+    READING_PAIRS, READINGS, blend_futures_frame, build_legs, effective_position,
+    held_contract_frame, main_contract_series, overnight_gap_diagnostics,
+    roll_cost_estimate, run_strategy_dual, run_strategy_shift,
 )
 
 IDX = pd.bdate_range("2020-01-01", periods=60)
@@ -243,10 +243,91 @@ def test_gap_diagnostics_empty_when_no_shorts():
     assert overnight_gap_diagnostics(pos, _fut_frame(6, 0.0, 0.0, 0.01))["n_short_open"] == 0
 
 
+# ---------------------------------------------------------------- 读法 (i.5)：拆 carry
+def test_reading_i5_removes_only_short_carry_keeps_spot_prices():
+    pos = _pos("0+-000")
+    und = pd.Series(0.01, index=IDX[:6])
+    car = pd.Series(2.45, index=IDX[:6])       # carry/245 = 0.01/日
+    r1 = run_strategy_dual(pos, und, None, 0.0, car, **READINGS["i_spot_close"])
+    r15 = run_strategy_dual(pos, und, None, 0.0, car, **READINGS["i5_spot_close_nocarry"])
+    pd.testing.assert_series_equal(r1["gross"], r15["gross"])          # 价格系没变
+    assert np.isclose(r1["carry"].iloc[2], 0.01) and np.isclose(r15["carry"].iloc[2], 0.01)
+    assert np.isclose(r1["carry"].iloc[3], -0.01) and r15["carry"].iloc[3] == 0.0
+
+
+def test_decomposition_is_additive_on_returns():
+    """(ii)−(i) 必须逐日等于 [(i.5)−(i)] + [(ii)−(i.5)]（收益可加，Sharpe 不可加）。"""
+    pos = pd.Series(np.tile([1.0, -1.0, 0.0, -1.0], 15), index=IDX)
+    und, car = _rand(21), _rand(22, mu=0.15, sd=0.03)
+    fut = _fut_frame(60, 0.008, 0.004, 0.004)
+    r = {k: run_strategy_dual(pos, und, fut, 3.0, car, **kw)["ret"] for k, kw in READINGS.items()}
+    lhs = r["ii_fut_close"] - r["i_spot_close"]
+    rhs = ((r["i5_spot_close_nocarry"] - r["i_spot_close"])
+           + (r["ii_fut_close"] - r["i5_spot_close_nocarry"]))
+    pd.testing.assert_series_equal(lhs, rhs)
+
+
+# ---------------------------------------------------------------- 窗口边界伪开仓（M1）
+def test_effective_position_uses_full_series_to_kill_boundary_pseudo_open():
+    full = _pos("0----0")                       # 全序列：一次开仓（idx2）
+    win = full.iloc[3:]                         # 窗口从已持空的中段切起
+    naive = effective_position(win)             # 切片后 shift → idx3 被误判成新开仓
+    fixed = effective_position(win, position_full=full)
+    assert naive.iloc[0] == 0.0 and fixed.iloc[0] == -1.0
+
+
+def test_gap_diagnostics_windows_reconcile_with_full_when_given_full_series():
+    full = _pos("0-----0---")                    # 两次开仓：pos_eff 的 idx2 与 idx8
+    fut = _fut_frame(10, 0.0, 0.0, 0.01)
+    cuts = ((0, 4), (4, 7), (7, 10))             # 中间窗从"已持空 2 天以上"处切起
+    whole = overnight_gap_diagnostics(full, fut, position_full=full)["n_short_open"]
+    parts = sum(overnight_gap_diagnostics(full.iloc[a:b], fut.iloc[a:b],
+                                          position_full=full)["n_short_open"]
+                for a, b in cuts)
+    assert whole == parts == 2                   # 分窗合计与 full 对账
+    naive = sum(overnight_gap_diagnostics(full.iloc[a:b], fut.iloc[a:b])["n_short_open"]
+                for a, b in cuts)
+    assert naive == 3                            # 未修口径多记一次窗界伪开仓
+
+
+def test_gap_diagnostics_reports_significance_fields():
+    pos = _pos("0-0-0-0-0-")                     # pos_eff 的 idx2/4/6/8 各一次开仓
+    fut = pd.DataFrame({"ret_cc": 0.0, "ret_oc": 0.0,
+                        "gap": [0, 0, .01, 0, .02, 0, -.005, 0, .015, 0.0],
+                        "symbol_held": "X"}, index=IDX[:10])
+    d = overnight_gap_diagnostics(pos, fut, position_full=pos)
+    assert d["n_short_open"] == 4 and d["n_gap_up"] == 3 and d["n_gap_down"] == 1
+    assert 0 < d["binom_p_up"] <= 1 and 0 < d["t_p_mean"] <= 1
+    assert np.isclose(d["binom_p_up"], 0.625)    # 3/4 双侧二项，远不显著
+
+
+# ---------------------------------------------------------------- 换月成本（I7）
+def test_roll_cost_counts_only_rolls_while_short_and_doubles_the_leg():
+    pos = _pos("0--0--")                          # pos_eff = [0,0,-1,-1,0,-1]
+    fut = pd.DataFrame({"ret_cc": 0.0, "ret_oc": 0.0, "gap": 0.0,
+                        "symbol_held": ["A", "B", "C", "C", "C", "D"]}, index=IDX[:6])
+    d = roll_cost_estimate(pos, fut, cost_bps=3.0, position_full=pos)
+    assert d["n_legs"] == 1 and d["n_roll_days"] == 3       # idx1/idx2/idx5
+    assert d["n_roll_days_short"] == 2                      # idx1 非持空日 → 不计
+    assert np.isclose(d["roll_cost_total"], 2 * (2 * 3.0 / 1e4))  # 每次 = 平旧+开新
+
+
+def test_roll_cost_splits_blend_legs_by_half_weight():
+    pos = _pos("0---")
+    fut = pd.DataFrame({"ret_cc": 0.0, "ret_oc": 0.0, "gap": 0.0,
+                        "symbol_held": ["A|X", "A|X", "B|X", "B|Y"]}, index=IDX[:4])
+    d = roll_cost_estimate(pos, fut, cost_bps=3.0, position_full=pos)
+    assert d["n_legs"] == 2 and d["n_roll_days"] == 2 and d["n_roll_days_short"] == 2
+    assert np.isclose(d["roll_cost_total"], 2 * (2 * 3.0 / 1e4) * 0.5)
+
+
 # ---------------------------------------------------------------- 预登记完整性
 def test_prereg_readings_and_pairs_are_frozen():
-    assert list(READINGS) == ["i_spot_close", "ii_fut_close",
+    assert list(READINGS) == ["i_spot_close", "i5_spot_close_nocarry", "ii_fut_close",
                               "iii_fut_open_entry", "iv_fut_open_both"]
-    assert ("iii_fut_open_entry", "ii_fut_close") in READING_PAIRS   # 纯开仓时点效应
+    assert ("iii_fut_open_entry", "ii_fut_close") in READING_PAIRS   # 纯开仓时点效应 ★
+    assert ("i5_spot_close_nocarry", "i_spot_close") in READING_PAIRS  # 去 carry 贡献
+    assert ("ii_fut_close", "i5_spot_close_nocarry") in READING_PAIRS  # 换价格系贡献
     assert READINGS["i_spot_close"]["short_carry"] is True
     assert all(not v["short_carry"] for k, v in READINGS.items() if k != "i_spot_close")
+    assert READINGS["i5_spot_close_nocarry"]["short_source"] == "spot"

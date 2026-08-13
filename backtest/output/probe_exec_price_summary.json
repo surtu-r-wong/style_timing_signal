@@ -7,6 +7,7 @@
   "signal": "equal_weight",
   "readings": [
     "i_spot_close",
+    "i5_spot_close_nocarry",
     "ii_fut_close",
     "iii_fut_open_entry",
     "iv_fut_open_both"
@@ -45,5 +46,5 @@
     "seed": 0,
     "ci_excludes_zero": false
   },
-  "route_a_n_rows": 120
+  "route_a_n_rows": 150
 }
