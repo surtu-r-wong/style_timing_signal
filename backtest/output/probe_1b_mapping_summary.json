@@ -1,0 +1,203 @@
+{
+  "PROBE": "候选 ①b 持仓映射 32 点网格（θ_L × h × w_S，合成单次调用）",
+  "verdict": "STOP",
+  "prerequisites": {
+    "C1_machine_debt": "已付清（候选 ⓪ backtest/selection_permutation.py, commit 2d716db）",
+    "user_release": "已放行（议程 §7.1 问 2：放行，排在 ⓪ 之后）",
+    "deploy_constraint": "本探针不动任何生产文件；GO 亦只出建议草案，部署由用户另行拍板"
+  },
+  "winner_variant": {
+    "theta_L": 0.0,
+    "h": 0.0,
+    "w_S": -0.5,
+    "is_incumbent": false,
+    "is_symmetric_1a": false
+  },
+  "machine": {
+    "statistic": "worst_tv_net_sharpe(train,val)",
+    "n_variants": 32,
+    "n_perm": 1000,
+    "seed": 0,
+    "scheme": "rotation",
+    "best_variant": "(0.0, 0.0, -0.5)",
+    "observed_best": 1.2693371612364621,
+    "p_selected": 0.000999000999000999,
+    "p_min_p": 0.004995004995004995,
+    "p_naive_UNCORRECTED": 0.000999000999000999,
+    "selection_inflation": 1.0,
+    "null_selected_mean": 0.21886882726793327,
+    "null_selected_p95": 0.7555536901490605,
+    "n_distinct_null_winners": 32
+  },
+  "null_selected_quantiles": {
+    "p5": -0.37152406782264524,
+    "p25": -0.03046286822537984,
+    "p50": 0.23262990404929146,
+    "p75": 0.4932712006659882,
+    "p95": 0.7555536901490605,
+    "p99": 0.9224689762730209
+  },
+  "winner_by_window": {
+    "selection_2014_2023": {
+      "net_sharpe": 1.5766731874690108,
+      "net_ann": 0.2907448226715976,
+      "maxdd": -0.1914777684189467,
+      "calmar": 1.518426003563286,
+      "turnover": 15.752875924404272,
+      "hit": 0.5258980785296575,
+      "long_frac": 0.485620377978636,
+      "short_frac": 0.4979457682826623
+    },
+    "train_2014_2020": {
+      "net_sharpe": 1.6787425884942058,
+      "net_ann": 0.3379747259567344,
+      "maxdd": -0.1914777684189467,
+      "calmar": 1.7650859875140044,
+      "turnover": 17.079671939074398,
+      "hit": 0.525494901019796,
+      "long_frac": 0.4715875805506737,
+      "short_frac": 0.50497949619215
+    },
+    "val_2021_2023": {
+      "net_sharpe": 1.269337161236464,
+      "net_ann": 0.1726545830771399,
+      "maxdd": -0.1312448943202561,
+      "calmar": 1.3155146641806752,
+      "turnover": 12.63755158184319,
+      "hit": 0.5261707988980716,
+      "long_frac": 0.5185694635488308,
+      "short_frac": 0.4814305364511692
+    },
+    "holdout_2024_2026": {
+      "net_sharpe": 1.844538840750589,
+      "net_ann": 0.3815726789181798,
+      "maxdd": -0.17377309796596052,
+      "calmar": 2.195809842746338,
+      "turnover": 16.307448494453247,
+      "hit": 0.5396825396825397,
+      "long_frac": 0.5055467511885895,
+      "short_frac": 0.49445324881141045
+    },
+    "full_2014_2026": {
+      "net_sharpe": 1.6363131488592662,
+      "net_ann": 0.3096321370459276,
+      "maxdd": -0.1914777684189467,
+      "calmar": 1.6170657283223777,
+      "turnover": 15.867047308319739,
+      "hit": 0.5289256198347108,
+      "long_frac": 0.48972267536704733,
+      "short_frac": 0.4972267536704731
+    }
+  },
+  "incumbent_by_window": {
+    "selection_2014_2023": {
+      "net_sharpe": 1.5388540534815431,
+      "net_ann": 0.241284440383352,
+      "maxdd": -0.1348188666457083,
+      "calmar": 1.7896934337641743,
+      "turnover": 10.468364831553,
+      "hit": 0.5559157212317666,
+      "long_frac": 0.485620377978636,
+      "short_frac": 0.0
+    },
+    "train_2014_2020": {
+      "net_sharpe": 1.7053473108535933,
+      "net_ann": 0.29105636828351,
+      "maxdd": -0.1348188666457083,
+      "calmar": 2.1588697155300944,
+      "turnover": 11.338605741066198,
+      "hit": 0.5634638196915777,
+      "long_frac": 0.4715875805506737,
+      "short_frac": 0.0
+    },
+    "val_2021_2023": {
+      "net_sharpe": 1.000930606530241,
+      "net_ann": 0.11722551300644438,
+      "maxdd": -0.1312448943202561,
+      "calmar": 0.8931815108967024,
+      "turnover": 8.42503438789546,
+      "hit": 0.5384615384615384,
+      "long_frac": 0.5185694635488308,
+      "short_frac": 0.0
+    },
+    "holdout_2024_2026": {
+      "net_sharpe": 1.8588901569075682,
+      "net_ann": 0.3406490195657319,
+      "maxdd": -0.16666686242381534,
+      "calmar": 2.0438917167559034,
+      "turnover": 10.8716323296355,
+      "hit": 0.5765765765765766,
+      "long_frac": 0.5055467511885895,
+      "short_frac": 0.0
+    },
+    "full_2014_2026": {
+      "net_sharpe": 1.609892322100946,
+      "net_ann": 0.26174090024112745,
+      "maxdd": -0.166666862423816,
+      "calmar": 1.5704435568934414,
+      "turnover": 10.551386623164763,
+      "hit": 0.5603063178047224,
+      "long_frac": 0.48972267536704733,
+      "short_frac": 0.0
+    }
+  },
+  "gate_readings": {
+    "gate1": "worst(train,val) 净 Sharpe，赢家 vs 现役同秤，阈值 +0.10",
+    "gate2": "选择窗年化换手，赢家 ≤ 现役同窗（原文'不高于现役'为比较式）",
+    "gate3": "选择窗 MaxDD ≥ −16.7%（原文绝对数；holdout 不得进闸门）"
+  },
+  "run": {
+    "n_perm": 1000,
+    "seed": 0,
+    "cost_bps": 3.0,
+    "n_obs_selection": 2434,
+    "selection_window": [
+      "2014-01-01",
+      "2023-12-31"
+    ],
+    "sample_first_date": "2014-01-02",
+    "sample_last_date": "2023-12-29",
+    "common_full_first": "2014-01-02",
+    "common_full_last": "2026-08-11",
+    "min_shift": 60,
+    "max_shift": 2374,
+    "shift_rule": {
+      "n_obs": 2434,
+      "white_noise_band_2_over_sqrt_n": 0.04053868983909288,
+      "ladder": [
+        20,
+        40,
+        60,
+        120,
+        250
+      ],
+      "chosen_min_shift": 60,
+      "max_abs_acf_at_chosen_lag_across_variants": 0.032776943102960615,
+      "max_abs_acf_beyond_chosen_lag_across_variants": 0.20091711883276456,
+      "mean_abs_acf_beyond_chosen_lag_across_variants": 0.06167460934536148,
+      "rule": "梯子上第一个使 32 变体 |ACF| 全部 < 2/√n 的滞后；残留方向保守（见 docstring）"
+    },
+    "n_variants": 32,
+    "theta_L_grid": [
+      0.0,
+      0.1,
+      0.2,
+      0.3
+    ],
+    "h_grid": [
+      0.0,
+      0.1
+    ],
+    "w_S_grid": [
+      0.0,
+      -0.25,
+      -0.5,
+      -1.0
+    ],
+    "vectorized_vs_house_max_abs_diff": 1.1546319456101628e-14,
+    "db_host": "100.75.102.44",
+    "carry_policy": "每口径各用各的 carry（500→IC、1000→IM、blend→50/50）；机器与三条判据只用 blend",
+    "holdout_policy": "2024-2026 只报告不选择、不进任何闸门（勘误 §3 / 议程 §7.3）",
+    "deploy_policy": "不改 deploy/ 与 production.py；GO 只出草案，用户另行拍板"
+  }
+}
