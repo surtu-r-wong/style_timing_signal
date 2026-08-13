@@ -1,0 +1,131 @@
+{
+  "PROBE": "候选 ② 四对分歧度/离散度（预登记 48 点，合成一次调用）",
+  "verdict": "STOP",
+  "winner_variant": {
+    "family": "D1",
+    "lb": 5,
+    "zw": 250,
+    "k": 20
+  },
+  "gate1_ic_machine": {
+    "statistic": "abs_nonoverlap_ic",
+    "n_variants": 48,
+    "n_perm": 1000,
+    "seed": 0,
+    "scheme": "rotation",
+    "best_variant": "('D1', 5, 250, 20)",
+    "observed_best": 0.16226415094339622,
+    "p_selected": 0.9080919080919081,
+    "p_min_p": 0.45054945054945056,
+    "p_naive_UNCORRECTED": 0.11988011988011989,
+    "selection_inflation": 7.574999999999999,
+    "null_selected_mean": 0.2626578344690931,
+    "null_selected_p95": 0.41868009903526,
+    "n_distinct_null_winners": 30
+  },
+  "gate1b_partial_ic_machine": {
+    "statistic": "abs_partial_ic_vs_equal_weight",
+    "n_variants": 48,
+    "n_perm": 1000,
+    "seed": 0,
+    "scheme": "rotation",
+    "best_variant": "('D2', 5, 60, 20)",
+    "observed_best": 0.16193266554737018,
+    "p_selected": 0.9170829170829171,
+    "p_min_p": 0.8231768231768232,
+    "p_naive_UNCORRECTED": 0.10589410589410589,
+    "selection_inflation": 8.660377358490567,
+    "null_selected_mean": 0.2649305082232463,
+    "null_selected_p95": 0.42032821234750195,
+    "n_distinct_null_winners": 29,
+    "observed_at_gate1_winner": 0.13670198334937397,
+    "p_selected_at_gate1_winner": 0.97002997002997,
+    "partial_ic_signed_at_gate1_winner": -0.13670198334937397,
+    "same_sign_as_ic": true
+  },
+  "null_selected_quantiles": {
+    "ic": {
+      "p5": 0.1507171518825237,
+      "p25": 0.2079566659755339,
+      "p50": 0.24873339756802576,
+      "p75": 0.3110432852386238,
+      "p95": 0.41868009903526,
+      "p99": 0.4620729104413899
+    },
+    "partial_ic": {
+      "p5": 0.14974526130933669,
+      "p25": 0.2082122685298802,
+      "p50": 0.2506182274184234,
+      "p75": 0.3128530039832725,
+      "p95": 0.42032821234750195,
+      "p99": 0.46226991351046315
+    }
+  },
+  "winner_ic_by_window": {
+    "selection_2014_2023": -0.16226415094339622,
+    "train_2014_2020": -0.15703324808184144,
+    "val_2021_2023": -0.16218487394957984,
+    "holdout_2024_2026": 0.040266963292547274,
+    "full_2014_2026": -0.23256046944325176
+  },
+  "winner_net_by_window": {
+    "selection_2014_2023": {
+      "net_sharpe": 0.40770959157618425,
+      "net_ann": 0.10534848170273159,
+      "maxdd": -0.3669991517803658,
+      "turnover": 12.670427832628116,
+      "n_obs": 2127
+    },
+    "train_2014_2020": {
+      "net_sharpe": 0.429496794555945,
+      "net_ann": 0.12460426439739972,
+      "maxdd": -0.3669991517803658,
+      "turnover": 12.6,
+      "n_obs": 1400
+    },
+    "val_2021_2023": {
+      "net_sharpe": 0.33644929500070275,
+      "net_ann": 0.06127522853907606,
+      "maxdd": -0.3558619429670765,
+      "turnover": 12.132049518569463,
+      "n_obs": 727
+    },
+    "holdout_2024_2026": {
+      "net_sharpe": 0.27532117760606234,
+      "net_ann": 0.07352023138023596,
+      "maxdd": -0.4352370018794234,
+      "turnover": 14.754358161648177,
+      "n_obs": 631
+    },
+    "full_2014_2026": {
+      "net_sharpe": 0.6278295785799554,
+      "net_ann": 0.1633605056019824,
+      "maxdd": -0.3669991517803658,
+      "turnover": 12.969543147208123,
+      "n_obs": 2758
+    }
+  },
+  "run": {
+    "n_perm": 1000,
+    "seed": 0,
+    "cost_bps": 3.0,
+    "n_obs_selection": 2127,
+    "selection_window": [
+      "2014-01-01",
+      "2023-12-31"
+    ],
+    "sample_first_date": "2015-04-09",
+    "sample_last_date": "2023-12-29",
+    "common_full_first": "2015-04-09",
+    "common_full_last": "2026-08-11",
+    "min_shift": 80,
+    "max_shift": 2047,
+    "n_variants": 48,
+    "pair_lookback": 20,
+    "pair_z_window": 40,
+    "max_abs_diff_rebuilt_ew_vs_production_csv": 4.9966071478557694e-05,
+    "vectorized_vs_house_ic_max_abs_diff": 2.7755575615628914e-17,
+    "db_host": "100.75.102.44",
+    "holdout_policy": "2024-2026 只报告不选择、不进任何闸门（勘误 §3 / 议程 §7.3）"
+  }
+}
