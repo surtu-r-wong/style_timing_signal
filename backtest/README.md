@@ -20,7 +20,7 @@ python3 -m backtest.yearly
 ## 口径（对应设计稿 §0 / §3.2）
 
 - **全日历收益**：空仓日收益=0 计入分母（不再"剔 signal==0 再 ×245"）
-- **成交**：T 收盘出信号 → T+1 收盘生效（`pos_eff = position.shift(1)`）
+- **成交**：T 收盘出信号 → **T+1 那一行记收益**（`pos_eff = position.shift(1)`；标的收益为收盘对收盘，**经济上等价于按 T 收盘价成交**而非 T+1 收盘——口径差与敏感性见 `docs/plans/2026-08-13-exec-price-audit.md`，同秤下无法分辨）
 - **成本**：换手 3bp/边 + 空头段贴水 carry 成本（多头段 carry 收益）
 - **carry**：`public.futures_daily` 主力合约（oi 最大）年化基差率 = (spot−futures)/spot×365/到期天数；实测 **IC≈+8.8% / IM≈+12.6%** 年化贴水。**blend carry = 固定 50/50、缺腿按 0**（IM 上市前单腿期只计半仓 IC，不做 skip-NaN 均值——2026-07-11 修正，此前单腿期被放大一倍）
 - **仓位**：离散 `{−1,0,+1}`（hybrid20 用自带三态；citic40d/equal_weight 连续因子取符号）

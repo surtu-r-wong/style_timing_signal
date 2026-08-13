@@ -64,6 +64,21 @@ B1 已经提供了支持继续检验而不是终止 B3 的证据：U2 与 equal_
 | 执行 | T 日收盘信号，T+1 收盘执行；单边 3bp；IC/IM 分腿 carry |
 | 仓位 | long-flat，信号大于 0 做多，否则空仓 |
 
+> **勘误（2026-08-13，执行价口径审计 Batch 12 遗留核查）**：上表「T+1 收盘执行」是误标。
+> 实现的两层收益机器均为**经济上按 T 收盘价成交**：
+> (a) 股票腿 `signals/style_basket/b3_portfolios.py` 的持有期收益从
+> `returns.index > formation_date` 的**第一行**开始累计，而收益面板是
+> `close / pre_close − 1`（收盘对收盘，`b3_build._fetch_stock_return_status`），
+> 首个累计行覆盖 T 收盘 → T+1 收盘，即建仓价 = formation 日（T）收盘；
+> (b) 择时层 `backtest/b3_eval.py:19` 复用 `backtest.engine.run_strategy`
+> （`shift(1)` × 收盘对收盘，同一审计已裁定等价于 T 收盘成交）。
+> 要兑现「T+1 收盘执行」需股票腿从 formation 后第二行起算、择时层 `shift(2)`。
+> 本勘误只更正标注，不改代码、不改任何已出裁决（B3 正式跑已 STOP + DATA_BLOCKED）；
+> §8 的 approximate-PIT 框架不依赖执行时点论证，但"T 收盘瞬间全市场 T 日收盘数据未落库"
+> 这一 PIT 瞬时性问题与 phase4 广度勘误同类，已在审计文档登记待裁决。
+> 下文 §10.2 与 §15.4 两处「T+1」指「T+1 那一行记收益」，语义与本勘误一致，不属误标。
+> 详见 `docs/plans/2026-08-13-exec-price-audit.md` §1（同秤下 shift(2) 与现役无法分辨）。
+
 所有固定值写入 signals/style_basket/b3_config.yaml。CLI 只允许指定运行阶段、数据截止日和输出目录，不允许覆盖研究参数或裁决阈值。
 
 ## 4. 总体架构

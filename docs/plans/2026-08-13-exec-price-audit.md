@@ -78,8 +78,8 @@
 | `backtest/engine.py:4` | 「T 收盘出信号 → T+1 生效成交：`pos_eff = position.shift(1)`」 | **已改**（活文档，纯 docstring，零行为变化） |
 | `docs/plans/2026-07-07-phase4-breadth-divergence-plan.md:52` | 「harness 于 **T+1 收盘**成交 → T 日 EOD 数据当晚可得，PIT 安全」 | **已加勘误块**（活文档，承载 PIT 论证，见 §1.2） |
 | `docs/plans/2026-07-06-phase2-eval-framework-plan.md:7` | 「全日历策略收益（T 收盘信号 T+1 收盘成交）」 | 历史计划文档，**只登记不改写** |
-| `backtest/README.md:23` | 「成交：T 收盘出信号 → T+1 收盘生效」 | **本审计新发现**，QA 指定改动范围外，**登记待控制器裁决** |
-| `docs/superpowers/specs/2026-07-13-b3-continuous-style-state-design.md:64` | 「T 日收盘信号，T+1 收盘执行」 | **B3 主线设计稿**；B3 harness 是否同错**未在本审计范围内核对**，登记待查 |
+| `backtest/README.md:23` | 「成交：T 收盘出信号 → T+1 收盘生效」 | ~~登记待控制器裁决~~ → **已改**（2026-08-13 控制器裁决，措辞镜像 `engine.py` docstring，纯文档零行为变化） |
+| `docs/superpowers/specs/2026-07-13-b3-continuous-style-state-design.md:64` | 「T 日收盘信号，T+1 收盘执行」 | ~~登记待查~~ → **已核实同错、已加勘误块**（2026-08-13）。B3 harness 两层核对：(a) 股票腿 `b3_portfolios._natural_drift_leg_returns_validated` 持有期取 `index > formation`，收益面板 = `close/pre_close − 1`（`b3_build._fetch_stock_return_status`）→ 首个累计行覆盖 T 收盘→T+1 收盘，建仓价 = T 收盘；(b) 择时层 `b3_eval.py:19` 复用 `backtest.engine.run_strategy`（本审计已裁定 = T 收盘成交）。不改代码不改裁决（B3 已 STOP + DATA_BLOCKED）。设计稿 §10.2/§15.4 的裸「T+1」属「生效」类，不属误标 |
 
 **不属误标**（只说「生效」，语义正确——仓位确实在 T+1 那一行生效）：
 `backtest/engine.py:20` 行内注释、`backtest/mapping_probe.py:43`、
