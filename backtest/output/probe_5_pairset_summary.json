@@ -36,7 +36,7 @@
     "参数网格": "lookback/z_window/smoothing 锁死在现役生产值，不进任何网格"
   },
   "dividend_gate": {
-    "n_days_dividend_leg": 3065,
+    "n_days_aligned_panel": 3065,
     "first_date": "2014-01-02",
     "last_date": "2026-08-11",
     "corr_vs_incumbent_aggregate": -0.05309257556698537,
@@ -402,7 +402,8 @@
     }
   },
   "gate_readings": {
-    "gate0": "非重叠 20 日 rank IC：候选双窗均 > 现役，且配对 IC 差 Bonferroni 98.33% CI 至少一窗排除 0（读法沿用 ③ 的闸门 ⓪）",
+    "gate0": "非重叠 20 日 rank IC：候选在 train 与 val 双窗均 > 现役，且配对 IC 差的 Bonferroni 98.33% CI 在 train 或 val 窗排除 0（读法沿用 ③ 的闸门 ⓪）",
+    "bonferroni_note": "m=3 为预登记原文（3 个候选集合）。产物里展示的配对差是 4 挑战者 × 5 窗 = 20 行（含非闸门诊断集合 D_rev 与仅报告窗），闸门实读其中 3 候选 × 2 选择窗 = 6 条。m=3 相对实读条数偏松 → 对'过闸'更宽松；相对 20 行展示表偏紧 → 对 D 的负向结论更保守。两个方向都不改本次裁决。",
     "gate1": "worst(train,val) 净 Sharpe ≥ 现役 +0.15（blend / long-flat）",
     "gate2": "选择窗（2014-2023）年化换手 ≤ 现役同窗值",
     "gate3": "选择窗剔最强年 Sharpe（yearly.concentration_summary）≥ 现役同窗值",

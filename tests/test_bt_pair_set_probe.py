@@ -24,11 +24,11 @@ from backtest.engine import run_strategy  # noqa: E402
 from backtest.fusion_probe import forward_return, nonoverlap_grid, rank_ic  # noqa: E402
 from backtest.metrics import sharpe, turnover  # noqa: E402
 from backtest.pair_set_probe import (  # noqa: E402
-    ALPHA, BONFERRONI_M, CHALLENGERS, DIAG_SET, DIV_CORR_GATE, DIVIDEND_SET,
-    GATE_WORST_TV_LIFT, INCUMBENT, K_FORWARD, LOOKBACK, PAIR_LEGS, SETS, SMOOTHING,
-    STAT_WINDOWS, STYLE_NAMES, Z_WINDOW, build_factor, build_pair_factors,
-    dividend_gate, evaluate_gates, make_ic_scorer, make_sharpe_scorer, map_position,
-    pair_configs_for,
+    ALPHA, BONFERRONI_M, CHALLENGERS, DIAG_SET, DIV_CORR_GATE, DIVIDEND_CODES,
+    DIVIDEND_SET, GATE_WORST_TV_LIFT, INCUMBENT, K_FORWARD, LOOKBACK, PAIR_LEGS,
+    SETS, SMOOTHING, STAT_WINDOWS, STYLE_NAMES, Z_WINDOW, build_factor,
+    build_pair_factors, dividend_gate, evaluate_gates, make_ic_scorer,
+    make_sharpe_scorer, map_position, pair_configs_for, shift_bounds,
 )
 from backtest.positions import production_position, to_position  # noqa: E402
 from backtest.selection_permutation import build_index_matrix  # noqa: E402
@@ -69,9 +69,19 @@ def test_diagnostic_reversed_set_is_not_a_registered_set():
     assert DIAG_SET not in CHALLENGERS
 
 
-def test_885000_fund_index_appears_nowhere():
-    blob = repr(SETS) + repr(PAIR_LEGS) + repr(STYLE_NAMES)
+def test_885000_fund_index_is_never_used_as_a_data_code():
+    """885000.WI 不是任何集合的成员、不进任何 `PairConfig`、不在被读取的代码表里。
+
+    ⚠️ **名实对表**：模块源码里**确实出现** "885000" 字样——模块 docstring 的预登记声明、
+    `summary.json` 的未测项登记、CLI 末行的提醒。那些是**文档串**。
+    本判例断言的是"**从不作为数据码被使用**"，不是"字符串从不出现"。
+    """
+    blob = repr(SETS) + repr(PAIR_LEGS) + repr(STYLE_NAMES) + repr(DIVIDEND_CODES)
     assert "885000" not in blob and "偏股基金" not in blob
+    for name in list(SETS) + [DIAG_SET]:
+        cols = [c for p in pair_configs_for(name)
+                for c in (p.left_column, p.right_column)]
+        assert not any(("885000" in c) or ("偏股基金" in c) for c in cols)
 
 
 def test_parameters_are_locked_to_production_values():
@@ -170,11 +180,13 @@ def test_dividend_gate_reports_price_vs_total_return_evidence(prices):
     """诊断字段齐备（覆盖天数 + 两码日收益 corr + 净值比漂移）——同源判别的取证链。"""
     legs = build_pair_factors(prices)
     got = dividend_gate(legs["dividend"], build_factor(prices, INCUMBENT), legs, prices)
-    for key in ("n_days_dividend_leg", "daily_return_corr_between_two_legs",
+    for key in ("n_days_aligned_panel", "daily_return_corr_between_two_legs",
                 "level_ratio_first", "level_ratio_last", "implied_annual_drift_of_ratio",
                 "relative_return_annualized", "relative_return_share_negative_days"):
         assert key in got and got[key] is not None
-    assert got["n_days_dividend_leg"] == len(prices)
+    # 字段名与语义对表：这是**对齐后面板**长度，不是红利腿自身行数（M-5）
+    assert got["n_days_aligned_panel"] == len(prices)
+    assert "n_days_dividend_leg" not in got
 
 
 # ---------------------------------------------------------------- 4. 闸门判定
@@ -344,9 +356,34 @@ def test_rotation_preserves_turnover_of_position_series(toy):
         assert np.abs(np.diff(rot)).sum() + abs(rot[0] - rot[-1]) == pytest.approx(base)
 
 
-def test_min_shift_follows_house_rule_two_k():
-    """房规 [2k, n−2k]：本探针的 k = 前瞻 20 日 → 下界 40。"""
-    assert 2 * K_FORWARD == 40
+def test_shift_bounds_is_the_path_run_probe_actually_uses():
+    """`run_probe` 的移位区间**唯一**来自 `shift_bounds`：正式跑 n_obs=2434 → (40, 2394)。
+
+    这条判例检验的是**真实代码路径**（`run_probe` 里就是 `shift_bounds(len(common_sel))`），
+    不是把 `2*K_FORWARD == 40` 再抄一遍的重言式。
+    """
+    assert shift_bounds(2434) == (40, 2394)          # 正式跑的选择窗长度
+    assert shift_bounds(2434)[0] == 2 * K_FORWARD
+    assert shift_bounds(500) == (40, 460)
+    src = (ROOT / "backtest/pair_set_probe.py").read_text(encoding="utf-8")
+    assert "min_shift, max_shift = shift_bounds(len(common_sel))" in src
+
+
+def test_shift_bounds_rejects_samples_too_short_for_house_rule():
+    for n in (0, 40, 80, 4 * K_FORWARD):
+        with pytest.raises(ValueError):
+            shift_bounds(n)
+
+
+def test_shift_bounds_feed_index_matrix_within_range():
+    """真跑一遍机器的索引矩阵：全部位移落在 [min_shift, max_shift) 内。"""
+    n = 2434
+    lo, hi = shift_bounds(n)
+    mat = build_index_matrix(n, 200, scheme="rotation", seed=0,
+                             min_shift=lo, max_shift=hi)
+    base = np.arange(n)
+    shifts = (base[0] - mat[:, 0]) % n
+    assert shifts.min() >= lo and shifts.max() < hi
 
 
 # ---------------------------------------------------------------- 7. 映射

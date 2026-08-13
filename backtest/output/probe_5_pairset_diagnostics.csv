@@ -1,5 +1,5 @@
 metric,value
-n_days_dividend_leg,3065
+n_days_aligned_panel,3065
 first_date,2014-01-02
 last_date,2026-08-11
 corr_vs_incumbent_aggregate,-0.05309257556698537

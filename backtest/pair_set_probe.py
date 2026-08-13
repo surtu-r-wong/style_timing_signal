@@ -39,8 +39,12 @@ smoothing=5 —— 参数维度**不进网格**，本探针只动"配对集合"�
 2. `-inf` **只给无法评分的行**（样本不足 / 统计量非有限）。换手 / 集中度 / IC 三条判据
    都是**独立后置闸门**，**不编进统计量**（机器文档 §9 第 11 条边界）；
 3. **移位区间 `min_shift = 2·max(k) = 40`、`max_shift = n_obs − 40`**（房规 [2k, n−2k]，
-   k = 前瞻天数 20）。收益层统计量本身无前瞻窗，此处沿用同一区间是**更保守**的取法
-   （下界更大 → 残留配对更少），并让两族共用同一份索引矩阵、可逐行对表。
+   k = 前瞻天数 20）。**IC 族**这道下界是硬要求（防移位后前瞻窗与原窗机械重叠）。
+   **收益层族本身无前瞻窗**，沿用同一区间的理由是**两族共用同一份索引矩阵、可逐行对表**
+   —— ⚠️ **不是"更保守"**：剔掉小位移会削薄空分布的上尾（小位移最可能残留真配对、
+   给出高统计量），故对收益层族的 p 是**轻微反保守**的。本探针的四条判据**都不读 p**
+   （p_selected 只作诊断，§6.3），故该方向不 load-bearing；若日后有人把 p 升格为闸门，
+   收益层族必须改用去相关长度定下界（①b `choose_min_shift` 的做法）。
 
 ## 口径（§4 C4 同秤）
 
@@ -267,7 +271,9 @@ def dividend_gate(div_factor: pd.Series, incumbent_factor: pd.Series,
     years = (ratio.index[-1] - ratio.index[0]).days / 365.25
     rel = dret["r"] - dret["l"]
     return {
-        "n_days_dividend_leg": int(len(prices)),
+        # ⚠️ 这是**对齐后面板**的长度（= 八条风格指数的日历），不是红利腿自身的行数：
+        # 红利两码在库内各 3,066 天（2013-12-31 起），对齐到风格日历后为 3,065 天。
+        "n_days_aligned_panel": int(len(prices)),
         "first_date": str(prices.index.min().date()),
         "last_date": str(prices.index.max().date()),
         "corr_vs_incumbent_aggregate": corr_agg,
@@ -438,6 +444,19 @@ def make_sharpe_scorer(pos_arrays: dict[str, np.ndarray], und: np.ndarray,
     return _fn
 
 
+def shift_bounds(n_obs: int) -> tuple[int, int]:
+    """房规移位区间 `[2k, n_obs − 2k]`（k = 前瞻天数）——`run_probe` **唯一**的取法。
+
+    抽成纯函数只为可判例化：机器接入规矩 (c) 的这条区间必须能被独立复核，
+    不能只活在 `run_probe` 的行内表达式里。
+    """
+    lo = 2 * K_FORWARD
+    hi = int(n_obs) - 2 * K_FORWARD
+    if not 1 <= lo < hi <= int(n_obs):
+        raise ValueError(f"样本过短：n_obs={n_obs} 无法满足 [2k, n−2k]（k={K_FORWARD}）")
+    return lo, hi
+
+
 def make_ic_scorer(fac_arrays: dict[str, np.ndarray], fwd: np.ndarray,
                    grid_pos: dict[str, np.ndarray]):
     """闸门 ⓪ 族：一次算完某集合在全部重抽样行下的 `worst(train,val)` **有符号** rank IC。
@@ -512,7 +531,7 @@ def evaluate_gates(panel_blend_lf: pd.DataFrame, ic_rep: pd.DataFrame,
                          "threshold": ic_of(INCUMBENT, w), "pass": higher[w]})
         sig = any(bool(diff_of(name, w, "ci_excludes_zero")) for w in STAT_WINDOWS)
         rows.append({"pair_set": name, "gate": "0_rank_ic",
-                     "metric": f"paired_ic_diff_CI_excl_0(任一选择窗, α={ALPHA}/{BONFERRONI_M})",
+                     "metric": f"paired_ic_diff_CI_excl_0(train或val窗, α={ALPHA}/{BONFERRONI_M})",
                      "value": float(sig), "threshold": 1.0, "pass": sig})
         gate0 = bool(all(higher.values()) and sig)
         rows.append({"pair_set": name, "gate": "0_rank_ic", "metric": "闸门⓪汇总",
@@ -613,8 +632,7 @@ def run_probe(n_perm: int = 1000, seed: int = 0, cost_bps: float = 3.0,
 
     # ---- 机器：4 个集合（含现役对照点）合成，每族一次调用
     gated = tuple(SETS)
-    min_shift = 2 * K_FORWARD
-    max_shift = len(common_sel) - 2 * K_FORWARD
+    min_shift, max_shift = shift_bounds(len(common_sel))
     masks = window_masks(common_sel)
     und_sel = und[PRIMARY_KOU_JING].reindex(common_sel).to_numpy(dtype=float)
     carry_sel = carry[PRIMARY_KOU_JING].reindex(common_sel).fillna(0.0).to_numpy(dtype=float)
@@ -704,8 +722,13 @@ def run_probe(n_perm: int = 1000, seed: int = 0, cost_bps: float = 3.0,
                             if v in set(blend_lf["pair_set"])},
         "by_window": {v: _by_window(v) for v in factors},
         "gate_readings": {
-            "gate0": "非重叠 20 日 rank IC：候选双窗均 > 现役，且配对 IC 差 Bonferroni "
-                     "98.33% CI 至少一窗排除 0（读法沿用 ③ 的闸门 ⓪）",
+            "gate0": "非重叠 20 日 rank IC：候选在 train 与 val 双窗均 > 现役，且配对 IC 差的 "
+                     "Bonferroni 98.33% CI 在 train 或 val 窗排除 0（读法沿用 ③ 的闸门 ⓪）",
+            "bonferroni_note": "m=3 为预登记原文（3 个候选集合）。产物里展示的配对差是 "
+                               "4 挑战者 × 5 窗 = 20 行（含非闸门诊断集合 D_rev 与仅报告窗），"
+                               "闸门实读其中 3 候选 × 2 选择窗 = 6 条。m=3 相对实读条数偏松 "
+                               "→ 对'过闸'更宽松；相对 20 行展示表偏紧 → 对 D 的负向结论更保守。"
+                               "两个方向都不改本次裁决。",
             "gate1": "worst(train,val) 净 Sharpe ≥ 现役 +0.15（blend / long-flat）",
             "gate2": "选择窗（2014-2023）年化换手 ≤ 现役同窗值",
             "gate3": "选择窗剔最强年 Sharpe（yearly.concentration_summary）≥ 现役同窗值",
@@ -776,7 +799,7 @@ def main() -> int:
 
     d = out["summary"]["dividend_gate"]
     print("=== 红利腿前置诊断闸（000922 / H00922） ===")
-    print(f"  覆盖 {d['n_days_dividend_leg']} 天（{d['first_date']} ~ {d['last_date']}）；"
+    print(f"  对齐后面板 {d['n_days_aligned_panel']} 天（{d['first_date']} ~ {d['last_date']}）；"
           f"两码日收益 corr={d['daily_return_corr_between_two_legs']:.4f}；"
           f"净值比 {d['level_ratio_first']:.3f}→{d['level_ratio_last']:.3f}"
           f"（年化漂移 {100 * d['implied_annual_drift_of_ratio']:.2f}%）")

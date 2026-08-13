@@ -1,7 +1,7 @@
 pair_set,gate,metric,value,threshold,pass
 B_500_1000_2000,0_rank_ic,rank_ic_train_2014_2020,0.22787974848005077,0.20074626513863209,True
 B_500_1000_2000,0_rank_ic,rank_ic_val_2021_2023,0.36344238975817916,0.35751541014698907,True
-B_500_1000_2000,0_rank_ic,"paired_ic_diff_CI_excl_0(任一选择窗, α=0.05/3)",0.0,1.0,False
+B_500_1000_2000,0_rank_ic,"paired_ic_diff_CI_excl_0(train或val窗, α=0.05/3)",0.0,1.0,False
 B_500_1000_2000,0_rank_ic,闸门⓪汇总,0.0,1.0,False
 B_500_1000_2000,1_worst_tv_sharpe,"worst(train,val) 净 Sharpe",1.0984699980686339,1.150930606530241,False
 B_500_1000_2000,1_worst_tv_sharpe,margin_vs_incumbent,0.09753939153839286,0.15,False
@@ -11,7 +11,7 @@ B_500_1000_2000,3_concentration,剔最强两年 Sharpe（诊断）,0.77736246408
 B_500_1000_2000,OVERALL,STOP（任一条不中）,0.0,,False
 C_1000_only,0_rank_ic,rank_ic_train_2014_2020,0.17740543141586793,0.20074626513863209,False
 C_1000_only,0_rank_ic,rank_ic_val_2021_2023,0.34518729255571357,0.35751541014698907,False
-C_1000_only,0_rank_ic,"paired_ic_diff_CI_excl_0(任一选择窗, α=0.05/3)",0.0,1.0,False
+C_1000_only,0_rank_ic,"paired_ic_diff_CI_excl_0(train或val窗, α=0.05/3)",0.0,1.0,False
 C_1000_only,0_rank_ic,闸门⓪汇总,0.0,1.0,False
 C_1000_only,1_worst_tv_sharpe,"worst(train,val) 净 Sharpe",1.0911648753588765,1.150930606530241,False
 C_1000_only,1_worst_tv_sharpe,margin_vs_incumbent,0.0902342688286355,0.15,False
@@ -22,7 +22,7 @@ C_1000_only,OVERALL,STOP（任一条不中）,0.0,,False
 D_four_plus_dividend,PRE_dividend_corr,max|corr| vs 现役四对族,0.09794746501100088,0.9,True
 D_four_plus_dividend,0_rank_ic,rank_ic_train_2014_2020,0.1539702531752268,0.20074626513863209,False
 D_four_plus_dividend,0_rank_ic,rank_ic_val_2021_2023,0.25699383594120434,0.35751541014698907,False
-D_four_plus_dividend,0_rank_ic,"paired_ic_diff_CI_excl_0(任一选择窗, α=0.05/3)",0.0,1.0,False
+D_four_plus_dividend,0_rank_ic,"paired_ic_diff_CI_excl_0(train或val窗, α=0.05/3)",0.0,1.0,False
 D_four_plus_dividend,0_rank_ic,闸门⓪汇总,0.0,1.0,False
 D_four_plus_dividend,1_worst_tv_sharpe,"worst(train,val) 净 Sharpe",0.7462808091011914,1.150930606530241,False
 D_four_plus_dividend,1_worst_tv_sharpe,margin_vs_incumbent,-0.2546497974290496,0.15,False
