@@ -1,0 +1,68 @@
+pair_set,gate,metric,value,threshold,pass
+B_500_1000_2000,0_rank_ic,rank_ic_train_2014_2020,0.22787974848005077,0.20074626513863209,True
+B_500_1000_2000,0_rank_ic,rank_ic_val_2021_2023,0.36344238975817916,0.35751541014698907,True
+B_500_1000_2000,0_rank_ic,"paired_ic_diff_CI_excl_0(任一选择窗, α=0.05/3)",0.0,1.0,False
+B_500_1000_2000,0_rank_ic,闸门⓪汇总,0.0,1.0,False
+B_500_1000_2000,1_worst_tv_sharpe,"worst(train,val) 净 Sharpe",1.0984699980686339,1.150930606530241,False
+B_500_1000_2000,1_worst_tv_sharpe,margin_vs_incumbent,0.09753939153839286,0.15,False
+B_500_1000_2000,2_turnover_not_up,选择窗年化换手,10.870994248151192,10.468364831553,False
+B_500_1000_2000,3_concentration,选择窗剔最强年 Sharpe,0.8840472249571625,1.2364738417959498,False
+B_500_1000_2000,3_concentration,剔最强两年 Sharpe（诊断）,0.7773624640880369,1.0808981780430635,
+B_500_1000_2000,OVERALL,STOP（任一条不中）,0.0,,False
+C_1000_only,0_rank_ic,rank_ic_train_2014_2020,0.17740543141586793,0.20074626513863209,False
+C_1000_only,0_rank_ic,rank_ic_val_2021_2023,0.34518729255571357,0.35751541014698907,False
+C_1000_only,0_rank_ic,"paired_ic_diff_CI_excl_0(任一选择窗, α=0.05/3)",0.0,1.0,False
+C_1000_only,0_rank_ic,闸门⓪汇总,0.0,1.0,False
+C_1000_only,1_worst_tv_sharpe,"worst(train,val) 净 Sharpe",1.0911648753588765,1.150930606530241,False
+C_1000_only,1_worst_tv_sharpe,margin_vs_incumbent,0.0902342688286355,0.15,False
+C_1000_only,2_turnover_not_up,选择窗年化换手,9.663105998356615,10.468364831553,True
+C_1000_only,3_concentration,选择窗剔最强年 Sharpe,0.9531928063038131,1.2364738417959498,False
+C_1000_only,3_concentration,剔最强两年 Sharpe（诊断）,0.7769476451597955,1.0808981780430635,
+C_1000_only,OVERALL,STOP（任一条不中）,0.0,,False
+D_four_plus_dividend,PRE_dividend_corr,max|corr| vs 现役四对族,0.09794746501100088,0.9,True
+D_four_plus_dividend,0_rank_ic,rank_ic_train_2014_2020,0.1539702531752268,0.20074626513863209,False
+D_four_plus_dividend,0_rank_ic,rank_ic_val_2021_2023,0.25699383594120434,0.35751541014698907,False
+D_four_plus_dividend,0_rank_ic,"paired_ic_diff_CI_excl_0(任一选择窗, α=0.05/3)",0.0,1.0,False
+D_four_plus_dividend,0_rank_ic,闸门⓪汇总,0.0,1.0,False
+D_four_plus_dividend,1_worst_tv_sharpe,"worst(train,val) 净 Sharpe",0.7462808091011914,1.150930606530241,False
+D_four_plus_dividend,1_worst_tv_sharpe,margin_vs_incumbent,-0.2546497974290496,0.15,False
+D_four_plus_dividend,2_turnover_not_up,选择窗年化换手,10.267050123253902,10.468364831553,True
+D_four_plus_dividend,3_concentration,选择窗剔最强年 Sharpe,0.9265818621009535,1.2364738417959498,False
+D_four_plus_dividend,3_concentration,剔最强两年 Sharpe（诊断）,0.7476806370341929,1.0808981780430635,
+D_four_plus_dividend,OVERALL,STOP（任一条不中）,0.0,,False
+-,META,verdict,STOP,,
+-,META,n_candidates_GO,0,,
+-,META,p_selected_sharpe,0.000999000999000999,,
+-,META,p_selected_rank_ic,0.01098901098901099,,
+-,META,p_naive_UNCORRECTED_sharpe,0.000999000999000999,,
+-,META,p_naive_UNCORRECTED_rank_ic,0.007992007992007992,,
+-,META,p_min_p_sharpe,0.002997002997002997,,
+-,META,p_min_p_rank_ic,0.011988011988011988,,
+-,META,winner_sharpe,B_500_1000_2000,,
+-,META,winner_rank_ic,B_500_1000_2000,,
+-,META,observed_best_sharpe,1.0984699980686317,,
+-,META,observed_best_rank_ic,0.22787974848005074,,
+-,META,worst_tv_sharpe_A_four_pairs_incumbent,1.000930606530241,,
+-,META,worst_tv_sharpe_B_500_1000_2000,1.0984699980686339,,
+-,META,worst_tv_sharpe_C_1000_only,1.0911648753588765,,
+-,META,worst_tv_sharpe_D_four_plus_dividend,0.7462808091011914,,
+-,META,worst_tv_sharpe_D_rev_dividend_reversed,0.9513001022534393,,
+-,META,dividend_same_source_verdict,False,,
+-,META,dividend_max_abs_corr,0.09794746501100088,,
+-,META,n_perm,1000,,
+-,META,seed,0,,
+-,META,cost_bps,3.0,,
+-,META,k_forward,20,,
+-,META,n_obs_selection,2434,,
+-,META,sample_first_date,2014-01-02,,
+-,META,sample_last_date,2026-08-11,,
+-,META,min_shift,40,,
+-,META,max_shift,2394,,
+-,META,n_variants,4,,
+-,META,vectorized_vs_house_sharpe_max_abs_diff,2.4424906541753444e-15,,
+-,META,vectorized_vs_house_ic_max_abs_diff,2.7755575615628914e-17,,
+-,META,incumbent_vs_production_csv_max_abs_diff,4.9966071478557694e-05,,
+-,META,db_host,100.75.102.44,,
+-,META,carry_policy,每口径各用各的 carry（500→IC、1000→IM、blend→50/50）；机器与四条判据只用 blend,,
+-,META,holdout_policy,2024-2026 只报告不选择、不进任何闸门（勘误 §3 / 议程 §7.3）,,
+-,META,deploy_policy,不改 deploy/、signals/、production.py；GO 只出草案，用户另行拍板,,

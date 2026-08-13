@@ -1,0 +1,9 @@
+variant,observed,p_naive_per_variant_UNCORRECTED,null_winner_count,is_observed_winner,family
+A_four_pairs_incumbent,1.000931,0.001998,219,False,worst_tv_net_sharpe
+B_500_1000_2000,1.09847,0.000999,200,True,worst_tv_net_sharpe
+C_1000_only,1.091165,0.000999,336,False,worst_tv_net_sharpe
+D_four_plus_dividend,0.746281,0.020979,245,False,worst_tv_net_sharpe
+A_four_pairs_incumbent,0.200746,0.010989,150,False,worst_tv_signed_rank_ic
+B_500_1000_2000,0.22788,0.007992,206,True,worst_tv_signed_rank_ic
+C_1000_only,0.177405,0.01998,327,False,worst_tv_signed_rank_ic
+D_four_plus_dividend,0.15397,0.020979,317,False,worst_tv_signed_rank_ic
