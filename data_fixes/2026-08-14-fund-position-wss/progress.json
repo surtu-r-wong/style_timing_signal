@@ -1,0 +1,377 @@
+{
+  "done_periods": [
+    "2016-03-31",
+    "2016-06-30",
+    "2016-09-30",
+    "2016-12-31",
+    "2017-03-31",
+    "2017-06-30",
+    "2017-09-30",
+    "2017-12-31",
+    "2018-03-31",
+    "2018-06-30",
+    "2018-09-30",
+    "2018-12-31",
+    "2019-03-31",
+    "2019-06-30",
+    "2019-09-30",
+    "2019-12-31",
+    "2020-03-31",
+    "2020-06-30",
+    "2020-09-30",
+    "2020-12-31",
+    "2021-03-31",
+    "2021-06-30",
+    "2021-09-30",
+    "2021-12-31",
+    "2022-03-31",
+    "2022-06-30",
+    "2022-09-30",
+    "2022-12-31",
+    "2023-03-31",
+    "2023-06-30",
+    "2023-09-30",
+    "2023-12-31",
+    "2024-03-31",
+    "2024-06-30",
+    "2024-09-30",
+    "2024-12-31",
+    "2025-03-31",
+    "2025-06-30",
+    "2025-09-30",
+    "2025-12-31",
+    "2026-03-31"
+  ],
+  "cells_requested": 110353,
+  "rows_written": 110353,
+  "period_stats": {
+    "2016-03-31": {
+      "universe": 583,
+      "rows": 583,
+      "cells": 583,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 85.24
+    },
+    "2016-06-30": {
+      "universe": 602,
+      "rows": 602,
+      "cells": 602,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 85.56
+    },
+    "2016-09-30": {
+      "universe": 618,
+      "rows": 618,
+      "cells": 618,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 85.19
+    },
+    "2016-12-31": {
+      "universe": 634,
+      "rows": 634,
+      "cells": 634,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 85.49
+    },
+    "2017-03-31": {
+      "universe": 657,
+      "rows": 657,
+      "cells": 657,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 85.45
+    },
+    "2017-06-30": {
+      "universe": 675,
+      "rows": 675,
+      "cells": 675,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 86.67
+    },
+    "2017-09-30": {
+      "universe": 702,
+      "rows": 702,
+      "cells": 702,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 88.73
+    },
+    "2017-12-31": {
+      "universe": 728,
+      "rows": 728,
+      "cells": 728,
+      "nulls": 0,
+      "out_of_range": 1,
+      "median": 88.07
+    },
+    "2018-03-31": {
+      "universe": 784,
+      "rows": 784,
+      "cells": 784,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 86.49
+    },
+    "2018-06-30": {
+      "universe": 824,
+      "rows": 824,
+      "cells": 824,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 85.16
+    },
+    "2018-09-30": {
+      "universe": 858,
+      "rows": 858,
+      "cells": 858,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 84.43
+    },
+    "2018-12-31": {
+      "universe": 898,
+      "rows": 898,
+      "cells": 898,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 82.04
+    },
+    "2019-03-31": {
+      "universe": 958,
+      "rows": 958,
+      "cells": 958,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 88.29
+    },
+    "2019-06-30": {
+      "universe": 1035,
+      "rows": 1035,
+      "cells": 1035,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 87.4
+    },
+    "2019-09-30": {
+      "universe": 1110,
+      "rows": 1110,
+      "cells": 1110,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 88.26
+    },
+    "2019-12-31": {
+      "universe": 1157,
+      "rows": 1157,
+      "cells": 1157,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.28
+    },
+    "2020-03-31": {
+      "universe": 1261,
+      "rows": 1261,
+      "cells": 1261,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 88.44
+    },
+    "2020-06-30": {
+      "universe": 1382,
+      "rows": 1382,
+      "cells": 1382,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 91.02
+    },
+    "2020-09-30": {
+      "universe": 1567,
+      "rows": 1567,
+      "cells": 1567,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.51
+    },
+    "2020-12-31": {
+      "universe": 1792,
+      "rows": 1792,
+      "cells": 1792,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 91.06
+    },
+    "2021-03-31": {
+      "universe": 2067,
+      "rows": 2067,
+      "cells": 2067,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 88.75
+    },
+    "2021-06-30": {
+      "universe": 2364,
+      "rows": 2364,
+      "cells": 2364,
+      "nulls": 0,
+      "out_of_range": 2,
+      "median": 89.98
+    },
+    "2021-09-30": {
+      "universe": 2637,
+      "rows": 2637,
+      "cells": 2637,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 89.19
+    },
+    "2021-12-31": {
+      "universe": 2950,
+      "rows": 2950,
+      "cells": 2950,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.27
+    },
+    "2022-03-31": {
+      "universe": 3373,
+      "rows": 3373,
+      "cells": 3373,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 88.31
+    },
+    "2022-06-30": {
+      "universe": 3620,
+      "rows": 3620,
+      "cells": 3620,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.26
+    },
+    "2022-09-30": {
+      "universe": 3767,
+      "rows": 3767,
+      "cells": 3767,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 88.59
+    },
+    "2022-12-31": {
+      "universe": 3979,
+      "rows": 3979,
+      "cells": 3979,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.02
+    },
+    "2023-03-31": {
+      "universe": 4152,
+      "rows": 4152,
+      "cells": 4152,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.88
+    },
+    "2023-06-30": {
+      "universe": 4326,
+      "rows": 4326,
+      "cells": 4326,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.03
+    },
+    "2023-09-30": {
+      "universe": 4482,
+      "rows": 4482,
+      "cells": 4482,
+      "nulls": 0,
+      "out_of_range": 2,
+      "median": 89.94
+    },
+    "2023-12-31": {
+      "universe": 4656,
+      "rows": 4656,
+      "cells": 4656,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.41
+    },
+    "2024-03-31": {
+      "universe": 4849,
+      "rows": 4849,
+      "cells": 4849,
+      "nulls": 0,
+      "out_of_range": 2,
+      "median": 89.52
+    },
+    "2024-06-30": {
+      "universe": 4995,
+      "rows": 4995,
+      "cells": 4995,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 88.97
+    },
+    "2024-09-30": {
+      "universe": 5145,
+      "rows": 5145,
+      "cells": 5145,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.4
+    },
+    "2024-12-31": {
+      "universe": 5285,
+      "rows": 5285,
+      "cells": 5285,
+      "nulls": 0,
+      "out_of_range": 1,
+      "median": 89.53
+    },
+    "2025-03-31": {
+      "universe": 5411,
+      "rows": 5411,
+      "cells": 5411,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 89.68
+    },
+    "2025-06-30": {
+      "universe": 5532,
+      "rows": 5532,
+      "cells": 5532,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 90.41
+    },
+    "2025-09-30": {
+      "universe": 5755,
+      "rows": 5755,
+      "cells": 5755,
+      "nulls": 0,
+      "out_of_range": 2,
+      "median": 91.45
+    },
+    "2025-12-31": {
+      "universe": 5982,
+      "rows": 5982,
+      "cells": 5982,
+      "nulls": 0,
+      "out_of_range": 4,
+      "median": 90.7
+    },
+    "2026-03-31": {
+      "universe": 6201,
+      "rows": 6201,
+      "cells": 6201,
+      "nulls": 0,
+      "out_of_range": 0,
+      "median": 89.74
+    }
+  }
+}

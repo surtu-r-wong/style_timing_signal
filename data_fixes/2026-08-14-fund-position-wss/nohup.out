@@ -1,0 +1,49 @@
+2026-08-14T16:18:53 START run: 41 periods, universe 110353 fund x period; already done: 0; gateway quota used=-1
+2026-08-14T16:18:55 batch fail period=2016-03-31 batch=1/2 attempt=1: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+2026-08-14T16:19:05 batch fail period=2016-03-31 batch=1/2 attempt=2: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+2026-08-14T16:19:37 batch fail period=2016-03-31 batch=1/2 attempt=3: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+2026-08-14T16:19:37 batch EXHAUSTED period=2016-03-31 batch=1/2 (consecutive failures 1)
+2026-08-14T16:19:39 batch fail period=2016-03-31 batch=2/2 attempt=1: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+2026-08-14T16:20:17 START run: 41 periods, universe 110353 fund x period; already done: 0; gateway quota used=2768
+2026-08-14T16:20:19 period=2016-03-31 DONE rows=583 cells=583 nulls=0 oob=0 median=85.24
+2026-08-14T16:20:23 period=2016-06-30 DONE rows=602 cells=602 nulls=0 oob=0 median=85.56
+2026-08-14T16:20:25 period=2016-09-30 DONE rows=618 cells=618 nulls=0 oob=0 median=85.19
+2026-08-14T16:20:27 period=2016-12-31 DONE rows=634 cells=634 nulls=0 oob=0 median=85.49
+2026-08-14T16:20:29 period=2017-03-31 DONE rows=657 cells=657 nulls=0 oob=0 median=85.45
+2026-08-14T16:20:32 period=2017-06-30 DONE rows=675 cells=675 nulls=0 oob=0 median=86.67
+2026-08-14T16:20:34 period=2017-09-30 DONE rows=702 cells=702 nulls=0 oob=0 median=88.73
+2026-08-14T16:20:36 period=2017-12-31 DONE rows=728 cells=728 nulls=0 oob=1 median=88.07
+2026-08-14T16:20:38 period=2018-03-31 DONE rows=784 cells=784 nulls=0 oob=0 median=86.49
+2026-08-14T16:20:41 period=2018-06-30 DONE rows=824 cells=824 nulls=0 oob=0 median=85.16
+2026-08-14T16:20:43 period=2018-09-30 DONE rows=858 cells=858 nulls=0 oob=0 median=84.43
+2026-08-14T16:20:45 period=2018-12-31 DONE rows=898 cells=898 nulls=0 oob=0 median=82.04
+2026-08-14T16:20:47 period=2019-03-31 DONE rows=958 cells=958 nulls=0 oob=0 median=88.29
+2026-08-14T16:20:51 period=2019-06-30 DONE rows=1035 cells=1035 nulls=0 oob=0 median=87.4
+2026-08-14T16:20:54 period=2019-09-30 DONE rows=1110 cells=1110 nulls=0 oob=0 median=88.26
+2026-08-14T16:20:57 period=2019-12-31 DONE rows=1157 cells=1157 nulls=0 oob=0 median=90.28
+2026-08-14T16:21:01 period=2020-03-31 DONE rows=1261 cells=1261 nulls=0 oob=0 median=88.44
+2026-08-14T16:21:04 period=2020-06-30 DONE rows=1382 cells=1382 nulls=0 oob=0 median=91.02
+2026-08-14T16:21:09 period=2020-09-30 DONE rows=1567 cells=1567 nulls=0 oob=0 median=90.51
+2026-08-14T16:21:13 period=2020-12-31 DONE rows=1792 cells=1792 nulls=0 oob=0 median=91.06
+2026-08-14T16:21:19 period=2021-03-31 DONE rows=2067 cells=2067 nulls=0 oob=0 median=88.75
+2026-08-14T16:21:25 period=2021-06-30 DONE rows=2364 cells=2364 nulls=0 oob=2 median=89.98
+2026-08-14T16:21:31 period=2021-09-30 DONE rows=2637 cells=2637 nulls=0 oob=0 median=89.19
+2026-08-14T16:21:38 period=2021-12-31 DONE rows=2950 cells=2950 nulls=0 oob=0 median=90.27
+2026-08-14T16:21:46 period=2022-03-31 DONE rows=3373 cells=3373 nulls=0 oob=0 median=88.31
+2026-08-14T16:21:55 period=2022-06-30 DONE rows=3620 cells=3620 nulls=0 oob=0 median=90.26
+2026-08-14T16:22:04 period=2022-09-30 DONE rows=3767 cells=3767 nulls=0 oob=0 median=88.59
+2026-08-14T16:22:14 period=2022-12-31 DONE rows=3979 cells=3979 nulls=0 oob=0 median=90.02
+2026-08-14T16:22:24 period=2023-03-31 DONE rows=4152 cells=4152 nulls=0 oob=0 median=90.88
+2026-08-14T16:22:34 period=2023-06-30 DONE rows=4326 cells=4326 nulls=0 oob=0 median=90.03
+2026-08-14T16:22:44 period=2023-09-30 DONE rows=4482 cells=4482 nulls=0 oob=2 median=89.94
+2026-08-14T16:22:55 period=2023-12-31 DONE rows=4656 cells=4656 nulls=0 oob=0 median=90.41
+2026-08-14T16:23:07 period=2024-03-31 DONE rows=4849 cells=4849 nulls=0 oob=2 median=89.52
+2026-08-14T16:23:18 period=2024-06-30 DONE rows=4995 cells=4995 nulls=0 oob=0 median=88.97
+2026-08-14T16:23:30 period=2024-09-30 DONE rows=5145 cells=5145 nulls=0 oob=0 median=90.4
+2026-08-14T16:23:43 period=2024-12-31 DONE rows=5285 cells=5285 nulls=0 oob=1 median=89.53
+2026-08-14T16:23:56 period=2025-03-31 DONE rows=5411 cells=5411 nulls=0 oob=0 median=89.68
+2026-08-14T16:24:09 period=2025-06-30 DONE rows=5532 cells=5532 nulls=0 oob=0 median=90.41
+2026-08-14T16:24:23 period=2025-09-30 DONE rows=5755 cells=5755 nulls=0 oob=2 median=91.45
+2026-08-14T16:24:37 period=2025-12-31 DONE rows=5982 cells=5982 nulls=0 oob=4 median=90.7
+2026-08-14T16:24:51 period=2026-03-31 DONE rows=6201 cells=6201 nulls=0 oob=0 median=89.74
+2026-08-14T16:24:51 ALL DONE: rows=110353 cells_requested=110353 gateway quota used=113121
