@@ -1,0 +1,16 @@
+== phase: reconcile ==
+-- parse + sanity --
+  399370.SZ: 3306 rows, 2013-01-04 .. 2026-08-14, sanity OK
+  399371.SZ: 3306 rows, 2013-01-04 .. 2026-08-14, sanity OK
+  932000.CSI: 3069 rows, 2013-12-31 .. 2026-08-14, sanity OK
+-- pre-insert reconciliation --
+  DB 399370.SZ: 0 rows, -
+  DB 399371.SZ: 0 rows, -
+  DB 932000.CSI: 40 rows, 2026-06-16 .. 2026-08-11
+  overlap 932000.CSI: 40 dates (2026-06-16 .. 2026-08-11)
+  overlap col open  : equal 40/40, max_abs_dev 0
+  overlap col high  : equal 40/40, max_abs_dev 0
+  overlap col low   : equal 40/40, max_abs_dev 0
+  overlap col close : equal 40/40, max_abs_dev 0
+  overlap col volume: equal 34/40, max_abs_dev 94.0000 at 2026-08-03
+  overlap col amount: equal 33/40, max_abs_dev 48.0000 at 2026-08-11
