@@ -76,6 +76,65 @@ def test_pair_cols_cover_four_config_groups():
         assert PAIR_COLS[key] == f"pair_0{int(r['group'])}_factor_20"
 
 
+# ─────────────── 换月成本（口径对齐 Batch 12 §7 exec-price-audit）───────────────
+
+def _held(symbols: list[str]) -> pd.Series:
+    idx = pd.date_range("2021-01-04", periods=len(symbols), freq="B")
+    return pd.Series(symbols, index=idx)
+
+
+def test_roll_cost_charges_two_sides_on_symbol_change():
+    """换月日 = symbol 变化日；单次 = 平旧+开新 = 2×cost_bps × 有效仓位。"""
+    from backtest.dual_channel_probe import roll_cost_series
+
+    held = _held(["IC2101", "IC2101", "IC2102", "IC2102"])
+    pos = pd.Series(1.0, index=held.index)
+    rc = roll_cost_series(pos, held, cost_bps=3.0)
+    assert rc.iloc[0] == 0.0, "首日无前值 → 不算换月"
+    assert rc.iloc[1] == 0.0
+    assert rc.iloc[2] == pytest.approx(2 * 3.0 / 1e4)      # 换月日
+    assert rc.iloc[3] == 0.0
+
+
+def test_roll_cost_only_on_held_days():
+    """空仓日无仓可换 → 零成本（Batch 12 的"只计落在持仓日的"）。"""
+    from backtest.dual_channel_probe import roll_cost_series
+
+    held = _held(["IC2101", "IC2102", "IC2103"])
+    pos = pd.Series([1.0, 0.0, 1.0], index=held.index)
+    rc = roll_cost_series(pos, held, cost_bps=3.0)
+    assert rc.iloc[1] == 0.0, "换月日但空仓 → 不计"
+    assert rc.iloc[2] == pytest.approx(2 * 3.0 / 1e4)
+
+
+def test_roll_cost_scales_with_notional_weight():
+    """名义 0.6 的期货腿只承担 0.6 倍换月成本——这是"只给一边扣会做偏"的关键。"""
+    from backtest.dual_channel_probe import roll_cost_series
+
+    held = _held(["IC2101", "IC2102"])
+    full = roll_cost_series(pd.Series(1.0, index=held.index), held, 3.0)
+    partial = roll_cost_series(pd.Series(0.6, index=held.index), held, 3.0)
+    assert partial.iloc[1] == pytest.approx(0.6 * full.iloc[1])
+
+
+def test_roll_cost_reindexes_by_ffill_not_interpolation():
+    """仓位索引比 held 密时按 ffill 对齐，且不因 object dtype 触发降级警告。"""
+    import warnings
+
+    from backtest.dual_channel_probe import roll_cost_series
+
+    held = pd.Series(["IC2101", "IC2102"],
+                     index=pd.to_datetime(["2021-01-04", "2021-01-06"]))
+    pos = pd.Series(1.0, index=pd.to_datetime(
+        ["2021-01-04", "2021-01-05", "2021-01-06", "2021-01-07"]))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        rc = roll_cost_series(pos, held, 3.0)
+    assert rc.loc["2021-01-05"] == 0.0          # ffill 保持 IC2101
+    assert rc.loc["2021-01-06"] == pytest.approx(2 * 3.0 / 1e4)
+    assert rc.loc["2021-01-07"] == 0.0
+
+
 def test_matched_signal_is_smoothed_like_production():
     """单对信号必须走与部署同一道 5 日平滑，否则拿未平滑比平滑、口径不可比。"""
     from pathlib import Path

@@ -1,0 +1,37 @@
+{
+  "winner": "spot2000+fut500",
+  "gate1": {
+    "pass": false,
+    "full_sharpe_gain": 0.06660445673626936,
+    "full_gain_positive": true,
+    "p_selected": 0.8571428571428571,
+    "p_selected_lt_05": false,
+    "boot_ci_lo": 0.004765192188227503,
+    "boot_ci_hi": 0.1281291593669684,
+    "boot_diff_sharpe": 0.06660445673626936,
+    "boot_p_value": 0.036396360363963605,
+    "ci_lo_positive": true
+  },
+  "gate2": {
+    "pass": true,
+    "cand_worst_tv": 1.0730106792492082,
+    "inc_worst_tv": 1.0411358065619627,
+    "floor": 1.0211358065619627
+  },
+  "gate3": {
+    "pass": true,
+    "maxdd_not_worse": true,
+    "turnover_not_worse": true,
+    "cand_maxdd": -0.1585763425187119,
+    "inc_maxdd": -0.16817388288057789,
+    "cand_turnover": 10.624388653407237,
+    "inc_turnover": 10.624388653407237
+  },
+  "OVERALL": "STOP",
+  "p_naive_for_reference_only": 0.44155844155844154,
+  "corr_two_legs": 0.930568888283576,
+  "n_obs": 3067,
+  "n_perm": 1000,
+  "n_boot": 10000,
+  "seed": 0
+}

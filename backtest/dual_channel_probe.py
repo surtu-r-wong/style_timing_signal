@@ -105,11 +105,13 @@ def matched_signal(pair_key: str, smoothing: int = 5) -> pd.Series:
     return smooth_series(df[col], smoothing)
 
 
-def load_carry_for(index_code: str, fut_prefix: str) -> pd.Series:
-    """任意 (指数, 期货品种) 的年化基差序列（正=贴水）。
+def load_futures_daily_frames(index_code: str, fut_prefix: str
+                              ) -> tuple[pd.Series, pd.Series]:
+    """(年化基差序列, 每日主力合约 symbol 序列)。
 
-    `data.load_carry` 绑死 `_FUT` 的 500/1000 两个口径，这里零侵入地推广到 IF，
-    计算逐字复用 `pick_main_contract`（按持仓量选主力）+ `annualized_basis`。
+    `data.load_carry` 绑死 `_FUT` 的 500/1000 两个口径，这里零侵入地推广到 IF；
+    基差计算逐字复用 `pick_main_contract`（按持仓量选主力）+ `annualized_basis`。
+    顺带返回主力 symbol —— 换月成本要靠它的**变化日**来定位（Batch 12 §7 口径）。
     """
     db = load_db_config()
     conn = _connect(db)
@@ -127,15 +129,41 @@ def load_carry_for(index_code: str, fut_prefix: str) -> pd.Series:
         conn.close()
     fdf = pd.DataFrame(rows, columns=["trade_date", "symbol", "close", "oi"]).dropna(
         subset=["oi", "close"])
-    out = {}
+    carry, held = {}, {}
     for td, g in fdf.groupby("trade_date"):
         ts = pd.Timestamp(td)
         if ts not in spot.index:
             continue
         sym = pick_main_contract(g)
+        held[ts] = sym
         fut = float(g.loc[g["symbol"] == sym, "close"].iloc[0])
-        out[ts] = annualized_basis(fut, float(spot.loc[ts]), td, sym)
-    return pd.Series(out).sort_index()
+        carry[ts] = annualized_basis(fut, float(spot.loc[ts]), td, sym)
+    return pd.Series(carry).sort_index(), pd.Series(held).sort_index()
+
+
+def load_carry_for(index_code: str, fut_prefix: str) -> pd.Series:
+    """向后兼容的薄包装（只要 carry 的调用方继续用这个）。"""
+    return load_futures_daily_frames(index_code, fut_prefix)[0]
+
+
+def roll_cost_series(pos_eff: pd.Series, held: pd.Series,
+                     cost_bps: float) -> pd.Series:
+    """换月成本序列，口径逐条对齐 Batch 12 §7（`exec-price-audit.md`）：
+
+      * **换月日 = `symbol_held` 变化日**（主力 symbol 相对前一交易日改变）
+      * **单次换月 = 平旧 + 开新 = 2 × cost_bps**
+      * **只计落在持仓日的**（空仓时无仓可换）——成本按当日**有效仓位**缩放，
+        故名义权重 0.6 的期货腿只承担 0.6 倍
+
+    Batch 12 实测参考：500 单腿 full 窗 122 个换月日、年化 **0.368pp**。
+    **必须对候选与现役都扣** —— 现役 blend 是 100% 期货（两腿各半），候选只有 60%
+    是期货，只给一边扣会把比较做偏。
+    """
+    # 用 reindex(method="ffill") 而非 .ffill()：后者对 object dtype（symbol 是字符串）
+    # 会触发 pandas 的 downcasting FutureWarning。
+    held = held.reindex(pos_eff.index, method="ffill")
+    is_roll = held.ne(held.shift(1)) & held.notna() & held.shift(1).notna()
+    return 2.0 * cost_bps / 1e4 * pos_eff.abs() * is_roll.astype(float)
 
 
 def _cut(s: pd.Series, a, b) -> pd.Series:
