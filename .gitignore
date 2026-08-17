@@ -7,3 +7,6 @@ output/style_basket/cache/
 .worktrees/
 output/style_basket/b3/
 logs/
+
+# LibreOffice 编辑锁文件（打开 CSV 时生成，绝不入库）
+.~lock.*#
