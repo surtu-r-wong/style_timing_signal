@@ -1,0 +1,24 @@
+{
+  "statistic": "paired_rank_ic_k1",
+  "winner": "spot1000+fut1000",
+  "gate1": {
+    "pass": false,
+    "ic_diff": 0.002463523306572235,
+    "ic_diff_positive": true,
+    "p_selected": 0.8641358641358642,
+    "p_selected_lt_05": false,
+    "boot_ci_lo": -0.002352751204603207,
+    "boot_ci_hi": 0.007357486290320831,
+    "boot_p_value": 0.32786721327867213,
+    "ci_lo_positive": false
+  },
+  "p_naive_for_reference_only": 0.21178821178821178,
+  "ic_incumbent": 0.07461003783490974,
+  "ic_winner": 0.07707356114148198,
+  "n_obs": 3067,
+  "n_perm": 1000,
+  "n_boot": 10000,
+  "seed": 0,
+  "carry_excluded": true,
+  "OVERALL": "STOP"
+}
