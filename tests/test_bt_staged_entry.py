@@ -121,6 +121,43 @@ def test_same_day_close_then_open_nets_to_held():
     assert pos.iloc[2] == 1.0, "笔1 先平后开=持有；笔2 只由 raw 下穿平，故仍在"
 
 
+# ─────────── 方向 B：快腿开/平阈值可拆（open_threshold / close_threshold）───────────
+
+def test_open_threshold_gates_leg1_entry():
+    """抬高开仓阈值 → 弱读数不再触发笔1（这就是方向 B 要过滤的"噪声进场"）。"""
+    raw = _s([0, 0.15, 0.15, 0.15])
+    smooth = _s([0, -1, -1, -1])
+    assert list(staged_position(raw, smooth, W1, W2)) == [0.0, 0.4, 0.4, 0.4]
+    gated = staged_position(raw, smooth, W1, W2, open_threshold=0.2)
+    assert list(gated) == [0.0, 0.0, 0.0, 0.0], "0.15 够不着 0.2，笔1 不该开"
+
+
+def test_close_threshold_is_independent_of_open():
+    """平仓线可以与开仓线不同——B2 口径（open=θ, close=0）的全部要点。
+
+    抬高开仓线的同时若把平仓线一起抬高（B1），会让笔2 提早被打掉；B2 保持
+    平仓线不动，只过滤进场。
+    """
+    raw = _s([0, 0.5, 0.15, 0.15])
+    smooth = _s([0, 0.5, 0.5, 0.5])
+
+    b2 = staged_position(raw, smooth, W1, W2, open_threshold=0.2, close_threshold=0.0)
+    assert list(b2) == [0.0, 1.0, 1.0, 1.0], "0.15 仍在 0 线上方，笔2 不该被平"
+
+    b1 = staged_position(raw, smooth, W1, W2, open_threshold=0.2, close_threshold=0.2)
+    assert list(b1) == [0.0, 1.0, 0.4, 0.4], "0.15 跌破 0.2 → 笔2 被平，只剩笔1"
+
+
+def test_thresholds_default_back_to_threshold():
+    """不给 open/close 时必须与旧签名逐位等价（向后兼容，既有判例靠这条）。"""
+    raw = _s([0, 0.3, 0.3, -0.3])
+    smooth = _s([0, -0.3, 0.3, 0.3])
+    base = staged_position(raw, smooth, W1, W2, threshold=0.1)
+    explicit = staged_position(raw, smooth, W1, W2, threshold=0.1,
+                               open_threshold=0.1, close_threshold=0.1)
+    assert list(base) == list(explicit)
+
+
 # ─────────────────────────── 入参校验 ───────────────────────────
 
 def test_mismatched_index_raises():

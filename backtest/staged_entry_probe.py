@@ -153,10 +153,43 @@ def build_fast_sweep(raw: pd.Series, committed_smooth: pd.Series,
     return cands
 
 
+THETAS = (0.1, 0.2, 0.3)       # 方向 B 的快腿阈值档
+B_FAST_WINDOWS = (1, 2)        # 快腿窗：1=用户原始 raw；2=方向 A 的 worst_tv 赢家
+
+
+def build_threshold_sweep(raw: pd.Series, committed_smooth: pd.Series,
+                          w1: float, w2: float,
+                          thetas: tuple[float, ...] = THETAS,
+                          fast_windows: tuple[int, ...] = B_FAST_WINDOWS,
+                          ) -> dict[str, pd.Series]:
+    """方向 B：抬高快腿阈值以过滤噪声进场。两种口径各一族（见 staged_position）。
+
+      * `B1_smN_tX`：`open=close=θ` —— 字面版，进场更严 + 减仓更早同时发生
+      * `B2_smN_tX`：`open=θ, close=0` —— 纯粹版，只过滤进场噪声
+
+    带上 θ=0 的基线（`base_smN`）与现役，才能看出抬阈值到底动了什么。
+    """
+    cands = {"lf_sm5_incumbent": production_position(committed_smooth).astype(float)}
+    for n in fast_windows:
+        fast = smooth_series(raw, n)
+        cands[f"base_sm{n}"] = staged_position(fast, committed_smooth, w1, w2)
+        for th in thetas:
+            tag = f"{th:g}".replace("0.", "")
+            cands[f"B1_sm{n}_t{tag}"] = staged_position(
+                fast, committed_smooth, w1, w2,
+                open_threshold=th, close_threshold=th)
+            cands[f"B2_sm{n}_t{tag}"] = staged_position(
+                fast, committed_smooth, w1, w2,
+                open_threshold=th, close_threshold=0.0)
+    return cands
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="两笔分批建仓探针（探索性）")
-    ap.add_argument("--mode", default="single", choices=["single", "sweep-fast"],
-                    help="single = 用户原始规则；sweep-fast = 方向 A（快腿平滑窗扫描）")
+    ap.add_argument("--mode", default="single",
+                    choices=["single", "sweep-fast", "sweep-threshold"],
+                    help="single = 用户原始规则；sweep-fast = 方向 A（快腿平滑窗）；"
+                         "sweep-threshold = 方向 B（快腿阈值）")
     ap.add_argument("--w1", type=float, default=0.4, help="笔1 权重（raw 开 / smooth 平）")
     ap.add_argument("--w2", type=float, default=0.6, help="笔2 权重（smooth 开 / raw 平）")
     ap.add_argument("--threshold", type=float, default=0.0)
@@ -169,7 +202,13 @@ def main() -> int:
     print(f"信号源 {SIGNAL_FILE}：{len(raw)} 行，"
           f"{raw.index[0]:%Y-%m-%d} .. {raw.index[-1]:%Y-%m-%d}")
 
-    if args.mode == "sweep-fast":
+    if args.mode == "sweep-threshold":
+        cands = build_threshold_sweep(raw, smooth, args.w1, args.w2)
+        print(f"\n方向 B：快腿阈值 {list(THETAS)} × 快腿窗 {list(B_FAST_WINDOWS)} "
+              f"× 两种口径（B1 open=close=θ / B2 open=θ,close=0）"
+              f"，w1={args.w1}/w2={args.w2}，慢腿阈值固定 0")
+        print(f"  候选 {len(cands)} 条（含 θ=0 基线与现役）")
+    elif args.mode == "sweep-fast":
         cands = build_fast_sweep(raw, smooth, args.w1, args.w2, args.threshold)
         print(f"\n方向 A：快腿平滑窗 {list(FAST_WINDOWS)} × 慢腿 {SLOW_WINDOW} "
               f"（w1={args.w1} / w2={args.w2}）；自算 sm5 与 committed 逐位相等已断言")

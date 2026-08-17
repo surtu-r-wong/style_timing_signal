@@ -47,7 +47,9 @@ def crossings(signal: pd.Series, threshold: float = 0.0) -> tuple[pd.Series, pd.
 
 def staged_position(raw: pd.Series, smooth: pd.Series,
                     w1: float = 0.4, w2: float = 0.6,
-                    threshold: float = 0.0, leg2_refill: bool = False) -> pd.Series:
+                    threshold: float = 0.0, leg2_refill: bool = False,
+                    open_threshold: float | None = None,
+                    close_threshold: float | None = None) -> pd.Series:
     """两笔分批 long-flat：快信号试探进场 + 慢信号确认加仓，反向时快信号先减仓。
 
     规则（用户 2026-08-17 提出）：
@@ -76,6 +78,17 @@ def staged_position(raw: pd.Series, smooth: pd.Series,
     它消除卡死，用来分清"读数差是思路问题还是这条实现细节的问题"。默认关闭 ——
     默认口径必须忠实于用户原始描述。
 
+    ## 快腿阈值可拆（方向 B）
+
+    `open_threshold` / `close_threshold` 分别管**笔1 开仓（raw 上穿）**与
+    **笔2 平仓（raw 下穿）**用的阈值，都默认回落到 `threshold`。慢腿一律用
+    `threshold`。为什么必须拆开：单一 θ_fast 抬高时会同时"让进场更严"和
+    **"让减仓更早"**（同一条线既是上穿线又是下穿线），两个效应方向相反、混在一起
+    就分不清哪个在起作用。于是：
+
+      * `open=θ, close=θ`（B1，字面版）—— 抬高快腿这条线，两个效应同时发生
+      * `open=θ, close=0`（B2，纯粹版）—— 只过滤进场噪声，减仓触发保持原样
+
     只做多（long-flat），负信号一律不建仓——沿用 `production_position` 的既有裁决。
     """
     if not raw.index.equals(smooth.index):
@@ -84,7 +97,10 @@ def staged_position(raw: pd.Series, smooth: pd.Series,
         if w < 0:
             raise ValueError(f"{name} 必须非负，收到 {w}")
 
-    raw_up, raw_down = crossings(raw, threshold)
+    t_open = threshold if open_threshold is None else open_threshold
+    t_close = threshold if close_threshold is None else close_threshold
+    raw_up, _ = crossings(raw, t_open)      # 笔1 开仓线
+    _, raw_down = crossings(raw, t_close)   # 笔2 平仓线（可与开仓线不同）
     sm_up, sm_down = crossings(smooth, threshold)
 
     hold1 = hold2 = False
