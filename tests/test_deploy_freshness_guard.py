@@ -190,6 +190,207 @@ def test_parse_holiday_windows_rejects_malformed():
         guard.parse_holiday_windows("2027-02-06")
 
 
+# ────────────────── 产出缺口护栏（2026-08-17）──────────────────
+#
+# 盲区：命题 1 只看末行，中间缺一天看不见。2026-08-12/13 上游晚到（08-17 11:25 才
+# 回填入库），08-14 那晚重算时库里还没有 → 八份产出齐齐跳过两天，而末行仍是 08-14，
+# 当晚 status.json 报 max_lag=0、breaches: [] 一片绿。08-13 恰是 equal_weight 的
+# 换仓日（pos 0→1），缺它会让持仓序列错判换仓时点。
+
+def test_dates_of_reads_every_row(tmp_path):
+    csv = tmp_path / "x.csv"
+    csv.write_text("date,v\n2026-08-10,1\n2026-08-11,2\n", encoding="utf-8")
+    assert guard.dates_of(csv) == ["2026-08-10", "2026-08-11"]
+
+
+def test_dates_of_handles_missing_and_header_only(tmp_path):
+    assert guard.dates_of(tmp_path / "nope.csv") == []
+    empty = tmp_path / "header_only.csv"
+    empty.write_text("date,v\n", encoding="utf-8")
+    assert guard.dates_of(empty) == []
+
+
+def test_coverage_gaps_clean_when_complete():
+    assert guard.coverage_gaps(DAYS, DAYS) == ([], [])
+
+
+def test_coverage_gaps_finds_interior_hole():
+    """08-12/13 剧本：末行追平，中间缺两天。"""
+    holed = [d for d in DAYS if d not in ("2026-08-05", "2026-08-06")]
+    missing, off = guard.coverage_gaps(DAYS, holed)
+    assert missing == ["2026-08-05", "2026-08-06"]
+    assert off == []
+
+
+def test_coverage_gaps_ignores_warmup_before_first_row():
+    """区间下沿取产出自己的首行——各条信号 warmup 长度不同，不是缺口。"""
+    late_start = DAYS[3:]
+    assert guard.coverage_gaps(DAYS, late_start) == ([], [])
+
+
+def test_coverage_gaps_flags_off_calendar_dates():
+    with_saturday = DAYS + ["2026-08-08"]      # 周六不在日历上
+    missing, off = guard.coverage_gaps(DAYS, with_saturday)
+    assert off == ["2026-08-08"]
+    assert missing == []
+
+
+def test_coverage_gaps_survives_unsorted_file():
+    """上下沿用 min/max，文件乱序也算得对。"""
+    shuffled = [DAYS[4], DAYS[0], DAYS[2], DAYS[1], DAYS[3]]
+    missing, off = guard.coverage_gaps(DAYS, shuffled)
+    assert missing == [] and off == []
+
+
+def test_coverage_gaps_empty_file_is_not_a_gap():
+    assert guard.coverage_gaps(DAYS, []) == ([], [])
+
+
+def _hole_in(root: Path, label: str, *holes: str) -> None:
+    """把某个 label 的文件重写成「缺 holes 这几天、末行照旧追平」。"""
+    path = root / {**guard.GATED, **guard.INFORMATIONAL}[label]
+    lines = ["date,value"] + [f"{d},0.1" for d in DAYS if d not in holes]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_interior_gap_in_gated_file_is_a_breach(tmp_path):
+    """老护栏的盲区钉死：lag 仍是 0，但必须报 breach。"""
+    _write_tree(tmp_path, DAYS[-1])
+    _hole_in(tmp_path, "citic40d", "2026-08-05", "2026-08-06")
+    files, breaches, worst = guard.evaluate(DAYS, tmp_path, max_lag=1)
+    assert worst == 0, "末行追平，落后仍是 0——正因如此老护栏漏过了它"
+    assert files["citic40d"]["lag_trading_days"] == 0
+    assert files["citic40d"]["gap_count"] == 2
+    assert files["citic40d"]["gap_dates"] == ["2026-08-05", "2026-08-06"]
+    assert len(breaches) == 1
+    assert "citic40d" in breaches[0] and "缺 2 个交易日" in breaches[0]
+
+
+def test_interior_gap_in_informational_file_never_breaches(tmp_path, monkeypatch):
+    """参考口径缺天照样可见（gap_count），但不 breach、也不进 output_gap_total。"""
+    monkeypatch.setattr(guard, "load_calendar", lambda: (DAYS, DAYS[-1]))
+    _write_tree(tmp_path, DAYS[-1])
+    _hole_in(tmp_path, "equal_weight_5d20z", "2026-08-05")
+    files, breaches, _ = guard.evaluate(DAYS, tmp_path, max_lag=1)
+    assert breaches == []
+    assert files["equal_weight_5d20z"]["gap_count"] == 1
+    report, ok = guard.build_report(
+        max_lag=1, root=tmp_path, upstream_max_days=10 ** 6, upstream_gap_lookback=0)
+    assert ok is True
+    assert report["output_gap_total"] == 0, "参考口径不进护栏的账"
+    assert report["files"]["equal_weight_5d20z"]["gap_count"] == 1
+
+
+def test_off_calendar_row_in_gated_file_is_a_breach(tmp_path):
+    """日历外日期出现在中间（末行仍合法）→ 报 off_calendar，不与末行分支重复。"""
+    _write_tree(tmp_path, DAYS[-1])
+    path = tmp_path / guard.GATED["recommended_hybrid20"]
+    lines = ["date,value"] + [f"{d},0.1" for d in DAYS[:3]] \
+        + ["2026-08-08,0.1"] + [f"{d},0.1" for d in DAYS[3:]]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    files, breaches, _ = guard.evaluate(DAYS, tmp_path, max_lag=1)
+    assert files["recommended_hybrid20"]["off_calendar_count"] == 1
+    assert len(breaches) == 1
+    assert "不在 index_daily 交易日历上" in breaches[0]
+
+
+def test_gap_dates_truncated_but_count_is_full(tmp_path):
+    """明细进状态文件要截断（别撑爆），但计数必须是全量。"""
+    long_days = [f"2026-06-{d:02d}" for d in range(1, 26)]   # 25 个"交易日"
+    root = tmp_path
+    for rel in {**guard.GATED, **guard.INFORMATIONAL}.values():
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("date,value\n" + "".join(f"{d},0.1\n" for d in long_days),
+                     encoding="utf-8")
+    holed = [long_days[0]] + long_days[13:]                  # 中间挖掉 12 天
+    p = root / guard.GATED["citic40d"]
+    p.write_text("date,value\n" + "".join(f"{d},0.1\n" for d in holed), encoding="utf-8")
+    files, breaches, _ = guard.evaluate(long_days, root, max_lag=1)
+    assert files["citic40d"]["gap_count"] == 12
+    assert len(files["citic40d"]["gap_dates"]) == guard.GAP_SAMPLE
+    assert f"缺 12 个交易日" in breaches[0] and "等 12 天" in breaches[0]
+
+
+# ────────────────── 上游库缺口（WARN 级，2026-08-17）──────────────────
+
+def test_workdays_between_skips_weekends():
+    # 08-07(五) → 08-10(一)，跳过 08-08/09 周末
+    assert guard.workdays_between("2026-08-07", "2026-08-10") == [
+        "2026-08-07", "2026-08-10"]
+
+
+def test_upstream_gaps_none_when_calendar_complete():
+    assert guard.upstream_calendar_gaps(DAYS, "2026-08-11", lookback_workdays=7) == []
+
+
+def test_upstream_gaps_finds_missing_workdays():
+    """08-12/13 剧本的上游侧：库内从 08-11 直接跳到 08-14。"""
+    days = DAYS + ["2026-08-14"]
+    gaps = guard.upstream_calendar_gaps(days, "2026-08-17", lookback_workdays=5)
+    assert gaps == ["2026-08-12", "2026-08-13"]
+
+
+def test_upstream_gaps_ignores_days_after_upstream_max():
+    """上沿钉在库内最新交易日：更新的日子属「冻结」辖区，不是中间缺口。"""
+    gaps = guard.upstream_calendar_gaps(DAYS, "2026-08-17", lookback_workdays=5)
+    assert "2026-08-12" not in gaps and "2026-08-14" not in gaps
+    assert gaps == []
+
+
+def test_upstream_gaps_silenced_by_fixed_holiday_window():
+    """国庆内置窗口：库内缺 10-01~10-02 不报。"""
+    days = ["2026-09-29", "2026-09-30", "2026-10-05", "2026-10-06"]
+    assert guard.upstream_calendar_gaps(days, "2026-10-06", lookback_workdays=6) == []
+
+
+def test_upstream_gaps_silenced_by_registered_lunar_window():
+    days = ["2027-02-04", "2027-02-05", "2027-02-18", "2027-02-19"]
+    gaps = guard.upstream_calendar_gaps(days, "2027-02-19", lookback_workdays=11)
+    assert gaps, "未登记春节窗口时应当报缺口"
+    silenced = guard.upstream_calendar_gaps(
+        days, "2027-02-19", lookback_workdays=11,
+        extra_windows=[("2027-02-06", "2027-02-17")])
+    assert silenced == []
+
+
+def test_upstream_gaps_disabled_with_zero_lookback():
+    days = DAYS + ["2026-08-14"]
+    assert guard.upstream_calendar_gaps(days, "2026-08-17", lookback_workdays=0) == []
+
+
+def test_upstream_gaps_are_warn_only_and_do_not_flip_exit_code(tmp_path, monkeypatch):
+    """分级契约：产出缺口 = 硬失败；上游库缺口 = 只 WARN。"""
+    days = DAYS + ["2026-08-14"]
+    monkeypatch.setattr(guard, "load_calendar", lambda: (days, days[-1]))
+    _write_tree(tmp_path, days[-1])
+    path = tmp_path / guard.GATED["citic40d"]
+    path.write_text("date,value\n" + "".join(f"{d},0.1\n" for d in days),
+                    encoding="utf-8")
+    report, ok = guard.build_report(
+        max_lag=1, root=tmp_path,
+        upstream_max_days=10 ** 6,          # 屏蔽「上游冻结」这条，单看缺口
+        upstream_gap_lookback=5)
+    assert report["upstream"]["gaps"] == ["2026-08-12", "2026-08-13"]
+    assert report["breaches"] == []
+    assert report["output_gap_total"] == 0
+    assert ok is True, "上游库缺口不得翻转退出码"
+
+
+def test_output_gap_flips_exit_code(tmp_path, monkeypatch):
+    monkeypatch.setattr(guard, "load_calendar", lambda: (DAYS, DAYS[-1]))
+    _write_tree(tmp_path, DAYS[-1])
+    _hole_in(tmp_path, "recommended_equal_weight", "2026-08-06")
+    report, ok = guard.build_report(
+        max_lag=1, root=tmp_path, upstream_max_days=10 ** 6,
+        upstream_gap_lookback=0)          # 关掉上游那条，单看产出缺口
+    assert ok is False
+    assert report["output_gap_total"] == 1
+    assert report["upstream"]["gaps"] == []
+    assert len(report["breaches"]) == 1
+    assert "recommended_equal_weight" in report["breaches"][0]
+
+
 def test_gated_set_matches_production_signals():
     """护栏必须覆盖 backtest.baseline.SIGNALS 的三条生产信号 + 三份推荐持仓。"""
     from backtest.baseline import SIGNALS

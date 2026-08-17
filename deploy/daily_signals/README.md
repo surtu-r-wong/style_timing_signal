@@ -4,14 +4,14 @@
 触发，于是 2026-07-09 之后没人跑，三条生产信号 CSV 停在 2026-07-08、推荐持仓停在 07-09，
 **停更 35 天无人发现**（归因见 `docs/plans/2026-08-12-project-review-and-priorities.md` §3.1，
 用户裁决见同文档 §9）。本目录是那次裁决的落地：一个 runner + 一个 systemd user timer +
-一条新鲜度护栏。
+一条产出护栏（**两条命题**：不落后 + 无缺口，后者 2026-08-17 补，成因见下「产出护栏」）。
 
 ## 文件
 
 | 文件 | 作用 |
 |---|---|
 | `run_daily_signals.sh` | 链路 runner：topup → 三条信号 → 推荐持仓 → 护栏；带 flock、分步计时、日志、状态文件 |
-| `check_freshness.py` | 新鲜度护栏（只读 PG）+ 状态 JSON 写入器 |
+| `check_freshness.py` | 产出护栏（只读 PG）：末行不落后 + 区间无缺口，兼状态 JSON 写入器 |
 | `topup_guard.py` | topup 写库护栏：前置闸门（只读 gateway+PG）+ 事后审计（只读 PG） |
 | `alert_on_failure.sh` | 失败告警器：写 `logs/ALERT_daily_signals` + best-effort `notify-send` |
 | `style-signals-daily-alert.service` | 告警单元，由主 service 的 `OnFailure=` 拉起 |
@@ -44,10 +44,20 @@ deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
   必须停在信号重算之前。
 - **步骤 1–7 硬失败**：任一步非零退出即整链非零退出，状态文件记 `FAILED` + 失败步骤名。
 - **并发锁**：`logs/.daily_signals.lock` 上的 `flock -n`；已有实例在跑时立即退出 75。
-- **新鲜度护栏**：三条生产信号 CSV + 三份推荐持仓的末行日期，距 `index_daily` 最新交易日
-  不得超过 1 个**交易日**（交易日历取自 `index_daily` 本身，避开周末/长假误报）。超限 →
-  日志打大写 `STALE` + 退出 1 + 状态文件 `"result": "STALE"`。
-  上游自身相对今天的滞后只出 `WARN`，不影响退出码（长假期间必然变大）。
+- **产出护栏（两条命题，任一不过 → 日志打大写 `STALE` + 退出 1 + `"result": "STALE"`）**：
+  对象都是三条生产信号 CSV + 三份推荐持仓，交易日历取自 `index_daily` 本身（避开周末/长假误报）。
+  1. **不落后**：末行日期距 `index_daily` 最新交易日不超过 1 个**交易日**。
+  2. **无缺口**：每份产出在自己的 `[首行, 末行]` 区间内覆盖日历上**每一个**交易日，
+     且不出现日历外日期。缺口明细进 `files[label].gap_dates`（截断 10 条，计数是全量），
+     护栏对象合计进顶层 `output_gap_total`。
+
+  **命题 2 为什么是 2026-08-17 补的**：命题 1 只看末行，中间缺一天它看不见。08-12/13 两天
+  上游晚到（08-17 11:25 才回填入库），08-14 那晚重算时库里还没有 → 八份产出齐齐跳过两天，
+  而末行仍是 08-14，当晚状态文件报 `max_lag: 0`、`breaches: []` 一片绿。08-13 恰是
+  equal_weight 的换仓日（pos 0→1），缺它会让持仓序列错判换仓时点，不是完整性洁癖。
+  日历随库内容浮动这点是**有意的**：库里没有的天，产出缺它不算产出的错，命题 2 只在
+  「库有而产出没有」时报警。处置 = 确认上游有数据后重跑本链路（四个生成脚本都是
+  `--source pg` 全量重算覆写，跑一次即补齐）。
 - **PG 只读**：护栏与信号脚本都只读 `stock_selector.index_daily`；链路里唯一的写库方是
   步骤 0 的 `tools/topup_index_daily.sh`（stock_selector 的 backfill CLI，幂等 upsert）。
 - **上游冻结护栏**：三条产出是从 `index_daily` 算出来的，上游一冻结，「产出 vs 上游」
@@ -63,6 +73,14 @@ deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
   ```
 
   宁可长假多报一次假警（一条窗口登记即可消音），也不要在上游真冻结时保持沉默。
+- **上游缺口（`UPSTREAM_GAP`，只 WARN 不参与退出码）**：上游冻结护栏只盯最新交易日，
+  **库内中间缺天它也看不见**（这就是 08-12/13 的上游侧剧本，记忆里 collector 的
+  「回填缝隙」模式）。所以再加一条：近 15 个工作日内、排除已知假期窗口后，
+  `index_daily` 里没有任何本项目输入码数据的工作日 → 打 `UPSTREAM_GAP` +
+  `upstream.gaps` 字段。**为什么这条不参与退出码**（与上一条不同）：按工作日推算必然把
+  调休放假的工作日误判成缺口，且本项目对上游缺口没有处置权——08-12/13 就是上游自己
+  在 08-17 11:25 回填补上的，我们能做的只是「看见」，并在下次重算时把产出补齐。
+  回看窗口用 `--upstream-gap-lookback N` 调（`0` = 关闭）。
 - **失败告警**：主 service 的 `OnFailure=` 会拉起 `style-signals-daily-alert.service`，
   写 `logs/ALERT_daily_signals`（时间 + `status.json` 摘要 + 日志路径 + 处置指引）并
   best-effort 弹 `notify-send`。链路会在 topup 审计判可疑/无法验证时**主动中止**——
@@ -224,6 +242,25 @@ python3 deploy/daily_signals/check_freshness.py --root "$DEMO" --max-lag 1; echo
 ```
 
 并 `exit=1`；同一时刻对真实 `output/` 跑同一条命令 `exit=0` / `FRESHNESS OK`。
+
+**命题 2（缺口）的演示**——挖掉中间两天，末行不动，这正是 08-12/13 的形状：
+
+```bash
+DEMO=/tmp/gap_demo && rm -rf "$DEMO" && mkdir -p "$DEMO" && cp -a output "$DEMO"/
+for f in "$DEMO"/output/*/*.csv; do grep -v "^2026-08-1[23]," "$f" > /tmp/t && mv /tmp/t "$f"; done
+python3 deploy/daily_signals/check_freshness.py --root "$DEMO" --max-lag 1; echo "exit=$?"
+```
+
+2026-08-17 实测（就是回填前那份产物的真实副本）：六份护栏对象各报
+
+```
+  [护栏] citic40d                   末行 2026-08-14   落后 0 交易日 缺 2 交易日
+  STALE  citic40d: 区间 2010-04-02..2026-08-14 内缺 2 个交易日（2026-08-12、2026-08-13）
+  STALE  护栏对象缺口合计 12 天；处置 = 确认上游这些天有数据后重跑本链路
+```
+
+`exit=1`。**注意 `落后 0 交易日`**——命题 1 在这份产物上完全通过，当晚也确实报了绿；
+抓住它的是命题 2。回填后对真实 `output/` 跑同一命令 `exit=0` / `区间内缺口 0`。
 跑在链路里时，这条非零退出会让 systemd 把 service 记成 `failed`
 （`systemctl --user status style-signals-daily.service` 一眼可见），状态文件 `"result": "STALE"`。
 
