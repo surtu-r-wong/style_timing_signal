@@ -40,7 +40,11 @@ from backtest.conditional_probe import (  # noqa: E402
     conditional_ic_batch, demeaned_cosine, low_efficacy_bucket, make_batch_stat_fn,
     realized_vol, signed_statistic, variant_grid, window_conditional_ic,
 )
-from backtest.fusion_probe import nonoverlap_grid, rank_ic  # noqa: E402
+from backtest.conditional_probe import (  # noqa: E402
+    GATE3_COSINE_FLOOR, GATE4_THRESHOLD, GATE_ORDER, gate_rows,
+)
+from backtest.fusion_probe import forward_return, nonoverlap_grid, rank_ic  # noqa: E402
+from dashboard.data import rolling_percentile  # noqa: E402
 
 
 def _dates(n):
@@ -511,3 +515,158 @@ def test_machine_statistic_is_the_absolute_value_of_the_signed_gap():
 def test_bucket_labels_rejects_unknown_split():
     with pytest.raises(ValueError):
         bucket_labels(pd.Series([0.1, 0.9], index=_dates(2)), "quartile")
+
+
+# ============================================ backlog B-1：丢弃分支的**真**覆盖
+def test_thin_cells_are_really_dropped_and_excluded_from_the_weighted_mean():
+    """B-1：换一个真会丢 cell 的 fixture —— 旧判例下被丢 cell 数 = 0，两条断言恒真。
+
+    构造：上桶占满 offset 0~4 的整条网格（各 30 点），**另在 offset 5 上只放 2 点**。
+    于是 `len(sel) >= MIN_CELL_POINTS` 的 False 分支被"薄但非空"的 cell 真触发。
+    """
+    from scipy.stats import spearmanr
+
+    n = 600
+    rng = np.random.default_rng(11)
+    idx = _dates(n)
+    sig, fwd = rng.normal(size=n), rng.normal(size=n)
+    lab = np.zeros(n)
+    lab[np.isin(np.arange(n) % K_FORWARD, [0, 1, 2, 3, 4])] = 1.0
+    lab[[5, 25]] = 1.0                      # offset 5 恰好 2 点 < MIN_CELL_POINTS
+
+    cells = build_bucket_cells(idx, fwd, lab, "binary")
+    up = cells[1]
+    assert up.n_days == 5 * (n // K_FORWARD) + 2 == 152 >= MIN_BUCKET_DAYS
+
+    # (i) 丢弃分支真触发：20 条 offset 网格只剩 5 条（旧 fixture 下这里是 20）
+    assert len(up.positions) == 5 < len(IC_OFFSETS)
+    # (ii) 丢的是"薄"的那条而不只是"空"的那条 —— offset 5 有 2 个候选点却没进来
+    kept = np.concatenate(up.positions)
+    assert 5 not in kept and 25 not in kept
+    assert all(len(p) == n // K_FORWARD for p in up.positions)
+
+    # (iii) 丢 cell 不是闸门：统计量仍有限，绝不 −inf
+    stat = make_batch_stat_fn(sig, {("X", "binary"): cells})(("X", "binary"), _identity(n))
+    assert np.isfinite(stat[0])
+
+    # (iv) 加权平均只用幸存 cell —— scipy 独立复算（零平行实现之外的第二把秤）
+    num = den = 0.0
+    for pos, y in zip(up.positions, up.fwd):
+        num += float(spearmanr(sig[pos], y).statistic) * len(pos)
+        den += len(pos)
+    got = conditional_ic_batch(sig, _identity(n), up)[0]
+    assert got == pytest.approx(num / den, abs=1e-12)
+    # 若把被丢的薄 cell 也算进去，结果会不同 → 断言确有鉴别力
+    thin = float(spearmanr(sig[[5, 25]], fwd[[5, 25]]).statistic)
+    assert not np.isclose(got, (num + thin * 2) / (den + 2), atol=1e-12)
+
+
+# ============================================ backlog B-2：gate_rows 的三例判定
+class _Res:
+    """`selection_permutation_test` 结果的轻量替身（只带闸门读的四个字段）。"""
+
+    def __init__(self, p_selected, p_naive, p_min_p):
+        self.p_selected, self.p_naive, self.p_min_p = p_selected, p_naive, p_min_p
+        self.selection_inflation = p_selected / p_naive if p_naive else float("nan")
+
+
+def _stats(train, val, winner=("S1_realized_vol", "binary")):
+    sv, sp = winner
+    return {(sv, sp, "train_2014_2020"): {"signed_stat": train},
+            (sv, sp, "val_2021_2023"): {"signed_stat": val}}
+
+
+def _ret(train_sharpe, val_sharpe):
+    return {"train_2014_2020": {"net_sharpe": train_sharpe},
+            "val_2021_2023": {"net_sharpe": val_sharpe}}
+
+
+def _overall(rows):
+    (row,) = [r for r in rows if r["gate"] == "OVERALL"]
+    return row["value"], row["pass"]
+
+
+def test_gate3_failure_skips_gate4_and_forces_stop():
+    """闸③ 不过 → 闸④ 记 SKIPPED_BY_GATE3 且 pass=False，OVERALL 保守判 STOP。"""
+    winner = ("S1_realized_vol", "binary")
+    rows = gate_rows(_Res(0.01, 0.005, 0.02), _stats(0.3, 0.2, winner), winner,
+                     {"cosine": GATE3_COSINE_FLOOR - 0.5}, None, None)
+    g4 = [r for r in rows if r["gate"] == GATE_ORDER[3]]
+    assert len(g4) == 1 and g4[0]["metric"].startswith("SKIPPED_BY_GATE3")
+    assert g4[0]["pass"] is False
+    assert _overall(rows) == ("STOP", False)
+
+
+def test_all_four_gates_passing_yields_go():
+    """四闸全过 → GO（合取逻辑的正向判例，防"永远 STOP"式的假护栏）。"""
+    winner = ("S4_carry", "tercile")
+    rows = gate_rows(_Res(0.01, 0.005, 0.02), _stats(0.3, 0.2, winner), winner,
+                     {"cosine": 0.8}, _ret(GATE4_THRESHOLD + 0.2, GATE4_THRESHOLD + 0.1),
+                     _ret(1.0, 1.0))
+    assert _overall(rows) == ("GO", True)
+    # 闸④ 的判据是 worst(train, val)，不是均值
+    (wtv,) = [r for r in rows if r["metric"] == "worst_tv_net_sharpe_adjusted"]
+    assert wtv["value"] == pytest.approx(GATE4_THRESHOLD + 0.1) and wtv["pass"] is True
+
+
+def test_p_naive_cannot_carry_gate2_even_when_wildly_significant():
+    """`p_naive` 显著但 `p_selected` 不显著 → 仍 STOP（选优惩罚纪律硬编码）。"""
+    winner = ("S1_realized_vol", "binary")
+    rows = gate_rows(_Res(0.9, 0.0001, 0.5), _stats(0.3, 0.2, winner), winner,
+                     {"cosine": 0.8}, _ret(9.9, 9.9), None)
+    (g2,) = [r for r in rows if r["metric"] == "p_selected"]
+    assert g2["pass"] is False
+    (naive,) = [r for r in rows if r["metric"].startswith("p_naive")]
+    assert naive["pass"] == "" and naive["threshold"] == ""   # 对照列，不参与判定
+    assert _overall(rows) == ("STOP", False)
+
+
+def test_two_window_sign_disagreement_alone_forces_stop():
+    """闸① 异号 → 即使②③④ 全过也必须 STOP（合取的第一项不得被跳过）。"""
+    winner = ("S1_realized_vol", "binary")
+    rows = gate_rows(_Res(0.01, 0.005, 0.02), _stats(0.3, -0.2, winner), winner,
+                     {"cosine": 0.8}, _ret(9.9, 9.9), None)
+    (same,) = [r for r in rows if r["metric"] == "two_window_same_sign"]
+    assert same["pass"] is False
+    assert _overall(rows) == ("STOP", False)
+
+
+# ============================================ backlog B-3：无前视 / 对齐回归判例
+def test_state_labels_use_only_trailing_information():
+    """B-3(a)：把原值序列截断到 ≤ t 后重算，t 处的分位与桶标签必须逐位相同。
+
+    这是本探针最致命的失败模式（状态标签偷看未来）的直接回归判例——
+    此前只靠 `rolling_percentile` 的实现正确性兜底，无判例守。
+    """
+    rng = np.random.default_rng(7)
+    n = 700
+    idx = _dates(n)
+    lvl = pd.Series(np.cumsum(rng.normal(size=n)) + 50.0, index=idx)
+
+    full_pct = rolling_percentile(lvl, PCT_WINDOW)
+    for split in SPLITS:
+        full_lab = bucket_labels(full_pct, split)
+        for t in (PCT_WINDOW - 1, PCT_WINDOW, 400, 555, n - 1):
+            trunc_pct = rolling_percentile(lvl.iloc[: t + 1], PCT_WINDOW)
+            trunc_lab = bucket_labels(trunc_pct, split)
+            assert trunc_pct.iloc[t] == pytest.approx(full_pct.iloc[t], abs=1e-15)
+            assert trunc_lab.iloc[t] == full_lab.iloc[t]
+    # 反证：若分位偷看未来（这里用整段 rank 冒充），截断重算就会对不上
+    peeking = lvl.rank(pct=True)
+    assert peeking.iloc[400] != pytest.approx(lvl.iloc[: 401].rank(pct=True).iloc[400])
+
+
+def test_forward_return_is_aligned_to_the_next_k_days():
+    """B-3(b)：`forward_return` 在 t 处 = t+1..t+k 的累计收益（手算对齐判例）。"""
+    rng = np.random.default_rng(3)
+    n = 120
+    r = pd.Series(rng.normal(scale=0.01, size=n), index=_dates(n))
+    fwd = forward_return(r, K_FORWARD)
+    for t in (0, 37, n - K_FORWARD - 1):
+        hand = float(np.prod(1.0 + r.to_numpy()[t + 1: t + 1 + K_FORWARD]) - 1.0)
+        assert fwd.iloc[t] == pytest.approx(hand, abs=1e-14)
+    # 末 k 天无完整前瞻窗 → NaN，不得回绕
+    assert fwd.iloc[n - K_FORWARD:].isna().all()
+    # 位移方向不得反：t 处的值绝不等于 t−k..t−1 的累计
+    back = float(np.prod(1.0 + r.to_numpy()[37 - K_FORWARD: 37]) - 1.0)
+    assert not np.isclose(fwd.iloc[37], back)

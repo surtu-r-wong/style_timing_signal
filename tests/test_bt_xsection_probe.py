@@ -33,7 +33,8 @@ from backtest.leverage_probe import level_signal  # noqa: E402
 from backtest.rotation_probe import nonoverlap_ic  # noqa: E402
 from backtest.selection_permutation import selection_permutation_test  # noqa: E402
 from backtest.xsection_probe import (  # noqa: E402
-    ANCHORS_N, CORR_WINDOW, FAMILIES, GRID_K, GRID_LB, GRID_ZW, HOLDOUT, N_VARIANTS,
+    ANCHORS_N, ANCHORS_N_FULL, CORR_WINDOW, FAMILIES, GRID_K, GRID_LB, GRID_ZW, HOLDOUT,
+    N_VARIANTS,
     SELECTION, SQL_START, TRAIN, UNIVERSE_SQL, VAL, build_diagnostics,
     dp_families_bound_to_xsection, implied_avg_correlation, universe_mask,
     xsection_levels, xsection_measures, xsection_variant_grid,
@@ -97,6 +98,9 @@ def test_frozen_data_constants():
     assert SQL_START == "2012-01-01"
     assert CORR_WINDOW == 60
     assert ANCHORS_N == {"2014-06-30": 2301, "2018-06-29": 3325, "2026-06-30": 5186}
+    # X2 侧锚点（`c60 = 60` 的满窗子集，故严格小于 X1 的 N）——独立 SQL 取数，非读缓存自证
+    assert ANCHORS_N_FULL == {"2014-06-30": 2297, "2018-06-29": 3298, "2026-06-30": 5166}
+    assert all(ANCHORS_N_FULL[d] < ANCHORS_N[d] for d in ANCHORS_N)
 
 
 # ================================================================ 1. 机器接入三规矩
@@ -509,3 +513,52 @@ def test_family_overlap_signal_uses_the_winner_lb_zw():
     dg = build_diagnostics(levels, sigs, ew, breadth, sizes, sel, ("X2", 5, 250, 40))
     row = dg[dg["kind"] == "family_overlap_signal"].iloc[0]
     assert row["left"] == "signal_X1_lb5zw250" and row["right"] == "signal_X2_lb5zw250"
+
+
+# ================================================================ X2 缓存锚点护栏（backlog B1）
+def _anchor_frame() -> pd.DataFrame:
+    """最小合法 X2 缓存：三个锚点日 + 正确的 `n_full`。"""
+    return pd.DataFrame({
+        "date": [pd.Timestamp(d) for d in ANCHORS_N_FULL],
+        "n_full": list(ANCHORS_N_FULL.values()),
+        "sum_sd": [1.0, 1.0, 1.0],
+        "sum_var": [1.0, 1.0, 1.0],
+        "ew_ret_full": [0.0, 0.0, 0.0],
+    })
+
+
+def test_avg_correlation_cache_read_is_anchor_checked(tmp_path, monkeypatch):
+    """B1：X2 读缓存路径与 X1 同级设防——陈旧/损坏的 CSV 不得被静默采信。"""
+    import backtest.xsection_probe as XP
+
+    path = tmp_path / "avg_correlation.csv"
+    monkeypatch.setattr(XP, "CORR_CACHE", path)
+
+    _anchor_frame().to_csv(path, index=False)
+    got = XP.build_avg_correlation()                     # 命中缓存分支，不连库
+    assert len(got) == len(ANCHORS_N_FULL)
+
+    bad = _anchor_frame()
+    bad.loc[0, "n_full"] = int(bad.loc[0, "n_full"]) - 1  # 少一只票 = 宇宙口径漂了
+    bad.to_csv(path, index=False)
+    with pytest.raises(ValueError, match="X2 宇宙锚点"):
+        XP.build_avg_correlation()
+
+    _anchor_frame().iloc[1:].to_csv(path, index=False)    # 锚点日整行缺失（截断/陈旧）
+    with pytest.raises(ValueError, match="X2 锚点日"):
+        XP.build_avg_correlation()
+
+
+def test_avg_correlation_fresh_build_is_anchor_checked_too(tmp_path, monkeypatch):
+    """建缓存路径同样过闸——否则坏数据会被写进 CSV，下次读时才炸（或永不炸）。"""
+    import backtest.xsection_probe as XP
+
+    path = tmp_path / "avg_correlation.csv"
+    monkeypatch.setattr(XP, "CORR_CACHE", path)
+    bad = _anchor_frame().set_index("date")
+    bad.loc[pd.Timestamp("2014-06-30"), "n_full"] = 999
+    monkeypatch.setattr(XP, "_query_frame", lambda db, sql, columns: bad.copy())
+
+    with pytest.raises(ValueError, match="X2 宇宙锚点"):
+        XP.build_avg_correlation(db={"schema": "fake"}, force=True)
+    assert not path.exists(), "锚点不过时绝不能把坏数据落盘"

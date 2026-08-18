@@ -92,7 +92,8 @@ __all__ = [
     "PRIMARY_KOU_JING", "KOU_JING_REPORT", "GRID_LB", "GRID_ZW", "GRID_K",
     "nonoverlap_points", "load_breadth", "_slice",
     # —— 面2 净新码 ——
-    "FAMILIES", "N_VARIANTS", "SQL_START", "CORR_WINDOW", "UNIVERSE_SQL", "ANCHORS_N",
+    "FAMILIES", "N_VARIANTS", "SQL_START", "CORR_WINDOW", "UNIVERSE_SQL",
+    "ANCHORS_N", "ANCHORS_N_FULL",
     "DISP_CACHE", "CORR_CACHE", "dp_families_bound_to_xsection", "xsection_variant_grid",
     "universe_mask", "xsection_measures", "implied_avg_correlation", "xsection_levels",
     "build_xs_dispersion", "build_avg_correlation", "build_diagnostics", "build_metadata",
@@ -116,6 +117,12 @@ UNIVERSE_SQL = """(ts_code LIKE '%.SH' OR ts_code LIKE '%.SZ')
 
 # 回归锚点（附录 §1.4 侦察实测的 `.SH+.SZ` 可交易票数）：SQL 宇宙若被改动，这里先炸
 ANCHORS_N = {"2014-06-30": 2301, "2018-06-29": 3325, "2026-06-30": 5186}
+
+# X2 侧同款锚点：`c60 = CORR_WINDOW` 的**满窗子集**票数（故严格小于 ANCHORS_N —— 次新股与
+# 长停牌票被 c60 硬约束剔掉）。取数口径与 `_CORR_SQL` 逐字一致（全回看，不截断 trade_date
+# 下界；截断会把长停牌票的 60 **行**窗切断而系统性少数，2014/2018 尤甚）。
+# 溯源：2026-08-18 独立 SQL 现取（非读缓存自证），与当时的 `avg_correlation.csv` 3/3 相等。
+ANCHORS_N_FULL = {"2014-06-30": 2297, "2018-06-29": 3298, "2026-06-30": 5166}
 
 
 # ---------------------------------------------------------------- 复用绑定
@@ -340,7 +347,9 @@ def build_xs_dispersion(db=None, force: bool = False) -> pd.DataFrame:
 def build_avg_correlation(db=None, force: bool = False) -> pd.DataFrame:
     """X2 原料缓存（`n_full/sum_sd/sum_var/ew_ret_full`）。全历史 SQL ≈4~5 分钟。"""
     if CORR_CACHE.exists() and not force:
-        return pd.read_csv(CORR_CACHE, parse_dates=["date"]).set_index("date")
+        c = pd.read_csv(CORR_CACHE, parse_dates=["date"]).set_index("date")
+        _check_anchor_n_full(c)
+        return c
     from signals.common.config import load_db_config
     db = db or load_db_config()
     t0 = time.time()
@@ -348,6 +357,7 @@ def build_avg_correlation(db=None, force: bool = False) -> pd.DataFrame:
                      ["date", "n_full", "sum_sd", "sum_var", "ew_ret_full"])
     elapsed = time.time() - t0
     c["n_full"] = c["n_full"].astype(int)
+    _check_anchor_n_full(c)          # 锚点不过 → 绝不落盘（坏数据不得进缓存）
     CORR_CACHE.parent.mkdir(parents=True, exist_ok=True)
     c.rename_axis("date").reset_index().to_csv(CORR_CACHE, index=False)
     print(f"[cache] avg_correlation 建成：{len(c)} 行 / {elapsed:.1f} s → {CORR_CACHE}")
@@ -362,6 +372,18 @@ def _check_anchor_n(d: pd.DataFrame) -> None:
         got = int(d.loc[ts, "n"])
         if got != n_expect:
             raise ValueError(f"X1 宇宙锚点 {day}: 实得 {got}, 预期 {n_expect}（附录 §1.4）")
+
+
+def _check_anchor_n_full(c: pd.DataFrame) -> None:
+    """X2 缓存的同级护栏（面2 backlog B1）：读/建两条路径都过，防陈旧或损坏的 CSV 被静默采信。"""
+    for day, n_expect in ANCHORS_N_FULL.items():
+        ts = pd.Timestamp(day)
+        if ts not in c.index:
+            raise ValueError(f"X2 锚点日 {day} 缺失（缓存陈旧或被截断？）")
+        got = int(c.loc[ts, "n_full"])
+        if got != n_expect:
+            raise ValueError(f"X2 宇宙锚点 {day}: 实得 {got}, 预期 {n_expect}"
+                             f"（口径见 ANCHORS_N_FULL 注释）")
 
 
 # ---------------------------------------------------------------- 诊断（净新码）

@@ -319,6 +319,30 @@ STOP 判定被完全独立的第二实现逐位复算背书（含换 seed 12345 
 仍远离 0.05）。下列三条是 QA 指出的**判例覆盖空洞**，控制器裁决**列为 backlog、不阻断收官**——
 它们都不改变任何本次读数，只影响日后有人改动本模块时的回归防护。
 
+> **✅ 三条已于 2026-08-18 全部结清**（技术债 P2-3）。判例落在
+> `tests/test_bt_conditional_probe.py`，共 8 条，**逐条做过变异检验**（注入缺陷 → 判例必须变红）：
+>
+> - **B-1** → `test_thin_cells_are_really_dropped_and_excluded_from_the_weighted_mean`。
+>   新 fixture 让上桶占满 offset 0~4 的整条网格、**另在 offset 5 上只放 2 点**，于是
+>   `len(sel) >= MIN_CELL_POINTS` 的 False 分支被"薄但非空"的 cell 真触发：
+>   `len(positions) == 5 < 20`，且断言被丢的是薄 cell（点 5/25 不在幸存集里）而非仅仅是空 cell。
+>   加权平均用 **scipy `spearmanr` 独立复算**核对（第二把秤，非同一内核），并反证"把薄 cell
+>   算进去结果会不同"→ 断言确有鉴别力。变异：`>= MIN_CELL_POINTS` 改 `>= 1` → 红。
+> - **B-2** → `test_gate3_failure_skips_gate4_and_forces_stop` /
+>   `test_all_four_gates_passing_yields_go` /
+>   `test_p_naive_cannot_carry_gate2_even_when_wildly_significant` /
+>   `test_two_window_sign_disagreement_alone_forces_stop`。
+>   四例用轻量替身构造 `res`/`stats`/`cos_info`，覆盖 `SKIPPED_BY_GATE3` 分支、合取逻辑
+>   的**每一项**（含正向 GO 判例，防"永远 STOP"式假护栏）与"`p_naive` 不得进闸"。
+>   变异：闸① 从合取里删除 / 闸② 改读 `p_naive` / 闸③ 挂了却把闸④ 记成过 → 全红。
+> - **B-3** → `test_state_labels_use_only_trailing_information`（截断复算：把原值序列截到
+>   ≤ t 重算分位与桶标签，逐位相同；两个 split × 五个 t）+
+>   `test_forward_return_is_aligned_to_the_next_k_days`（手算 t+1..t+k 累计、末 k 天 NaN、
+>   位移方向不得反）。变异：给 `rolling_percentile` 注入**两种真前视**（错位一天 /
+>   改成未来窗内取秩）→ 均红；`forward_return` 的 `shift(-k)` 改 `shift(k)` → 红。
+>
+> 三条均为**纯判例补强，未改动任何生产代码**，本探针的读数与 STOP 结论逐字不变。
+
 | # | 空洞 | QA 已做的替代验证 | 若补，怎么补 |
 |---|---|---|---|
 | **B-1**（QA Minor-2） | `MIN_CELL_POINTS` 的丢弃分支**零覆盖**：判例 `test_thin_offset_cells_are_dropped_but_do_not_produce_minus_inf` 的 fixture（n=600、k=20、`lab[:120]=1`）下每条 offset 网格恰好命中 6 个点 ≥ 3，**实测被丢的 cell 数 = 0**；其两条断言在 `build_bucket_cells` 自带过滤下**恒真**（名不副实）。且正式跑中该分支同样从未触发（`n_offset_cells` 恒 = 20）→ **双重零验证**。 | QA 遍历 8 变体 × 5 窗全部 cell，确认被丢 cell 数 = 0（即"没触发"这件事本身是真的，草稿 §6 条 B 的称述如实）。 | 换一个**真会丢 cell** 的 fixture（例：把某桶压到只在少数几条 offset 网格上各命中 1~2 点），断言 `len(positions) < 20` **且** 统计量仍有限、且加权平均只用剩下的 cell。 |
