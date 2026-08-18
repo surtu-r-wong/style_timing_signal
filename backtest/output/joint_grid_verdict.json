@@ -1,0 +1,50 @@
+[
+  {
+    "underlying": "micro｜万得微盘",
+    "n_variants": 1160,
+    "n_perm": 1000,
+    "elapsed_s": 135.8,
+    "winner": "lb40/zw80/sm0/θ-0.10",
+    "observed_gain": 0.5980713462098572,
+    "p_selected": 0.7372627372627373,
+    "p_naive": 0.0919080919080919,
+    "p_min_p": 0.6953046953046953,
+    "selection_inflation": 8.021739130434783,
+    "null_max_gain_p50": 0.7619758173261657,
+    "null_max_gain_p90": 1.1488264763613256,
+    "null_max_gain_mean": 0.7757497096603263,
+    "pass_gate": false
+  },
+  {
+    "underlying": "1000｜中证1000",
+    "n_variants": 1160,
+    "n_perm": 1000,
+    "elapsed_s": 125.5,
+    "winner": "lb20/zw100/sm5/θ+0.10",
+    "observed_gain": 0.3909447849888973,
+    "p_selected": 0.9170829170829171,
+    "p_naive": 0.11288711288711288,
+    "p_min_p": 0.8791208791208791,
+    "selection_inflation": 8.123893805309736,
+    "null_max_gain_p50": 0.8605273859906382,
+    "null_max_gain_p90": 1.3465879996717354,
+    "null_max_gain_mean": 0.885498619771169,
+    "pass_gate": false
+  },
+  {
+    "underlying": "500｜中证500",
+    "n_variants": 1160,
+    "n_perm": 1000,
+    "elapsed_s": 106.9,
+    "winner": "lb20/zw100/sm5/θ+0.10",
+    "observed_gain": 0.6065591618782205,
+    "p_selected": 0.7962037962037962,
+    "p_naive": 0.027972027972027972,
+    "p_min_p": 0.5544455544455544,
+    "selection_inflation": 28.464285714285715,
+    "null_max_gain_p50": 0.8974013658268358,
+    "null_max_gain_p90": 1.4225928832373356,
+    "null_max_gain_mean": 0.9184283859090594,
+    "pass_gate": false
+  }
+]
