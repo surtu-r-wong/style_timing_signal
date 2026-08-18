@@ -17,8 +17,14 @@
 
 ## PIT
 
-只取 `ann_date <= 调样日` 的财务行。⚠️ `stock_financial` 96.5% 来自 CSMAR，其 `ann_date`
-是数据集批次日而非首披日 → **approximate PIT，结论须标 provisional**（同 B3）。
+可知日 = **`min(ann_date, 法定披露截止日)`**，取 `<= 调样日` 的财务行（见 `_fetch_series`）。
+
+⚠️ 直接用 `stock_financial.ann_date` 是**错的**：96.5% 来自 CSMAR，其 `ann_date` 是数据集
+批次日而非首披日，会在每个调样日丢掉最近整整一个季度（实测 Q1 通过率 0~1%），把成长因子
+打成噪声。法定截止日是真实披露日的**上界**，故该修正保守而非前视。
+
+⚠️ **残余限制**：超期披露的公司会被当成按时披露（无对照字段可逐票剔除）→ 结论仍须标
+**provisional**（同 B3）。
 """
 from __future__ import annotations
 
@@ -79,6 +85,40 @@ def rebalance_dates(start: str, end: str) -> list[pd.Timestamp]:
 
 
 # ---------------------------------------------------------------- 样本空间
+def _avg_mv_1y_daily(px_rows: list, sh_rows: list) -> pd.Series:
+    """过去 1 年**日频**日均总市值 = mean(close × 前向填充的 total_shares)。
+
+    ## 为什么不用 `stock_indicator` 的 `avg(total_mv)`
+
+    该表 **2015–2024 只有月末数据**（每年仅 12 个交易日有行），`avg` 只由 12 个点得到；
+    且 **2025-09~2026-03 整段近乎空**（31 行/日）。而 `avg_mv_1y` 是 **EP/CFP/BP/DP 四个
+    价值因子的公共分母**（原文："与过去 1 年日均总市值的比值"）。横截面实测：把分母从
+    这个 12 点均值换成当日 `total_mv`，对官方成分的 top-N 命中就从 50.3% 升到 52.6%。
+
+    ## 口径校验
+
+    `close × total_shares` 与库内 `total_mv` **完全一致**（2024-05-31 抽 286 只：中位比值
+    1.000，96.5% 落在 ±1% 内）→ 单位无需换算。
+
+    ⚠️ 股本按 `effective_date` 前向填充（= 当时真实在外股本）；无股本记录的交易日不计入
+    均值，整只无记录则返回 NaN，由调用方回退到月末口径。
+    """
+    if not px_rows:
+        return pd.Series(dtype=float)
+    px = pd.DataFrame(px_rows, columns=["ts_code", "trade_date", "close"])
+    px["trade_date"] = pd.to_datetime(px["trade_date"])
+    if not sh_rows:
+        return pd.Series(dtype=float)
+    sh = pd.DataFrame(sh_rows, columns=["ts_code", "effective_date", "total_shares"])
+    sh["effective_date"] = pd.to_datetime(sh["effective_date"])
+    px = px.sort_values("trade_date")
+    sh = sh.sort_values("effective_date")
+    m = pd.merge_asof(px, sh, left_on="trade_date", right_on="effective_date",
+                      by="ts_code", direction="backward")
+    m["mv"] = m["close"] * m["total_shares"]
+    return m.groupby("ts_code")["mv"].mean()
+
+
 def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
                  min_list_years: float = 1.0, liq_drop_pct: float = 0.20) -> pd.DataFrame:
     """调样日的样本空间：市值排名带 → 剔新股 → 剔流动性尾部。
@@ -90,10 +130,21 @@ def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
     c, s = _conn()
     try:
         with c.cursor() as cur:
-            cur.execute(f"""SELECT ts_code, total_mv::float8, circ_mv::float8
+            # ⚠️ 不能直接取 max(trade_date)：`stock_indicator` 存在**残缺快照**
+            # （实测 2025-12-15 全天只有 26 行，正常约 5,200；2025-09~2026-03 整段如此）。
+            # 旧写法拿到残缺日就直接用 → 样本空间 0 只 → build_pair 里静默 continue，
+            # Gate 0 正式跑因此少建了整整一期（2025-12-15→2026-06-15）而无任何告警。
+            # 改为：在过去 400 天内，取**行数达到该窗口峰值一半**的最近一个交易日。
+            cur.execute(f"""WITH cnt AS (
+                              SELECT trade_date, count(*) n FROM {s}.stock_indicator
+                              WHERE trade_date<=DATE '{d}' AND trade_date>DATE '{d}'-400
+                                AND total_mv IS NOT NULL
+                                AND (ts_code LIKE '%.SH' OR ts_code LIKE '%.SZ')
+                              GROUP BY 1)
+                            SELECT ts_code, total_mv::float8, circ_mv::float8
                             FROM {s}.stock_indicator
-                            WHERE trade_date=(SELECT max(trade_date) FROM {s}.stock_indicator
-                                              WHERE trade_date<=DATE '{d}')
+                            WHERE trade_date=(SELECT max(trade_date) FROM cnt
+                                              WHERE n >= 0.5*(SELECT max(n) FROM cnt))
                               AND total_mv IS NOT NULL
                               AND (ts_code LIKE '%.SH' OR ts_code LIKE '%.SZ')""")
             snap = pd.DataFrame(cur.fetchall(), columns=["ts_code", "total_mv", "circ_mv"])
@@ -106,7 +157,21 @@ def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
             cur.execute(f"""SELECT ts_code, avg(total_mv)::float8 FROM {s}.stock_indicator
                             WHERE ts_code=ANY(%s) AND trade_date BETWEEN DATE '{d}'-INTERVAL '365 days'
                               AND DATE '{d}' GROUP BY 1""", (codes,))
-            band["avg_mv_1y"] = pd.Series(dict(cur.fetchall()))
+            band["avg_mv_1y_monthend"] = pd.Series(dict(cur.fetchall()))    # 兜底用
+
+            # 日频口径：close × 前向填充的 total_shares（见 _avg_mv_1y_daily 的 docstring）
+            cur.execute(f"""SELECT ts_code, trade_date, close::float8 FROM {s}.stock_daily_price
+                            WHERE ts_code=ANY(%s) AND trade_date BETWEEN DATE '{d}'-INTERVAL '365 days'
+                              AND DATE '{d}' AND close IS NOT NULL AND pre_close>0 AND volume>0""",
+                        (codes,))
+            px_rows = cur.fetchall()
+            cur.execute(f"""SELECT ts_code, effective_date, total_shares::float8
+                            FROM {s}.stock_share_capital
+                            WHERE ts_code=ANY(%s) AND effective_date<=DATE '{d}'
+                              AND total_shares IS NOT NULL""", (codes,))
+            sh_rows = cur.fetchall()
+            band["avg_mv_1y"] = _avg_mv_1y_daily(px_rows, sh_rows).reindex(band.index)
+            band["avg_mv_1y"] = band["avg_mv_1y"].fillna(band["avg_mv_1y_monthend"])
 
             cur.execute(f"""SELECT ts_code, avg(close)::float8, avg(amount)::float8, count(*)
                             FROM {s}.stock_daily_price
@@ -155,9 +220,47 @@ def _dividend_field() -> str:
     raise KeyError("financial_field_map 里找不到 cash_dividend_ps_pre_tax")
 
 
+#: A 股定期报告的**法定披露截止日**（报告期月份 → (跨年数, 月, 日)）。
+#: 依据《证券法》与交易所规则：一季报 4/30、半年报 8/31、三季报 10/31、年报次年 4/30。
+_DEADLINE = {3: (0, 4, 30), 6: (0, 8, 31), 9: (0, 10, 31), 12: (1, 4, 30)}
+
+
+def _statutory_deadline(end_date: pd.Series) -> pd.Series:
+    """报告期 → 法定披露截止日；非自然季末（CSMAR 的 01-01 伪行等）→ NaT。"""
+    e = pd.to_datetime(pd.Series(end_date))
+    m = e.dt.month
+    dm, dd = m.map({k: v[1] for k, v in _DEADLINE.items()}), m.map({k: v[2] for k, v in _DEADLINE.items()})
+    add_y = m.map({k: v[0] for k, v in _DEADLINE.items()})
+    ok = dm.notna()
+    out = pd.Series(pd.NaT, index=e.index, dtype="datetime64[ns]")
+    if ok.any():
+        out[ok] = pd.to_datetime(pd.DataFrame({"year": (e.dt.year + add_y)[ok].astype(int),
+                                               "month": dm[ok].astype(int),
+                                               "day": dd[ok].astype(int)}))
+    return out
+
+
 def _fetch_series(codes: list[str], asof: pd.Timestamp, stmt: str, field: str,
                   years: int = 6) -> pd.DataFrame:
-    """PIT 拉取 (ts_code, end_date, ann_date, value)：只取 `ann_date <= asof` 的行。
+    """PIT 拉取 (ts_code, end_date, ann_date, value)；`ann_date` 已换成**修正可知日**。
+
+    ## ⚠️ 为什么不能直接用 `stock_financial.ann_date`
+
+    该表 96.5% 来自 CSMAR，其 `ann_date` 是**数据集批次日**而非首披日，可比法定截止日晚
+    数月至数年（实测：2018Q1 的 ann_date 铺到 2021-02-03，2022Q1 铺到 2025-01-03）。
+    直接按 `ann_date <= asof` 过滤，会在**每一个调样日丢掉最近整整一个季度**——2018/2020/
+    2022/2024 各年 6 月调样日，Q1 报告在库里有 1,137~1,902 行，能通过过滤的只有 3~8 行（0~1%）。
+    后果实测：成长因子（趋势/差分，命脉在最新一季）被打成噪声（对官方成分的 top-N 命中
+    12.4%，随机基线 10.6%），价值因子（水平）尚可（50.3% vs 15.7%）。
+
+    ## 修正可知日 = min(ann_date, 法定披露截止日)
+
+    **法定截止日是真实披露日的上界**（合规公司必在其前披露），故用它当可知日**只会晚于、
+    不会早于**真实可知时刻 —— 是保守，不是前视。取 min 是为了让确有首披日的行
+    （Wind 段、以及 CSMAR 里 ann_date 早于截止日的行）继续用它们自己的真实日期。
+
+    ⚠️ **残余风险**：**超期披露**的公司会被当成按时披露 → 对这少数标的构成前视。
+    库内无停牌/风险警示与披露延期的对照字段，暂无法逐票剔除，须写进结论限定语。
 
     `years=6`：SalG/ProG 需 12 个 TTM 点，而 TTM 要 4 季暖机 + CSMAR 的 01-01 伪行被剔除，
     4 年只剩 11 个非空 TTM（实测 600110.SH），故必须拉够 6 年。
@@ -166,16 +269,23 @@ def _fetch_series(codes: list[str], asof: pd.Timestamp, stmt: str, field: str,
     c, s = _conn()
     try:
         with c.cursor() as cur:
+            # SQL 只按 end_date 粗筛（报告期结束前不可能可知）；PIT 过滤放到修正可知日之后
             cur.execute(f"""SELECT ts_code, end_date, ann_date, (data->>%s)::float8
                             FROM {s}.stock_financial
                             WHERE ts_code=ANY(%s) AND statement_type=%s
-                              AND ann_date <= DATE '{d}'
+                              AND end_date <= DATE '{d}'
                               AND end_date >= DATE '{d}' - INTERVAL '{years} years'
                               AND data ? %s""", (field, codes, stmt, field))
             rows = cur.fetchall()
     finally:
         c.close()
-    return pd.DataFrame(rows, columns=["ts_code", "end_date", "ann_date", "value"])
+    df = pd.DataFrame(rows, columns=["ts_code", "end_date", "ann_date", "value"])
+    if df.empty:
+        return df
+    ann = pd.to_datetime(df["ann_date"])
+    dl = _statutory_deadline(df["end_date"])
+    df["ann_date"] = dl.where(dl.notna() & (dl < ann), ann)      # = min(ann, 截止日)，NaT 安全
+    return df[df["ann_date"] <= asof].reset_index(drop=True)
 
 
 def _ttm_latest(df: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
@@ -377,15 +487,19 @@ class PairResult:
     value: pd.Series
     n_growth: dict
     n_value: dict
+    skipped: list = None       # 因样本空间为空而未建的调样期（正常应为空）
 
 
 def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
                take_top_half: bool, verbose: bool = True) -> PairResult:
     """按调样日滚动构建一对纯风格腿的**日收益序列**。"""
-    gs, vs, ng, nv = [], [], {}, {}
+    gs, vs, ng, nv, skipped = [], [], {}, {}, []
     for i, d in enumerate(dates[:-1]):
         sp = sample_space(d, rank_lo, rank_hi)
         if not len(sp):
+            # 静默跳过会让"少建一期"完全不可见（Gate 0 正式跑吃过一次）→ 必须出声
+            print(f"  ⚠️ {d.date()}: 样本空间为空，整期跳过（检查 stock_indicator 覆盖）", flush=True)
+            skipped.append(str(d.date()))
             continue
         prob = style_probabilities(style_scores(factor_panel(sp, d)))
         wg, wv = select_legs(prob, take_top_half)
@@ -396,5 +510,8 @@ def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
         if verbose:
             print(f"  {d.date()} → {nxt.date()}: 样本空间 {len(sp)}，"
                   f"成长 {len(wg)} / 价值 {len(wv)}", flush=True)
+    if skipped:
+        print(f"  ⚠️ 共跳过 {len(skipped)} 期：{skipped}", flush=True)
     return PairResult(pd.concat(gs).sort_index() if gs else pd.Series(dtype=float),
-                      pd.concat(vs).sort_index() if vs else pd.Series(dtype=float), ng, nv)
+                      pd.concat(vs).sort_index() if vs else pd.Series(dtype=float), ng, nv,
+                      skipped)
