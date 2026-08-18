@@ -1,0 +1,26 @@
+[
+  {
+    "scope": "A 部署口径 blend(500+1000)",
+    "n_variants": 29,
+    "n_perm": 1000,
+    "winner": "blend｜500+1000（现役部署口径） @ θ=+0.35",
+    "observed_gain": 0.04849717751364391,
+    "p_selected": 0.951048951048951,
+    "p_naive": 0.4025974025974026,
+    "p_min_p": 0.951048951048951,
+    "selection_inflation": 2.3622828784119103,
+    "pass_gate": false
+  },
+  {
+    "scope": "B 全空间（7 标的 × 29 θ）",
+    "n_variants": 203,
+    "n_perm": 1000,
+    "winner": "300｜沪深300 @ θ=+0.55",
+    "observed_gain": 0.5083170366473467,
+    "p_selected": 0.8251748251748252,
+    "p_naive": 0.21578421578421578,
+    "p_min_p": 0.7832167832167832,
+    "selection_inflation": 3.8240740740740744,
+    "pass_gate": false
+  }
+]
