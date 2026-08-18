@@ -120,10 +120,19 @@ def _avg_mv_1y_daily(px_rows: list, sh_rows: list) -> pd.Series:
 
 
 def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
-                 min_list_years: float = 1.0, liq_drop_pct: float = 0.20) -> pd.DataFrame:
+                 min_list_years: float = 1.0, liq_drop_pct: float = 0.20,
+                 codes: list[str] | None = None, apply_filters: bool = True) -> pd.DataFrame:
     """调样日的样本空间：市值排名带 → 剔新股 → 剔流动性尾部。
 
     `rank_lo`/`rank_hi` 为 1-based 闭区间（`rank_hi=None` 表示到最后）。
+
+    `codes` 给定时**用这份显式名单代替排名带**（用于官方样本空间 = 母指数成分的复现；
+    此时 `rank_lo/rank_hi` 被忽略）。`apply_filters=False` 跳过剔新股/剔流动性两道筛——
+    母指数成分已自带这些约束，再筛一次就偏离了原文的"样本空间 = XX指数样本"。
+
+    ⚠️ 尾部桶（3801+）**没有官方成分可用**，只能走排名带代理 → 闸门必须也用代理版判定，
+    否则闸门检验不到将要走的那条路径（见预登记 r2 §1c）。
+
     返回 index=ts_code，列 `total_mv / circ_mv / avg_mv_1y / avg_close_1y / adv_1y / industry`。
     """
     d = asof.date().isoformat()
@@ -149,7 +158,8 @@ def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
                               AND (ts_code LIKE '%.SH' OR ts_code LIKE '%.SZ')""")
             snap = pd.DataFrame(cur.fetchall(), columns=["ts_code", "total_mv", "circ_mv"])
             snap = snap.sort_values("total_mv", ascending=False).set_index("ts_code")
-            band = snap.iloc[rank_lo - 1: rank_hi].copy()
+            band = (snap.reindex(codes).dropna(subset=["total_mv"]).copy()
+                    if codes is not None else snap.iloc[rank_lo - 1: rank_hi].copy())
             codes = list(band.index)
             if not codes:
                 return band.assign(avg_mv_1y=np.nan)
@@ -194,6 +204,8 @@ def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
     finally:
         c.close()
 
+    if not apply_filters:
+        return band
     band = band[band["list_date"].notna()]
     band = band[(asof - band["list_date"]).dt.days >= min_list_years * 365]   # 剔新股
     band = band[band["adv_1y"].notna()]
@@ -491,11 +503,17 @@ class PairResult:
 
 
 def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
-               take_top_half: bool, verbose: bool = True) -> PairResult:
-    """按调样日滚动构建一对纯风格腿的**日收益序列**。"""
+               take_top_half: bool, verbose: bool = True,
+               codes_by_date: dict | None = None, apply_filters: bool = True) -> PairResult:
+    """按调样日滚动构建一对纯风格腿的**日收益序列**。
+
+    `codes_by_date`：{调样日字符串 → 该期显式样本空间名单}，给定时覆盖排名带
+    （见 `sample_space` 的 `codes`）。缺某期则该期回退到排名带。
+    """
     gs, vs, ng, nv, skipped = [], [], {}, {}, []
     for i, d in enumerate(dates[:-1]):
-        sp = sample_space(d, rank_lo, rank_hi)
+        sp = sample_space(d, rank_lo, rank_hi, apply_filters=apply_filters,
+                          codes=(codes_by_date or {}).get(str(d.date())))
         if not len(sp):
             # 静默跳过会让"少建一期"完全不可见（Gate 0 正式跑吃过一次）→ 必须出声
             print(f"  ⚠️ {d.date()}: 样本空间为空，整期跳过（检查 stock_indicator 覆盖）", flush=True)
