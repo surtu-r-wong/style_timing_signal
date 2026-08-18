@@ -193,6 +193,58 @@ def dump_grid(g: Grid, key: str) -> Path:
     return out
 
 
+def export_signal(g: Grid, key: str, variant: tuple | None = None) -> Path:
+    """把某标的**最优点**的信号时间序列落盘：因子全值 + 套阈值后的 0/1 仓位。
+
+    列：`date, factor_value_opt, position_opt, factor_value_incumbent,
+    position_incumbent, index_close, index_ret`。
+    - `factor_value_opt` = 最优参数下的因子**连续值**（该点 smoothing=0 时即未平滑值）；
+    - `position_opt` = `factor_value_opt > θ_opt` 的 0/1，**与回测逐日一致**
+      （回测再做 T+1 生效，本文件不预先 shift —— 想看生效仓位自行 shift(1)）；
+    - 现役两列并列，便于逐日对照。
+    """
+    from backtest.data import _connect, load_db_config
+
+    if variant is None:
+        variant = g.variants[int(np.argmax(
+            worst_tv_batch(g.pos, g.align(TARGETS[key][0]), g.masks, COST_BPS)))]
+    lb, zw, sm, th = variant
+    raw = equal_weight_factor_fn()
+    f_opt = raw(lookback=lb, z_window=zw, smoothing=sm).reindex(g.idx)
+    f_inc = raw(lookback=INCUMBENT["lookback"], z_window=INCUMBENT["z_window"],
+                smoothing=INCUMBENT["smoothing"]).reindex(g.idx)
+
+    code = TARGETS[key][0]
+    db = load_db_config()
+    conn = _connect(db)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT trade_date, close FROM {db['schema']}.index_daily "
+                        "WHERE index_code=%s ORDER BY trade_date", (code,))
+            close = pd.Series({pd.Timestamp(d): float(c) for d, c in cur.fetchall()})
+    finally:
+        conn.close()
+
+    out = pd.DataFrame({
+        "factor_value_opt": f_opt,
+        "position_opt": production_position(f_opt, threshold=th).astype(int),
+        "factor_value_incumbent": f_inc,
+        "position_incumbent": production_position(
+            f_inc, threshold=INCUMBENT["theta"]).astype(int),
+        "index_close": close.reindex(g.idx),
+    })
+    out["index_ret"] = out["index_close"].pct_change()
+    out.index.name = "date"
+    path = ROOT / "backtest" / "output" / f"signal_{key}_opt.csv"
+    out.to_csv(path)
+    print(f"  最优点 = lb{lb}/zw{zw}/sm{sm}/θ{th:+.2f}（{code}）")
+    print(f"  在场比例 {out['position_opt'].mean()*100:.1f}%（现役 "
+          f"{out['position_incumbent'].mean()*100:.1f}%）；两者逐日不同的天数 "
+          f"{int((out['position_opt'] != out['position_incumbent']).sum())} / {len(out)}")
+    print(f"  信号序列 {len(out)} 行 → {path}")
+    return path
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="联合网格（参数×阈值）选优校正检验")
     ap.add_argument("--n-perm", type=int, default=1000)
@@ -201,6 +253,8 @@ def main(argv=None) -> int:
                     help="逗号分隔，默认 micro,1000,500（微盘优先）")
     ap.add_argument("--dump-grid", default="",
                     help="额外落盘该标的的 1160 点描述性网格（如 --dump-grid micro）")
+    ap.add_argument("--export-signal", default="",
+                    help="落盘该标的最优点的信号序列（因子全值 + 阈值后 0/1）")
     args = ap.parse_args(argv)
 
     t0 = time.time()
@@ -210,6 +264,8 @@ def main(argv=None) -> int:
 
     if args.dump_grid.strip() in TARGETS:
         dump_grid(g, args.dump_grid.strip())
+    if args.export_signal.strip() in TARGETS:
+        export_signal(g, args.export_signal.strip())
 
     results = [run_one(g, k.strip(), args.n_perm, args.seed)
                for k in args.targets.split(",") if k.strip() in TARGETS]
