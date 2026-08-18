@@ -61,6 +61,31 @@ def ttm_from_quarterly(single_q: pd.Series) -> pd.Series:
     return ttm.reindex(single_q.index)
 
 
+def _days_since_epoch_to_datetime64(days) -> np.ndarray:
+    """自 epoch 天数（float，NaN = 未知）→ `datetime64[ns]`（NaN → NaT）。
+
+    ⚠️ **不得用 `pd.to_datetime(days, unit="D")` 代替。** pandas 的
+    `cast_from_unit_vectorized` 用 `np.empty` 开小数部分数组、**NaN 槽位不写值**，
+    却对整条数组 `np.round(frac, decimals=13)` —— 于是读到未初始化内存。若那块堆残留的
+    字节解出 >1.8e295 的浮点，`round` 内部乘 10^13 就溢出；而 pandas 在该处开着
+    `np.errstate(over="raise")` 且只捕 `OutOfBoundsDatetime`，`FloatingPointError`
+    直接逃出来。表现为**全量跑偶发失败、单独重跑必过**（取决于此前的判例在堆上留了什么），
+    2026-08-18 定位。判例：
+    `tests/test_factors.py::test_rolling_growth_slope_survives_a_dirty_heap`。
+    """
+    days = np.asarray(days, dtype=float)
+    out = np.full(len(days), np.datetime64("NaT"), dtype="datetime64[D]")
+    ok = np.isfinite(days)
+    out[ok] = days[ok].astype("int64").astype("datetime64[D]")
+    res = out.astype("datetime64[ns]")
+    # `[D]→[ns]` 越界是**静默回绕**（旧写法下 pandas 会抛 OutOfBoundsDatetime）。本函数的
+    # 产物是 PIT 可知日，静默变早就是前视 —— 往返校验一道，宁可炸也不许静默错。
+    if ok.any() and not np.array_equal(
+            res[ok].astype("datetime64[D]").astype("int64"), days[ok].astype("int64")):
+        raise ValueError("可知日超出 datetime64[ns] 可表示区间（1677-09-21..2262-04-11）")
+    return res
+
+
 def growth_slope(ttm: pd.Series, n: int = 12) -> float:
     """成长分：最近 n 季 TTM 对时间的 OLS 斜率 ÷ |均值|（设计稿 §2.5 Gen2/Gen3）。
 
@@ -106,10 +131,10 @@ def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.Da
     known_days = pd.Series(
         known.to_numpy(dtype="datetime64[D]").astype(float), index=idx
     )
-    known_max = known_days.rolling(n, min_periods=n).max()
+    known_max = known_days.rolling(n, min_periods=n).max().to_numpy()
 
     out.iloc[n - 1 :, out.columns.get_loc("slope")] = rel
-    out["known_date"] = pd.to_datetime(known_max.to_numpy(), unit="D")
+    out["known_date"] = _days_since_epoch_to_datetime64(known_max)
     out["slope"] = out["slope"].where(out["known_date"].notna())
     return out
 
@@ -213,7 +238,7 @@ def pit_ttm_with_known(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(
         {
             "ttm": ttm.to_numpy(),
-            "known_date": pd.to_datetime(known_days.to_numpy(), unit="D"),
+            "known_date": _days_since_epoch_to_datetime64(known_days.to_numpy()),
         },
         index=idx,
     )

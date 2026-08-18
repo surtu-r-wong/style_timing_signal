@@ -289,6 +289,58 @@ def test_rolling_growth_slope_nan_across_gap():
     assert got["slope"].isna().all()
 
 
+def test_rolling_growth_slope_survives_a_dirty_heap():
+    """回归（2026-08-18 flaky 定位）：暖机段的 NaN 不得再经 `pd.to_datetime(unit="D")`。
+
+    pandas 的 `cast_from_unit_vectorized` 用 `np.empty` 开小数部分数组、**NaN 槽位不写值**，
+    随后对整条数组 `np.round(frac, decimals=13)` —— 于是读到未初始化内存。若那块堆残留的
+    字节解出 >1.8e295 的浮点，`round` 内部乘 10^13 就溢出；而 pandas 在该处开着
+    `np.errstate(over="raise")` 且只捕 `OutOfBoundsDatetime` → `FloatingPointError` 逃出来。
+    表现为"全量跑偶发失败、单独重跑必过"（取决于前面 1490 个判例在堆上留了什么）。
+
+    本判例用同尺寸（14×8=112 B）巨值块把堆搅浑再调用：修复前 30/30 必炸，修复后必须全过。
+    """
+    from signals.common.factors import rolling_growth_slope
+
+    idx = pd.date_range("2016-03-31", periods=14, freq="QE")
+    ttm = pd.Series(100.0 + 7.0 * np.arange(14), index=idx)
+    known = pd.Series(idx + pd.Timedelta(days=30), index=idx)
+    for _ in range(8):
+        pool = [np.full(14, 1e300) for _ in range(64)]
+        del pool
+        got = rolling_growth_slope(ttm, known, n=12)
+        assert got["known_date"].iloc[:11].isna().all()      # 暖机段仍是 NaT
+        assert got["known_date"].iloc[11] == known.iloc[11]  # 且可知日逐值不变
+    # 本判例故意把堆弄脏，收尾把同尺寸块重填 0 —— 别把巨值残留留给后续判例
+    scrub = [np.zeros(14) for _ in range(64)]
+    del scrub
+
+
+def test_days_since_epoch_helper_matches_the_pandas_unit_path_it_replaces():
+    """等价性 + NaN→NaT：helper 与旧写法 `pd.to_datetime(..., unit="D")` 逐值相同，
+    只是不再走那条会读未初始化内存的路径（见 helper docstring）。"""
+    from signals.common.factors import _days_since_epoch_to_datetime64
+
+    days = np.array([np.nan, np.nan, 0.0, 1.0, -1.0, 17926.0, 18107.0])
+    got = pd.Series(_days_since_epoch_to_datetime64(days))
+    assert got.dtype == np.dtype("datetime64[ns]")
+    # 干净输入下与 pandas 原路径逐值相同（NaT 用 pandas 的相等语义比）
+    assert got.equals(pd.Series(pd.to_datetime(days, unit="D")))
+    assert got.iloc[:2].isna().all()
+    assert got.iloc[2] == pd.Timestamp("1970-01-01")
+    assert got.iloc[5] == pd.Timestamp("2019-01-30")
+
+
+def test_days_since_epoch_helper_refuses_to_silently_wrap_out_of_range_dates():
+    """`[D]→[ns]` 越界会静默回绕；产物是 PIT 可知日，静默变早=前视 → 必须炸而不是静默。"""
+    from signals.common.factors import _days_since_epoch_to_datetime64
+
+    with pytest.raises(ValueError, match="datetime64\\[ns\\] 可表示区间"):
+        _days_since_epoch_to_datetime64(np.array([np.nan, 3_000_000.0]))  # 约公元 10186 年
+    # 边界内不受影响
+    assert not pd.isna(_days_since_epoch_to_datetime64(np.array([100_000.0]))[0])
+
+
 def test_asof_latest_picks_freshest_known_row_per_ticker():
     """pooled 长表 → as_of 时每股 known_date≤as_of 的最新（end_date 最大）一行。"""
     from signals.common.factors import asof_latest
