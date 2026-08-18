@@ -1,0 +1,17 @@
+{
+  "n_obs": 3069,
+  "n_perm": 1000,
+  "sharpe_incumbent_full": 1.6219,
+  "sharpe_candidate_full": 1.5912,
+  "sharpe_diff": -0.0307,
+  "p_selected": 0.6294,
+  "p_naive": 0.6294,
+  "worst_tv_incumbent": 1.0009,
+  "worst_tv_candidate": 1.0163,
+  "gate1": false,
+  "gate2": true,
+  "gate3": false,
+  "OVERALL": "STOP",
+  "verdict_case": "② 差异不显著 → 同质与否对信号无可辨认影响；**不得**表述为「现役更优」",
+  "zero_carry_diff": -0.0294
+}
