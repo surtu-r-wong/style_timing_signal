@@ -13,9 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from backtest.pure_style_builder import (  # noqa: E402
+    _apply_buffer,
     _avg_mv_1y_daily,
     _cap_weights,
     _statutory_deadline,
+    review_cutoff,
 )
 
 
@@ -85,3 +87,62 @@ def test_cap_weights_enforces_single_and_top5_caps():
     assert np.isclose(w.sum(), 1.0)
     assert w.max() <= 0.15 + 1e-9
     assert w.nlargest(5).sum() <= 0.60 + 1e-9
+
+
+# ---------------------------------------------------------------- 官方选样时间线（2026-08-19）
+def test_review_cutoff_june_effective_maps_to_april_30():
+    """6 月生效 → 当年 4-30（沪深300方案 §6.2：「上一年度5月1日至审核年度4月30日」）。"""
+    assert review_cutoff(pd.Timestamp("2024-06-17")) == pd.Timestamp("2024-04-30")
+
+
+def test_review_cutoff_december_effective_maps_to_october_31():
+    assert review_cutoff(pd.Timestamp("2024-12-16")) == pd.Timestamp("2024-10-31")
+
+
+def test_review_cutoff_rejects_off_cycle_months():
+    import pytest
+    with pytest.raises(ValueError):
+        review_cutoff(pd.Timestamp("2024-03-15"))
+
+
+# ---------------------------------------------------------------- 定调缓冲区（1600进/2400保）
+def test_buffer_none_prev_is_pure_ranking():
+    assert _apply_buffer(list("abcdef"), None, target=4) == list("abcd")
+
+
+def test_buffer_keeps_old_member_inside_keep_rank_over_better_ranked_new():
+    """老样本 e（排名5，keep=6 内）挤掉排名更好的新票 d —— 缓冲区的本义。"""
+    got = _apply_buffer(list("abcdef"), prev={"e"}, target=4, in_rank=3, keep_rank=6)
+    assert got == ["a", "b", "c", "e"]
+
+
+def test_buffer_old_keep_outranks_new_entry_on_capacity_conflict():
+    """容量冲突时老样本优先保留：老 e/f（排名5/6，keep 内）锁 2 席，
+    新样本只剩 2 席按排名取 a、b —— 排名更好的新票 c、d 反而落选。
+    （官方 2026-06 实测行为：保留排名 2100–2400 段老样本、只换 232/2000。）"""
+    got = _apply_buffer(list("abcdef"), prev={"e", "f"}, target=4, in_rank=3, keep_rank=6)
+    assert got == ["a", "b", "e", "f"]
+
+
+def test_buffer_drops_old_member_beyond_keep_rank():
+    """老样本 g 排名 7 > keep_rank=6 → 失去优先保留资格，按普通候选竞争后落选。"""
+    got = _apply_buffer(list("abcdefg"), prev={"g"}, target=4, in_rank=3, keep_rank=6)
+    assert got == ["a", "b", "c", "d"]
+
+
+def test_buffer_old_beyond_keep_rank_still_competes_by_rank():
+    """>keep_rank 的老样本按普通候选竞争：老 c 排名 3（keep=2 之外）仍以排名进入。"""
+    got = _apply_buffer(list("abcde"), prev={"c"}, target=3, in_rank=2, keep_rank=2)
+    assert got == ["a", "b", "c"]
+
+
+def test_buffer_backfills_by_rank_when_short():
+    """old_keep 不足 target 时按排名补齐（不分新老）。"""
+    got = _apply_buffer(list("abcde"), prev={"a"}, target=4, in_rank=2, keep_rank=3)
+    assert got == ["a", "b", "c", "d"]
+
+
+def test_buffer_old_members_overflow_trims_worst_ranked_old():
+    """老样本多于 target 时保留排名最好的 target 只。"""
+    got = _apply_buffer(list("abcde"), prev={"b", "c", "d", "e"}, target=3, in_rank=2, keep_rank=5)
+    assert got == ["b", "c", "d"]

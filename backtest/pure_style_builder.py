@@ -14,6 +14,18 @@
    **房地产不算金融**（中证一级行业里房地产是独立板块）。
 2. **`circ_mv`（流通市值）代替自由流通市值**（logistic 平滑的 25/50/75% 分位点）。
 3. 样本空间用 **`total_mv` 排名带**代替官方成分（库内无四母指数历史成分）。
+   → 2026-08-19 起提供第二条路径 `official_sample_space`（模拟官方选样，见下节）。
+
+## 官方选样时间线（2026-08-19 补，用户指出的方向）
+
+规模指数系列的考察窗**不是**「调样日往回一年」：《沪深300指数编制方案》(2023-09) §6.2
+（系列通用架构）规定 6 月调样以**上年 5-01 → 当年 4-30**、12 月调样以**上年 11-01 →
+当年 10-31** 的交易数据**及财务数据**为审核依据；期间新上市证券自**上市第六个交易日**
+起算。`review_cutoff()` 给出该截止日；`official_sample_space()` 按《中证2000指数编制
+方案》(V1.1) 模拟选样：中证全指样本空间（非 ST、分板上市时长、含北交所）→ 日均成交额
+前 90% → 剔 000905/000852 实际成分 + 剔日均总市值前 1500 → 日均总市值取前 2000 →
+缓冲区（1600 进 / 2400 保）。偏离清单见
+`docs/plans/2026-08-19-replication-improvement-plan.md` §2。
 
 ## PIT
 
@@ -84,6 +96,47 @@ def rebalance_dates(start: str, end: str) -> list[pd.Timestamp]:
     return [d for d in out if pd.Timestamp(start) <= d <= pd.Timestamp(end)]
 
 
+def review_cutoff(eff: pd.Timestamp) -> pd.Timestamp:
+    """调样生效日 → 数据考察截止日（沪深300方案 §6.2，规模指数系列通用）。
+
+    6 月生效 → 当年 4-30；12 月生效 → 当年 10-31。考察窗 = 截止日往回一年
+    （原文「上一年度 5 月 1 日至审核年度 4 月 30 日」）。截止日恰为月末 →
+    `stock_indicator` 的月末快照（2015-2024 仅月末有行）正好覆盖。
+    """
+    if eff.month not in (5, 6, 7, 11, 12, 1):
+        raise ValueError(f"非常规调样生效月: {eff}")
+    if eff.month in (5, 6, 7):
+        return pd.Timestamp(eff.year, 4, 30)
+    y = eff.year if eff.month in (11, 12) else eff.year - 1   # 1 月生效属上年 12 月批
+    return pd.Timestamp(y, 10, 31)
+
+
+def _apply_buffer(ranked: list[str], prev: set[str] | None, target: int = 2000,
+                  in_rank: int = 1600, keep_rank: int = 2400) -> list[str]:
+    """中证2000 定调缓冲区。`prev=None` → 纯排名前 `target`。
+
+    语义（2026-08-19 由官方实际行为反推校正）：**「老样本优先保留」的优先级高于
+    「新样本优先进入」** —— 先保留待选内排名 ≤`keep_rank` 的全部老样本，剩余名额按
+    待选排名依次填充（含排名 >`keep_rank` 的旧样本，此时按普通候选竞争）。
+    证据：2026-06 期官方仅调整 232/2000（11.6%），且保留了大量排名 2100–2400 段的
+    老样本、同时新进排名 >1600 的新样本 —— 与「冲突时按总排名裁」的读法不相容，
+    与本语义相容。`in_rank` 线在本语义下由排名填充自动满足（新样本排名越前越先进）。
+
+    `ranked` = 待选样本按过去一年日均总市值**降序**。返回保持该排序。
+    """
+    if prev is None:
+        return ranked[:target]
+    old_keep = [c for c in ranked[:keep_rank] if c in prev]
+    if len(old_keep) >= target:
+        sel = set(old_keep[:target])
+        return [c for c in ranked if c in sel]
+    quota = target - len(old_keep)
+    kept = set(old_keep)
+    filled = [c for c in ranked if c not in kept][:quota]
+    sel = kept | set(filled)
+    return [c for c in ranked if c in sel]
+
+
 # ---------------------------------------------------------------- 样本空间
 def _avg_mv_1y_daily(px_rows: list, sh_rows: list) -> pd.Series:
     """过去 1 年**日频**日均总市值 = mean(close × 前向填充的 total_shares)。
@@ -144,18 +197,20 @@ def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
             # 旧写法拿到残缺日就直接用 → 样本空间 0 只 → build_pair 里静默 continue，
             # Gate 0 正式跑因此少建了整整一期（2025-12-15→2026-06-15）而无任何告警。
             # 改为：在过去 400 天内，取**行数达到该窗口峰值一半**的最近一个交易日。
+            # codes 显式给定时不做交易所过滤（官方名单可含北交所 .BJ；排名带路径维持 .SH/.SZ）
+            exch = "TRUE" if codes is not None else "(ts_code LIKE '%.SH' OR ts_code LIKE '%.SZ')"
             cur.execute(f"""WITH cnt AS (
                               SELECT trade_date, count(*) n FROM {s}.stock_indicator
                               WHERE trade_date<=DATE '{d}' AND trade_date>DATE '{d}'-400
                                 AND total_mv IS NOT NULL
-                                AND (ts_code LIKE '%.SH' OR ts_code LIKE '%.SZ')
+                                AND {exch}
                               GROUP BY 1)
                             SELECT ts_code, total_mv::float8, circ_mv::float8
                             FROM {s}.stock_indicator
                             WHERE trade_date=(SELECT max(trade_date) FROM cnt
                                               WHERE n >= 0.5*(SELECT max(n) FROM cnt))
                               AND total_mv IS NOT NULL
-                              AND (ts_code LIKE '%.SH' OR ts_code LIKE '%.SZ')""")
+                              AND {exch}""")
             snap = pd.DataFrame(cur.fetchall(), columns=["ts_code", "total_mv", "circ_mv"])
             snap = snap.sort_values("total_mv", ascending=False).set_index("ts_code")
             band = (snap.reindex(codes).dropna(subset=["total_mv"]).copy()
@@ -211,6 +266,114 @@ def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
     band = band[band["adv_1y"].notna()]
     band = band[band["adv_1y"] >= band["adv_1y"].quantile(liq_drop_pct)]       # 剔流动性尾部
     return band
+
+
+def official_sample_space(eff: pd.Timestamp, prev: set[str] | None = None,
+                          verbose: bool = False) -> list[str]:
+    """模拟《中证2000指数编制方案》(V1.1) 官方选样，返回按日均总市值降序的 2000 只名单。
+
+    时间线：一切数据以 `review_cutoff(eff)`（4-30 / 10-31）为界，考察窗 = 截止日往回一年
+    （原文「上一年度 5 月 1 日至审核年度 4 月 30 日」）；`eff` 只用于定位截止日。
+
+    步骤（原文照抄，偏离清单见 improvement-plan §2）：
+      中证全指样本空间（非 ST/*ST；上市时长科创 >1 年、北交 >2 年、其他 >1 季度；含北交所）
+      → 窗内日均成交金额排名前 90%
+      → 剔 000905/000852 实际成分（截止日前最近一期）+ 剔窗内日均总市值排名前 1500
+      → 待选按日均总市值取前 2000，缓冲区 1600 进 / 2400 保（`prev` 为上期名单）。
+
+    已知裁量（登记）：新上市证券「自上市第六个交易日以来」近似为剔 `list_date`+7 自然日前
+    的行；「上市超过一个季度」按 91 天；ST 状态取截止日（无行时向前找 ≤10 天）。
+    ⚠️ 「剔中证800 样本」不需要沪深300 历史成分：日均市值前 1500 的剔除覆盖 300/500 全体
+    （300 缓冲区至 360 名、500 至 ~1000 名，均 <1500），唯一漏网的中证1000 缓冲尾巴由
+    000852 实际成分（库内 2014-10 起 129 期）剔除。
+    """
+    cutoff = review_cutoff(eff)
+    d = cutoff.date().isoformat()
+    c, s = _conn()
+    try:
+        with c.cursor() as cur:
+            cur.execute(f"""SELECT ts_code, trade_date, close::float8, amount::float8
+                            FROM {s}.stock_daily_price
+                            WHERE trade_date > DATE '{d}' - INTERVAL '365 days'
+                              AND trade_date <= DATE '{d}'
+                              AND close IS NOT NULL AND pre_close>0 AND volume>0""")
+            px = pd.DataFrame(cur.fetchall(), columns=["ts_code", "trade_date", "close", "amount"])
+            cur.execute(f"""SELECT ts_code, effective_date, total_shares::float8
+                            FROM {s}.stock_share_capital
+                            WHERE effective_date <= DATE '{d}' AND total_shares IS NOT NULL""")
+            sh = pd.DataFrame(cur.fetchall(), columns=["ts_code", "effective_date", "total_shares"])
+            cur.execute(f"""SELECT ts_code, list_date FROM {s}.stock_meta""")
+            meta = pd.DataFrame(cur.fetchall(), columns=["ts_code", "list_date"])
+            cur.execute(f"""SELECT ts_code, is_st FROM {s}.stock_status
+                            WHERE trade_date = (SELECT max(trade_date) FROM {s}.stock_status
+                                                WHERE trade_date <= DATE '{d}'
+                                                  AND trade_date > DATE '{d}' - 10)""")
+            st = dict(cur.fetchall())
+            # 800/1000/2000 是同一次审核**联动**调样：2000 剔除的是与它同日生效的
+            # **新一期** 500/1000 名单（官方同日公告，非前视）。取 eff 后最近一期；
+            # 若库内没有（历史期 or 尾部桶场景）回退到 cutoff 前最近一期并出声。
+            eff_d = eff.date().isoformat()
+            excl: set[str] = set()
+            for idx in ("000905.SH", "000852.SH"):
+                # 窗限 eff+45 天：防月末快照缺口时抓到远期名单（那才是前视）
+                cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
+                                WHERE index_code=%s AND effective_date =
+                                  (SELECT min(effective_date) FROM {s}.index_constituent
+                                   WHERE index_code=%s AND effective_date > DATE '{eff_d}'
+                                     AND effective_date <= DATE '{eff_d}' + 45)""",
+                            (idx, idx))
+                new_leg = {r[0] for r in cur.fetchall()}
+                if not new_leg:
+                    cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
+                                    WHERE index_code=%s AND effective_date =
+                                      (SELECT max(effective_date) FROM {s}.index_constituent
+                                       WHERE index_code=%s AND effective_date <= DATE '{d}')""",
+                                (idx, idx))
+                    new_leg = {r[0] for r in cur.fetchall()}
+                    if verbose and new_leg:
+                        print(f"  ⚠️ {idx} 无 {eff_d} 后名单，联动剔除回退到旧一期", flush=True)
+                excl |= new_leg
+    finally:
+        c.close()
+
+    px["trade_date"] = pd.to_datetime(px["trade_date"])
+    meta["list_date"] = pd.to_datetime(meta["list_date"], errors="coerce")
+    meta = meta.dropna(subset=["list_date"]).set_index("ts_code")
+
+    # 中证全指样本空间：上市时长分板 + 非 ST（北交所不剔 —— ts_code 不再限 .SH/.SZ）
+    age = (cutoff - meta["list_date"]).dt.days
+    is_star = meta.index.str.startswith(("688", "689"))
+    is_bj = meta.index.str.endswith(".BJ")
+    ok_age = pd.Series(np.where(is_star, age >= 365, np.where(is_bj, age >= 730, age >= 91)),
+                       index=meta.index)
+    eligible = set(meta.index[ok_age]) - {k for k, v in st.items() if v}
+
+    # 新上市证券自上市第六个交易日起算 → 剔 list_date+7 自然日前的行（近似，登记）
+    px = px[px["ts_code"].isin(eligible)]
+    px = px.merge(meta["list_date"], left_on="ts_code", right_index=True, how="left")
+    px = px[px["trade_date"] >= px["list_date"] + pd.Timedelta(days=7)]
+
+    sh["effective_date"] = pd.to_datetime(sh["effective_date"])
+    sh = sh.sort_values("effective_date")
+    m = pd.merge_asof(px.sort_values("trade_date"), sh,
+                      left_on="trade_date", right_on="effective_date",
+                      by="ts_code", direction="backward")
+    m = m.dropna(subset=["total_shares"])
+    m["mv"] = m["close"] * m["total_shares"]
+    g = m.groupby("ts_code").agg(avg_mv=("mv", "mean"), adv=("amount", "mean"))
+
+    # 成交额前 90%（无老样本放宽）。⚠️ 曾试沪深300 §6.4 式的老样本放宽（全免 / 95% 线），
+    # 两版横截面重合率均净负（86.1% → 83.9% / 84.4%）：救回贴线老样本 27 只，但它们挤占
+    # 待选排名引发的位移弄错更多票 → 已回滚。官方保留它们的机制另有其因（残差项）。
+    g = g[g["adv"].rank(pct=True, ascending=True) > 0.10]
+    g = g.sort_values("avg_mv", ascending=False)
+    g["rank_mv"] = np.arange(1, len(g) + 1)
+    cand = g[(g["rank_mv"] > 1500) & (~g.index.isin(excl))]        # 待选样本
+    picked = _apply_buffer(list(cand.index), prev)
+    if verbose:
+        print(f"  official_sample_space @{d}: 全空间 {len(g)}，待选 {len(cand)}，"
+              f"选出 {len(picked)}（prev={'None' if prev is None else len(prev)}）", flush=True)
+    return picked
 
 
 # ---------------------------------------------------------------- 因子面板
@@ -502,24 +665,56 @@ class PairResult:
     skipped: list = None       # 因样本空间为空而未建的调样期（正常应为空）
 
 
+def _official_2000_members(cutoff: pd.Timestamp) -> set[str] | None:
+    """截止日前最近一期 932000 官方成分（库内 2026-02 起才有）；无则 None。"""
+    c, s = _conn()
+    try:
+        with c.cursor() as cur:
+            cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
+                            WHERE index_code='932000.CSI' AND effective_date =
+                              (SELECT max(effective_date) FROM {s}.index_constituent
+                               WHERE index_code='932000.CSI'
+                                 AND effective_date <= DATE '{cutoff.date()}')""")
+            rows = {r[0] for r in cur.fetchall()}
+    finally:
+        c.close()
+    return rows or None
+
+
 def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
                take_top_half: bool, verbose: bool = True,
-               codes_by_date: dict | None = None, apply_filters: bool = True) -> PairResult:
+               codes_by_date: dict | None = None, apply_filters: bool = True,
+               official_space: bool = False) -> PairResult:
     """按调样日滚动构建一对纯风格腿的**日收益序列**。
 
     `codes_by_date`：{调样日字符串 → 该期显式样本空间名单}，给定时覆盖排名带
     （见 `sample_space` 的 `codes`）。缺某期则该期回退到排名带。
+
+    `official_space=True`：样本空间改走 `official_sample_space`（模拟官方选样，含缓冲区
+    滚动；有官方 932000 成分的期用官方名单做上期状态），且**样本空间与七因子全部以
+    `review_cutoff(d)` 为数据界**（T1–T9 修复）；腿收益仍从生效日 `d` 起算。
+    此时 `rank_lo/rank_hi/codes_by_date/apply_filters` 被忽略。
     """
     gs, vs, ng, nv, skipped = [], [], {}, {}, []
+    prev_members: set[str] | None = None
     for i, d in enumerate(dates[:-1]):
-        sp = sample_space(d, rank_lo, rank_hi, apply_filters=apply_filters,
-                          codes=(codes_by_date or {}).get(str(d.date())))
+        if official_space:
+            cutoff = review_cutoff(d)
+            prev = _official_2000_members(cutoff) or prev_members
+            picked = official_sample_space(d, prev, verbose=verbose)
+            prev_members = set(picked)
+            sp = sample_space(cutoff, None, None, codes=picked, apply_filters=False)
+            asof_data = cutoff
+        else:
+            sp = sample_space(d, rank_lo, rank_hi, apply_filters=apply_filters,
+                              codes=(codes_by_date or {}).get(str(d.date())))
+            asof_data = d
         if not len(sp):
             # 静默跳过会让"少建一期"完全不可见（Gate 0 正式跑吃过一次）→ 必须出声
             print(f"  ⚠️ {d.date()}: 样本空间为空，整期跳过（检查 stock_indicator 覆盖）", flush=True)
             skipped.append(str(d.date()))
             continue
-        prob = style_probabilities(style_scores(factor_panel(sp, d)))
+        prob = style_probabilities(style_scores(factor_panel(sp, asof_data)))
         wg, wv = select_legs(prob, take_top_half)
         ng[str(d.date())], nv[str(d.date())] = len(wg), len(wv)
         nxt = dates[i + 1]
