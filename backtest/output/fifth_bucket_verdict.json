@@ -1,0 +1,25 @@
+{
+  "n_obs": 833,
+  "n_perm": 1000,
+  "common_window": [
+    "2023-03-14",
+    "2026-08-18"
+  ],
+  "sharpe_incumbent_full": 1.5561,
+  "sharpe_candidate_full": 1.525,
+  "sharpe_diff": -0.0311,
+  "p_selected": 0.6144,
+  "p_naive": 0.6144,
+  "worst_tv_incumbent": 0.5448,
+  "worst_tv_candidate": 0.4957,
+  "gate1": false,
+  "gate2": false,
+  "gate3": true,
+  "OVERALL": "STOP",
+  "verdict_case": "② 差异不显著 → 在现役架构与本实现下，尾部的增量不可辨认；**不得**表述为「尾部无信息」（approximate-PIT / 实现差异 / 1/5 权重稀释都在压效应）",
+  "zero_carry_diff": -0.0411,
+  "caveats": [
+    "provisional: approximate-PIT（CSMAR ann_date 批次日，min(ann,法定截止) 缓解）",
+    "有效窗截至 2025-03-31（stock_financial 停更），其后为数据外推"
+  ]
+}

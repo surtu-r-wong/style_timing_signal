@@ -38,7 +38,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from backtest.baseline import WINDOWS, evaluate  # noqa: E402
+from backtest.baseline import evaluate  # noqa: E402
 from backtest.data import load_carry, load_underlying_returns  # noqa: E402
 from backtest.engine import run_strategy  # noqa: E402
 from backtest.metrics import sharpe  # noqa: E402
@@ -50,7 +50,10 @@ COST_BPS = 3.0
 KOU_JING = "blend"
 MIN_SHIFT = 60
 WARMUP_DAYS = LOOKBACK + Z_WINDOW          # 公共窗起点 = 尾部收益首日 + 60 交易日
-STAT_WINDOWS = ("2014-2020", "2021-2023")  # worst(train,val)，evaluate 按窗过滤
+#: 关2 的 worst(train,val) 窗：r1 冻结的日历窗（2014-2020/2021-2023）与短公共窗
+#: （2023-03 起）结构性不相容（前者过滤后为空）→ 最小适配 = 公共窗**机械对半拆**
+#: （H1/H2，无自由参数），忠实于"不能只赢在某一段"的本意；跑前定死，登记于执行记录 §6。
+STAT_WINDOWS = ("H1", "H2")
 GATE_ALPHA = 0.05
 GATE2_TOLERANCE = 0.02
 
@@ -115,15 +118,17 @@ class Data:
 
     def metrics(self, pos_arr: np.ndarray) -> dict:
         pos = pd.Series(pos_arr, index=self.idx)
+        mid = self.idx[len(self.idx) // 2]
+        wins = {"full": (None, None), "H1": (None, mid), "H2": (mid, None)}
         out = {}
-        for win, (s, e) in WINDOWS.items():
+        for win, (s, e) in wins.items():
             p, u, cc = pos, self.und, self.car
-            if s:
-                m = p.index >= pd.Timestamp(s)
+            if s is not None:
+                m = p.index >= s
                 p, u = p[m], u[m]
                 cc = cc[m] if cc is not None else None
-            if e:
-                m = p.index <= pd.Timestamp(e)
+            if e is not None:
+                m = p.index < e
                 p, u = p[m], u[m]
                 cc = cc[m] if cc is not None else None
             out[win] = evaluate(p, u, cc, COST_BPS, 0)["long"]
@@ -149,7 +154,7 @@ def main(argv=None) -> int:
     rows = []
     for tag, m in (("现役（四对）", inc_m), ("候选（五对+尾部）", cand_m)):
         rows.append({"方案": tag,
-                     **{f"S_{w}": round(m[w]["sharpe"], 4) for w in WINDOWS},
+                     **{f"S_{w}": round(m[w]["sharpe"], 4) for w in ("full", "H1", "H2")},
                      "年化%": round(m["full"]["ann"] * 100, 2),
                      "MaxDD%": round(m["full"]["maxdd"] * 100, 2),
                      "换手": round(m["full"]["turnover"], 2)})
