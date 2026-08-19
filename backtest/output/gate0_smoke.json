@@ -1,0 +1,91 @@
+{
+ "2024-06-17": {
+  "frame_n": 5043,
+  "suffix": {
+   ".SZ": 2780,
+   ".SH": 2178,
+   ".BJ": 85
+  },
+  "hk_pressure": {
+   "n_hk_priced": 0,
+   "into_top1500": 0,
+   "into_top3500": 0
+  },
+  "ov_1000_prev_none": 0.739,
+  "ov_1000_prev_truth": 0.836,
+  "tail_n": 437,
+  "tail_bj": 13,
+  "tail_hk": 0,
+  "tail_median_avg_mv_yi": 22.49,
+  "tail_max_avg_mv_yi": 33.87
+ },
+ "2026-06-15": {
+  "frame_n": 5199,
+  "suffix": {
+   ".SZ": 2741,
+   ".SH": 2212,
+   ".BJ": 246
+  },
+  "hk_pressure": {
+   "n_hk_priced": 610,
+   "into_top1500": 465,
+   "into_top3500": 601,
+   "hk_top3": [
+    [
+     "0700.HK",
+     51883.9
+    ],
+    [
+     "9988.HK",
+     26293.8
+    ],
+    [
+     "1398.HK",
+     22106.4
+    ]
+   ]
+  },
+  "ov_1000_prev_none": 0.845,
+  "ov_1000_prev_truth": 0.924,
+  "tail_n": 520,
+  "tail_bj": 31,
+  "tail_hk": 0,
+  "tail_median_avg_mv_yi": 27.35,
+  "tail_max_avg_mv_yi": 43.91
+ },
+ "panel_band1000": {
+  "picked": 1000,
+  "aligned": 997,
+  "nonnull_pct": {
+   "EP": 97.0,
+   "CFP": 97.0,
+   "BP": 99.0,
+   "DP": 100.0,
+   "SalG": 83.8,
+   "ProG": 83.8,
+   "dROE": 97.2,
+   "industry": 100.0,
+   "circ_mv": 100.0
+  },
+  "n_growth": 314,
+  "n_value": 387
+ },
+ "panel_tail": {
+  "picked": 520,
+  "aligned": 500,
+  "nonnull_pct": {
+   "EP": 93.6,
+   "CFP": 93.6,
+   "BP": 94.0,
+   "DP": 100.0,
+   "SalG": 76.0,
+   "ProG": 75.8,
+   "dROE": 93.6,
+   "industry": 100.0,
+   "circ_mv": 100.0
+  },
+  "n_growth": 149,
+  "n_value": 188
+ },
+ "elapsed_s": 170.2
+}

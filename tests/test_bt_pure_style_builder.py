@@ -13,9 +13,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from backtest.pure_style_builder import (  # noqa: E402
+    BAND_1000,
+    BAND_2000,
+    OfficialBand,
     _apply_buffer,
     _avg_mv_1y_daily,
     _cap_weights,
+    _select_band,
+    _select_tail,
     _statutory_deadline,
     review_cutoff,
 )
@@ -146,3 +151,70 @@ def test_buffer_old_members_overflow_trims_worst_ranked_old():
     """老样本多于 target 时保留排名最好的 target 只。"""
     got = _apply_buffer(list("abcde"), prev={"b", "c", "d", "e"}, target=3, in_rank=2, keep_rank=5)
     assert got == ["b", "c", "d"]
+
+
+# ---------------------------------------------------------------- 官方带选样层（r3）
+def _frame(rows):
+    """rows = [(ts_code, avg_mv, adv), ...] → `_space_frame` 输出形状的帧。"""
+    df = pd.DataFrame(rows, columns=["ts_code", "avg_mv", "adv"]).set_index("ts_code")
+    df["is_bj"] = df.index.str.endswith(".BJ")
+    return df
+
+
+def test_band_constants_match_methodology_originals():
+    # 《中证2000》V1.1：前90%成交额（剔后10%）/剔前1500/取2000/缓冲1600-2400/含北交所
+    assert (BAND_2000.adv_trim, BAND_2000.mv_prescreen, BAND_2000.target,
+            BAND_2000.buf_in, BAND_2000.buf_keep, BAND_2000.include_bj) == \
+        (0.10, 1500, 2000, 1600, 2400, True)
+    # 《中证1000》V1.1：剔成交额后20%/剔前300/取前1000/缓冲800-1200/仅沪深
+    assert (BAND_1000.adv_trim, BAND_1000.mv_prescreen, BAND_1000.target,
+            BAND_1000.buf_in, BAND_1000.buf_keep, BAND_1000.include_bj) == \
+        (0.20, 300, 1000, 800, 1200, False)
+    assert "000905.SH" in BAND_1000.excl_indices        # 剔中证800 的 500 半（真值全历史）
+
+
+def test_select_band_drops_bj_only_when_band_excludes_it():
+    g = _frame([("A.SH", 100, 10), ("B.SZ", 90, 10), ("C.BJ", 80, 10)])
+    band_sh = OfficialBand("t", 0.0, 0, (), 3, 2, 4, include_bj=False)
+    band_all = OfficialBand("t", 0.0, 0, (), 3, 2, 4, include_bj=True)
+    assert _select_band(g, band_sh, set(), None)[0] == ["A.SH", "B.SZ"]
+    assert _select_band(g, band_all, set(), None)[0] == ["A.SH", "B.SZ", "C.BJ"]
+
+
+def test_select_band_adv_trim_removes_bottom_quantile_before_ranking():
+    # 4 只，adv_trim=0.5 → 成交额后 50%（C、D）在排名之前被剔
+    g = _frame([("A.SH", 10, 100), ("B.SH", 90, 90), ("C.SH", 100, 10), ("D.SH", 95, 5)])
+    band = OfficialBand("t", 0.5, 0, (), 4, 2, 4, True)
+    picked, n_all, _ = _select_band(g, band, set(), None)
+    assert picked == ["B.SH", "A.SH"] and n_all == 2    # C/D 市值再大也进不来
+
+
+def test_select_band_prescreen_and_membership_exclusion():
+    g = _frame([("BIG.SH", 100, 10), ("MID.SH", 50, 10), ("MEM.SH", 40, 10), ("SM.SH", 30, 10)])
+    band = OfficialBand("t", 0.0, 1, (), 3, 2, 4, True)   # 剔市值排名第 1（BIG）
+    picked, _, n_cand = _select_band(g, band, {"MEM.SH"}, None)
+    assert picked == ["MID.SH", "SM.SH"] and n_cand == 2  # BIG 被排名筛剔、MEM 被成分剔
+
+
+def test_select_band_wires_buffer_params():
+    # target=2：prev 里排名 3 的老样本落在 keep_rank=3 内 → 压过排名 2 的新票
+    g = _frame([(f"S{i}.SH", 100 - i, 10) for i in range(4)])
+    band = OfficialBand("t", 0.0, 0, (), 2, 1, 3, True)
+    assert _select_band(g, band, set(), {"S2.SH"})[0] == ["S0.SH", "S2.SH"]
+
+
+def test_select_tail_is_remainder_after_mothers_prescreen_and_inner_trim():
+    g = _frame([("TOP.SH", 100, 50), ("MOM.SH", 90, 50), ("T1.SH", 80, 40),
+                ("T2.BJ", 70, 30), ("T3.SH", 60, 1)])
+    picked, n_all, n_cand = _select_tail(g, {"MOM.SH"}, mv_prescreen=1,
+                                         adv_trim=0.0, inner_adv_trim=0.4)
+    # TOP 被前1剔、MOM 被四母剔、T3 被带内流动性尾剔；.BJ 保留；按市值降序
+    assert picked == ["T1.SH", "T2.BJ"]
+    assert n_all == 5 and n_cand == 3
+
+
+def test_select_tail_has_no_buffer_semantics():
+    # 余集 = 全部保留（除筛），与 prev 无关 —— 接口上根本不收 prev
+    g = _frame([("A.SH", 10, 10), ("B.SH", 9, 10)])
+    picked, _, _ = _select_tail(g, set(), mv_prescreen=0, adv_trim=0.0, inner_adv_trim=0.0)
+    assert picked == ["A.SH", "B.SH"]

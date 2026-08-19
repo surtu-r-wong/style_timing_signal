@@ -111,6 +111,41 @@ def review_cutoff(eff: pd.Timestamp) -> pd.Timestamp:
     return pd.Timestamp(y, 10, 31)
 
 
+@dataclass(frozen=True)
+class OfficialBand:
+    """一个官方规模带的选样参数（各带编制方案原文转录，勿互相套用）。
+
+    r3 预登记附录 A 实测教训：中证1000 与中证2000 有三处实质不同——样本空间
+    （1000 仅沪深，2000 含北交所）、成交额筛（1000 剔后 20%，2000 剔后 10% 即前 90%）、
+    缓冲区（800/1200 vs 1600/2400）。"""
+    name: str
+    adv_trim: float            # 剔除窗内日均成交额排名后 X%（分位）
+    mv_prescreen: int          # 剔除窗内日均总市值排名前 N
+    excl_indices: tuple        # 联动剔除的上层指数真值成分（index_code）
+    target: int                # 待选按日均总市值取前 N
+    buf_in: int                # 缓冲区：新样本优先进入线
+    buf_keep: int              # 缓冲区：老样本优先保留线
+    include_bj: bool           # 样本空间是否含北交所
+
+
+#: 《中证2000指数编制方案》V1.1 2023-12（原有实现的参数原样固化）
+BAND_2000 = OfficialBand("2000", 0.10, 1500, ("000905.SH", "000852.SH"), 2000, 1600, 2400, True)
+#: 《中证1000指数编制方案》V1.1 2023-12（r3 预登记附录 A）。剔中证800：000905 真值 +
+#: 「剔日均总市值前 300」排名筛结构性覆盖 300 区域；000300 真值库内仅 8 期（2026 起），
+#: 可用期一并剔除，缓冲区边角票的漏网量由 000852 横截面验收量化（r3 §4.1 登记）。
+BAND_1000 = OfficialBand("1000", 0.20, 300, ("000905.SH", "000300.SH"), 1000, 800, 1200, False)
+
+#: 样本空间交易所护栏（中证全指 = 沪深 + 北交）。库内三张表各有 600~700 只 `.HK` 行，
+#: 混入会污染排名筛。0R 锚复现阶段可临时补 ".HK" 以还原 08-19 锚值口径（gate0_runner）。
+_EXCHANGE_SUFFIXES = (".SH", ".SZ", ".BJ")
+
+#: 尾部桶（第 5 桶，r3 预登记 §2）：官方链余集，无自身缓冲区。
+TAIL_MV_PRESCREEN = 3500       # 剔窗内日均总市值排名前 3500（官方递推算术 3800−300）
+TAIL_ADV_TRIM = 0.10           # 全空间成交额前 90%（沿中证2000 链）
+TAIL_INNER_ADV_TRIM = 0.20     # 带内再剔窗内日均成交额后 20%（r1 冻结值沿用）
+TAIL_MOTHER_TRUTH = ("000905.SH", "000852.SH", "000300.SH")   # 932000 单独走真值-否则-模拟
+
+
 def _apply_buffer(ranked: list[str], prev: set[str] | None, target: int = 2000,
                   in_rank: int = 1600, keep_rank: int = 2400) -> list[str]:
     """中证2000 定调缓冲区。`prev=None` → 纯排名前 `target`。
@@ -268,24 +303,16 @@ def sample_space(asof: pd.Timestamp, rank_lo: int, rank_hi: int | None,
     return band
 
 
-def official_sample_space(eff: pd.Timestamp, prev: set[str] | None = None,
-                          verbose: bool = False) -> list[str]:
-    """模拟《中证2000指数编制方案》(V1.1) 官方选样，返回按日均总市值降序的 2000 只名单。
+def _space_frame(eff: pd.Timestamp) -> pd.DataFrame:
+    """官方化中证全指样本空间的个股帧（考察窗口径），index=ts_code，列 avg_mv / adv / is_bj。
 
-    时间线：一切数据以 `review_cutoff(eff)`（4-30 / 10-31）为界，考察窗 = 截止日往回一年
-    （原文「上一年度 5 月 1 日至审核年度 4 月 30 日」）；`eff` 只用于定位截止日。
+    资格筛（各带共用）：非 ST/*ST；上市时长分板（科创 >1 年、北交 >2 年、其他 >1 季度）；
+    新上市证券「自上市第六个交易日以来」近似为剔 `list_date`+7 自然日前的行（登记裁量）；
+    ST 状态取截止日（无行时向前找 ≤10 天）。**含北交所**（带层再按 `include_bj` 裁）。
 
-    步骤（原文照抄，偏离清单见 improvement-plan §2）：
-      中证全指样本空间（非 ST/*ST；上市时长科创 >1 年、北交 >2 年、其他 >1 季度；含北交所）
-      → 窗内日均成交金额排名前 90%
-      → 剔 000905/000852 实际成分（截止日前最近一期）+ 剔窗内日均总市值排名前 1500
-      → 待选按日均总市值取前 2000，缓冲区 1600 进 / 2400 保（`prev` 为上期名单）。
-
-    已知裁量（登记）：新上市证券「自上市第六个交易日以来」近似为剔 `list_date`+7 自然日前
-    的行；「上市超过一个季度」按 91 天；ST 状态取截止日（无行时向前找 ≤10 天）。
-    ⚠️ 「剔中证800 样本」不需要沪深300 历史成分：日均市值前 1500 的剔除覆盖 300/500 全体
-    （300 缓冲区至 360 名、500 至 ~1000 名，均 <1500），唯一漏网的中证1000 缓冲尾巴由
-    000852 实际成分（库内 2014-10 起 129 期）剔除。
+    ⚠️ 交易所护栏：只留 `.SH/.SZ/.BJ`。库内 `stock_meta`/`stock_daily_price`/
+    `stock_share_capital` 各有 600~700 只 `.HK` 行（08-19 实测）——中证全指样本空间为
+    沪深+北交，`.HK` 混入会污染一切排名筛。
     """
     cutoff = review_cutoff(eff)
     d = cutoff.date().isoformat()
@@ -309,38 +336,14 @@ def official_sample_space(eff: pd.Timestamp, prev: set[str] | None = None,
                                                 WHERE trade_date <= DATE '{d}'
                                                   AND trade_date > DATE '{d}' - 10)""")
             st = dict(cur.fetchall())
-            # 800/1000/2000 是同一次审核**联动**调样：2000 剔除的是与它同日生效的
-            # **新一期** 500/1000 名单（官方同日公告，非前视）。取 eff 后最近一期；
-            # 若库内没有（历史期 or 尾部桶场景）回退到 cutoff 前最近一期并出声。
-            eff_d = eff.date().isoformat()
-            excl: set[str] = set()
-            for idx in ("000905.SH", "000852.SH"):
-                # 窗限 eff+45 天：防月末快照缺口时抓到远期名单（那才是前视）
-                cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
-                                WHERE index_code=%s AND effective_date =
-                                  (SELECT min(effective_date) FROM {s}.index_constituent
-                                   WHERE index_code=%s AND effective_date > DATE '{eff_d}'
-                                     AND effective_date <= DATE '{eff_d}' + 45)""",
-                            (idx, idx))
-                new_leg = {r[0] for r in cur.fetchall()}
-                if not new_leg:
-                    cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
-                                    WHERE index_code=%s AND effective_date =
-                                      (SELECT max(effective_date) FROM {s}.index_constituent
-                                       WHERE index_code=%s AND effective_date <= DATE '{d}')""",
-                                (idx, idx))
-                    new_leg = {r[0] for r in cur.fetchall()}
-                    if verbose and new_leg:
-                        print(f"  ⚠️ {idx} 无 {eff_d} 后名单，联动剔除回退到旧一期", flush=True)
-                excl |= new_leg
     finally:
         c.close()
 
     px["trade_date"] = pd.to_datetime(px["trade_date"])
     meta["list_date"] = pd.to_datetime(meta["list_date"], errors="coerce")
     meta = meta.dropna(subset=["list_date"]).set_index("ts_code")
+    meta = meta[meta.index.str.endswith(tuple(_EXCHANGE_SUFFIXES))]  # 交易所护栏（剔 .HK 等）
 
-    # 中证全指样本空间：上市时长分板 + 非 ST（北交所不剔 —— ts_code 不再限 .SH/.SZ）
     age = (cutoff - meta["list_date"]).dt.days
     is_star = meta.index.str.startswith(("688", "689"))
     is_bj = meta.index.str.endswith(".BJ")
@@ -348,7 +351,6 @@ def official_sample_space(eff: pd.Timestamp, prev: set[str] | None = None,
                        index=meta.index)
     eligible = set(meta.index[ok_age]) - {k for k, v in st.items() if v}
 
-    # 新上市证券自上市第六个交易日起算 → 剔 list_date+7 自然日前的行（近似，登记）
     px = px[px["ts_code"].isin(eligible)]
     px = px.merge(meta["list_date"], left_on="ts_code", right_index=True, how="left")
     px = px[px["trade_date"] >= px["list_date"] + pd.Timedelta(days=7)]
@@ -361,19 +363,137 @@ def official_sample_space(eff: pd.Timestamp, prev: set[str] | None = None,
     m = m.dropna(subset=["total_shares"])
     m["mv"] = m["close"] * m["total_shares"]
     g = m.groupby("ts_code").agg(avg_mv=("mv", "mean"), adv=("amount", "mean"))
+    g["is_bj"] = g.index.str.endswith(".BJ")
+    return g
 
-    # 成交额前 90%（无老样本放宽）。⚠️ 曾试沪深300 §6.4 式的老样本放宽（全免 / 95% 线），
-    # 两版横截面重合率均净负（86.1% → 83.9% / 84.4%）：救回贴线老样本 27 只，但它们挤占
-    # 待选排名引发的位移弄错更多票 → 已回滚。官方保留它们的机制另有其因（残差项）。
-    g = g[g["adv"].rank(pct=True, ascending=True) > 0.10]
+
+def _linked_members(index_code: str, eff: pd.Timestamp, cutoff: pd.Timestamp,
+                    verbose: bool = False) -> set[str] | None:
+    """联动剔除用的上层指数成分：优先取与 `eff` 同次审核生效的**新一期**名单
+    （(eff, eff+45] 窗，官方同日公告非前视），无则回退 cutoff 前最近一期并出声，
+    全库都没有 → None 并出声（调用方决定模拟或跳过）。"""
+    eff_d, d = eff.date().isoformat(), cutoff.date().isoformat()
+    c, s = _conn()
+    try:
+        with c.cursor() as cur:
+            cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
+                            WHERE index_code=%s AND effective_date =
+                              (SELECT min(effective_date) FROM {s}.index_constituent
+                               WHERE index_code=%s AND effective_date > DATE '{eff_d}'
+                                 AND effective_date <= DATE '{eff_d}' + 45)""",
+                        (index_code, index_code))
+            leg = {r[0] for r in cur.fetchall()}
+            if not leg:
+                cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
+                                WHERE index_code=%s AND effective_date =
+                                  (SELECT max(effective_date) FROM {s}.index_constituent
+                                   WHERE index_code=%s AND effective_date <= DATE '{d}')""",
+                            (index_code, index_code))
+                leg = {r[0] for r in cur.fetchall()}
+                if verbose and leg:
+                    print(f"  ⚠️ {index_code} 无 {eff_d} 后名单，联动剔除回退到旧一期", flush=True)
+    finally:
+        c.close()
+    if not leg:
+        if verbose:
+            print(f"  ⚠️ {index_code} 库内无任何 ≤{d} 名单，本期无法真值剔除", flush=True)
+        return None
+    return leg
+
+
+def _select_band(g: pd.DataFrame, band: OfficialBand, excl: set[str],
+                 prev: set[str] | None) -> tuple[list[str], int, int]:
+    """帧 → 一个官方带的选样（纯函数）。返回 (picked, 全空间只数, 待选只数)。
+
+    顺序与原实现一致：交易所/北交裁剪 → 成交额筛（带内分位）→ 日均总市值排名 →
+    剔上层成分 + 排名预筛 → 缓冲区。
+    成交额筛无老样本放宽——曾试沪深300 §6.4 式放宽（全免 / 95% 线），横截面重合率
+    均净负（86.1% → 83.9% / 84.4%）已回滚（残差项，勿重试）。
+    """
+    if not band.include_bj:
+        g = g[~g["is_bj"]]
+    g = g[g["adv"].rank(pct=True, ascending=True) > band.adv_trim]
     g = g.sort_values("avg_mv", ascending=False)
-    g["rank_mv"] = np.arange(1, len(g) + 1)
-    cand = g[(g["rank_mv"] > 1500) & (~g.index.isin(excl))]        # 待选样本
-    picked = _apply_buffer(list(cand.index), prev)
+    g = g.assign(rank_mv=np.arange(1, len(g) + 1))
+    cand = g[(g["rank_mv"] > band.mv_prescreen) & (~g.index.isin(excl))]
+    picked = _apply_buffer(list(cand.index), prev, target=band.target,
+                           in_rank=band.buf_in, keep_rank=band.buf_keep)
+    return picked, len(g), len(cand)
+
+
+def official_sample_space(eff: pd.Timestamp, prev: set[str] | None = None,
+                          verbose: bool = False, band: OfficialBand = BAND_2000,
+                          frame: pd.DataFrame | None = None) -> list[str]:
+    """模拟一个官方规模带的选样（默认中证2000，参数见 `OfficialBand`），
+    返回按日均总市值降序的名单。
+
+    时间线：一切数据以 `review_cutoff(eff)`（4-30 / 10-31）为界，考察窗 = 截止日往回一年
+    （原文「上一年度 5 月 1 日至审核年度 4 月 30 日」）；`eff` 只用于定位截止日与联动名单。
+    `frame` 给定时复用已算好的样本空间帧（同一 `eff` 内多带共用，见 `tail_sample_space`）。
+
+    ⚠️ 2000 带「剔中证800 样本」不需要沪深300 历史成分：日均市值前 1500 的剔除覆盖
+    300/500 全体（300 缓冲区至 360 名、500 至 ~1000 名，均 <1500），唯一漏网的中证1000
+    缓冲尾巴由 000852 实际成分剔除。1000 带的对应论证见 `BAND_1000` 注释。
+    """
+    cutoff = review_cutoff(eff)
+    g = _space_frame(eff) if frame is None else frame
+    excl: set[str] = set()
+    for idx in band.excl_indices:
+        excl |= _linked_members(idx, eff, cutoff, verbose) or set()
+    picked, n_all, n_cand = _select_band(g, band, excl, prev)
     if verbose:
-        print(f"  official_sample_space @{d}: 全空间 {len(g)}，待选 {len(cand)}，"
-              f"选出 {len(picked)}（prev={'None' if prev is None else len(prev)}）", flush=True)
+        print(f"  official_sample_space[{band.name}] @{cutoff.date()}: 全空间 {n_all}，"
+              f"待选 {n_cand}，选出 {len(picked)}"
+              f"（prev={'None' if prev is None else len(prev)}）", flush=True)
     return picked
+
+
+def _select_tail(g: pd.DataFrame, mothers: set[str],
+                 mv_prescreen: int = TAIL_MV_PRESCREEN, adv_trim: float = TAIL_ADV_TRIM,
+                 inner_adv_trim: float = TAIL_INNER_ADV_TRIM) -> tuple[list[str], int, int]:
+    """帧 → 尾部桶（官方链余集，纯函数）。返回 (picked, 全空间只数, 剔成分+排名筛后只数)。
+
+    r3 预登记 §2：含北交所 → 成交额前 90%（沿 2000 链）→ 剔四母成分 →
+    剔日均总市值排名前 3500 → 带内再剔成交额后 20% → 余集全部保留，无缓冲区。
+    """
+    g = g[g["adv"].rank(pct=True, ascending=True) > adv_trim]
+    g = g.sort_values("avg_mv", ascending=False)
+    g = g.assign(rank_mv=np.arange(1, len(g) + 1))
+    cand = g[(g["rank_mv"] > mv_prescreen) & (~g.index.isin(mothers))]
+    keep = cand[cand["adv"].rank(pct=True, ascending=True) > inner_adv_trim]
+    return list(keep.index), len(g), len(cand)
+
+
+def tail_sample_space(eff: pd.Timestamp, prev2000: set[str] | None = None,
+                      verbose: bool = False,
+                      frame: pd.DataFrame | None = None) -> tuple[list[str], set[str]]:
+    """尾部桶（第 5 桶）样本空间。返回 (picked, 本期中证2000 成员集)。
+
+    四母剔除：000905/000852/000300 取库内真值（`_linked_members`，缺期回退并出声）；
+    932000 优先真值（2023-08 起在库），**无真值期用官方化模拟**（`BAND_2000` + `prev2000`
+    链——r3 §2-3，模拟保真已实测 truth−sim 仅 +0.007）。第二个返回值供调用方接力
+    `prev2000` 链。成分数据洞（000300 仅 8 期、000852 有 stale 段）由排名前 3500 预筛
+    结构性兜底（r3 §2-4）。
+    """
+    cutoff = review_cutoff(eff)
+    g = _space_frame(eff) if frame is None else frame
+    mothers: set[str] = set()
+    for idx in TAIL_MOTHER_TRUTH:
+        mothers |= _linked_members(idx, eff, cutoff, verbose) or set()
+    m2000 = _linked_members("932000.CSI", eff, cutoff, verbose)
+    if m2000 is None:
+        prev = prev2000
+        m2000 = set(official_sample_space(eff, prev, verbose, BAND_2000, frame=g))
+        if verbose:
+            print(f"  tail: 932000 无真值 → 官方化模拟 {len(m2000)} 只", flush=True)
+    mothers |= m2000
+    picked, n_all, n_cand = _select_tail(g, mothers)
+    if verbose:
+        n_bj = sum(c.endswith(".BJ") for c in picked)
+        print(f"  tail_sample_space @{cutoff.date()}: 全空间 {n_all}，四母 {len(mothers)}，"
+              f"剔成分+前{TAIL_MV_PRESCREEN} 后 {n_cand}，带内流动性筛后 {len(picked)}"
+              f"（.BJ {n_bj}）", flush=True)
+    return picked, set(m2000)
 
 
 # ---------------------------------------------------------------- 因子面板
@@ -665,16 +785,17 @@ class PairResult:
     skipped: list = None       # 因样本空间为空而未建的调样期（正常应为空）
 
 
-def _official_2000_members(cutoff: pd.Timestamp) -> set[str] | None:
-    """截止日前最近一期 932000 官方成分（库内 2026-02 起才有）；无则 None。"""
+def _official_members(index_code: str, cutoff: pd.Timestamp) -> set[str] | None:
+    """截止日前最近一期官方成分（prev 链的真值注入用）；库内没有则 None。"""
     c, s = _conn()
     try:
         with c.cursor() as cur:
             cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
-                            WHERE index_code='932000.CSI' AND effective_date =
+                            WHERE index_code=%s AND effective_date =
                               (SELECT max(effective_date) FROM {s}.index_constituent
-                               WHERE index_code='932000.CSI'
-                                 AND effective_date <= DATE '{cutoff.date()}')""")
+                               WHERE index_code=%s
+                                 AND effective_date <= DATE '{cutoff.date()}')""",
+                        (index_code, index_code))
             rows = {r[0] for r in cur.fetchall()}
     finally:
         c.close()
@@ -684,7 +805,8 @@ def _official_2000_members(cutoff: pd.Timestamp) -> set[str] | None:
 def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
                take_top_half: bool, verbose: bool = True,
                codes_by_date: dict | None = None, apply_filters: bool = True,
-               official_space: bool = False) -> PairResult:
+               official_space: bool = False, band: OfficialBand = BAND_2000,
+               truth_prev_index: str | None = "932000.CSI") -> PairResult:
     """按调样日滚动构建一对纯风格腿的**日收益序列**。
 
     `codes_by_date`：{调样日字符串 → 该期显式样本空间名单}，给定时覆盖排名带
@@ -695,6 +817,8 @@ def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
     `review_cutoff(d)` 为数据界**（T1–T9 修复）；腿收益仍从生效日 `d` 起算。
     此时 `rank_lo/rank_hi/apply_filters` 被忽略；`codes_by_date` 给出的期**直通官方真值
     名单**（真实成分版，2026-08-19 wset 回补后 2023-08 起可用），未给的期走模拟。
+    `band` 选择模拟哪个官方带（默认 2000）；`truth_prev_index` 是 prev 链的真值注入源
+    （置 None = 纯自举模拟，Gate 0A 判定版口径）。
     """
     gs, vs, ng, nv, skipped = [], [], {}, {}, []
     prev_members: set[str] | None = None
@@ -705,8 +829,11 @@ def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
             if explicit is not None:
                 picked = list(explicit)          # 官方真值名单直通（真实成分版）
             else:
-                prev = _official_2000_members(cutoff) or prev_members
-                picked = official_sample_space(d, prev, verbose=verbose)
+                # truth_prev_index=None → 纯自举 prev 链（Gate 0A 判定版：不用 000852 真值，
+                # 与尾部桶"无自身真值"的处境同构，r3 §4.1）
+                truth = _official_members(truth_prev_index, cutoff) if truth_prev_index else None
+                prev = truth or prev_members
+                picked = official_sample_space(d, prev, verbose=verbose, band=band)
             prev_members = set(picked)
             sp = sample_space(cutoff, None, None, codes=picked, apply_filters=False)
             asof_data = cutoff
@@ -727,6 +854,46 @@ def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
         vs.append(_leg_returns(wv, d, nxt))
         if verbose:
             print(f"  {d.date()} → {nxt.date()}: 样本空间 {len(sp)}，"
+                  f"成长 {len(wg)} / 价值 {len(wv)}", flush=True)
+    if skipped:
+        print(f"  ⚠️ 共跳过 {len(skipped)} 期：{skipped}", flush=True)
+    return PairResult(pd.concat(gs).sort_index() if gs else pd.Series(dtype=float),
+                      pd.concat(vs).sort_index() if vs else pd.Series(dtype=float), ng, nv,
+                      skipped)
+
+
+def build_tail_pair(dates: list[pd.Timestamp], verbose: bool = True) -> PairResult:
+    """尾部桶（第 5 桶）纯风格对的日收益序列（r3 预登记 §2/§3）。
+
+    与 `build_pair(official_space=True)` 同一因子/得分/选样/加权/漂移管线，仅样本空间
+    换成 `tail_sample_space`（官方链余集）。`take_top_half` 恒为 False（r3 裁决点 4：
+    尾部不采用 2000P 的「前 50%」条款）。932000 无真值期的模拟 prev 链在期间滚动接力。
+    """
+    gs, vs, ng, nv, skipped = [], [], {}, {}, []
+    prev2000: set[str] | None = None
+    for i, d in enumerate(dates[:-1]):
+        cutoff = review_cutoff(d)
+        truth2000 = _official_members("932000.CSI", cutoff)
+        picked, m2000 = tail_sample_space(d, prev2000=truth2000 or prev2000, verbose=verbose)
+        prev2000 = m2000
+        sp = sample_space(cutoff, None, None, codes=picked, apply_filters=False)
+        if not len(sp):
+            print(f"  ⚠️ {d.date()}: 尾部样本空间为空，整期跳过（检查 stock_indicator 覆盖）",
+                  flush=True)
+            skipped.append(str(d.date()))
+            continue
+        if len(sp) < 0.5 * len(picked):
+            # 快照缺行会静默吞掉名单里的票（sample_space 按快照日 reindex）——必须出声
+            print(f"  ⚠️ {d.date()}: 名单 {len(picked)} 只经快照对齐只剩 {len(sp)}，"
+                  f"疑 stock_indicator 覆盖洞", flush=True)
+        prob = style_probabilities(style_scores(factor_panel(sp, cutoff)))
+        wg, wv = select_legs(prob, take_top_half=False)
+        ng[str(d.date())], nv[str(d.date())] = len(wg), len(wv)
+        nxt = dates[i + 1]
+        gs.append(_leg_returns(wg, d, nxt))
+        vs.append(_leg_returns(wv, d, nxt))
+        if verbose:
+            print(f"  {d.date()} → {nxt.date()}: 尾部空间 {len(sp)}，"
                   f"成长 {len(wg)} / 价值 {len(wv)}", flush=True)
     if skipped:
         print(f"  ⚠️ 共跳过 {len(skipped)} 期：{skipped}", flush=True)
