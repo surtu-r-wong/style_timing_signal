@@ -370,8 +370,12 @@ def _space_frame(eff: pd.Timestamp) -> pd.DataFrame:
 def _linked_members(index_code: str, eff: pd.Timestamp, cutoff: pd.Timestamp,
                     verbose: bool = False) -> set[str] | None:
     """联动剔除用的上层指数成分：优先取与 `eff` 同次审核生效的**新一期**名单
-    （(eff, eff+45] 窗，官方同日公告非前视），无则回退 cutoff 前最近一期并出声，
-    全库都没有 → None 并出声（调用方决定模拟或跳过）。"""
+    （[eff, eff+45] 窗，官方生效前公告非前视），无则回退 cutoff 前最近一期并出声，
+    全库都没有 → None 并出声（调用方决定模拟或跳过）。
+
+    ⚠️ 窗下界**含当日**：wset 回补的 932000 名单 `effective_date` 恰等于调样生效日
+    （2023-12-11 等，与官方成分表「纳入日期」一致）——曾写成 `>` 把当期名单跳过、
+    整条回退旧一期（2026-08-19 Gate 0B 启动日志的出声告警暴露，未产生任何 ρ 前修复）。"""
     eff_d, d = eff.date().isoformat(), cutoff.date().isoformat()
     c, s = _conn()
     try:
@@ -379,7 +383,7 @@ def _linked_members(index_code: str, eff: pd.Timestamp, cutoff: pd.Timestamp,
             cur.execute(f"""SELECT ts_code FROM {s}.index_constituent
                             WHERE index_code=%s AND effective_date =
                               (SELECT min(effective_date) FROM {s}.index_constituent
-                               WHERE index_code=%s AND effective_date > DATE '{eff_d}'
+                               WHERE index_code=%s AND effective_date >= DATE '{eff_d}'
                                  AND effective_date <= DATE '{eff_d}' + 45)""",
                         (index_code, index_code))
             leg = {r[0] for r in cur.fetchall()}
