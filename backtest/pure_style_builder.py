@@ -693,15 +693,20 @@ def build_pair(rank_lo: int, rank_hi: int | None, dates: list[pd.Timestamp],
     `official_space=True`：样本空间改走 `official_sample_space`（模拟官方选样，含缓冲区
     滚动；有官方 932000 成分的期用官方名单做上期状态），且**样本空间与七因子全部以
     `review_cutoff(d)` 为数据界**（T1–T9 修复）；腿收益仍从生效日 `d` 起算。
-    此时 `rank_lo/rank_hi/codes_by_date/apply_filters` 被忽略。
+    此时 `rank_lo/rank_hi/apply_filters` 被忽略；`codes_by_date` 给出的期**直通官方真值
+    名单**（真实成分版，2026-08-19 wset 回补后 2023-08 起可用），未给的期走模拟。
     """
     gs, vs, ng, nv, skipped = [], [], {}, {}, []
     prev_members: set[str] | None = None
     for i, d in enumerate(dates[:-1]):
         if official_space:
             cutoff = review_cutoff(d)
-            prev = _official_2000_members(cutoff) or prev_members
-            picked = official_sample_space(d, prev, verbose=verbose)
+            explicit = (codes_by_date or {}).get(str(d.date()))
+            if explicit is not None:
+                picked = list(explicit)          # 官方真值名单直通（真实成分版）
+            else:
+                prev = _official_2000_members(cutoff) or prev_members
+                picked = official_sample_space(d, prev, verbose=verbose)
             prev_members = set(picked)
             sp = sample_space(cutoff, None, None, codes=picked, apply_filters=False)
             asof_data = cutoff
