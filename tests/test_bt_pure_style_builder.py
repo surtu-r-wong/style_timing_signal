@@ -218,3 +218,27 @@ def test_select_tail_has_no_buffer_semantics():
     g = _frame([("A.SH", 10, 10), ("B.SH", 9, 10)])
     picked, _, _ = _select_tail(g, set(), mv_prescreen=0, adv_trim=0.0, inner_adv_trim=0.0)
     assert picked == ["A.SH", "B.SH"]
+
+
+# ---------------------------------------------------------------- 等比 5 桶切段（2026-08-19）
+def test_split_geometric_exact_on_31():
+    from backtest.pure_style_builder import _split_geometric
+    codes = [f"S{i:02d}" for i in range(31)]
+    parts = _split_geometric(codes)
+    assert [len(p) for p in parts] == [1, 2, 4, 8, 16]
+    assert sum(parts, []) == codes                    # 无缝、无重叠、保序
+
+
+def test_split_geometric_scales_to_small_market():
+    from backtest.pure_style_builder import _split_geometric
+    parts = _split_geometric([f"S{i}" for i in range(2349)])   # 2015 年规模
+    sizes = [len(p) for p in parts]
+    assert sum(sizes) == 2349 and all(s > 0 for s in sizes)    # 全非空（替换式的立身之本）
+    assert sizes[0] in (75, 76) and 1210 <= sizes[4] <= 1214   # ≈ 1:2:4:8:16
+
+
+def test_split_geometric_boundaries_are_cumulative():
+    from backtest.pure_style_builder import _split_geometric
+    # 累计边界取整：n=100 → 边界 round(100*[1,3,7,15]/31) = 3,10,23,48
+    parts = _split_geometric([str(i) for i in range(100)])
+    assert [len(p) for p in parts] == [3, 7, 13, 25, 52]

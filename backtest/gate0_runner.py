@@ -198,7 +198,24 @@ def run_0b() -> None:
           f"（{res['elapsed_s']}s）", flush=True)
 
 
+
+def run_preflight500() -> None:
+    """0R'（等比5桶预登记 裁决点3）：只复算 500 带真值锚，确认代码未从 Gate 0 状态漂移。"""
+    t0 = time.time()
+    dates = rebalance_dates(*WINDOW) + [TERMINAL]
+    cbd = truth_codes_by_date("000905.SH", dates, require_all=True)
+    pair = build_pair(None, None, dates, take_top_half=False, official_space=True,
+                      codes_by_date=cbd)
+    off500 = official_spread("932403.CSI", "932402.CSI")
+    rep = rho_report(spread_of(pair), off500)
+    ok = rep["rho"] is not None and rep["rho"] >= 0.9536
+    res = {"gate": "0R'", "anchor": 0.9636, "threshold": 0.9536, "band500_true": rep,
+           "pass": bool(ok), "elapsed_s": round(time.time() - t0, 1)}
+    dump("gate0rp_result", res)
+    print(f"0R' rho = {rep['rho']} -> {'PASS' if ok else 'FAIL'}（{res['elapsed_s']}s）", flush=True)
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    {"0r": run_0r, "0a": run_0a, "0b": run_0b}.get(
-        cmd, lambda: sys.exit("用法: gate0_runner.py 0r|0a|0b"))()
+    {"0r": run_0r, "0a": run_0a, "0b": run_0b, "0rp": run_preflight500}.get(
+        cmd, lambda: sys.exit("用法: gate0_runner.py 0r|0a|0b|0rp"))()

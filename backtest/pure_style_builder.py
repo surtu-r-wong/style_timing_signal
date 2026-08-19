@@ -904,3 +904,85 @@ def build_tail_pair(dates: list[pd.Timestamp], verbose: bool = True) -> PairResu
     return PairResult(pd.concat(gs).sort_index() if gs else pd.Series(dtype=float),
                       pd.concat(vs).sort_index() if vs else pd.Series(dtype=float), ng, nv,
                       skipped)
+
+
+# ---------------------------------------------------------------- 等比 5 桶（2026-08-19 预登记）
+#: 只数占比几何 r=2（1:2:4:8:16，共 31 份）——用户裁决 A；其他切法须另立预登记。
+GEO_BUCKET_WEIGHTS = (1, 2, 4, 8, 16)
+GEO_ADV_TRIM = 0.10            # 全空间成交额前 90% 即止，桶内不加剔（裁决点 2-1）
+
+
+def _split_geometric(codes_ranked: list[str],
+                     weights: tuple = GEO_BUCKET_WEIGHTS) -> list[list[str]]:
+    """已按日均总市值降序的名单 → 按只数占比几何切段（纯函数，累计边界取整，无缝无重叠）。"""
+    n, tot = len(codes_ranked), sum(weights)
+    bounds, acc = [], 0
+    for w in weights[:-1]:
+        acc += w
+        bounds.append(round(n * acc / tot))
+    out, prev = [], 0
+    for b in bounds + [n]:
+        out.append(codes_ranked[prev:b])
+        prev = b
+    return out
+
+
+def geometric_buckets(eff: pd.Timestamp, verbose: bool = False,
+                      frame: pd.DataFrame | None = None) -> list[list[str]]:
+    """等比 5 桶名单（预登记 `2026-08-19-geometric-5buckets` §1/§2）。
+
+    官方化全指样本空间（含北交所，交易所护栏）→ 考察窗日均成交额前 90% →
+    按考察窗日均总市值降序 → 只数 1:2:4:8:16 切 5 段。无缓冲区（裁决点 2-2）。
+    """
+    g = _space_frame(eff) if frame is None else frame
+    g = g[g["adv"].rank(pct=True, ascending=True) > GEO_ADV_TRIM]
+    g = g.sort_values("avg_mv", ascending=False)
+    buckets = _split_geometric(list(g.index))
+    if verbose:
+        sizes = "/".join(str(len(b)) for b in buckets)
+        print(f"  geometric_buckets @{review_cutoff(eff).date()}: 空间 {len(g)} → {sizes}",
+              flush=True)
+    return buckets
+
+
+def build_geometric_pairs(dates: list[pd.Timestamp], verbose: bool = True,
+                          legs_only: bool = False) -> list[PairResult]:
+    """等比 5 桶 × P 族纯风格对的日收益序列（每桶一个 PairResult，公用一份帧/期）。
+
+    与 Gate 0 同一因子/得分/选样/加权/漂移管线；`take_top_half` 恒 False（裁决点 2-3）。
+    `legs_only=True` = 单期核对模式：只建腿、打印只数与非空率，**不算收益**。
+    """
+    acc = [dict(gs=[], vs=[], ng={}, nv={}) for _ in range(5)]
+    skipped: list = []
+    for i, d in enumerate(dates[:-1]):
+        cutoff = review_cutoff(d)
+        frame = _space_frame(d)
+        buckets = geometric_buckets(d, verbose=verbose, frame=frame)
+        for k, picked in enumerate(buckets):
+            sp = sample_space(cutoff, None, None, codes=picked, apply_filters=False)
+            if not len(sp):
+                print(f"  ⚠️ {d.date()} 桶{k+1}: 快照对齐后为空，该桶该期跳过", flush=True)
+                skipped.append(f"{d.date()}#b{k+1}")
+                continue
+            if len(sp) < 0.5 * len(picked):
+                print(f"  ⚠️ {d.date()} 桶{k+1}: 名单 {len(picked)} 对齐后只剩 {len(sp)}，"
+                      f"疑快照覆盖洞", flush=True)
+            panel = factor_panel(sp, cutoff)
+            if legs_only:
+                nn = (panel.notna().mean() * 100).round(1).to_dict()
+                print(f"    桶{k+1}: 名单 {len(picked)} 对齐 {len(sp)} 非空率% {nn}", flush=True)
+            prob = style_probabilities(style_scores(panel))
+            wg, wv = select_legs(prob, take_top_half=False)
+            acc[k]["ng"][str(d.date())], acc[k]["nv"][str(d.date())] = len(wg), len(wv)
+            if verbose or legs_only:
+                print(f"    桶{k+1} 腿：成长 {len(wg)} / 价值 {len(wv)}", flush=True)
+            if legs_only:
+                continue
+            nxt = dates[i + 1]
+            acc[k]["gs"].append(_leg_returns(wg, d, nxt))
+            acc[k]["vs"].append(_leg_returns(wv, d, nxt))
+    if skipped:
+        print(f"  ⚠️ 桶×期 跳过清单：{skipped}", flush=True)
+    return [PairResult(pd.concat(a["gs"]).sort_index() if a["gs"] else pd.Series(dtype=float),
+                       pd.concat(a["vs"]).sort_index() if a["vs"] else pd.Series(dtype=float),
+                       a["ng"], a["nv"], skipped) for a in acc]
