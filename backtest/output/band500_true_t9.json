@@ -1,0 +1,10 @@
+{
+ "label": "500-band true-constituent + T9",
+ "anchor_old_pipeline": 0.9648,
+ "n_obs": 2713,
+ "rho": 0.9636,
+ "rho_csmar": 0.9606,
+ "rho_wind": 0.9743,
+ "glitch_616_spread_pct": 2.39,
+ "elapsed_s": 506.8
+}
