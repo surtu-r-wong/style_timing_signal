@@ -519,6 +519,66 @@ def _dividend_field() -> str:
     raise KeyError("financial_field_map 里找不到 cash_dividend_ps_pre_tax")
 
 
+#: R3 换源边界（2026-08-20）：CSMAR dividend 停更于 end_date 2025-03-31，2026 年起的
+#: 调样日在 csmar 路径下拿不到 2025 年报分红 → D/P 自该边界起改取
+#: `stock_indicator.dividend_yield`（日频直接比率，发布即可知）。边界前保持 csmar
+#: 路径，且**单一截面只用单一源**（因子进截面 z，源间尺度差不影响排序）。
+DP_INDICATOR_START = pd.Timestamp("2026-01-01")
+
+
+def dp_source_for(asof: pd.Timestamp) -> str:
+    """R3 拼接规则（纯函数）：调样日在 `DP_INDICATOR_START` 前用 csmar 红利事件行，
+    此后用 stock_indicator.dividend_yield。"""
+    return "indicator" if asof >= DP_INDICATOR_START else "csmar"
+
+
+def dividend_ttm_events(df: pd.DataFrame, asof: pd.Timestamp,
+                        window_days: int = 366) -> pd.Series:
+    """红利**事件行**的滚动 12 个月每股税前股利（2026-08-20 缺陷修复）。
+
+    ## 为什么不能走 `pit_ttm_with_known`
+    红利是年度/半年度**事件序列**（每年 1~2 行、无季度 YTD 链），喂给按季差分的
+    `pit_ttm_with_known` 会因单季不可构造而全量返回空——实测茅台/平安/格力在多个
+    asof 全 EMPTY：**DP 因子在此前所有 Gate 0 运行中恒为 0（死因子）**，价值得分
+    实际只由 BP/EP(/CFP) 构成，违背官方「价值 = D/P + B/P (+ CF/P) + E/P」规格。
+    修复证据独立于 ρ（规格违背 + 空输出实测），符合修复台账纪律。
+
+    ## 口径
+    TTM 每股股利 = **修正可知日**落在 (asof − window, asof] 的事件行 value 之和
+    （= 市场惯用「近 12 个月已宣告分红」，与 Wind dividend_yield 分子同口径；
+    按可知日开窗而非所属期，避免年度+中期并存时的所属期重叠计数）。
+    """
+    if df.empty:
+        return pd.Series(dtype=float)
+    ann = pd.to_datetime(df["ann_date"])
+    m = ann.notna() & (ann <= asof) & (ann > asof - pd.Timedelta(days=window_days))
+    return df.loc[m].groupby("ts_code")["value"].sum()
+
+
+def _fetch_dp_indicator(codes: list[str], asof: pd.Timestamp,
+                        lookback_days: int = 30) -> pd.Series:
+    """`stock_indicator.dividend_yield`（%）→ D/P：每票取 asof 前 `lookback_days`
+    内最近一行；`dividend_yield` 为 NULL 视为未分红 → 0，无行的票留 NaN
+    （由调用侧 fillna(0) 兜底，与 csmar 路径语义一致）。"""
+    d = asof.date().isoformat()
+    c, s = _conn()
+    try:
+        with c.cursor() as cur:
+            cur.execute(
+                f"""SELECT DISTINCT ON (ts_code) ts_code, dividend_yield
+                    FROM {s}.stock_indicator
+                    WHERE ts_code = ANY(%s) AND trade_date <= DATE '{d}'
+                      AND trade_date > DATE '{d}' - INTERVAL '{int(lookback_days)} days'
+                    ORDER BY ts_code, trade_date DESC""",
+                (codes,))
+            rows = cur.fetchall()
+    finally:
+        c.close()
+    out = pd.Series({r[0]: (float(r[1]) if r[1] is not None else 0.0) for r in rows},
+                    dtype=float)
+    return out
+
+
 #: A 股定期报告的**法定披露截止日**（报告期月份 → (跨年数, 月, 日)）。
 #: 依据《证券法》与交易所规则：一季报 4/30、半年报 8/31、三季报 10/31、年报次年 4/30。
 _DEADLINE = {3: (0, 4, 30), 6: (0, 8, 31), 9: (0, 10, 31), 12: (1, 4, 30)}
@@ -644,8 +704,15 @@ def factor_panel(sp: pd.DataFrame, asof: pd.Timestamp) -> pd.DataFrame:
     eq = _fetch_series(codes, asof, "balance", "A003000000")
     eq_latest = (eq.sort_values("end_date").groupby("ts_code")["value"].last())
     panel["BP"] = eq_latest / amv
-    dps = _ttm_latest(_fetch_series(codes, asof, "dividend", _dividend_field()), asof)
-    panel["DP"] = (dps / sp["avg_close_1y"]).reindex(panel.index).fillna(0.0)   # 未分红 → 0
+    if dp_source_for(asof) == "indicator":
+        # R3 换源（2026-08-20）：csmar dividend 停更后走日频股息率；分母=当日价
+        # vs 官方的 1 年日均价，截面 z 后尺度无关；单一截面单一源无混源
+        panel["DP"] = _fetch_dp_indicator(codes, asof).reindex(panel.index).fillna(0.0)
+    else:
+        # 2026-08-20 缺陷修复：红利是事件行，不能走季度差分 TTM（此前恒空→DP 死因子）
+        dps = dividend_ttm_events(
+            _fetch_series(codes, asof, "dividend", _dividend_field()), asof)
+        panel["DP"] = (dps / sp["avg_close_1y"]).reindex(panel.index).fillna(0.0)   # 未分红 → 0
     panel["SalG"] = _growth(_fetch_series(codes, asof, "income", "B001100000"), asof)
     panel["ProG"] = _growth(_fetch_series(codes, asof, "disclosed_indicators", "F020102"), asof)
     panel["dROE"] = _delta_roe(codes, asof)

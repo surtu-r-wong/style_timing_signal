@@ -242,3 +242,46 @@ def test_split_geometric_boundaries_are_cumulative():
     # 累计边界取整：n=100 → 边界 round(100*[1,3,7,15]/31) = 3,10,23,48
     parts = _split_geometric([str(i) for i in range(100)])
     assert [len(p) for p in parts] == [3, 7, 13, 25, 52]
+
+
+# ── R3 红利修复（2026-08-20）：事件行 TTM + 换源边界 ──────────────────────────
+
+def test_dividend_ttm_events_sums_annual_plus_interim_in_known_window():
+    from backtest.pure_style_builder import dividend_ttm_events
+    df = pd.DataFrame({
+        "ts_code": ["000001.SZ"] * 3,
+        "end_date": pd.to_datetime(["2023-12-31", "2024-06-30", "2022-12-31"]),
+        # 年报分红 2024-04 宣告 + 中期分红 2024-08 宣告 → 都在近 12 个月可知窗内
+        "ann_date": pd.to_datetime(["2024-04-29", "2024-08-31", "2023-04-30"]),
+        "value": [0.719, 0.246, 0.285],
+    })
+    import pytest
+    out = dividend_ttm_events(df, pd.Timestamp("2024-12-31"))
+    assert out["000001.SZ"] == pytest.approx(0.719 + 0.246)   # 2023-04 宣告的落窗外
+
+
+def test_dividend_ttm_events_excludes_unknown_future_and_stale():
+    from backtest.pure_style_builder import dividend_ttm_events
+    asof = pd.Timestamp("2024-12-31")
+    df = pd.DataFrame({
+        "ts_code": ["A", "B", "C"],
+        "end_date": pd.to_datetime(["2024-12-31", "2023-12-31", "2023-06-30"]),
+        # A: 尚未宣告（可知日在 asof 后）；B: 可知日缺失；C: 宣告已超 12 个月
+        "ann_date": [pd.Timestamp("2025-04-30"), pd.NaT, pd.Timestamp("2023-08-31")],
+        "value": [1.0, 1.0, 1.0],
+    })
+    out = dividend_ttm_events(df, asof)
+    assert len(out) == 0
+
+
+def test_dividend_ttm_events_empty_input_is_safe():
+    from backtest.pure_style_builder import dividend_ttm_events
+    out = dividend_ttm_events(pd.DataFrame(), pd.Timestamp("2024-12-31"))
+    assert len(out) == 0
+
+
+def test_dp_source_boundary_keeps_csmar_history_and_switches_2026():
+    from backtest.pure_style_builder import DP_INDICATOR_START, dp_source_for
+    assert dp_source_for(pd.Timestamp("2025-12-15")) == "csmar"    # Gate 0 锚区间不动
+    assert dp_source_for(DP_INDICATOR_START) == "indicator"
+    assert dp_source_for(pd.Timestamp("2026-06-15")) == "indicator"
