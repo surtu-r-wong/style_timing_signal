@@ -8,7 +8,16 @@ from pathlib import Path
 
 
 def create_run_dir(root: Path, run_id: str) -> Path:
-    target = Path(root) / run_id
+    candidate = Path(run_id)
+    if (
+        not candidate.parts
+        or candidate == Path(".")
+        or candidate.is_absolute()
+        or len(candidate.parts) != 1
+        or candidate.parts[0] == ".."
+    ):
+        raise ValueError("run_id must be a single relative path component")
+    target = Path(root) / candidate
     target.mkdir(parents=True, exist_ok=False)
     (target / "inputs").mkdir()
     (target / "outputs").mkdir()

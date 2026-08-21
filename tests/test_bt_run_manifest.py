@@ -18,6 +18,29 @@ def test_create_run_dir_refuses_overwrite(tmp_path):
         run_manifest.create_run_dir(tmp_path, run.name)
 
 
+@pytest.mark.parametrize("run_id", ["", ".", "../escape", "nested/name"])
+def test_create_run_dir_rejects_non_component_ids(tmp_path, run_id):
+    root = tmp_path / "runs"
+    root.mkdir()
+
+    with pytest.raises(ValueError, match="run_id"):
+        run_manifest.create_run_dir(root, run_id)
+
+    assert not list(root.iterdir())
+    assert not (tmp_path / "escape").exists()
+
+
+def test_create_run_dir_rejects_absolute_ids(tmp_path):
+    root = tmp_path / "runs"
+    root.mkdir()
+    outside = tmp_path / "absolute-run"
+
+    with pytest.raises(ValueError, match="run_id"):
+        run_manifest.create_run_dir(root, str(outside))
+
+    assert not list(root.iterdir())
+    assert not outside.exists()
+
 def test_artifact_record_is_relative_and_hashed(tmp_path):
     path = tmp_path / "outputs" / "value.csv"
     path.parent.mkdir()
