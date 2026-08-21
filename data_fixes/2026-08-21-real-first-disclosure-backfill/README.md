@@ -48,15 +48,30 @@
 65,000 格，UPSERT **5,406 行**（~1,470 码已披露，≈23%——08-31 披露截止前的
 正常进度）。**待办：9 月初（披露季收官后）再跑一次同命令补齐**（再 ~6.5 万格）。
 
-## 未做（阶段二，待裁决/移交）
+## 阶段二·落库（同日续跑，用户「继续」）
 
-**本阶段零 DB 写入**——取数产物只落本目录 CSV。把首披日写回
-`stock_financial`（新列或等价承载）涉及：
-1. Market Monitor 库 DDL → 必须先过 `market-monitor/migration/SCHEMA_CHANGES.md`
-   「DDL 安全快查卡」+ Pi5 双端同步（提案 D4）；
-2. reader 口径切换与下游公告（提案 D5，stock_selector 侧集成）。
-这两步是提案里的周级工程主体，不在「回填先做掉」的授权内自作主张。
+- **设计裁定 = 独立新表而非 stock_financial 加列**：披露粒度天然是
+  (ts_code, end_date)（整份报告一次披露），stock_financial 是报表类型粒度
+  （加列 = 每期在 ~12 行上重复 + 对 4.9GB **在同步链上的表**做两端 ALTER）。
+- DDL 过安全快查卡：新表不纳入同步（决策树「开发期先单端」+ 048 etf_constituent
+  判例同类：数据可由本目录 CSV 重灌 = 可重取；不加触发器/不写 sync_state/
+  不改 worker config）。改前实测：sync_state 无此表行、库中不存在。
+- 迁移 = stock_selector `data/schema/051_stock_first_disclosure.sql`
+  （+ rollback/051_..._rollback.sql），守卫测试过，**test schema 冒烟 → prod
+  经 `stock_selector.db.migrate --only` 应用**（schema_migrations 有登记）。
+- 灌数 `load_to_db.py`：**286,784 行入库，非空 275,258 / sentinel 11,526
+  （哨兵存 NULL 不存哨兵值），期界 2003-03-31..2025-03-31，回执 PASS**；
+  抽查 4 行与发车前探针逐字相符（000001.SZ 2010 年报 2011-02-25 等）。
+
+## 仍未做（正式集成，stock_selector 侧）
+
+1. reader 口径接入（frozen roots 需走包装器）+ 两源不一致取用规则
+   （5.82% 反向对，见上方开放项）+ 消费方公告（提案 D5）；
+2. Pi5 双端同步提升 = 「上线时再决策」（决策树条款；提升时补触发器 +
+   sync_state + 两端 config）。
 
 ## 回滚
 
-阶段一无 DB 写入，无需回滚；删除本目录产物即回到取数前状态（额度已花不可回）。
+- 表：跑 `data/schema/rollback/051_stock_first_disclosure_rollback.sql`
+  （DROP + 清 schema_migrations 登记行；单端表无同步链四步）。
+- 取数产物：删除本目录文件即回到取数前状态（额度已花不可回）。
