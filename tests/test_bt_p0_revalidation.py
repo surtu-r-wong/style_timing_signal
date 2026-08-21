@@ -197,13 +197,32 @@ def _valid_verdict(overall="STOP"):
     }
 
 
+def _legacy_verdict(overall):
+    payload = _valid_verdict(overall)
+    payload.pop("position_diff_ratio")
+    return payload
+
+
+def test_p0_revalidation_reports_parseable_run_dir(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(p0_revalidation, "LEGACY_FILES", {})
+    monkeypatch.setattr(p0_revalidation, "OUTPUT_FILES", {})
+
+    def runner(_command, log_path):
+        log_path.write_bytes(b"ok")
+        return 0
+
+    run_dir = p0_revalidation.run_revalidation(
+        tmp_path / "runs", "run-dir", root=tmp_path, metadata={}, runner=runner
+    )
+
+    assert capsys.readouterr().out == f"RUN_DIR={run_dir}\n"
 def _write_legacy_outputs(root):
     legacy = root / "backtest" / "output"
     legacy.mkdir(parents=True)
     payloads = {
-        "gate0r_result.json": {"pass": True},
-        "fifth_bucket_verdict.json": _valid_verdict(),
-        "geo5_verdict.json": _valid_verdict("GO"),
+        "gate0r_result.json": {"pass": False},
+        "fifth_bucket_verdict.json": _legacy_verdict("STOP"),
+        "geo5_verdict.json": _legacy_verdict("GO"),
     }
     for name, payload in payloads.items():
         (legacy / name).write_text(json.dumps(payload), encoding="utf-8")
@@ -353,7 +372,7 @@ def test_p0_revalidation_writes_complete_evidence_run(tmp_path):
         elif "backtest.fifth_bucket_formal" in command:
             name, payload = "fifth_bucket_verdict.json", _valid_verdict()
         elif "backtest.geometric_5b_formal" in command:
-            name, payload = "geo5_verdict.json", _valid_verdict("GO")
+            name, payload = "geo5_verdict.json", _valid_verdict("STOP")
         elif "backtest.tail_pair_runner" in command:
             name, payload = "tail_pair_daily.csv", "growth,value\n0.0,0.0\n"
         else:
@@ -379,7 +398,9 @@ def test_p0_revalidation_writes_complete_evidence_run(tmp_path):
     assert manifest["seed"] == 0
     assert len(manifest["commands"]) == 5
     assert set(manifest["inputs"]) == {"gate0r", "fifth", "geo"}
-    assert comparison["gate0r"]["maintained"] is True
+    assert comparison["gate0r"]["flipped"] is True
+    assert comparison["fifth"]["maintained"] is True
+    assert comparison["geo"]["flipped"] is True
     assert (run_dir / "outputs" / "fifth_bucket_verdict.json").is_file()
     assert (run_dir / "comparison.json").read_bytes().endswith(b"\n")
     assert all("manifest" not in item["path"] and ".tmp" not in item["path"]
@@ -388,3 +409,50 @@ def test_p0_revalidation_writes_complete_evidence_run(tmp_path):
     assert {record["path"] for record in manifest["artifacts"]} >= {
         "inputs/gate0r_result.json", "outputs/geo5_verdict.json", "comparison.json"}
     assert all(len(record["sha256"]) == 64 for record in manifest["artifacts"])
+
+def test_p0_revalidation_import_does_not_call_poisoned_connection(monkeypatch):
+    builder = importlib.import_module("backtest.pure_style_builder")
+    calls = []
+
+    def forbidden_connection():
+        calls.append(True)
+        raise AssertionError("import must not connect to the database")
+
+    monkeypatch.setattr(builder, "_conn", forbidden_connection)
+    monkeypatch.delitem(sys.modules, "backtest.p0_revalidation", raising=False)
+
+    reimported = importlib.import_module("backtest.p0_revalidation")
+
+    assert reimported.ROOT == ROOT
+    assert calls == []
+
+
+_VERDICT_NUMERIC_FIELDS = (
+    "sharpe_diff",
+    "p_selected",
+    "sharpe_incumbent_full",
+    "sharpe_candidate_full",
+    "position_diff_ratio",
+)
+
+
+@pytest.mark.parametrize(
+    ("field", "mode"),
+    [(field, mode) for field in _VERDICT_NUMERIC_FIELDS
+     for mode in ("missing", "bool", "string", "nan", "infinity")],
+)
+def test_p0_revalidation_rejects_every_invalid_required_numeric_field(field, mode):
+    payload = _valid_verdict()
+    if mode == "missing":
+        payload.pop(field)
+    elif mode == "bool":
+        payload[field] = True
+    elif mode == "string":
+        payload[field] = "not-a-number"
+    elif mode == "nan":
+        payload[field] = float("nan")
+    else:
+        payload[field] = float("inf")
+
+    with pytest.raises(ValueError, match=field):
+        p0_revalidation.validate_verdict(payload)

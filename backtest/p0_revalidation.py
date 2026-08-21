@@ -196,7 +196,7 @@ def run_revalidation(run_root: Path, run_id: str, *, root: Path = ROOT,
         "artifacts": [],
     }
     write_manifest(run_dir, manifest)
-    print(f"RUN_DIR {run_dir}", flush=True)
+    print(f"RUN_DIR={run_dir}", flush=True)
 
     try:
         legacy_dir = Path(root) / "backtest" / "output"
@@ -206,9 +206,7 @@ def run_revalidation(run_root: Path, run_id: str, *, root: Path = ROOT,
             target = run_dir / "inputs" / filename
             shutil.copy2(source, target)
             payload = load_json(target)
-            old[logical] = (
-                validate_gate0(payload) if logical == "gate0r" else validate_verdict(payload)
-            )
+            old[logical] = payload
             manifest["inputs"][logical] = artifact_record(target, run_dir)
 
         execute_steps(run_dir, commands, runner=runner)
