@@ -53,10 +53,18 @@ GEO_CSV = ROOT / "backtest" / "output" / "geo5_pairs_daily.csv"
 OUT = ROOT / "backtest" / "output" / "geo5_verdict.json"
 
 
-def load_prices() -> tuple[pd.DataFrame, list[str], pd.Timestamp]:
+def _json_safe(value):
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def load_prices(geo_csv: Path = GEO_CSV) -> tuple[pd.DataFrame, list[str], pd.Timestamp]:
     from signals.common.data_source import load_pg_closes
     closes = load_pg_closes(INCUMBENT)
-    geo = pd.read_csv(GEO_CSV, index_col=0, parse_dates=True).dropna(how="all")
+    geo = pd.read_csv(geo_csv, index_col=0, parse_dates=True).dropna(how="all")
     nav = (1.0 + geo.fillna(0.0)).cumprod()
     cand_cols = list(nav.columns)                    # g1_growth..g5_value
     return pd.concat([closes, nav], axis=1), cand_cols, geo.index.min()
@@ -76,8 +84,8 @@ def build_factor(prices: pd.DataFrame, names: list[str]) -> pd.Series:
 
 
 class Data:
-    def __init__(self):
-        prices, cand_cols, geo_start = load_prices()
+    def __init__(self, geo_csv: Path = GEO_CSV):
+        prices, cand_cols, geo_start = load_prices(geo_csv)
         inc_f = build_factor(prices, INCUMBENT)
         cand_f = build_factor(prices, cand_cols)
         und, car = load_underlying_returns(KOU_JING), load_carry(KOU_JING)
@@ -119,9 +127,12 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="等比 5 桶正式判定（全替换 vs 现役四对）")
     ap.add_argument("--n-perm", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--geo-csv", type=Path, default=GEO_CSV)
+    ap.add_argument("--output-dir", type=Path, default=OUT.parent)
     args = ap.parse_args(argv)
 
-    d = Data()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    d = Data(geo_csv=args.geo_csv)
     n = len(d.idx)
     print(f"公共窗 {n} 日（{d.idx.min().date()} → {d.idx.max().date()}；"
           f"自建收益首日 {d.geo_start.date()} + 暖机 {WARMUP_DAYS}d），口径 {KOU_JING}（含 carry）")
@@ -174,8 +185,12 @@ def main(argv=None) -> int:
                    "并附实现差异清单，不得升格为「对数等距结构无价值」")
 
     out = {
-        "n_obs": n, "n_perm": args.n_perm,
+        "n_obs": n, "n_perm": args.n_perm, "seed": args.seed,
         "common_window": [str(d.idx.min().date()), str(d.idx.max().date())],
+        "position_diff_days": int((d.inc_pos != d.cand_pos).sum()),
+        "position_diff_ratio": round(float((d.inc_pos != d.cand_pos).mean()), 6),
+        "metrics_incumbent": inc_m,
+        "metrics_candidate": cand_m,
         "sharpe_incumbent_full": round(inc_m["full"]["sharpe"], 4),
         "sharpe_candidate_full": round(cand_m["full"]["sharpe"], 4),
         "sharpe_diff": round(diff, 4),
@@ -200,8 +215,9 @@ def main(argv=None) -> int:
     print(f"  OVERALL = {out['OVERALL']}")
     print(f"\n  ⭐ 预登记 §3 判定：{verdict}")
 
-    OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\n→ {OUT}")
+    output = args.output_dir / "geo5_verdict.json"
+    output.write_text(json.dumps(out, ensure_ascii=False, indent=2, default=_json_safe), encoding="utf-8")
+    print(f"\n→ {output}")
     return 0
 
 

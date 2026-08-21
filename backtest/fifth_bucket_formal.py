@@ -63,11 +63,19 @@ TAIL_CSV = ROOT / "backtest" / "output" / "tail_pair_daily.csv"
 OUT = ROOT / "backtest" / "output" / "fifth_bucket_verdict.json"
 
 
-def load_prices_with_tail() -> tuple[pd.DataFrame, pd.Timestamp]:
+def _json_safe(value):
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def load_prices_with_tail(tail_csv: Path = TAIL_CSV) -> tuple[pd.DataFrame, pd.Timestamp]:
     """八腿 close + 尾部两腿净值（cumprod）。返回 (prices, 尾部收益首日)。"""
     from signals.common.data_source import load_pg_closes
     closes = load_pg_closes(PAIR_NAMES)
-    tail = pd.read_csv(TAIL_CSV, index_col=0, parse_dates=True).dropna()
+    tail = pd.read_csv(tail_csv, index_col=0, parse_dates=True).dropna()
     nav = (1.0 + tail).cumprod()
     nav.columns = ["尾部成长", "尾部价值"]
     return pd.concat([closes, nav], axis=1), tail.index.min()
@@ -88,8 +96,8 @@ def build_factor(prices: pd.DataFrame, names: list[str]) -> pd.Series:
 
 
 class Data:
-    def __init__(self, start_override: str | None = None):
-        prices, tail_start = load_prices_with_tail()
+    def __init__(self, start_override: str | None = None, tail_csv: Path = TAIL_CSV):
+        prices, tail_start = load_prices_with_tail(tail_csv)
         inc_f = build_factor(prices, PAIR_NAMES)
         cand_f = build_factor(prices, PAIR_NAMES + ["尾部成长", "尾部价值"])
         und, car = load_underlying_returns(KOU_JING), load_carry(KOU_JING)
@@ -141,9 +149,12 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--start", default=None,
                     help="公共窗起点（调样期锚，用户裁决后传入；默认=尾部收益首日）")
+    ap.add_argument("--tail-csv", type=Path, default=TAIL_CSV)
+    ap.add_argument("--output-dir", type=Path, default=OUT.parent)
     args = ap.parse_args(argv)
 
-    d = Data(start_override=args.start)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    d = Data(start_override=args.start, tail_csv=args.tail_csv)
     n = len(d.idx)
     print(f"公共窗 {n} 日（{d.idx.min().date()} → {d.idx.max().date()}；"
           f"尾部收益首日 {d.tail_start.date()} + 暖机 {WARMUP_DAYS}d），口径 {KOU_JING}（含 carry）")
@@ -194,8 +205,12 @@ def main(argv=None) -> int:
         verdict = "③ 显著为负 → 记为「异常，待解释」，找到机制前**不得**宣称「尾部有害」"
 
     out = {
-        "n_obs": n, "n_perm": args.n_perm,
+        "n_obs": n, "n_perm": args.n_perm, "seed": args.seed,
         "common_window": [str(d.idx.min().date()), str(d.idx.max().date())],
+        "position_diff_days": int((d.inc_pos != d.cand_pos).sum()),
+        "position_diff_ratio": round(float((d.inc_pos != d.cand_pos).mean()), 6),
+        "metrics_incumbent": inc_m,
+        "metrics_candidate": cand_m,
         "sharpe_incumbent_full": round(inc_m["full"]["sharpe"], 4),
         "sharpe_candidate_full": round(cand_m["full"]["sharpe"], 4),
         "sharpe_diff": round(diff, 4),
@@ -217,8 +232,9 @@ def main(argv=None) -> int:
     print(f"  OVERALL = {out['OVERALL']}")
     print(f"\n  ⭐ r3 §6 判定：{verdict}")
 
-    OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\n→ {OUT}")
+    output = args.output_dir / "fifth_bucket_verdict.json"
+    output.write_text(json.dumps(out, ensure_ascii=False, indent=2, default=_json_safe), encoding="utf-8")
+    print(f"\n→ {output}")
     return 0
 
 

@@ -27,19 +27,10 @@ WINDOW = ("2015-01-01", "2026-08-18")
 TERMINAL = pd.Timestamp("2026-08-18")
 
 
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="等比 5 桶构建")
-    ap.add_argument("--smoke", action="store_true", help="单期核对模式（不算收益）")
-    args = ap.parse_args(argv)
+def run_full_build(output_dir: Path) -> int:
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
-
-    if args.smoke:
-        for d in (pd.Timestamp("2015-06-15"), pd.Timestamp("2026-06-15")):
-            print(f"\n== 单期核对 @{d.date()}", flush=True)
-            build_geometric_pairs([d, TERMINAL], verbose=True, legs_only=True)
-        print(f"\nsmoke 完成（{time.time() - t0:.0f}s）", flush=True)
-        return 0
-
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
     print(f"等比 5 桶全窗构建：{len(dates) - 1} 期，{dates[0].date()} → {TERMINAL.date()}",
           flush=True)
@@ -48,18 +39,34 @@ def main(argv=None) -> int:
     for k, p in enumerate(pairs, start=1):
         cols[f"g{k}_growth"], cols[f"g{k}_value"] = p.growth, p.value
     df = pd.DataFrame(cols)
-    df.to_csv(OUTDIR / "geo5_pairs_daily.csv")
+    df.to_csv(output_dir / "geo5_pairs_daily.csv")
     meta = {"n_days": int(len(df)),
             "window": [str(df.index.min().date()), str(df.index.max().date())],
             "n_by_date": {f"g{k}": {d: [p.n_growth[d], p.n_value[d]] for d in p.n_growth}
                           for k, p in enumerate(pairs, start=1)},
             "skipped": pairs[0].skipped,
             "elapsed_s": round(time.time() - t0, 1)}
-    (OUTDIR / "geo5_pairs_build.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
+    (output_dir / "geo5_pairs_build.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
     print(f"落盘 geo5_pairs_daily.csv（{len(df)} 天）+ geo5_pairs_build.json"
           f"（skipped={pairs[0].skipped}，{meta['elapsed_s']}s）", flush=True)
     print("GEO5 BUILD DONE", flush=True)
     return 0
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description="等比 5 桶构建")
+    ap.add_argument("--smoke", action="store_true", help="单期核对模式（不算收益）")
+    ap.add_argument("--output-dir", type=Path, default=OUTDIR)
+    args = ap.parse_args(argv)
+
+    if args.smoke:
+        t0 = time.time()
+        for d in (pd.Timestamp("2015-06-15"), pd.Timestamp("2026-06-15")):
+            print(f"\n== 单期核对 @{d.date()}", flush=True)
+            build_geometric_pairs([d, TERMINAL], verbose=True, legs_only=True)
+        print(f"\nsmoke 完成（{time.time() - t0:.0f}s）", flush=True)
+        return 0
+    return run_full_build(args.output_dir)
 
 
 if __name__ == "__main__":

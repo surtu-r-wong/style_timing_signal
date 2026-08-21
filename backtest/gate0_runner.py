@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 import time
@@ -107,16 +108,18 @@ def spread_of(pair: PairResult) -> pd.Series:
 
 
 def dump(name: str, payload: dict, mine: pd.Series | None = None,
-         official: pd.Series | None = None) -> None:
-    p = OUTDIR / f"{name}.json"
+         official: pd.Series | None = None, *, outdir: Path = OUTDIR) -> None:
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    p = outdir / f"{name}.json"
     p.write_text(json.dumps(payload, ensure_ascii=False, indent=1))
     if mine is not None and official is not None:
         pd.concat([mine.rename("mine"), official.rename("official")], axis=1) \
-            .to_csv(OUTDIR / f"{name}_series.csv")
+            .to_csv(outdir / f"{name}_series.csv")
     print(f"落盘 {p}", flush=True)
 
 
-def run_0r() -> None:
+def run_0r(outdir: Path = OUTDIR) -> int:
     t0 = time.time()
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
     off2000 = official_spread("932409.CSI", "932408.CSI")
@@ -156,11 +159,12 @@ def run_0r() -> None:
                        and res["sim2000_guarded"]["rho"] >= FLOOR_SIM2000
                        and res["band500_true"]["rho"] >= FLOOR_BAND500)
     res["elapsed_s"] = round(time.time() - t0, 1)
-    dump("gate0r_result", res)
+    dump("gate0r_result", res, outdir=outdir)
     print(f"0R {'PASS' if res['pass'] else 'FAIL'}（{res['elapsed_s']}s）", flush=True)
+    return 0
 
 
-def run_0a() -> None:
+def run_0a(outdir: Path = OUTDIR) -> int:
     t0 = time.time()
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
     off = official_spread("932407.CSI", "932406.CSI")
@@ -189,12 +193,13 @@ def run_0a() -> None:
 
     res["pass"] = bool(res["first_run"]["rho"] is not None and res["first_run"]["rho"] >= 0.85)
     res["elapsed_s"] = round(time.time() - t0, 1)
-    dump("gate0a_result", res, mine, off)
+    dump("gate0a_result", res, mine, off, outdir=outdir)
     print(f"0A 首跑 {'PASS' if res['pass'] else 'FAIL — 进入诊断-修复-重跑循环（§4.1）'}"
           f"（{res['elapsed_s']}s）", flush=True)
+    return 0
 
 
-def run_0b() -> None:
+def run_0b(outdir: Path = OUTDIR) -> int:
     t0 = time.time()
     dates = rebalance_dates("2023-10-01", "2026-08-18") + [TERMINAL]
     off = official_spread("932409.CSI", "932408.CSI")
@@ -207,13 +212,14 @@ def run_0b() -> None:
            "truth": rho_report(mine, off)}
     res["pass"] = bool(res["truth"]["rho"] is not None and res["truth"]["rho"] >= 0.85)
     res["elapsed_s"] = round(time.time() - t0, 1)
-    dump("gate0b_result", res, mine, off)
+    dump("gate0b_result", res, mine, off, outdir=outdir)
     print(f"0B ρ = {res['truth']['rho']} → {'PASS' if res['pass'] else 'FAIL'}"
           f"（{res['elapsed_s']}s）", flush=True)
+    return 0
 
 
 
-def run_preflight500() -> None:
+def run_preflight500(outdir: Path = OUTDIR) -> int:
     """0R'（等比5桶预登记 裁决点3）：只复算 500 带真值锚，确认代码未从 Gate 0 状态漂移。"""
     t0 = time.time()
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
@@ -225,11 +231,19 @@ def run_preflight500() -> None:
     ok = rep["rho"] is not None and rep["rho"] >= FLOOR_BAND500
     res = {"gate": "0R'", "anchor": ANCHOR_BAND500, "threshold": FLOOR_BAND500,
            "band500_true": rep, "pass": bool(ok), "elapsed_s": round(time.time() - t0, 1)}
-    dump("gate0rp_result", res)
+    dump("gate0rp_result", res, outdir=outdir)
     print(f"0R' rho = {rep['rho']} -> {'PASS' if ok else 'FAIL'}（{res['elapsed_s']}s）", flush=True)
+    return 0
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description="Gate 0 执行器")
+    ap.add_argument("gate", choices=("0r", "0a", "0b", "0rp"))
+    ap.add_argument("--output-dir", type=Path, default=OUTDIR)
+    args = ap.parse_args(argv)
+    return {"0r": run_0r, "0a": run_0a, "0b": run_0b, "0rp": run_preflight500}[args.gate](
+        outdir=args.output_dir)
 
 
 if __name__ == "__main__":
-    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    {"0r": run_0r, "0a": run_0a, "0b": run_0b, "0rp": run_preflight500}.get(
-        cmd, lambda: sys.exit("用法: gate0_runner.py 0r|0a|0b|0rp"))()
+    raise SystemExit(main())
