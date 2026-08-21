@@ -1,0 +1,30 @@
+{
+  "n_obs": 2656,
+  "n_perm": 1000,
+  "common_window": [
+    "2015-09-11",
+    "2026-08-18"
+  ],
+  "sharpe_incumbent_full": 1.4854,
+  "sharpe_candidate_full": 1.2898,
+  "sharpe_diff": -0.1956,
+  "p_selected": 0.9351,
+  "p_naive": 0.9351,
+  "worst_tv_incumbent": 1.0009,
+  "worst_tv_candidate": 0.9634,
+  "s_2024_2026": [
+    1.9036,
+    1.6359
+  ],
+  "gate1": false,
+  "gate2": false,
+  "gate3": false,
+  "OVERALL": "STOP",
+  "verdict_case": "② 差异不显著 → 两种划法在现役架构下不可辨认；不得表述为「重划无价值」，但本候选无权重稀释/短窗借口，此情形对「换划法」方向的否定力显著强于 r3 的情形②，报告须如实写明",
+  "zero_carry_diff": -0.1981,
+  "caveats": [
+    "provisional: approximate-PIT",
+    "有效窗截至 2025-03-31（stock_financial 停更）",
+    "候选全自建 vs 现役官方发布序列的信息不对称（§4-5）"
+  ]
+}

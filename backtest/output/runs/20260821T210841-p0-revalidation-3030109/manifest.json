@@ -1,0 +1,293 @@
+{
+  "artifacts": [
+    {
+      "path": "comparison.json",
+      "sha256": "cdd537e199f195181a10d8104abad93153cc18df31246b75f324444dca99625e",
+      "size": 12286
+    },
+    {
+      "path": "inputs/fifth_bucket_verdict.json",
+      "sha256": "1e355157b167eaedcfd0cc70307d8565410394bf6cd2adc5186ee1cdff9d173e",
+      "size": 826
+    },
+    {
+      "path": "inputs/gate0r_result.json",
+      "sha256": "d2d31dc7f0e418c939c1ee37d5c85efe6d10fa008be9074b7b4ff051f2ca5ddb",
+      "size": 1285
+    },
+    {
+      "path": "inputs/geo5_verdict.json",
+      "sha256": "338ce1c8a03c3fabb52ef6a2902037d61987922c2c0273dd8bad0d4965cc3859",
+      "size": 922
+    },
+    {
+      "path": "logs/step-1-gate0r.log",
+      "sha256": "0ac269b4333c400e93f22682a38f224af65bc185aa32133fd592fe0c54ce48a7",
+      "size": 10600
+    },
+    {
+      "path": "logs/step-2-tail.log",
+      "sha256": "4b9611f9993bdff6d422bb628d7992815f4a207f14714cd733e0477452b2c981",
+      "size": 11834
+    },
+    {
+      "path": "logs/step-3-fifth.log",
+      "sha256": "de5b9d67da3b9a7af7d81b1ca2132bfcee2aaf9b1711a07b32ebd8632ec70c3b",
+      "size": 1020
+    },
+    {
+      "path": "logs/step-4-geo_pairs.log",
+      "sha256": "31a632e571eda2fb36ae93b3c7948d78aba5d45ead9765a5f2814299cc44fce0",
+      "size": 6181
+    },
+    {
+      "path": "logs/step-5-geo_formal.log",
+      "sha256": "e856f1577ceab2dde42f2063919dbc2858e80e379b37844b4fe9d1170f4a2067",
+      "size": 1164
+    },
+    {
+      "path": "outputs/fifth_bucket_verdict.json",
+      "sha256": "404cc11b515622214cdffdf98e6f6a67caed88b1f6ded0631f21574e94f8f82d",
+      "size": 2453
+    },
+    {
+      "path": "outputs/gate0r_result.json",
+      "sha256": "d433bc87fd27347aebd955db0a79c9da0bedddd8d1073a8ddcdf8b2d18cdbcc6",
+      "size": 1352
+    },
+    {
+      "path": "outputs/geo5_pairs_build.json",
+      "sha256": "af44281090d9488679a65a7fbc34172ec7bf2c7497c40f5ac1b80aac9d9f71be",
+      "size": 4938
+    },
+    {
+      "path": "outputs/geo5_pairs_daily.csv",
+      "sha256": "d860e669ae0e3fad0a8d1e7de73a9e2b793559aaa0eec3b83fd1b5a9407f7560",
+      "size": 614802
+    },
+    {
+      "path": "outputs/geo5_verdict.json",
+      "sha256": "66edf885c4e733c22c97e03da8188b7ce1c69b8424618468d31c497093e78865",
+      "size": 3102
+    },
+    {
+      "path": "outputs/tail_pair_build.json",
+      "sha256": "04a00bfd65ddd477c45dada2fac6c66ac82081a61a843192c951952316879a33",
+      "size": 682
+    },
+    {
+      "path": "outputs/tail_pair_daily.csv",
+      "sha256": "9ae1b90d56676c839478d9ba57dc4d684db48a725ac0689303d1a54e0ac769af",
+      "size": 54644
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.gate0_runner",
+        "0r",
+        "--output-dir",
+        "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs"
+      ],
+      "step": "gate0r"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.tail_pair_runner",
+        "--output-dir",
+        "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs"
+      ],
+      "step": "tail"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.fifth_bucket_formal",
+        "--tail-csv",
+        "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs/tail_pair_daily.csv",
+        "--output-dir",
+        "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs",
+        "--start",
+        "2022-12-12",
+        "--n-perm",
+        "1000",
+        "--seed",
+        "0"
+      ],
+      "step": "fifth"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.geometric_pairs_runner",
+        "--output-dir",
+        "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs"
+      ],
+      "step": "geo_pairs"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.geometric_5b_formal",
+        "--geo-csv",
+        "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs/geo5_pairs_daily.csv",
+        "--output-dir",
+        "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs",
+        "--n-perm",
+        "1000",
+        "--seed",
+        "0"
+      ],
+      "step": "geo_formal"
+    }
+  ],
+  "experiment": "p0-revalidation",
+  "finished_at": "2026-08-22T05:30:22+08:00",
+  "inputs": {
+    "fifth": {
+      "path": "inputs/fifth_bucket_verdict.json",
+      "sha256": "1e355157b167eaedcfd0cc70307d8565410394bf6cd2adc5186ee1cdff9d173e",
+      "size": 826
+    },
+    "gate0r": {
+      "path": "inputs/gate0r_result.json",
+      "sha256": "d2d31dc7f0e418c939c1ee37d5c85efe6d10fa008be9074b7b4ff051f2ca5ddb",
+      "size": 1285
+    },
+    "geo": {
+      "path": "inputs/geo5_verdict.json",
+      "sha256": "338ce1c8a03c3fabb52ef6a2902037d61987922c2c0273dd8bad0d4965cc3859",
+      "size": 922
+    }
+  },
+  "metadata": {
+    "database_cutoffs": {
+      "index_constituent": "2026-08-11",
+      "index_daily": "2026-08-21",
+      "stock_daily_price": "2026-08-21",
+      "stock_financial": "2026-06-30",
+      "stock_indicator": "2026-08-21"
+    },
+    "execution_environment_review": {
+      "actual_interpreter": "/home/elfbob/miniconda3/bin/python",
+      "portable_command_note": "The top-level commands array preserves the absolute interpreter path actually executed. The forms below replace only that interpreter with python and require a compatible Python environment, repository checkout, dependencies, configuration, and database state.",
+      "portable_commands": [
+        {
+          "command": [
+            "python",
+            "-m",
+            "backtest.gate0_runner",
+            "0r",
+            "--output-dir",
+            "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs"
+          ],
+          "step": "gate0r"
+        },
+        {
+          "command": [
+            "python",
+            "-m",
+            "backtest.tail_pair_runner",
+            "--output-dir",
+            "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs"
+          ],
+          "step": "tail"
+        },
+        {
+          "command": [
+            "python",
+            "-m",
+            "backtest.fifth_bucket_formal",
+            "--tail-csv",
+            "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs/tail_pair_daily.csv",
+            "--output-dir",
+            "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs",
+            "--start",
+            "2022-12-12",
+            "--n-perm",
+            "1000",
+            "--seed",
+            "0"
+          ],
+          "step": "fifth"
+        },
+        {
+          "command": [
+            "python",
+            "-m",
+            "backtest.geometric_pairs_runner",
+            "--output-dir",
+            "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs"
+          ],
+          "step": "geo_pairs"
+        },
+        {
+          "command": [
+            "python",
+            "-m",
+            "backtest.geometric_5b_formal",
+            "--geo-csv",
+            "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs/geo5_pairs_daily.csv",
+            "--output-dir",
+            "backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs",
+            "--n-perm",
+            "1000",
+            "--seed",
+            "0"
+          ],
+          "step": "geo_formal"
+        }
+      ],
+      "python_version_observed_during_post_run_review": "3.13.9",
+      "review_kind": "post-run documentation; not a run-start environment snapshot"
+    },
+    "git": {
+      "commit": "3030109458a1499ca7601515625fd1ac6dafb025",
+      "dirty": true
+    },
+    "post_run_provenance_review": {
+      "attribution": "The run-start dirty flag is attributed after the run to the required preserved untracked interrupted run listed below, rather than to a known production-code modification.",
+      "dirty_flag": true,
+      "evidence_basis": {
+        "post_run_operator_observation": "Immediately before staging, git status showed only the preserved interrupted run and this newly generated run; after committing this run, the preserved interrupted run was the only untracked scope.",
+        "pre_run_operator_observation": "Before this invocation, git status showed the preserved interrupted run as the only untracked scope."
+      },
+      "limitation": "No machine-readable git status --porcelain snapshot was captured at run start. This is a post-run attribution based on operator-observed pre-run and post-run status plus the current sole untracked scope; it is not an original run-start snapshot and cannot independently prove that no other transient worktree change existed during execution.",
+      "preserved_untracked_run": {
+        "included_in_task5_commit": false,
+        "manifest_path": "backtest/output/runs/20260821T165746-p0-revalidation-3030109/manifest.json",
+        "manifest_status": "interrupted",
+        "path": "backtest/output/runs/20260821T165746-p0-revalidation-3030109/"
+      },
+      "review_kind": "post-run attribution; not a start-time porcelain snapshot",
+      "start_time_porcelain_snapshot_captured": false
+    },
+    "warning_reviews": [
+      {
+        "context": "/home/elfbob/miniconda3/lib/python3.13/site-packages/pandas/core/arraylike.py:399",
+        "disposition": "accepted_after_post_run_finite_output_review",
+        "post_run_checks": {
+          "result": "All JSON floating-point values and all numeric CSV cells checked were finite.",
+          "scope": "All 10 JSON files and 2 CSV files in this run directory at review time."
+        },
+        "risk_boundary": "Finite serialized outputs do not prove that the intermediate overflow caused no precision loss or branch effect. The original warning and outputs are retained for audit; any claim beyond the recorded STOP verdicts requires rerunning or instrumenting the affected calculation.",
+        "source_log": "logs/step-2-tail.log",
+        "source_log_line": 91,
+        "step": "tail",
+        "verdict_effect": "none; verdicts were not changed, and outputs, CSV files, logs, and their artifact inventory entries remain unchanged",
+        "warning_text": "RuntimeWarning: overflow encountered in exp",
+        "warning_type": "RuntimeWarning"
+      }
+    ]
+  },
+  "seed": 0,
+  "started_at": "2026-08-21T21:08:47+08:00",
+  "status": "complete"
+}
