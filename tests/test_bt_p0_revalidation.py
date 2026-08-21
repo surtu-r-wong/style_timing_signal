@@ -106,13 +106,15 @@ def test_tail_runner_main_writes_only_requested_output_directory(monkeypatch, tm
 
 def test_geometric_runner_writes_only_requested_output_directory(monkeypatch, tmp_path):
     runner = importlib.import_module("backtest.geometric_pairs_runner")
+    explicit_output = tmp_path / "explicit-output"
+    monkeypatch.setattr(runner, "OUTDIR", tmp_path / "flat-output")
     monkeypatch.setattr(runner, "rebalance_dates", lambda *_: [pd.Timestamp("2024-01-02")])
     monkeypatch.setattr(runner, "build_geometric_pairs", lambda *_, **__: [_pair()] * 5)
 
-    assert runner.main(["--output-dir", str(tmp_path)]) == 0
+    assert runner.main(["--output-dir", str(explicit_output)]) == 0
 
-    assert (tmp_path / "geo5_pairs_daily.csv").is_file()
-    assert json.loads((tmp_path / "geo5_pairs_build.json").read_text())["skipped"] == []
+    assert (explicit_output / "geo5_pairs_daily.csv").is_file()
+    assert json.loads((explicit_output / "geo5_pairs_build.json").read_text())["skipped"] == []
     assert not (runner.OUTDIR / "geo5_pairs_daily.csv").exists()
 
 
