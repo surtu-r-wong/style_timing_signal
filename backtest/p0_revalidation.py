@@ -37,6 +37,23 @@ LEGACY_FILES = {
 OUTPUT_FILES = LEGACY_FILES.copy()
 
 
+REQUIRED_OUTPUT_FILES = (
+    "gate0r_result.json",
+    "tail_pair_daily.csv",
+    "tail_pair_build.json",
+    "fifth_bucket_verdict.json",
+    "geo5_pairs_daily.csv",
+    "geo5_pairs_build.json",
+    "geo5_verdict.json",
+)
+STEP_NAMES = ("gate0r", "tail", "fifth", "geo_pairs", "geo_formal")
+BUILD_METADATA_FILES = ("tail_pair_build.json", "geo5_pairs_build.json")
+
+
+def _now_iso() -> str:
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
 def build_commands(run_dir: Path, python: str = sys.executable) -> list[tuple[str, list[str]]]:
     """Return the frozen five-command P0 execution plan."""
     outputs = Path(run_dir) / "outputs"
@@ -128,10 +145,36 @@ def validate_verdict(payload: dict) -> dict:
     return payload
 
 
+def _decision(payload: dict) -> bool:
+    """Return a sealed verdict decision or reject ambiguous legacy evidence."""
+    if type(payload) is not dict:
+        raise RuntimeError("invalid decision payload")
+    has_overall = "OVERALL" in payload
+    has_pass = "pass" in payload
+    if not has_overall and not has_pass:
+        raise RuntimeError("invalid decision: missing OVERALL or pass")
+
+    overall_decision = None
+    if has_overall:
+        overall = payload["OVERALL"]
+        if overall not in {"STOP", "GO"}:
+            raise RuntimeError("invalid decision: OVERALL must be STOP or GO")
+        overall_decision = overall == "GO"
+
+    pass_decision = None
+    if has_pass:
+        value = payload["pass"]
+        if type(value) is not bool:
+            raise RuntimeError("invalid decision: pass must be bool")
+        pass_decision = value
+
+    if has_overall and has_pass and overall_decision != pass_decision:
+        raise RuntimeError("invalid decision: OVERALL and pass conflict")
+    return overall_decision if has_overall else pass_decision
+
+
 def _passed(payload: dict) -> bool:
-    if "OVERALL" in payload:
-        return payload["OVERALL"] == "GO"
-    return payload.get("pass") is True
+    return _decision(payload)
 
 
 def compare_verdicts(old: dict[str, dict], new: dict[str, dict]) -> dict[str, dict]:
@@ -180,6 +223,29 @@ def _write_comparison(path: Path, payload: dict) -> None:
     )
 
 
+def _require_evidence(path: Path, run_dir: Path, *, nonempty: bool) -> None:
+    path = Path(path)
+    if not path.is_file() or (nonempty and path.stat().st_size == 0):
+        raise RuntimeError(
+            f"required evidence missing: {path.relative_to(run_dir).as_posix()}"
+        )
+
+
+def _validate_complete_evidence(run_dir: Path) -> None:
+    run_dir = Path(run_dir)
+    for filename in LEGACY_FILES.values():
+        _require_evidence(run_dir / "inputs" / filename, run_dir, nonempty=True)
+    for filename in REQUIRED_OUTPUT_FILES:
+        _require_evidence(run_dir / "outputs" / filename, run_dir, nonempty=True)
+    for filename in BUILD_METADATA_FILES:
+        load_json(run_dir / "outputs" / filename)
+    for number, step in enumerate(STEP_NAMES, start=1):
+        _require_evidence(
+            run_dir / "logs" / f"step-{number}-{step}.log", run_dir, nonempty=False
+        )
+    _require_evidence(run_dir / "comparison.json", run_dir, nonempty=True)
+
+
 def run_revalidation(run_root: Path, run_id: str, *, root: Path = ROOT,
                      metadata: dict | None = None, python: str = sys.executable,
                      runner=subprocess_runner) -> Path:
@@ -192,6 +258,7 @@ def run_revalidation(run_root: Path, run_id: str, *, root: Path = ROOT,
         "seed": SEED,
         "status": "running",
         "commands": [{"step": step, "command": command} for step, command in commands],
+        "started_at": _now_iso(),
         "inputs": {},
         "artifacts": [],
     }
@@ -219,8 +286,10 @@ def run_revalidation(run_root: Path, run_id: str, *, root: Path = ROOT,
             )
         _write_comparison(run_dir / "comparison.json", compare_verdicts(old, new))
 
+        _validate_complete_evidence(run_dir)
         manifest["status"] = "complete"
         manifest["artifacts"] = _artifact_records(run_dir)
+        manifest["finished_at"] = _now_iso()
         write_manifest(run_dir, manifest)
         return run_dir
     except BaseException as exc:
@@ -228,6 +297,7 @@ def run_revalidation(run_root: Path, run_id: str, *, root: Path = ROOT,
             "interrupted" if isinstance(exc, (KeyboardInterrupt, SystemExit)) else "failed"
         )
         manifest["error"] = {"type": type(exc).__name__, "message": str(exc)}
+        manifest["finished_at"] = _now_iso()
         try:
             manifest["artifacts"] = _artifact_records(run_dir)
         except BaseException:

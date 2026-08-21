@@ -203,16 +203,11 @@ def _legacy_verdict(overall):
     return payload
 
 
-def test_p0_revalidation_reports_parseable_run_dir(monkeypatch, tmp_path, capsys):
-    monkeypatch.setattr(p0_revalidation, "LEGACY_FILES", {})
-    monkeypatch.setattr(p0_revalidation, "OUTPUT_FILES", {})
-
-    def runner(_command, log_path):
-        log_path.write_bytes(b"ok")
-        return 0
+def test_p0_revalidation_reports_parseable_run_dir(tmp_path, capsys):
+    _write_legacy_outputs(tmp_path)
 
     run_dir = p0_revalidation.run_revalidation(
-        tmp_path / "runs", "run-dir", root=tmp_path, metadata={}, runner=runner
+        tmp_path / "runs", "run-dir", root=tmp_path, metadata={}, runner=_complete_runner
     )
 
     assert capsys.readouterr().out == f"RUN_DIR={run_dir}\n"
@@ -365,24 +360,7 @@ def test_p0_revalidation_writes_complete_evidence_run(tmp_path):
 
     def runner(command, log_path):
         calls.append(command)
-        log_path.write_bytes((" ".join(command)).encode())
-        output = Path(command[command.index("--output-dir") + 1])
-        if "backtest.gate0_runner" in command:
-            name, payload = "gate0r_result.json", {"pass": True}
-        elif "backtest.fifth_bucket_formal" in command:
-            name, payload = "fifth_bucket_verdict.json", _valid_verdict()
-        elif "backtest.geometric_5b_formal" in command:
-            name, payload = "geo5_verdict.json", _valid_verdict("STOP")
-        elif "backtest.tail_pair_runner" in command:
-            name, payload = "tail_pair_daily.csv", "growth,value\n0.0,0.0\n"
-        else:
-            name, payload = "geo5_pairs_daily.csv", "g1_growth,g1_value\n0.0,0.0\n"
-        target = output / name
-        if isinstance(payload, str):
-            target.write_text(payload, encoding="utf-8")
-        else:
-            target.write_text(json.dumps(payload), encoding="utf-8")
-        return 0
+        return _complete_runner(command, log_path)
 
     metadata = {"git": {"commit": "abcdef0", "dirty": False},
                 "database_cutoffs": {"index_daily": "2026-08-20"}}
@@ -410,6 +388,25 @@ def test_p0_revalidation_writes_complete_evidence_run(tmp_path):
         "inputs/gate0r_result.json", "outputs/geo5_verdict.json", "comparison.json"}
     assert all(len(record["sha256"]) == 64 for record in manifest["artifacts"])
 
+    expected_paths = {
+        "comparison.json",
+        "inputs/gate0r_result.json",
+        "inputs/fifth_bucket_verdict.json",
+        "inputs/geo5_verdict.json",
+        "outputs/gate0r_result.json",
+        "outputs/tail_pair_daily.csv",
+        "outputs/tail_pair_build.json",
+        "outputs/fifth_bucket_verdict.json",
+        "outputs/geo5_pairs_daily.csv",
+        "outputs/geo5_pairs_build.json",
+        "outputs/geo5_verdict.json",
+        "logs/step-1-gate0r.log",
+        "logs/step-2-tail.log",
+        "logs/step-3-fifth.log",
+        "logs/step-4-geo_pairs.log",
+        "logs/step-5-geo_formal.log",
+    }
+    assert expected_paths <= {record["path"] for record in manifest["artifacts"]}
 def test_p0_revalidation_import_does_not_call_poisoned_connection(monkeypatch):
     builder = importlib.import_module("backtest.pure_style_builder")
     calls = []
@@ -456,3 +453,117 @@ def test_p0_revalidation_rejects_every_invalid_required_numeric_field(field, mod
 
     with pytest.raises(ValueError, match=field):
         p0_revalidation.validate_verdict(payload)
+
+def _complete_runner(command, log_path, *, include_build=True):
+    log_path.write_bytes(b"step log")
+    output = Path(command[command.index("--output-dir") + 1])
+    if "backtest.gate0_runner" in command:
+        artifacts = [("gate0r_result.json", {"pass": True})]
+    elif "backtest.tail_pair_runner" in command:
+        artifacts = [("tail_pair_daily.csv", "growth,value\n0.0,0.0\n")]
+        if include_build:
+            artifacts.append(("tail_pair_build.json", {}))
+    elif "backtest.fifth_bucket_formal" in command:
+        artifacts = [("fifth_bucket_verdict.json", _valid_verdict("STOP"))]
+    elif "backtest.geometric_pairs_runner" in command:
+        artifacts = [("geo5_pairs_daily.csv", "g1_growth,g1_value\n0.0,0.0\n")]
+        if include_build:
+            artifacts.append(("geo5_pairs_build.json", {}))
+    else:
+        artifacts = [("geo5_verdict.json", _valid_verdict("STOP"))]
+    for name, payload in artifacts:
+        target = output / name
+        if isinstance(payload, str):
+            target.write_text(payload, encoding="utf-8")
+        else:
+            target.write_text(json.dumps(payload), encoding="utf-8")
+    return 0
+
+
+def test_p0_revalidation_records_started_and_finished_timestamps(monkeypatch, tmp_path):
+    _write_legacy_outputs(tmp_path)
+    times = iter([
+        "2026-08-21T09:00:00+08:00",
+        "2026-08-21T09:10:00+08:00",
+    ])
+    monkeypatch.setattr(p0_revalidation, "_now_iso", lambda: next(times))
+
+    run_dir = p0_revalidation.run_revalidation(
+        tmp_path / "runs", "timestamps", root=tmp_path, metadata={},
+        runner=_complete_runner,
+    )
+
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert manifest["status"] == "complete"
+    assert manifest["started_at"] == "2026-08-21T09:00:00+08:00"
+    assert manifest["finished_at"] == "2026-08-21T09:10:00+08:00"
+
+
+@pytest.mark.parametrize(
+    ("raised", "status"),
+    [(RuntimeError("boom"), "failed"), (KeyboardInterrupt(), "interrupted")],
+)
+def test_p0_revalidation_records_finished_time_for_terminal_failures(
+    monkeypatch, tmp_path, raised, status
+):
+    _write_legacy_outputs(tmp_path)
+    times = iter([
+        "2026-08-21T09:00:00+08:00",
+        "2026-08-21T09:10:00+08:00",
+    ])
+    monkeypatch.setattr(p0_revalidation, "_now_iso", lambda: next(times))
+
+    def runner(_command, log_path):
+        log_path.write_bytes(b"failed")
+        raise raised
+
+    with pytest.raises(type(raised)):
+        p0_revalidation.run_revalidation(
+            tmp_path / "runs", status, root=tmp_path, metadata={}, runner=runner
+        )
+
+    manifest = json.loads((tmp_path / "runs" / status / "manifest.json").read_text())
+    assert manifest["status"] == status
+    assert manifest["started_at"] == "2026-08-21T09:00:00+08:00"
+    assert manifest["finished_at"] == "2026-08-21T09:10:00+08:00"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"OVERALL": "MAYBE"},
+        {"pass": 1},
+        {"pass": "true"},
+        {"OVERALL": "GO", "pass": False},
+    ],
+)
+def test_p0_revalidation_compare_rejects_invalid_or_conflicting_decisions(payload):
+    with pytest.raises(RuntimeError, match="decision"):
+        p0_revalidation.compare_verdicts({"verdict": payload}, {"verdict": {"OVERALL": "STOP"}})
+
+
+def test_p0_revalidation_compare_accepts_consistent_decisions():
+    comparison = p0_revalidation.compare_verdicts(
+        {"gate": {"OVERALL": "STOP", "pass": False}},
+        {"gate": {"pass": True}},
+    )
+
+    assert comparison["gate"]["flipped"] is True
+    assert comparison["gate"]["maintained"] is False
+
+
+def test_p0_revalidation_missing_build_evidence_fails_run(tmp_path):
+    _write_legacy_outputs(tmp_path)
+
+    def incomplete_runner(command, log_path):
+        return _complete_runner(command, log_path, include_build=False)
+
+    with pytest.raises(RuntimeError, match="required evidence"):
+        p0_revalidation.run_revalidation(
+            tmp_path / "runs", "incomplete", root=tmp_path, metadata={},
+            runner=incomplete_runner,
+        )
+
+    manifest = json.loads((tmp_path / "runs" / "incomplete" / "manifest.json").read_text())
+    assert manifest["status"] == "failed"
