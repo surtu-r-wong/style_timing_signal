@@ -14,6 +14,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from backtest import p0_revalidation
+
 
 ROOT = Path(__file__).resolve().parents[1]
 TAIL_RUNNER = ROOT / "backtest" / "tail_pair_runner.py"
@@ -182,3 +184,207 @@ def test_verdicts_include_revalidation_evidence(monkeypatch, tmp_path, module_na
     assert payload["metrics_incumbent"]["full"]["sharpe"] == 0.2
     assert payload["metrics_candidate"]["full"]["sharpe"] == 0.2
     assert not (module.OUT.parent / output_name).exists()
+
+
+def _valid_verdict(overall="STOP"):
+    return {
+        "OVERALL": overall,
+        "sharpe_diff": 0.1,
+        "p_selected": 0.02,
+        "sharpe_incumbent_full": 0.3,
+        "sharpe_candidate_full": 0.4,
+        "position_diff_ratio": 0.25,
+    }
+
+
+def _write_legacy_outputs(root):
+    legacy = root / "backtest" / "output"
+    legacy.mkdir(parents=True)
+    payloads = {
+        "gate0r_result.json": {"pass": True},
+        "fifth_bucket_verdict.json": _valid_verdict(),
+        "geo5_verdict.json": _valid_verdict("GO"),
+    }
+    for name, payload in payloads.items():
+        (legacy / name).write_text(json.dumps(payload), encoding="utf-8")
+    return legacy
+
+
+def test_p0_revalidation_import_is_db_safe():
+    assert p0_revalidation.ROOT == ROOT
+    assert callable(p0_revalidation.database_cutoffs)
+
+
+def test_p0_revalidation_builds_the_five_frozen_commands(tmp_path):
+    run_dir = tmp_path / "run"
+
+    assert p0_revalidation.build_commands(run_dir, python="python-bin") == [
+        ("gate0r", ["python-bin", "-m", "backtest.gate0_runner", "0r",
+                    "--output-dir", str(run_dir / "outputs")]),
+        ("tail", ["python-bin", "-m", "backtest.tail_pair_runner",
+                  "--output-dir", str(run_dir / "outputs")]),
+        ("fifth", ["python-bin", "-m", "backtest.fifth_bucket_formal",
+                   "--tail-csv", str(run_dir / "outputs" / "tail_pair_daily.csv"),
+                   "--output-dir", str(run_dir / "outputs"), "--start", "2022-12-12",
+                   "--n-perm", "1000", "--seed", "0"]),
+        ("geo_pairs", ["python-bin", "-m", "backtest.geometric_pairs_runner",
+                       "--output-dir", str(run_dir / "outputs")]),
+        ("geo_formal", ["python-bin", "-m", "backtest.geometric_5b_formal",
+                        "--geo-csv", str(run_dir / "outputs" / "geo5_pairs_daily.csv"),
+                        "--output-dir", str(run_dir / "outputs"), "--n-perm", "1000",
+                        "--seed", "0"]),
+    ]
+
+
+def test_p0_revalidation_stops_after_second_step_failure(tmp_path):
+    commands = [("one", ["one"]), ("two", ["two"]), ("three", ["three"])]
+    calls = []
+
+    def runner(command, log_path):
+        calls.append(command)
+        log_path.write_bytes(b"runner output")
+        return 7 if command == ["two"] else 0
+
+    with pytest.raises(RuntimeError, match="two.*7"):
+        p0_revalidation.execute_steps(tmp_path, commands, runner=runner)
+
+    assert calls == [["one"], ["two"]]
+    assert (tmp_path / "logs" / "step-1-one.log").read_bytes() == b"runner output"
+    assert (tmp_path / "logs" / "step-2-two.log").is_file()
+    assert not (tmp_path / "logs" / "step-3-three.log").exists()
+
+
+def test_p0_revalidation_compares_overall_and_pass_fallbacks():
+    comparison = p0_revalidation.compare_verdicts(
+        {"gate": {"pass": True}, "fifth": _valid_verdict("STOP")},
+        {"gate": {"OVERALL": "GO"}, "fifth": _valid_verdict("GO")},
+    )
+
+    assert comparison["gate"]["old"] == {"pass": True}
+    assert comparison["gate"]["new"] == {"OVERALL": "GO"}
+    assert comparison["gate"]["maintained"] is True
+    assert comparison["gate"]["flipped"] is False
+    assert comparison["fifth"]["maintained"] is False
+    assert comparison["fifth"]["flipped"] is True
+
+
+@pytest.mark.parametrize("rendered", [
+    '{"nested": [NaN]}',
+    '{"nested": {"value": Infinity}}',
+    '{"nested": {"value": -Infinity}}',
+])
+def test_p0_revalidation_rejects_nonfinite_json_at_any_depth(tmp_path, rendered):
+    path = tmp_path / "bad.json"
+    path.write_text(rendered, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="non-finite"):
+        p0_revalidation.load_json(path)
+
+
+def test_p0_revalidation_validates_gate0_true_only():
+    assert p0_revalidation.validate_gate0({"pass": True}) == {"pass": True}
+
+    with pytest.raises(ValueError, match="pass"):
+        p0_revalidation.validate_gate0({"pass": False})
+
+
+def test_p0_revalidation_validates_complete_finite_verdicts():
+    assert p0_revalidation.validate_verdict(_valid_verdict()) == _valid_verdict()
+
+    invalid = _valid_verdict()
+    invalid.pop("position_diff_ratio")
+    with pytest.raises(ValueError, match="position_diff_ratio"):
+        p0_revalidation.validate_verdict(invalid)
+
+    invalid = _valid_verdict()
+    invalid["position_diff_ratio"] = True
+    with pytest.raises(ValueError, match="position_diff_ratio"):
+        p0_revalidation.validate_verdict(invalid)
+
+    invalid = _valid_verdict()
+    invalid["sharpe_diff"] = float("nan")
+    with pytest.raises(ValueError, match="sharpe_diff"):
+        p0_revalidation.validate_verdict(invalid)
+
+    invalid = _valid_verdict()
+    invalid["p_selected"] = float("inf")
+    with pytest.raises(ValueError, match="p_selected"):
+        p0_revalidation.validate_verdict(invalid)
+
+    invalid = _valid_verdict("MAYBE")
+    with pytest.raises(ValueError, match="OVERALL"):
+        p0_revalidation.validate_verdict(invalid)
+
+
+@pytest.mark.parametrize(
+    ("raised", "expected_status"),
+    [(RuntimeError("runner failed"), "failed"), (KeyboardInterrupt(), "interrupted")],
+)
+def test_p0_revalidation_records_failed_and_interrupted_manifests(
+    tmp_path, raised, expected_status
+):
+    _write_legacy_outputs(tmp_path)
+
+    def runner(_command, log_path):
+        log_path.write_bytes(b"failed")
+        raise raised
+
+    with pytest.raises(type(raised)):
+        p0_revalidation.run_revalidation(
+            tmp_path / "runs", "failure", root=tmp_path, metadata={"test": True}, runner=runner
+        )
+
+    manifest = json.loads((tmp_path / "runs" / "failure" / "manifest.json").read_text())
+    assert manifest["status"] == expected_status
+    assert manifest["error"]["type"] == type(raised).__name__
+    assert manifest["artifacts"]
+
+
+def test_p0_revalidation_writes_complete_evidence_run(tmp_path):
+    _write_legacy_outputs(tmp_path)
+    calls = []
+
+    def runner(command, log_path):
+        calls.append(command)
+        log_path.write_bytes((" ".join(command)).encode())
+        output = Path(command[command.index("--output-dir") + 1])
+        if "backtest.gate0_runner" in command:
+            name, payload = "gate0r_result.json", {"pass": True}
+        elif "backtest.fifth_bucket_formal" in command:
+            name, payload = "fifth_bucket_verdict.json", _valid_verdict()
+        elif "backtest.geometric_5b_formal" in command:
+            name, payload = "geo5_verdict.json", _valid_verdict("GO")
+        elif "backtest.tail_pair_runner" in command:
+            name, payload = "tail_pair_daily.csv", "growth,value\n0.0,0.0\n"
+        else:
+            name, payload = "geo5_pairs_daily.csv", "g1_growth,g1_value\n0.0,0.0\n"
+        target = output / name
+        if isinstance(payload, str):
+            target.write_text(payload, encoding="utf-8")
+        else:
+            target.write_text(json.dumps(payload), encoding="utf-8")
+        return 0
+
+    metadata = {"git": {"commit": "abcdef0", "dirty": False},
+                "database_cutoffs": {"index_daily": "2026-08-20"}}
+    run_dir = p0_revalidation.run_revalidation(
+        tmp_path / "runs", "success", root=tmp_path, metadata=metadata, runner=runner
+    )
+
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    comparison = json.loads((run_dir / "comparison.json").read_text())
+    assert manifest["status"] == "complete"
+    assert manifest["metadata"] == metadata
+    assert manifest["experiment"] == "p0-revalidation"
+    assert manifest["seed"] == 0
+    assert len(manifest["commands"]) == 5
+    assert set(manifest["inputs"]) == {"gate0r", "fifth", "geo"}
+    assert comparison["gate0r"]["maintained"] is True
+    assert (run_dir / "outputs" / "fifth_bucket_verdict.json").is_file()
+    assert (run_dir / "comparison.json").read_bytes().endswith(b"\n")
+    assert all("manifest" not in item["path"] and ".tmp" not in item["path"]
+               for item in manifest["artifacts"])
+    assert len(calls) == 5
+    assert {record["path"] for record in manifest["artifacts"]} >= {
+        "inputs/gate0r_result.json", "outputs/geo5_verdict.json", "comparison.json"}
+    assert all(len(record["sha256"]) == 64 for record in manifest["artifacts"])
