@@ -3,10 +3,12 @@
 
 子命令：
   0r   回归护栏 preflight（§4.2b）：
-         A) 锚复现阶段 —— 以 08-19 口径（含 .HK 的旧样本空间）重跑 v5a 2000 带模拟全窗，
-            期望 ρ ≈ 0.8046（±0.01），证明代码基线未漂移；
+         A) 锚复现阶段 —— 以含 .HK 的旧样本空间重跑 v5a 2000 带模拟全窗，
+            期望 ρ ≈ 锚（±0.01），证明代码基线未漂移；
          B) 护栏阶段 —— 现口径重跑 2000 带模拟全窗 + 500 带真值 T9，
-            判据 ρ ≥ 0.7946 / ≥ 0.9536。A→B 之差即 .HK 护栏修复的量化影响（修复台账）。
+            判据 = 各判定量自己的锚 − 0.01。A→B 之差即 .HK 护栏的量化影响（修复台账）。
+       锚值见下方登记常量（2026-08-21 重登，裁决记录 =
+       docs/plans/2026-08-20-data-foundation-repair.md §7）。
   0a   主闸（§4.1）：1000 带官方化模拟（判定版：prev 自举、无 000852 真值注入）ρ ≥ 0.85；
          同跑 000852 真值直通诊断版（不判定）。首跑值永久登记。
   0b   副闸（§4.2）：2000 带真值直通、运营期（2023-12 起）ρ ≥ 0.85。
@@ -38,6 +40,16 @@ from backtest.pure_style_builder import (  # noqa: E402
 )
 
 OUTDIR = ROOT / "backtest" / "output"
+
+# 锚与地板登记（2026-08-21 用户裁决 A 重登：DP 死因子修复后新值；地板 = 各判定量
+# 自己的锚 − 0.01。08-19 首跑锚 0.8046/0.8007/0.9636、旧地板 0.7946/0.9536 校准于
+# DP 恒 0 时代，永久在案：git 历史 + data_fixes/2026-08-20-dp-factor-and-leg-lists/）
+ANCHOR_REPRO_HK = 0.7951   # 0R-A 锚复现（样本空间含 .HK 旧口径），复现带 ±0.01
+ANCHOR_SIM2000 = 0.7900    # 0R-B1 现口径 2000 带模拟全窗（.HK 护栏生效）
+ANCHOR_BAND500 = 0.9698    # 0R-B2 / 0R' 500 带真值 + T9
+FLOOR_SIM2000 = 0.7800
+FLOOR_BAND500 = 0.9598
+ANCHOR_0B = 0.8815         # 0B 参考锚（判据仍是预登记绝对阈值 0.85）
 EXCLUDE_DAYS = {pd.Timestamp("2026-06-16")}       # §4.3 数据事件条款
 CSMAR_END = pd.Timestamp("2025-03-31")            # 数据源分段界
 WINDOW = ("2015-01-01", "2026-08-18")             # v5a 同窗
@@ -108,8 +120,10 @@ def run_0r() -> None:
     t0 = time.time()
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
     off2000 = official_spread("932409.CSI", "932408.CSI")
-    res: dict = {"gate": "0R", "anchors": {"v5a": 0.8046, "band500": 0.9636},
-                 "thresholds": {"sim2000": 0.7946, "band500": 0.9536}}
+    res: dict = {"gate": "0R", "anchors_registered": "2026-08-21",
+                 "anchors": {"repro_hk": ANCHOR_REPRO_HK, "sim2000_guarded": ANCHOR_SIM2000,
+                             "band500": ANCHOR_BAND500},
+                 "thresholds": {"sim2000": FLOOR_SIM2000, "band500": FLOOR_BAND500}}
 
     print("== 0R-A 锚复现（旧口径：样本空间含 .HK）", flush=True)
     psb._EXCHANGE_SUFFIXES = (".SH", ".SZ", ".BJ", ".HK")
@@ -119,12 +133,12 @@ def run_0r() -> None:
         res["repro_hk"]["n_by_date"] = pair.n_growth
     finally:
         psb._EXCHANGE_SUFFIXES = (".SH", ".SZ", ".BJ")
-    print(f"  锚复现 ρ = {res['repro_hk']['rho']}（锚 0.8046）", flush=True)
+    print(f"  锚复现 ρ = {res['repro_hk']['rho']}（锚 {ANCHOR_REPRO_HK}）", flush=True)
 
     print("== 0R-B1 现口径 2000 带模拟全窗（.HK 护栏生效）", flush=True)
     pair = build_pair(None, None, dates, take_top_half=True, official_space=True)
     res["sim2000_guarded"] = rho_report(spread_of(pair), off2000)
-    print(f"  ρ = {res['sim2000_guarded']['rho']}（判据 ≥0.7946）", flush=True)
+    print(f"  ρ = {res['sim2000_guarded']['rho']}（判据 ≥{FLOOR_SIM2000}）", flush=True)
 
     print("== 0R-B2 500 带真值 + T9", flush=True)
     cbd = truth_codes_by_date("000905.SH", dates, require_all=True)
@@ -132,15 +146,15 @@ def run_0r() -> None:
                       codes_by_date=cbd)
     off500 = official_spread("932403.CSI", "932402.CSI")
     res["band500_true"] = rho_report(spread_of(pair), off500)
-    print(f"  ρ = {res['band500_true']['rho']}（判据 ≥0.9536）", flush=True)
+    print(f"  ρ = {res['band500_true']['rho']}（判据 ≥{FLOOR_BAND500}）", flush=True)
 
     res["hk_guard_delta"] = (None if res["sim2000_guarded"]["rho"] is None
                              else round(res["sim2000_guarded"]["rho"]
                                         - res["repro_hk"]["rho"], 4))
     res["pass"] = bool(res["repro_hk"]["rho"] is not None
-                       and abs(res["repro_hk"]["rho"] - 0.8046) <= 0.01
-                       and res["sim2000_guarded"]["rho"] >= 0.7946
-                       and res["band500_true"]["rho"] >= 0.9536)
+                       and abs(res["repro_hk"]["rho"] - ANCHOR_REPRO_HK) <= 0.01
+                       and res["sim2000_guarded"]["rho"] >= FLOOR_SIM2000
+                       and res["band500_true"]["rho"] >= FLOOR_BAND500)
     res["elapsed_s"] = round(time.time() - t0, 1)
     dump("gate0r_result", res)
     print(f"0R {'PASS' if res['pass'] else 'FAIL'}（{res['elapsed_s']}s）", flush=True)
@@ -189,7 +203,7 @@ def run_0b() -> None:
     pair = build_pair(None, None, dates, take_top_half=True, official_space=True,
                       codes_by_date=cbd)
     mine = spread_of(pair)
-    res = {"gate": "0B", "threshold": 0.85, "anchor_0819": 0.8727,
+    res = {"gate": "0B", "threshold": 0.85, "anchor": ANCHOR_0B,
            "truth": rho_report(mine, off)}
     res["pass"] = bool(res["truth"]["rho"] is not None and res["truth"]["rho"] >= 0.85)
     res["elapsed_s"] = round(time.time() - t0, 1)
@@ -208,9 +222,9 @@ def run_preflight500() -> None:
                       codes_by_date=cbd)
     off500 = official_spread("932403.CSI", "932402.CSI")
     rep = rho_report(spread_of(pair), off500)
-    ok = rep["rho"] is not None and rep["rho"] >= 0.9536
-    res = {"gate": "0R'", "anchor": 0.9636, "threshold": 0.9536, "band500_true": rep,
-           "pass": bool(ok), "elapsed_s": round(time.time() - t0, 1)}
+    ok = rep["rho"] is not None and rep["rho"] >= FLOOR_BAND500
+    res = {"gate": "0R'", "anchor": ANCHOR_BAND500, "threshold": FLOOR_BAND500,
+           "band500_true": rep, "pass": bool(ok), "elapsed_s": round(time.time() - t0, 1)}
     dump("gate0rp_result", res)
     print(f"0R' rho = {rep['rho']} -> {'PASS' if ok else 'FAIL'}（{res['elapsed_s']}s）", flush=True)
 
