@@ -11,14 +11,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 
 import pandas as pd
 
-from backtest.pure_style_builder import build_tail_pair, rebalance_dates
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from backtest.pure_style_builder import build_tail_pair, rebalance_dates  # noqa: E402
+
 OUTDIR = ROOT / "backtest" / "output"
 WINDOW = ("2015-01-01", "2026-08-18")
 TERMINAL = pd.Timestamp("2026-08-18")

@@ -4,7 +4,10 @@ from __future__ import annotations
 import ast
 import importlib
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import numpy as np
@@ -27,10 +30,14 @@ def _pair() -> SimpleNamespace:
     )
 
 
+def _is_root_path_injection(node: ast.Expr) -> bool:
+    return ast.unparse(node.value) == "sys.path.insert(0, str(ROOT))"
+
+
 def _tail_runner_is_import_safe() -> bool:
     tree = ast.parse(TAIL_RUNNER.read_text(encoding="utf-8"))
     return not any(isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
-                   for node in tree.body)
+                   and not _is_root_path_injection(node) for node in tree.body)
 
 
 def _verdict_data(window_names: tuple[str, ...], start_name: str) -> type:
@@ -68,8 +75,18 @@ def test_tail_runner_has_no_top_level_execution_and_exposes_main():
     tree = ast.parse(TAIL_RUNNER.read_text(encoding="utf-8"))
 
     assert not any(isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
-                   for node in tree.body)
+                   and not _is_root_path_injection(node) for node in tree.body)
     assert any(isinstance(node, ast.FunctionDef) and node.name == "main" for node in tree.body)
+
+
+def test_tail_runner_direct_script_help_is_import_safe():
+    env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    result = subprocess.run(
+        [sys.executable, "backtest/tail_pair_runner.py", "--help"],
+        cwd=ROOT, env=env, text=True, capture_output=True, timeout=10, check=False)
+
+    assert result.returncode == 0, result.stderr
+    assert "--output-dir" in result.stdout
 
 
 def test_tail_runner_main_writes_only_requested_output_directory(monkeypatch, tmp_path):
