@@ -1,0 +1,73 @@
+{
+  "artifacts": [
+    {
+      "path": "outputs/adaptive_bucket_compare_paired.csv",
+      "sha256": "c001f77d0ae431a5ab79b07419203b090b37644fe8901a7d8690c70edee1b3dc",
+      "size": 1244
+    },
+    {
+      "path": "outputs/adaptive_bucket_compare_report.csv",
+      "sha256": "baa0e5830eda72f72aabf48b8540e5a34560c76da6a1c2523e00653c1c3e3f25",
+      "size": 27261
+    },
+    {
+      "path": "outputs/gate0a_result_series.csv",
+      "sha256": "ae3c0adcba71ad7f42292093408a321128e0176122bc41c9a1f972cefa0145ce",
+      "size": 160159
+    },
+    {
+      "path": "outputs/gate0b_result_series.csv",
+      "sha256": "7a2fdfd4138ac07f439c4ea1940db14af81d15560ed7794e6196b80c348358f8",
+      "size": 117552
+    },
+    {
+      "path": "outputs/geo5_pairs_daily.csv",
+      "sha256": "09ee0a3a17a3ec3e150e57e8c640c98dcb14b063bfc92bff7c6c30ceec457913",
+      "size": 614969
+    },
+    {
+      "path": "outputs/mixed_ensemble_probe_paired.csv",
+      "sha256": "895ba6babb4429c847d7b6fd8e34b98101d4c9a1257bd6346c96e80df6945caf",
+      "size": 2536
+    },
+    {
+      "path": "outputs/mixed_ensemble_probe_report.csv",
+      "sha256": "7cf195dd6f766a480c8ad5b539732ada9d217d0936951ee7544502a88785ddf9",
+      "size": 27699
+    },
+    {
+      "path": "outputs/mixed_ensemble_probe_yearly.csv",
+      "sha256": "fb76ea825b58e717d1e9a1992e9c3ed7fdfe3c6bb910f811b124721ac1b4b937",
+      "size": 1591
+    },
+    {
+      "path": "outputs/rotation_target_probe.csv",
+      "sha256": "742d1f3b0262689a12339a08601ea886cd227dfe99dbdb65c932f469e2f23515",
+      "size": 9394
+    },
+    {
+      "path": "logs/r3_rerun.log",
+      "sha256": "9726f696e4e46e734c6d57f13019cbbdb3e41f01a8ce8b7001a7cf409bb1fdcf",
+      "size": 19419
+    }
+  ],
+  "experiment": "legacy-pre-p0-snapshot",
+  "immutable": true,
+  "observed_at": "2026-08-21T16:44:26+08:00",
+  "observed_at_commit": "2c17b32c4f1d9f156c8e0d26699bc5ee35fc930c",
+  "provenance": "untracked flat files observed during the 2026-08-21 audit; generator commit not asserted",
+  "reason": "Preserve loose legacy pre-P0 evidence before applying flat-output ignore policy.",
+  "source_paths": [
+    "backtest/output/adaptive_bucket_compare_paired.csv",
+    "backtest/output/adaptive_bucket_compare_report.csv",
+    "backtest/output/gate0a_result_series.csv",
+    "backtest/output/gate0b_result_series.csv",
+    "backtest/output/geo5_pairs_daily.csv",
+    "backtest/output/mixed_ensemble_probe_paired.csv",
+    "backtest/output/mixed_ensemble_probe_report.csv",
+    "backtest/output/mixed_ensemble_probe_yearly.csv",
+    "backtest/output/rotation_target_probe.csv",
+    "backtest/output/r3_rerun.log"
+  ],
+  "status": "complete"
+}

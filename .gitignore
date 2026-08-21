@@ -8,5 +8,21 @@ output/style_basket/cache/
 output/style_basket/b3/
 logs/
 
+# Flat pre-P0 evidence is preserved by the immutable legacy snapshot.
+backtest/output/adaptive_bucket_compare_paired.csv
+backtest/output/adaptive_bucket_compare_report.csv
+backtest/output/gate0a_result_series.csv
+backtest/output/gate0b_result_series.csv
+backtest/output/geo5_pairs_daily.csv
+backtest/output/mixed_ensemble_probe_paired.csv
+backtest/output/mixed_ensemble_probe_report.csv
+backtest/output/mixed_ensemble_probe_yearly.csv
+backtest/output/rotation_target_probe.csv
+backtest/output/*.log
+# Run evidence remains tracked even though legacy flat logs are ignored.
+!backtest/output/runs/
+!backtest/output/runs/**/
+!backtest/output/runs/**
+
 # LibreOffice 编辑锁文件（打开 CSV 时生成，绝不入库）
 .~lock.*#

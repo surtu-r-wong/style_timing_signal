@@ -45,7 +45,7 @@
 - 首跑登记值的产物备份在本目录（gate0{r,a,b}_result*.json/csv、
   replication_dev_v5_series.csv，均为 2026-08-19 首跑）。**首跑值永久登记不变**；
   修复后新值另行登记于修复台账（docs 收官文档）。
-- 跑法：`setsid nohup` 顺序 0B → 0R → 0A，日志 `backtest/output/r3_rerun.log`。
+- 跑法：`setsid nohup` 顺序 0B → 0R → 0A，日志 `backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/logs/r3_rerun.log`。
 - 预期方向：DP 复活会改变全窗复刻序列；0R 锚复现按设计会**有意漂移**（这是
   修复不是漂移事故）。另 index_daily 官方序列今日已换修正批次（6-16 妖点剔除
   条款不变）。
