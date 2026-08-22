@@ -52,3 +52,45 @@
 
 **限定**：provisional（approximate-PIT）；有效窗截至 2025-03-31。
 产物：`geo5_verdict.json` / `geo5_pairs_build.json` / `gate0rp_result.json`。
+
+<a id="geometric-five-dp-revalidation"></a>
+## DP 修复后重验（2026-08-21）
+
+- 权威 run：`backtest/output/runs/20260821T210841-p0-revalidation-3030109/`；manifest：
+  `backtest/output/runs/20260821T210841-p0-revalidation-3030109/manifest.json`（`status=complete`）。
+- 代码 commit：`3030109458a1499ca7601515625fd1ac6dafb025`；seed：`0`。
+- 哈希溯源：输入 `inputs/geo5_verdict.json` =
+  `338ce1c8a03c3fabb52ef6a2902037d61987922c2c0273dd8bad0d4965cc3859`，输出
+  `outputs/geo5_verdict.json` =
+  `66edf885c4e733c22c97e03da8188b7ce1c69b8424618468d31c497093e78865`，
+  `comparison.json` =
+  `cdd537e199f195181a10d8104abad93153cc18df31246b75f324444dca99625e`。
+- manifest 的 `metadata.git.dirty=true` 归因来自跑后 provenance review；跑前没有机器可读的
+  porcelain 快照，这一限制已写入 manifest，不能把跑后归因当作原始 run-start 证据。
+- 本节取代旧“判定：情形② STOP”“读法与机制”“沉淀与方向状态”三节，以及文末旧
+  “有效窗截至 2025-03-31”限定，成为当前权威；所有旧段继续保留作历史记录。
+
+`comparison.json.geo` 的机器 disposition 为 `maintained=true`、`flipped=false`：旧、新
+`OVERALL` 均为 `STOP`。旧规格差 `-0.1956`、`p_selected=p_naive=0.9351`；修复后差
+`-0.3173`、`p_selected=p_naive=0.987`。修复后公共窗为 `2015-09-11` 至
+`2026-08-18`（`n_obs=2656`），仓位分歧 `232/2656` 日，比例 `0.087349`。
+
+| 窗口 | 现役 Sharpe | 候选 Sharpe | 现役 MaxDD | 候选 MaxDD | 现役换手 | 候选换手 |
+|---|---:|---:|---:|---:|---:|---:|
+| full | `1.485442231218137` | `1.1681346079845105` | `-0.16666686242381645` | `-0.21203038040297728` | `10.792545180722891` | `10.423569277108435` |
+| 2015-2020 | `1.4672703046786981` | `1.051379616976786` | `-0.1285694416471741` | `-0.21203038040297728` | `11.937354988399072` | `11.179427687548337` |
+| 2021-2023 | `1.000930606530241` | `0.8620511046120533` | `-0.1312448943202561` | `-0.13124489432025566` | `8.42503438789546` | `9.773039889958733` |
+| 2024-2026 | `1.9035615119239735` | `1.6366045023988225` | `-0.16666686242381534` | `-0.16461917667180814` | `11.171383647798741` | `9.630503144654087` |
+
+机器裁决措辞保持为：**“② 差异不显著 → 两种划法在现役架构下不可辨认；不得表述为
+「重划无价值」，但本候选无权重稀释/短窗借口，此情形对「换划法」方向的否定力显著强于
+r3 的情形②，报告须如实写明”**。限定仍是 `provisional: approximate-PIT`；机器 caveat
+原文保留为：`有效窗截至 2025-03-31（stock_financial 停更）`，这是对本次重验不适用的
+stale legacy metadata。manifest 的 `stock_financial=2026-06-30` 只表示数据库可用性快照；
+builder 对每个调样期按 `end_date <= review_cutoff(eff)` 过滤（6 月生效 → 4/30，12 月生效
+→ 10/31）。最后一期 2026-06 调样实际使用 `review_cutoff=2026-04-30`，geo build log
+已明确打印。实际剩余限制是：历史
+CSMAR `ann_date` 用 `min(ann_date, 法定披露截止日)` 修正，超期披露公司仍可能被当作
+按时披露，留下 late-filer look-ahead 风险；DP 在 2026 年前使用 CSMAR dividend events，
+自 2026 年起使用 `stock_indicator.dividend_yield`。另有限定“候选全自建 vs 现役官方发布
+序列”的信息不对称。上述限定不改变机器 verdict，也不允许把 `STOP` 扩写为“重划无价值”。

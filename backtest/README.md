@@ -1,4 +1,4 @@
-# backtest/ — Phase 2「修秤」评价框架
+# backtest/ — 回测基线与实验证据入口
 
 正确口径的回测/评价模块：把信号线当作对**中证500/1000/50-50**的市场择时信号，跑真实基线。修掉 `signals/hybrid20/optimize_signal.py` 的四个评价问题（设计稿 §3.1）。**只读 PG + `output/`，不碰信号生成。**
 
@@ -57,7 +57,20 @@ python3 -m backtest.yearly
 
 `metrics.py` 指标（全日历）· `positions.py` 信号→仓位 · `engine.py` 全日历引擎（T+1/成本/carry/多空分段）· `data.py` 标的收益+主力基差carry · `significance.py` bootstrap · `baseline.py` 编排+CLI · `yearly.py` 年度集中度分解（逐年表+剔强年/滚动3年诊断）。测试 `tests/test_bt_*.py`。
 
-## 已知 & 后续
+## 当前生产基线与证据约定
 
-- **citic40d `build_basket`（generate_signal.py:56）用 `iloc[0]` 归一**：非理想 PIT（换起始日会改历史值），但除的是**最早日、无前视**，基线有效；z-score 对常数缩放近似不变、影响小 → PIT 清理并入 step-2 再评估（设计稿 §3.2 Step 4）。
-- **下一步 = 方向二 step-2**：walk-forward 参数重扫（lookback×z_window×平滑，选 Sharpe 高原出热图），citic40d 重点；之后 Phase 3 双引擎 v1 组装。
+- **生产 baseline**：上表仍是当前生产对照秤；`equal_weight` 保持生产主信号，
+  `hybrid20` 是同秤强基线，`citic40d` 保留为较弱对照。2026-08-21 的 P0 证据重验只更新
+  实验裁决与可追溯性，不切换生产信号或生产参数。
+- **已知边界**：`citic40d` 的 `build_basket`（`generate_signal.py:56`）用 `iloc[0]`
+  归一，换起始日会改历史值；它除以最早日而不前视，且 z-score 对常数缩放近似不变。
+  该清理若执行，应进入单独的回测口径批次重新评估。
+- **不可变 run 约定**：正式实验写入 `backtest/output/runs/<run-id>/`，目录只追加、不覆盖；
+  `manifest.json` 只有 `status=complete` 才能成为权威证据，且必须用其中的输入、输出、日志
+  SHA-256 清单追溯。未完成或 interrupted run 不构成裁决依据。
+- **权威入口**：当前规格、verdict/run、supersession 与 reopen condition 统一见
+  [`docs/plans/README.md`](../docs/plans/README.md)。P0 当前权威 run 为
+  `backtest/output/runs/20260821T210841-p0-revalidation-3030109/`。
+- **批次边界**：engine timing、NaN 处理和 carry 口径修复均不属于本次 P0 证据重验；
+  它们必须留在独立的回测口径批次中设计、测试、重跑和裁决，不得与本批 immutable run
+  混写为同一次修复。

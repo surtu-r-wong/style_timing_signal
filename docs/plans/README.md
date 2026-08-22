@@ -1,0 +1,30 @@
+# 实验权威索引
+
+本页只回答“当前应读哪份规格、哪份 verdict/run”。历史文档继续保留，但被本表标为
+superseded 的段落不得再作为当前裁决。P0 与此后新建的正式机器证据采用不可变 run：目录
+只追加不覆盖，`manifest.json` 必须为 `status=complete`，输入、输出和日志由 manifest 的
+SHA-256 清单追溯。
+
+B3 formal evaluation 是 legacy archive exception：其 `core/backtest/run_manifest.json` 没有
+`status` 字段；仓库内证据由冻结的 `inventory.json` 和
+`tools/verify_b3_formal_archive.py` 对 10-file core 的校验建立，不套用 P0 manifest schema。
+
+| Experiment | Status | Authoritative spec | Authoritative verdict/run | Superseded files | Reopen condition |
+|---|---|---|---|---|---|
+| Gate 0R | **PASS** (pass=true) | [当前数值锚/地板：data-foundation repair §7](2026-08-20-data-foundation-repair.md#7-锚重登记录2026-08-21用户裁决-a整体重登)；[r3 §4/§4.2b](2026-08-19-fifth-bucket-preregistration-r3.md#4-gate-0冻结) 仅保留未变的过程语义 | [DP 修复后 Gate 0R](2026-08-19-gate0-execution-record.md#gate0r-dp-revalidation)；[complete manifest](../../backtest/output/runs/20260821T210841-p0-revalidation-3030109/manifest.json) | r3 §4.2b 的旧数值锚/地板及 execution record 旧 §2 Gate 0R 数值段由 immutable run 取代；r3 的过程语义与 Gate 0A/0B 均未被取代 | 规格或 DP 数据底座再次变更时，先冻结新锚/阈值并生成新的 complete immutable run |
+| tail fifth-bucket | **STOP**（当前规格下增量不可辨认，不等于尾部无信息） | [fifth-bucket preregistration r3](2026-08-19-fifth-bucket-preregistration-r3.md) | [DP 修复后第五桶 verdict](2026-08-19-gate0-execution-record.md#tail-fifth-dp-revalidation)；[machine output](../../backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs/fifth_bucket_verdict.json) | [r1](2026-08-18-fifth-bucket-preregistration.md)、[r2 draft](2026-08-18-fifth-bucket-preregistration-r2-DRAFT.md) 均由 r3 取代；execution record 旧 §5.1“⓪ 机器判定结果”由 immutable run 取代 | 获得更长且更新鲜的 PIT 财务窗，或改变会压缩尾部影响的架构时，须先新预登记 |
+| geometric five-bucket | **STOP**（当前规格下不可辨认，不等于重划无价值） | [geometric five-bucket preregistration](2026-08-19-geometric-5buckets-preregistration.md) | [DP 修复后 geometric verdict](2026-08-19-geometric-5buckets-verdict.md#geometric-five-dp-revalidation)；[machine output](../../backtest/output/runs/20260821T210841-p0-revalidation-3030109/outputs/geo5_verdict.json) | geometric verdict 旧“判定：情形② STOP”“读法与机制”“沉淀与方向状态”三节及文末旧“有效窗截至 2025-03-31”限定由 immutable run 取代 | 新候选须先说明如何逃出多重平均的钝化，并另立预登记 |
+| adaptive-bucket probe | research-only（无正式 verdict） | [classifier-swap argument §7.8](2026-08-20-classifier-swap-argument.md) | [committed legacy snapshot manifest](../../backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/manifest.json)；[report](../../backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/outputs/adaptive_bucket_compare_report.csv) | — | 先冻结正式规格、闸门和判定措辞，再生成 complete immutable run |
+| mixed-ensemble probe | research-only（无正式 verdict） | [classifier-swap argument §7.9](2026-08-20-classifier-swap-argument.md) | [committed legacy snapshot manifest](../../backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/manifest.json)；[report](../../backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/outputs/mixed_ensemble_probe_report.csv) | — | 先冻结正式规格、闸门和判定措辞，再生成 complete immutable run |
+| rotation-target probe | research-only（无正式 verdict） | [classifier-swap argument §7.5](2026-08-20-classifier-swap-argument.md) | [committed legacy snapshot manifest](../../backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/manifest.json)；[output](../../backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/outputs/rotation_target_probe.csv) | — | 先冻结正式规格、闸门和判定措辞，再生成 complete immutable run |
+| B3 formal evaluation | archived formal evidence | [archive provenance and source tag](../../data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/README.md) | [run manifest](../../data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/run_manifest.json)；[verdicts](../../data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/verdicts.csv)；[retrieval boundaries](../../data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/RETRIEVAL.md)；完整 32 文件仅在 host-local /home/elfbob/claude-code/deploy_backups/2026-08-21-style-timing-p0-evidence/b3-formal-run.tar.gz，SHA-256 a2bd6043824253816b531ccdc844a847c45393af63d59c1e5fed9a15ca234843 | — | 需审计完整树或重跑时，先按 archive README 校验 host-local tar；Git checkout 只含 10 文件 review core |
+
+## 解释边界
+
+- P0 权威 run 的代码 commit 为 3030109458a1499ca7601515625fd1ac6dafb025，seed 为 0；
+  manifest 的跑后 provenance 补记不改变这两个运行参数。
+- research-only 三行只指向已提交的 legacy snapshot；该 snapshot 记录
+  observed_at_commit=2c17b32c4f1d9f156c8e0d26699bc5ee35fc930c，且明确不声称 generator commit，
+  所以本索引不为它们补造正式 verdict。
+- B3 仓库 archive 是可审阅的 10 文件 core，不是完整 formal-run；完整 tar 是 host-local、
+  在 Git 之外，单独 checkout 无法恢复。

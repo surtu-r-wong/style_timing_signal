@@ -136,3 +136,35 @@ C（回滚历史段事件行修法保 ρ，为讨好统计量保留已证实的�
 
 **追溯保全**：08-19 首跑值与 DP 时代旧锚/旧地板永久在案——git 历史 +
 `data_fixes/2026-08-20-dp-factor-and-leg-lists/`（首跑产物备份）+ 本文档 §6 表。
+
+## DP 修复后重验（2026-08-21）
+
+- 权威 run：`backtest/output/runs/20260821T210841-p0-revalidation-3030109/`；manifest：
+  `backtest/output/runs/20260821T210841-p0-revalidation-3030109/manifest.json`（`status=complete`）。
+- 代码 commit：`3030109458a1499ca7601515625fd1ac6dafb025`；seed：`0`。
+- 哈希溯源：Gate 0R 输入/输出分别为
+  `d2d31dc7f0e418c939c1ee37d5c85efe6d10fa008be9074b7b4ff051f2ca5ddb` /
+  `d433bc87fd27347aebd955db0a79c9da0bedddd8d1073a8ddcdf8b2d18cdbcc6`；第五桶输入/输出分别为
+  `1e355157b167eaedcfd0cc70307d8565410394bf6cd2adc5186ee1cdff9d173e` /
+  `404cc11b515622214cdffdf98e6f6a67caed88b1f6ded0631f21574e94f8f82d`；等比五桶输入/输出分别为
+  `338ce1c8a03c3fabb52ef6a2902037d61987922c2c0273dd8bad0d4965cc3859` /
+  `66edf885c4e733c22c97e03da8188b7ce1c69b8424618468d31c497093e78865`；
+  `comparison.json` =
+  `cdd537e199f195181a10d8104abad93153cc18df31246b75f324444dca99625e`。
+- manifest 的 dirty attribution 是跑后 provenance review，且明确记录未捕获 run-start
+  porcelain snapshot；代码 provenance 仍是上述 `3030109...` commit，不随该补记改变。
+- 本节取代 §6 的旧地板判定和 §7 的“用在手值演算”作为当前机器裁决；两节继续保留作
+  DP 修复、锚重登与规格演进的历史记录。
+
+| 实验 | 旧规格结论 | 修复后结论 | `maintained` | `flipped` |
+|---|---|---|---:|---:|
+| Gate 0R | `pass=false` | **`pass=true`** | `false` | `true` |
+| 尾部第五桶 | `OVERALL=STOP` | `OVERALL=STOP` | `true` | `false` |
+| 等比五桶 | `OVERALL=STOP` | `OVERALL=STOP` | `true` | `false` |
+
+Gate 0R 的机器结果为：`repro_hk=0.7951`（锚 `0.7951`）、
+`sim2000_guarded=0.79`（地板 `0.78`）、`band500=0.9698`（地板 `0.9598`），
+故 `pass=true`。第五桶与等比五桶的逐窗 Sharpe、MaxDD、换手、p、仓位分歧和 caveats
+分别以 `2026-08-19-gate0-execution-record.md` 与
+`2026-08-19-geometric-5buckets-verdict.md` 的本日 supersession block 为准。两项 `STOP`
+都只表示当前规格下差异不可辨认；不得扩写为“尾部无信息”或“重划无价值”。

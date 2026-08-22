@@ -123,3 +123,68 @@
   ——「空结果/回退必须出声」纪律的直接回报。
 - 长跑姿势：harness 后台任务曾在 ~30 分钟被停（非 OOM，RSS ~400MB）→ 改
   `setsid nohup` 脱管 + Monitor 盯日志（mtime 停滞判死；`pgrep -f` 会自匹配勿用）。
+
+## DP 修复后重验（2026-08-21）
+
+- 权威 run：`backtest/output/runs/20260821T210841-p0-revalidation-3030109/`；manifest：
+  `backtest/output/runs/20260821T210841-p0-revalidation-3030109/manifest.json`（`status=complete`）。
+- 代码 commit：`3030109458a1499ca7601515625fd1ac6dafb025`；seed：`0`。
+- 哈希溯源：Gate 0R 输入 `inputs/gate0r_result.json` =
+  `d2d31dc7f0e418c939c1ee37d5c85efe6d10fa008be9074b7b4ff051f2ca5ddb`，输出
+  `outputs/gate0r_result.json` =
+  `d433bc87fd27347aebd955db0a79c9da0bedddd8d1073a8ddcdf8b2d18cdbcc6`；第五桶输入
+  `inputs/fifth_bucket_verdict.json` =
+  `1e355157b167eaedcfd0cc70307d8565410394bf6cd2adc5186ee1cdff9d173e`，输出
+  `outputs/fifth_bucket_verdict.json` =
+  `404cc11b515622214cdffdf98e6f6a67caed88b1f6ded0631f21574e94f8f82d`；
+  `comparison.json` =
+  `cdd537e199f195181a10d8104abad93153cc18df31246b75f324444dca99625e`。
+- manifest 的 `metadata.git.dirty=true` 归因来自跑后 provenance review；manifest 明确说明
+  跑前没有机器可读的 porcelain 快照，因此该归因不是 run-start snapshot，不能越界解读。
+- 本节的 Gate 0R 子节取代本文旧 §2“Gate 0R 回归护栏”作为当前权威；尾部第五桶子节
+  取代旧 §5.1“⓪ 机器判定结果”作为当前权威。其他历史段继续保留作历史记录，不由本节改写。
+
+<a id="gate0r-dp-revalidation"></a>
+### Gate 0R：旧规格结论翻转，新规格通过
+
+`comparison.json.gate0r` 的机器 disposition 为 `maintained=false`、`flipped=true`：旧规格
+`pass=false`，DP 修复后重登锚规格 `pass=true`。这里的“旧”特指同一 DP 修复结果套用退役
+锚/地板的机器比较，不改写 2026-08-19 更早一次运行的历史记录。
+
+| 判定量 | 旧规格 | 修复后重登规格 |
+|---|---:|---:|
+| `repro_hk` | ρ `0.7951`；锚 `0.8046` | ρ `0.7951`；锚 `0.7951` |
+| `sim2000_guarded` | ρ `0.79`；地板 `0.7946` | ρ `0.79`；地板 `0.78` |
+| `band500` | ρ `0.9698`；地板 `0.9536` | ρ `0.9698`；地板 `0.9598` |
+| OVERALL | `pass=false` | **`pass=true`** |
+
+新结果的 `elapsed_s=20697.0`，公共观察窗均为 `2015-06-16` 至 `2026-08-18`，
+`n_obs=2715`。因此 Gate 0R 在当前登记规格下通过。
+
+<a id="tail-fifth-dp-revalidation"></a>
+### 尾部第五桶：旧结论维持，仍为 STOP
+
+`comparison.json.fifth` 的机器 disposition 为 `maintained=true`、`flipped=false`：旧、新
+`OVERALL` 均为 `STOP`。旧规格差 `-0.0311`、`p_selected=p_naive=0.6144`；修复后差
+`-0.0055`、`p_selected=p_naive=0.5275`。修复后公共窗为 `2023-03-14` 至
+`2026-08-18`（`n_obs=833`），仓位分歧 `39/833` 日，比例 `0.046819`。
+
+| 窗口 | 现役 Sharpe | 候选 Sharpe | 现役 MaxDD | 候选 MaxDD | 现役换手 | 候选换手 |
+|---|---:|---:|---:|---:|---:|---:|
+| full | `1.5560645051511368` | `1.5505983103792065` | `-0.16666686242381568` | `-0.16138876163900917` | `10.294117647058824` | `8.529411764705882` |
+| H1 | `0.5448067428666601` | `0.49227213868506664` | `-0.16666686242381568` | `-0.16138876163900917` | `10.600961538461538` | `10.600961538461538` |
+| H2 | `2.9518671239393757` | `3.0436793255871537` | `-0.09187953714142116` | `-0.07015127680314437` | `9.98800959232614` | `6.462829736211031` |
+
+机器裁决措辞保持为：**“② 差异不显著 → 在现役架构与本实现下，尾部的增量不可辨认；
+不得表述为「尾部无信息」（approximate-PIT / 实现差异 / 1/5 权重稀释都在压效应）”**。
+限定仍是 `provisional: approximate-PIT（CSMAR ann_date 批次日，min(ann,法定截止) 缓解）`。
+机器 caveat 原文保留为：`有效窗截至 2025-03-31（stock_financial 停更），其后为数据外推`；
+这是对本次重验不适用的 stale legacy metadata。manifest 的 `stock_financial=2026-06-30`
+只表示数据库可用性快照；builder 对每个调样期按 `end_date <= review_cutoff(eff)` 过滤
+（6 月生效 → 4/30，12 月生效 → 10/31）。最后一期 2026-06 调样实际使用
+`review_cutoff=2026-04-30`，tail build log 已明确打印。实际剩余限制是：
+历史 CSMAR `ann_date` 用 `min(ann_date, 法定披露截止日)` 修正，超期披露公司仍可能被
+当作按时披露，留下 late-filer look-ahead 风险；DP 在 2026 年前使用 CSMAR dividend events，
+自 2026 年起使用 `stock_indicator.dividend_yield`。tail 步骤还保留
+一次 `overflow encountered in exp` 警告；跑后只确认所有序列化数值有限，不能据此证明
+中间溢出没有精度或分支影响，故不得把本次 `STOP` 扩写为“尾部无信息/无价值”。
