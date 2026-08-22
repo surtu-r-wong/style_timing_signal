@@ -1,0 +1,145 @@
+{
+  "backtest_output_dir": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\backtest",
+  "complete": true,
+  "data_end": "2023-12-31",
+  "library_versions": {
+    "numpy": "2.3.4",
+    "pandas": "2.3.3",
+    "psutil": "7.2.2",
+    "psycopg2": "2.9.11 (dt dec pq3 ext lo64)",
+    "yaml": "6.0.3"
+  },
+  "memory_max": null,
+  "platform": "windows",
+  "python_version": "3.13.9",
+  "research_output_dir": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\research",
+  "run_dir": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run",
+  "schema": "b3-wind-share-capital-execution",
+  "stage_order": [
+    "preflight",
+    "build",
+    "eval"
+  ],
+  "stages": [
+    {
+      "allowed_exit_codes": [
+        0
+      ],
+      "command": [
+        "D:\\style_timing_signal\\.venv\\Scripts\\python.exe",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\win_peak_run.py",
+        "--report",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\preflight.time.txt",
+        "--",
+        "D:\\style_timing_signal\\.venv\\Scripts\\python.exe",
+        "-m",
+        "signals.style_basket.b3_build",
+        "--stage",
+        "preflight",
+        "--data-end",
+        "2023-12-31",
+        "--output-dir",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\research"
+      ],
+      "exit_code": 0,
+      "files": {
+        "stderr": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\preflight.stderr.log",
+          "sha256": "78cce52fe412fa159d3d5c30decbe48435b2c11e8566e62d69e660c18ebced27"
+        },
+        "stdout": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\preflight.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "time": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\preflight.time.txt",
+          "sha256": "70027fdf59da931c03c20dad6b8684ce4ff14b81f13fa2d0dbbfa8d0091971b7"
+        }
+      },
+      "name": "preflight",
+      "peak_rss_kib": 19079344,
+      "wall_seconds": 1564.908
+    },
+    {
+      "allowed_exit_codes": [
+        0
+      ],
+      "command": [
+        "D:\\style_timing_signal\\.venv\\Scripts\\python.exe",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\win_peak_run.py",
+        "--report",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\build.time.txt",
+        "--",
+        "D:\\style_timing_signal\\.venv\\Scripts\\python.exe",
+        "-m",
+        "signals.style_basket.b3_build",
+        "--stage",
+        "all",
+        "--data-end",
+        "2023-12-31",
+        "--output-dir",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\research"
+      ],
+      "exit_code": 0,
+      "files": {
+        "stderr": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\build.stderr.log",
+          "sha256": "67bbdb1a547094ea739215b1ff983b576b3b7a81e87011bc8dc15368cf2d5e6b"
+        },
+        "stdout": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\build.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "time": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\build.time.txt",
+          "sha256": "036818763c2409a4d7a68b72ecee2d69f526f128934cace9733a9fefea7d6070"
+        }
+      },
+      "name": "build",
+      "peak_rss_kib": 19091524,
+      "wall_seconds": 2505.115
+    },
+    {
+      "allowed_exit_codes": [
+        0,
+        2
+      ],
+      "command": [
+        "D:\\style_timing_signal\\.venv\\Scripts\\python.exe",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\win_peak_run.py",
+        "--report",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\eval.time.txt",
+        "--",
+        "D:\\style_timing_signal\\.venv\\Scripts\\python.exe",
+        "-m",
+        "backtest.b3_eval",
+        "--data-end",
+        "2023-12-31",
+        "--research-output-dir",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\research",
+        "--backtest-output-dir",
+        "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\backtest"
+      ],
+      "exit_code": 2,
+      "files": {
+        "stderr": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\eval.stderr.log",
+          "sha256": "98d18b3b488a54afa7c469e8a2309885b99c2dbcfc76d1fc7efbb5b7afbf432a"
+        },
+        "stdout": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\eval.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "time": {
+          "path": "D:\\style_timing_signal\\data_fixes\\2026-08-01-b3-wind-share-capital\\run\\logs\\eval.time.txt",
+          "sha256": "8ea97dc092bd2e680081f76af6be78a07b7a091781f95660f88b8a1c7e781fca"
+        }
+      },
+      "name": "eval",
+      "peak_rss_kib": 68752,
+      "wall_seconds": 0.534
+    }
+  ],
+  "stopped_at": null,
+  "version": 1
+}

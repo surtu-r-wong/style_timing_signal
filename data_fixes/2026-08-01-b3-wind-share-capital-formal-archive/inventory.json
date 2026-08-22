@@ -1,0 +1,227 @@
+{
+  "source": {
+    "branch": "fix/b3-wind-share-capital-tail",
+    "commit": "41ed581c649712c90463c587265cd1a47e177c44",
+    "tag": "archive/b3-wind-share-capital-tail-20260814"
+  },
+  "core_files": [
+    {
+      "path": "RETRIEVAL.md",
+      "size": 18122,
+      "sha256": "49862c43033516f0c675af218f68d669e4b353461d7ac97c63adf8b5d70b0df0"
+    },
+    {
+      "path": "b3_execution_receipt.json",
+      "size": 5548,
+      "sha256": "9ed33b1087b1754e8c0badc48ea46625cc42be58b938f1dcc2babf5aaac353de"
+    },
+    {
+      "path": "backtest/bootstrap.csv",
+      "size": 422,
+      "sha256": "92bb98b5e726c570c531863853fc6a0253f6699e00116cd3c19a7dd32db9b051"
+    },
+    {
+      "path": "backtest/model_comparison.csv",
+      "size": 13177,
+      "sha256": "aee6ea2977904e16a6cdaa31dd6be90ea07202c703686fecb189a914fba30b9f"
+    },
+    {
+      "path": "backtest/production_metrics.csv",
+      "size": 16296,
+      "sha256": "709666560e13faea5e5e2677297b97f74dee66f1a9c65ec3b626917f0498410e"
+    },
+    {
+      "path": "backtest/run_manifest.json",
+      "size": 6262,
+      "sha256": "382ec014e2e033ec147452df6b0c832f0e6c72d740191a5b98746df176dcdd56"
+    },
+    {
+      "path": "backtest/structure_manifest.json",
+      "size": 703,
+      "sha256": "0621d96c4be830a48756627fcc9b65088b7bf1636a434d098cd4b406239917de"
+    },
+    {
+      "path": "backtest/verdicts.csv",
+      "size": 16853,
+      "sha256": "1413c5ea3aeff7a0ea649e4a5b142462bc0518fab60b03a2631da257489729b9"
+    },
+    {
+      "path": "research/coverage_audit.csv",
+      "size": 518042,
+      "sha256": "cd7af025bcc77741e65d99bf1772f4d84502399365006329f903def619b04719"
+    },
+    {
+      "path": "research/manifests/preflight.json",
+      "size": 14166,
+      "sha256": "f3e8bfecf268f2bc7ae1008d00dc31d2146959c529054b795fdd4cf4be7aeb82"
+    }
+  ],
+  "formal_run_files": [
+    {
+      "path": "RETRIEVAL.md",
+      "size": 18122,
+      "sha256": "49862c43033516f0c675af218f68d669e4b353461d7ac97c63adf8b5d70b0df0"
+    },
+    {
+      "path": "b3_execution_receipt.json",
+      "size": 5548,
+      "sha256": "9ed33b1087b1754e8c0badc48ea46625cc42be58b938f1dcc2babf5aaac353de"
+    },
+    {
+      "path": "backtest/bootstrap.csv",
+      "size": 422,
+      "sha256": "92bb98b5e726c570c531863853fc6a0253f6699e00116cd3c19a7dd32db9b051"
+    },
+    {
+      "path": "backtest/model_comparison.csv",
+      "size": 13177,
+      "sha256": "aee6ea2977904e16a6cdaa31dd6be90ea07202c703686fecb189a914fba30b9f"
+    },
+    {
+      "path": "backtest/production_metrics.csv",
+      "size": 16296,
+      "sha256": "709666560e13faea5e5e2677297b97f74dee66f1a9c65ec3b626917f0498410e"
+    },
+    {
+      "path": "backtest/run_manifest.json",
+      "size": 6262,
+      "sha256": "382ec014e2e033ec147452df6b0c832f0e6c72d740191a5b98746df176dcdd56"
+    },
+    {
+      "path": "backtest/structure_coefficients.csv",
+      "size": 33737,
+      "sha256": "4bae44445e144dc409fc54a1bb0683f02f92e8b1cd3514abc7d9b8bea160083a"
+    },
+    {
+      "path": "backtest/structure_manifest.json",
+      "size": 703,
+      "sha256": "0621d96c4be830a48756627fcc9b65088b7bf1636a434d098cd4b406239917de"
+    },
+    {
+      "path": "backtest/verdicts.csv",
+      "size": 16853,
+      "sha256": "1413c5ea3aeff7a0ea649e4a5b142462bc0518fab60b03a2631da257489729b9"
+    },
+    {
+      "path": "backtest/yearly_contribution.csv",
+      "size": 10077,
+      "sha256": "822a981a3678a986c64c34ab5bfc7e10584b19a0e47c01809a38151e484b006a"
+    },
+    {
+      "path": "logs/build.stderr.log",
+      "size": 15318,
+      "sha256": "67bbdb1a547094ea739215b1ff983b576b3b7a81e87011bc8dc15368cf2d5e6b"
+    },
+    {
+      "path": "logs/build.stdout.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/build.time.txt",
+      "size": 280,
+      "sha256": "036818763c2409a4d7a68b72ecee2d69f526f128934cace9733a9fefea7d6070"
+    },
+    {
+      "path": "logs/eval.stderr.log",
+      "size": 129,
+      "sha256": "98d18b3b488a54afa7c469e8a2309885b99c2dbcfc76d1fc7efbb5b7afbf432a"
+    },
+    {
+      "path": "logs/eval.stdout.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/eval.time.txt",
+      "size": 363,
+      "sha256": "8ea97dc092bd2e680081f76af6be78a07b7a091781f95660f88b8a1c7e781fca"
+    },
+    {
+      "path": "logs/preflight.stderr.log",
+      "size": 3744,
+      "sha256": "78cce52fe412fa159d3d5c30decbe48435b2c11e8566e62d69e660c18ebced27"
+    },
+    {
+      "path": "logs/preflight.stdout.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/preflight.time.txt",
+      "size": 286,
+      "sha256": "70027fdf59da931c03c20dad6b8684ce4ff14b81f13fa2d0dbbfa8d0091971b7"
+    },
+    {
+      "path": "research/axis_returns.csv",
+      "size": 458252,
+      "sha256": "ca592ca032759068cffc84dd39889bf73ecca9e3519d3b5b11ac8dfb3d8e3ccd"
+    },
+    {
+      "path": "research/conditional_leg_returns.csv",
+      "size": 1145681,
+      "sha256": "308d3c3b5d085d984a9981bcec59fd8424a96d49ba030c434e223e3b689d461c"
+    },
+    {
+      "path": "research/coverage_audit.csv",
+      "size": 518042,
+      "sha256": "cd7af025bcc77741e65d99bf1772f4d84502399365006329f903def619b04719"
+    },
+    {
+      "path": "research/exposure_diagnostics.csv",
+      "size": 52335,
+      "sha256": "f3a6f91d7fa2e3932124bb3e24e255b71f339834983c90f7dc40acebd88cd4a8"
+    },
+    {
+      "path": "research/hard_sort_surface.csv",
+      "size": 4117902,
+      "sha256": "d6b923e3ebd6023b5f84fc45d2d421f53c2e4a20658f30abbc70d9878180acc9"
+    },
+    {
+      "path": "research/manifests/exposures.json",
+      "size": 303,
+      "sha256": "efd078f1b6d1ec37ebd21a9810e7f11256d48cf51dd84946c6c4f03eef15bc43"
+    },
+    {
+      "path": "research/manifests/portfolios.json",
+      "size": 504,
+      "sha256": "c42393cd5eb48d6b12d82133d0bc584529c450a1ff74d47e7c55cefb1c1b4f47"
+    },
+    {
+      "path": "research/manifests/preflight.json",
+      "size": 14166,
+      "sha256": "f3e8bfecf268f2bc7ae1008d00dc31d2146959c529054b795fdd4cf4be7aeb82"
+    },
+    {
+      "path": "research/manifests/states.json",
+      "size": 287,
+      "sha256": "e912b596cfe78791ef453c65ce79c873d2491d831bf5673db2a95d49513073a2"
+    },
+    {
+      "path": "research/monthly_exposures.csv.gz",
+      "size": 107347641,
+      "sha256": "8c3365508abef5cff12230da12ce4b8e1377f4df06c9a18f77b3af76d0c928db"
+    },
+    {
+      "path": "research/state_components.csv",
+      "size": 4637930,
+      "sha256": "77dc3a2f79ed01248ac87e444adbde897e06fc89c3db2d72a8c24aa0107ec1f4"
+    },
+    {
+      "path": "research/stock_period_returns.csv.gz",
+      "size": 7483808,
+      "sha256": "c76246ca46ad35d47e3d69d9234c4302004e18f1caf7dd2006357fcfb700c4a5"
+    },
+    {
+      "path": "research/suspension_interval_evidence.csv",
+      "size": 106538,
+      "sha256": "e3a339a23b1157ea8c0fca2a38fa9b86a15cf58b309b7a3b3869057a653861cd"
+    }
+  ],
+  "external_archive": {
+    "path": "/home/elfbob/claude-code/deploy_backups/2026-08-21-style-timing-p0-evidence/b3-formal-run.tar.gz",
+    "size": 117548606,
+    "sha256": "a2bd6043824253816b531ccdc844a847c45393af63d59c1e5fed9a15ca234843",
+    "member_root": "run-windows-formal/"
+  }
+}

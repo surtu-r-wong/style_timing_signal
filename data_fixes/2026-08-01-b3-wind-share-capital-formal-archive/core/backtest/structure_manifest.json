@@ -1,0 +1,19 @@
+{
+  "config_hash": "33e7f69ff47e84e9ac92cabee2aa4f2fd1c19850e3d1a27d42a375a63c6b2c61",
+  "data_end": "2023-12-31",
+  "inputs": {
+    "equal_weight_control": {
+      "date_column": "date",
+      "path": "/mnt/d/style_timing_signal/output/equal_weight/equal_weight_signal_20d40z.csv",
+      "sha256": "5d3fb8c90c836f40b86918f649b3c8844ec905b8f22bc0c4f5efdc26e25e4f64",
+      "source_kind": "file",
+      "value_column": "factor_value"
+    }
+  },
+  "outputs": {
+    "model_comparison.csv": "aee6ea2977904e16a6cdaa31dd6be90ea07202c703686fecb189a914fba30b9f",
+    "structure_coefficients.csv": "4bae44445e144dc409fc54a1bb0683f02f92e8b1cd3514abc7d9b8bea160083a"
+  },
+  "stage": "structure",
+  "status": "OK"
+}
