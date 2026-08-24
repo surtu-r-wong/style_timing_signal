@@ -1,0 +1,18 @@
+公共窗 833 日（2023-03-14 → 2026-08-18；尾部收益首日 2022-06-14 + 暖机 60d），口径 blend（含 carry）
+平均暴露：现役 52.5%   候选 52.8%   仓位逐日不同 39 / 833 天
+
+       方案  S_full   S_H1   S_H2   年化%  MaxDD%    换手
+   现役（四对）  1.5561 0.5448 2.9519 26.17  -16.67 10.29
+候选（五对+尾部）  1.5506 0.4923 3.0437 25.62  -16.14  8.53
+
+零 carry 对照差：-0.0191
+
+── ⓪ 机器（单点候选，n_perm=1000）──
+  full Sharpe：现役 1.5561  候选 1.5506  差 -0.0055
+  p_selected = 0.5275   p_naive = 0.5275（单点应相等）
+  关1 ✗  关2 ✗（worst_tv 候选 0.4923 vs 现役 0.5448）  关3 ✓
+  OVERALL = STOP
+
+  ⭐ r3 §6 判定：② 差异不显著 → 在现役架构与本实现下，尾部的增量不可辨认；**不得**表述为「尾部无信息」（approximate-PIT / 实现差异 / 1/5 权重稀释都在压效应）
+
+→ /home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260824T154604-p0-revalidation-da4db0e/outputs/fifth_bucket_verdict.json
