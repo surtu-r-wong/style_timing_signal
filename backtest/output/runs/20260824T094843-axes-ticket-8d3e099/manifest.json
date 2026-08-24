@@ -1,0 +1,80 @@
+{
+  "artifacts": [
+    {
+      "path": "logs/step-1-build.log",
+      "sha256": "bd26e7c3a0d1cb67dc083bf9b3bfee1a08beffeff58bf663fc95c354191bbf8c",
+      "size": 9520
+    },
+    {
+      "path": "logs/step-2-ticket.log",
+      "sha256": "c8ae27ce1710ea2e786d52d93a2e918d2120c6b05002f6177904c50808837fd5",
+      "size": 1753
+    },
+    {
+      "path": "outputs/axis_build.json",
+      "sha256": "9d8680724311721adf3057c60e00305181545945eb69118eae0d1fac215c1d49",
+      "size": 34283
+    },
+    {
+      "path": "outputs/axis_legs_daily.csv",
+      "sha256": "9fca039fa0185c586c32ea77d59b7773ef1d0be7349631619500c6691f843999",
+      "size": 2926760
+    },
+    {
+      "path": "outputs/axis_ticket_panel.csv",
+      "sha256": "1f13bd9ecb3b7db51ccdbcc3b4c13285575976df578f5f6da743e9f5bf303e83",
+      "size": 1961
+    },
+    {
+      "path": "outputs/axis_ticket_verdict.json",
+      "sha256": "ea6eb5eb363f775799b9d71d85e55247df30265ddaa01d71caf52866fad098b7",
+      "size": 1735
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.axis_rotation_builder",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260824T094843-axes-ticket-8d3e099/outputs"
+      ],
+      "step": "build"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.axis_entry_ticket",
+        "--legs-csv",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260824T094843-axes-ticket-8d3e099/outputs/axis_legs_daily.csv",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260824T094843-axes-ticket-8d3e099/outputs",
+        "--n-perm",
+        "2000"
+      ],
+      "step": "ticket"
+    }
+  ],
+  "experiment": "axes-entry-ticket",
+  "finished_at": "2026-08-24T09:59:08+08:00",
+  "inputs": {},
+  "metadata": {
+    "database_cutoffs": {
+      "index_daily": "2026-08-21",
+      "stock_daily_price": "2026-08-21",
+      "stock_financial": "2026-06-30",
+      "stock_indicator": "2026-08-21",
+      "stock_share_capital": "2026-07-31"
+    },
+    "git": {
+      "commit": "8d3e09955c05eea5c078ff24b723233f4d082e1b",
+      "dirty": true
+    },
+    "spec": "docs/plans/2026-08-24-new-rotation-axes-entry-ticket.md"
+  },
+  "seed": 0,
+  "started_at": "2026-08-24T09:48:47+08:00",
+  "status": "complete"
+}
