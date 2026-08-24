@@ -57,12 +57,14 @@ def database_cutoffs() -> dict[str, str]:
         connection.close()
 
 
-def build_commands(run_dir: Path, n_perm: int,
-                   python: str = sys.executable) -> list[tuple[str, list[str]]]:
+def build_commands(run_dir: Path, n_perm: int, python: str = sys.executable,
+                   axes: str | None = None) -> list[tuple[str, list[str]]]:
     out = str(run_dir / "outputs")
+    build_cmd = [python, "-m", "backtest.axis_rotation_builder", "--output-dir", out]
+    if axes:
+        build_cmd += ["--axes", axes]
     return [
-        ("build", [python, "-m", "backtest.axis_rotation_builder",
-                   "--output-dir", out]),
+        ("build", build_cmd),
         ("ticket", [python, "-m", "backtest.axis_entry_ticket",
                     "--legs-csv", str(run_dir / "outputs" / "axis_legs_daily.csv"),
                     "--output-dir", out, "--n-perm", str(n_perm)]),
@@ -91,11 +93,12 @@ def _artifact_records(run_dir: Path) -> list[dict]:
 
 
 def run_ticket(run_root: Path, run_id: str, *, n_perm: int = 2000,
-               python: str = sys.executable, runner=subprocess_runner) -> Path:
+               python: str = sys.executable, runner=subprocess_runner,
+               axes: str | None = None, spec: str = SPEC) -> Path:
     run_dir = create_run_dir(Path(run_root), run_id)
-    commands = build_commands(run_dir, n_perm, python)
+    commands = build_commands(run_dir, n_perm, python, axes)
     manifest = {
-        "metadata": {"spec": SPEC, "git": git_state(ROOT),
+        "metadata": {"spec": spec, "git": git_state(ROOT),
                      "database_cutoffs": database_cutoffs()},
         "experiment": EXPERIMENT,
         "seed": SEED,
@@ -137,12 +140,14 @@ def run_ticket(run_root: Path, run_id: str, *, n_perm: int = 2000,
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="新轮动轴入场券 immutable run")
     ap.add_argument("--n-perm", type=int, default=2000)
+    ap.add_argument("--axes", default=None, help="逗号分隔轴集（默认批次一四轴）")
+    ap.add_argument("--spec", default=SPEC, help="本批冻结设计稿路径")
     args = ap.parse_args(argv)
 
     git = git_state(ROOT)
     run_id = datetime.now().strftime("%Y%m%dT%H%M%S-axes-ticket-") + git["commit"][:7]
     run_dir = run_ticket(ROOT / "backtest" / "output" / "runs", run_id,
-                         n_perm=args.n_perm)
+                         n_perm=args.n_perm, axes=args.axes, spec=args.spec)
     print(f"COMPLETE {run_dir}", flush=True)
     return 0
 

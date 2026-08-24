@@ -33,12 +33,12 @@ from backtest.rotation_probe import (  # noqa: E402
     shift_permutation_pvalue,
 )
 
-AXES = ("lowvol", "momentum", "liquidity", "dividend")
 EVAL_START = "2015-08-15"          # 跳过信号 warmup（冻结）
 HALF_SPLIT = "2020-12-31"          # 参考半窗分界（冻结）
 PRIMARY_K, REF_KS = 20, (5, 10)
 PRIMARY_TARGET, REF_TARGETS = "blend", ("500", "1000")
-ALPHA, N_AXES = 0.05, 4            # Bonferroni×4 参考列用 ALPHA/N_AXES
+ALPHA = 0.05
+FAMILY_N = 5                       # 方向一全族 5 轴（批次二 §2 登记；参考列不改判）
 EW_SIGNAL_FILE = ROOT / "output" / "equal_weight" / "equal_weight_signal_20d40z.csv"
 
 PASS_WORDING = "过闸：进入正式预登记队列（非采用批准）"
@@ -63,8 +63,9 @@ def axis_signal(bands: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
     return bands.mean(axis=1), bands.notna().sum(axis=1)
 
 
-def judge_axis(pic: float, pvalue: float, alpha: float = ALPHA) -> dict:
-    """冻结判定措辞（设计稿 §2）。"""
+def judge_axis(pic: float, pvalue: float, alpha: float = ALPHA,
+               family_n: int = FAMILY_N) -> dict:
+    """冻结判定措辞（母设计 §2；Bonferroni 参考列按全族 family_n，不改判）。"""
     ok = bool(np.isfinite(pic) and np.isfinite(pvalue) and pvalue < alpha)
     return {
         "partial_ic": float(pic) if np.isfinite(pic) else None,
@@ -72,7 +73,8 @@ def judge_axis(pic: float, pvalue: float, alpha: float = ALPHA) -> dict:
         "sign": (None if not np.isfinite(pic) or pic == 0
                  else ("+" if pic > 0 else "-")),
         "pass": ok,
-        "bonferroni_x4_ref": bool(ok and pvalue < alpha / N_AXES),
+        "bonferroni_family_ref": bool(ok and pvalue < alpha / family_n),
+        "family_n": family_n,
         "wording": PASS_WORDING if ok else FAIL_WORDING,
     }
 
@@ -126,8 +128,9 @@ def run(legs: pd.DataFrame, n_perm: int = 2000, db=None) -> tuple[pd.DataFrame, 
     anchors_ok = anchors["self_control_zero"]["ok"] and \
         anchors["rotation_negative_control"]["ok"]
 
+    axes = tuple(dict.fromkeys(legs["axis"]))    # 从腿对数据推导本批轴集
     rows, verdicts = [], {}
-    for axis in AXES:
+    for axis in axes:
         bands = band_signals(legs, axis)
         sig_full, n_bands = axis_signal(bands)
         sig = clip(sig_full)
@@ -178,9 +181,9 @@ def run(legs: pd.DataFrame, n_perm: int = 2000, db=None) -> tuple[pd.DataFrame, 
         "anchors": anchors, "anchors_ok": bool(anchors_ok),
         "axes": verdicts,
         "OVERALL": ("ANCHOR_FAIL" if not anchors_ok else
-                    ("PASS:" + ",".join(a for a in AXES
+                    ("PASS:" + ",".join(a for a in axes
                                         if verdicts.get(a, {}).get("pass"))
-                     if any(verdicts.get(a, {}).get("pass") for a in AXES)
+                     if any(verdicts.get(a, {}).get("pass") for a in axes)
                      else "ALL_FAIL")),
     }
     return pd.DataFrame(rows), verdict

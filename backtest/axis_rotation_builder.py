@@ -25,6 +25,7 @@ from backtest.pure_style_builder import (  # noqa: E402
     _dividend_field,
     _fetch_dp_indicator,
     _fetch_series,
+    _ttm_latest,
     dividend_ttm_events,
     dp_source_for,
     rebalance_dates,
@@ -32,7 +33,8 @@ from backtest.pure_style_builder import (  # noqa: E402
     sample_space,
 )
 
-AXES = ("lowvol", "momentum", "liquidity", "dividend")
+AXES = ("lowvol", "momentum", "liquidity", "dividend")   # 批次一（2026-08-24 冻结）
+AXES_ALL = AXES + ("quality",)                            # 批次二增量：质量轴
 BANDS = {"300": (1, 300), "500": (301, 800), "1000": (801, 1800), "2000": (1801, 3800)}
 START_EFF = "2015-06-01"           # 首个 eff = 2015-06-15（与 geo5 同窗）
 FETCH_CAL_DAYS = 420               # 因子窗取数：cutoff 前自然日
@@ -84,6 +86,7 @@ def axis_legs(factors: pd.DataFrame, axis: str) -> tuple[list[str], list[str]]:
         "momentum": ("mom", True),       # 高动量 − 低动量
         "liquidity": ("liq", True),      # 高换手 − 低换手
         "dividend": ("dp", True),        # 高股息 − 低股息
+        "quality": ("roe", True),        # 高 ROE − 低 ROE（批次二）
     }[axis]
     lo, hi = tercile_split(factors[col])
     return (hi, lo) if long_is_high else (lo, hi)
@@ -104,6 +107,22 @@ def drift_leg(codes: list[str], wide: pd.DataFrame) -> pd.Series:
 
 
 # ---------------------------------------------------------------- 取数装配
+def roe_from(profit_ttm: pd.Series, equity: pd.Series) -> pd.Series:
+    """ROE_TTM = 净利润 TTM ÷ 最新净资产；净资产 ≤ 0 → NaN（批次二冻结）。"""
+    eq = equity.where(equity > 0)
+    return profit_ttm / eq
+
+
+def quality_factor(sp: pd.DataFrame, cutoff: pd.Timestamp) -> pd.Series:
+    """质量因子（批次二设计 §1）：PIT 走 _fetch_series 修正可知日机器。"""
+    codes = list(sp.index)
+    profit = _ttm_latest(_fetch_series(codes, cutoff, "income", "B002000000"), cutoff)
+    eq = _fetch_series(codes, cutoff, "balance", "A003000000")
+    eq_latest = eq.sort_values("end_date").groupby("ts_code")["value"].last() \
+        if len(eq) else pd.Series(dtype=float)
+    return roe_from(profit.reindex(sp.index), eq_latest.reindex(sp.index))
+
+
 def dp_factor(sp: pd.DataFrame, cutoff: pd.Timestamp) -> pd.Series:
     """D/P：逐字复用腿工厂已冻结机器（factor_panel 的 DP 分支）。"""
     codes = list(sp.index)
@@ -115,30 +134,36 @@ def dp_factor(sp: pd.DataFrame, cutoff: pd.Timestamp) -> pd.Series:
 
 
 def build_period_band(band: str, cutoff: pd.Timestamp, eff: pd.Timestamp,
-                      nxt: pd.Timestamp, verbose: bool = True
-                      ) -> tuple[pd.DataFrame, dict]:
-    """一个（调样期 × 带）的四轴腿对日收益；返回 (长表, 台账条目)。"""
+                      nxt: pd.Timestamp, verbose: bool = True,
+                      axes: tuple[str, ...] = AXES) -> tuple[pd.DataFrame, dict]:
+    """一个（调样期 × 带）的各轴腿对日收益；返回 (长表, 台账条目)。
+
+    只取所需轴的因子数据（质量轴单跑时跳过 420 日价格窗与 DP 取数）。
+    """
     lo, hi = BANDS[band]
     sp = sample_space(cutoff, lo, hi)
     log = {"band": band, "eff": str(eff.date()), "cutoff": str(cutoff.date()),
            "space": len(sp), "legs": {}, "skipped": []}
     if len(sp) < 3 * MIN_LEG:
-        log["skipped"] = list(AXES)
+        log["skipped"] = list(axes)
         return pd.DataFrame(), log
 
-    hist = _daily_returns(list(sp.index),
-                          cutoff - pd.Timedelta(days=FETCH_CAL_DAYS), cutoff)
-    pf = price_factors(hist).reindex(sp.index)
-    factors = pd.DataFrame({
-        "vol": pf["vol"],
-        "mom": pf["mom"],
-        "liq": (sp["adv_1y"] / sp["avg_mv_1y"]).where(
-            sp["adv_1y"].notna() & sp["avg_mv_1y"].notna()),
-        "dp": dp_factor(sp, cutoff),
-    })
+    factors = pd.DataFrame(index=sp.index)
+    if {"lowvol", "momentum"} & set(axes):
+        hist = _daily_returns(list(sp.index),
+                              cutoff - pd.Timedelta(days=FETCH_CAL_DAYS), cutoff)
+        pf = price_factors(hist).reindex(sp.index)
+        factors["vol"], factors["mom"] = pf["vol"], pf["mom"]
+    if "liquidity" in axes:
+        factors["liq"] = (sp["adv_1y"] / sp["avg_mv_1y"]).where(
+            sp["adv_1y"].notna() & sp["avg_mv_1y"].notna())
+    if "dividend" in axes:
+        factors["dp"] = dp_factor(sp, cutoff)
+    if "quality" in axes:
+        factors["roe"] = quality_factor(sp, cutoff)
 
     legs = {}
-    for axis in AXES:
+    for axis in axes:
         lg, sh = axis_legs(factors, axis)
         if len(lg) < MIN_LEG or len(sh) < MIN_LEG:
             log["skipped"].append(axis)
@@ -165,36 +190,43 @@ def build_period_band(band: str, cutoff: pd.Timestamp, eff: pd.Timestamp,
     return (pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()), log
 
 
-def build(end: str | None = None, verbose: bool = True) -> tuple[pd.DataFrame, dict]:
+def build(end: str | None = None, verbose: bool = True,
+          axes: tuple[str, ...] = AXES) -> tuple[pd.DataFrame, dict]:
     end = end or str(pd.Timestamp.today().date())
     effs = rebalance_dates(START_EFF, end)
     bounds = list(zip(effs, effs[1:] + [pd.Timestamp(end)]))
     if verbose:
-        print(f"新轮动轴构建：{len(effs)} 期，{effs[0].date()} → {end}", flush=True)
+        print(f"新轮动轴构建（{','.join(axes)}）：{len(effs)} 期，"
+              f"{effs[0].date()} → {end}", flush=True)
     frames, logs = [], []
     for eff, nxt in bounds:
         cutoff = review_cutoff(eff)
         for band in BANDS:
-            df, log = build_period_band(band, cutoff, eff, nxt, verbose)
+            df, log = build_period_band(band, cutoff, eff, nxt, verbose, axes)
             logs.append(log)
             if len(df):
                 frames.append(df)
     out = pd.concat(frames, ignore_index=True).sort_values(
         ["axis", "band", "date"]).reset_index(drop=True)
     build_log = {"n_periods": len(effs), "start_eff": str(effs[0].date()), "end": end,
-                 "periods": logs}
+                 "axes": list(axes), "periods": logs}
     return out, build_log
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="新轮动轴批次一构建（四轴×四带腿对）")
+    ap = argparse.ArgumentParser(description="新轮动轴构建（轴×四带腿对）")
     ap.add_argument("--output-dir", required=True)
     ap.add_argument("--end", default=None)
+    ap.add_argument("--axes", default=",".join(AXES))
     args = ap.parse_args()
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    legs, log = build(end=args.end)
+    axes = tuple(a.strip() for a in args.axes.split(",") if a.strip())
+    unknown = set(axes) - set(AXES_ALL)
+    if unknown:
+        raise SystemExit(f"未知轴：{sorted(unknown)}")
+    legs, log = build(end=args.end, axes=axes)
     legs.to_csv(out_dir / "axis_legs_daily.csv", index=False)
     (out_dir / "axis_build.json").write_text(
         json.dumps(log, ensure_ascii=False, indent=1))

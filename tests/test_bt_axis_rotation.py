@@ -19,6 +19,7 @@ from backtest.axis_rotation_builder import (
     axis_legs,
     drift_leg,
     price_factors,
+    roe_from,
     tercile_split,
 )
 from backtest.axis_ticket_runner import (
@@ -87,6 +88,22 @@ def test_axis_legs_canonical_orientation():
     assert (lg, sh) == (["s1", "s0"], ["s5", "s4"])
 
 
+def test_roe_from_hand_case():
+    profit = pd.Series({"a": 10.0, "b": 10.0, "c": 10.0})
+    equity = pd.Series({"a": 100.0, "b": -50.0, "c": 0.0})
+    roe = roe_from(profit, equity)
+    assert np.isclose(roe["a"], 0.1)
+    assert np.isnan(roe["b"])                    # 净资产 ≤ 0 → NaN
+    assert np.isnan(roe["c"])
+
+
+def test_axis_legs_quality_orientation():
+    codes = [f"s{i}" for i in range(6)]
+    fac = pd.DataFrame({"roe": [1, 2, 3, 4, 5, 6]}, index=codes, dtype=float)
+    lg, sh = axis_legs(fac, "quality")           # 高 ROE − 低 ROE
+    assert (lg, sh) == (["s4", "s5"], ["s0", "s1"])
+
+
 def test_drift_leg_hand_case():
     idx = pd.to_datetime(["2020-01-02", "2020-01-03"])
     wide = pd.DataFrame({"a": [0.1, 0.1], "b": [-0.1, 0.1]}, index=idx)
@@ -135,14 +152,15 @@ def test_axis_signal_partial_band_average():
 
 # ---------------------------------------------------------------- 判定措辞
 def test_judge_axis_frozen_wording():
-    v = judge_axis(0.2, 0.01)
+    v = judge_axis(0.2, 0.005)
     assert v["pass"] is True and v["sign"] == "+"
-    assert v["bonferroni_x4_ref"] is True        # 0.01 < 0.05/4
+    assert v["bonferroni_family_ref"] is True    # 0.005 < 0.05/5
+    assert v["family_n"] == 5
     assert v["wording"] == PASS_WORDING
 
     v = judge_axis(-0.2, 0.03)
     assert v["pass"] is True and v["sign"] == "-"
-    assert v["bonferroni_x4_ref"] is False
+    assert v["bonferroni_family_ref"] is False
 
     v = judge_axis(0.1, 0.2)
     assert v["pass"] is False
