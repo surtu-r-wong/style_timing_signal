@@ -15,10 +15,12 @@ sys.path.insert(0, str(ROOT))
 from backtest.pure_style_builder import (  # noqa: E402
     BAND_1000,
     BAND_2000,
+    FD_STATEMENTS,
     OfficialBand,
     _apply_buffer,
     _avg_mv_1y_daily,
     _cap_weights,
+    _knowability,
     _select_band,
     _select_tail,
     _statutory_deadline,
@@ -285,3 +287,53 @@ def test_dp_source_boundary_keeps_csmar_history_and_switches_2026():
     assert dp_source_for(pd.Timestamp("2025-12-15")) == "csmar"    # Gate 0 锚区间不动
     assert dp_source_for(DP_INDICATOR_START) == "indicator"
     assert dp_source_for(pd.Timestamp("2026-06-15")) == "indicator"
+
+
+# ---------------------------------------------------------------- 首披日 PIT 升级（2026-08-24 设计稿 §1）
+def test_knowability_prefers_first_disclosure_even_when_batch_earlier():
+    # 两源规则：批次日(04-10)早于首披日(04-20) → 仍用首披日（宁晚勿早，不静默取 min）
+    out = _knowability(
+        pd.Series([pd.Timestamp("2020-04-10")]),
+        pd.Series([pd.Timestamp("2020-03-31")]),
+        pd.Series([pd.Timestamp("2020-04-20")]),
+    )
+    assert out.iloc[0] == pd.Timestamp("2020-04-20")
+
+
+def test_knowability_first_disclosure_wins_over_deadline_cap():
+    # 超期披露实案形态：批次日晚(2021-02)、首披日也超截止日(2020-06-30 > 04-30)
+    # 旧规则会封顶到截止日 04-30（前视）；新规则用真实首披日 06-30（去前视）
+    out = _knowability(
+        pd.Series([pd.Timestamp("2021-02-03")]),
+        pd.Series([pd.Timestamp("2020-03-31")]),
+        pd.Series([pd.Timestamp("2020-06-30")]),
+    )
+    assert out.iloc[0] == pd.Timestamp("2020-06-30")
+
+
+def test_knowability_falls_back_to_min_rule_when_fd_missing():
+    # sentinel/未覆盖行：回退 min(批次日, 截止日)
+    out = _knowability(
+        pd.Series([pd.Timestamp("2021-02-03"), pd.Timestamp("2020-04-10")]),
+        pd.Series([pd.Timestamp("2020-03-31"), pd.Timestamp("2020-03-31")]),
+        pd.Series([pd.NaT, pd.NaT]),
+    )
+    assert out.iloc[0] == pd.Timestamp("2020-04-30")   # 批次晚 → 封顶截止日
+    assert out.iloc[1] == pd.Timestamp("2020-04-10")   # 批次早于截止 → 用批次
+
+
+def test_knowability_non_quarter_end_keeps_ann_date():
+    # 01-01 伪行：截止日 NaT 且无首披 → 保持原 ann_date
+    out = _knowability(
+        pd.Series([pd.Timestamp("2020-05-01")]),
+        pd.Series([pd.Timestamp("2020-01-01")]),
+        pd.Series([pd.NaT]),
+    )
+    assert out.iloc[0] == pd.Timestamp("2020-05-01")
+
+
+def test_fd_statements_scope_excludes_dividend():
+    # dividend 豁免（分红可知日≠年报首披日）；定期报告五类在内
+    assert "dividend" not in FD_STATEMENTS
+    assert {"income", "balance", "cashflow_direct",
+            "disclosed_indicators", "profitability"} == set(FD_STATEMENTS)

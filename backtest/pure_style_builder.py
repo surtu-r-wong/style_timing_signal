@@ -29,7 +29,11 @@
 
 ## PIT
 
-可知日 = **`min(ann_date, 法定披露截止日)`**，取 `<= 调样日` 的财务行（见 `_fetch_series`）。
+可知日（2026-08-24 首披日升级，设计稿 =
+`docs/plans/2026-08-24-first-disclosure-pit-upgrade.md` §1）：定期报告类报表行 =
+**`stock_first_disclosure.first_disclosure_date`（真实首披日）优先**，未覆盖行回退
+**`min(ann_date, 法定披露截止日)`**；dividend 事件行豁免（分红可知日≠年报首披日，
+维持 DP 机器现状）。取 `<= 调样日` 的财务行（见 `_fetch_series` / `_knowability`）。
 
 ⚠️ 直接用 `stock_financial.ann_date` 是**错的**：96.5% 来自 CSMAR，其 `ann_date` 是数据集
 批次日而非首披日，会在每个调样日丢掉最近整整一个季度（实测 Q1 通过率 0~1%），把成长因子
@@ -579,6 +583,11 @@ def _fetch_dp_indicator(codes: list[str], asof: pd.Timestamp,
     return out
 
 
+#: 真实首披日适用的报表类型（定期报告内容，披露粒度=整份报告；设计稿 §1.1）。
+#: dividend 不在内：红利事件行的可知日是分红公告时点，套报告首披日是错的（§1.2）。
+FD_STATEMENTS = frozenset(
+    {"income", "balance", "cashflow_direct", "disclosed_indicators", "profitability"})
+
 #: A 股定期报告的**法定披露截止日**（报告期月份 → (跨年数, 月, 日)）。
 #: 依据《证券法》与交易所规则：一季报 4/30、半年报 8/31、三季报 10/31、年报次年 4/30。
 _DEADLINE = {3: (0, 4, 30), 6: (0, 8, 31), 9: (0, 10, 31), 12: (1, 4, 30)}
@@ -618,33 +627,58 @@ def _fetch_series(codes: list[str], asof: pd.Timestamp, stmt: str, field: str,
     不会早于**真实可知时刻 —— 是保守，不是前视。取 min 是为了让确有首披日的行
     （Wind 段、以及 CSMAR 里 ann_date 早于截止日的行）继续用它们自己的真实日期。
 
-    ⚠️ **残余风险**：**超期披露**的公司会被当成按时披露 → 对这少数标的构成前视。
-    库内无停牌/风险警示与披露延期的对照字段，暂无法逐票剔除，须写进结论限定语。
+    ## 2026-08-24 首披日升级（设计稿 §1）
+
+    定期报告类报表（`FD_STATEMENTS`）改用 `stock_first_disclosure` 的**真实首披日**
+    作可知日（96.0% 覆盖，R5 回填资产）；未覆盖行（sentinel / 2003 前 / 01-01 伪行 /
+    Wind 段）回退上述 min 规则——Wind 段 ann_date 本就是真实 `stm_issuingdate`，
+    回退即正确。**两源规则：首披日一律优先**，即便批次日更早（5.82% 疑快报行，
+    宁晚勿早，不静默取 min）。旧规则的残余前视（超期披露被当按时）由此收窄到
+    未覆盖的回退路径。
 
     `years=6`：SalG/ProG 需 12 个 TTM 点，而 TTM 要 4 季暖机 + CSMAR 的 01-01 伪行被剔除，
     4 年只剩 11 个非空 TTM（实测 600110.SH），故必须拉够 6 年。
     """
     d = asof.date().isoformat()
+    use_fd = stmt in FD_STATEMENTS
+    fd_join = (f"LEFT JOIN {{s}}.stock_first_disclosure fd "
+               "ON fd.ts_code=f.ts_code AND fd.end_date=f.end_date") if use_fd else ""
+    fd_col = "fd.first_disclosure_date" if use_fd else "NULL::date"
     c, s = _conn()
     try:
         with c.cursor() as cur:
             # SQL 只按 end_date 粗筛（报告期结束前不可能可知）；PIT 过滤放到修正可知日之后
-            cur.execute(f"""SELECT ts_code, end_date, ann_date, (data->>%s)::float8
-                            FROM {s}.stock_financial
-                            WHERE ts_code=ANY(%s) AND statement_type=%s
-                              AND end_date <= DATE '{d}'
-                              AND end_date >= DATE '{d}' - INTERVAL '{years} years'
-                              AND data ? %s""", (field, codes, stmt, field))
+            cur.execute(f"""SELECT f.ts_code, f.end_date, f.ann_date,
+                                   (f.data->>%s)::float8, {fd_col}
+                            FROM {s}.stock_financial f
+                            {fd_join.format(s=s)}
+                            WHERE f.ts_code=ANY(%s) AND f.statement_type=%s
+                              AND f.end_date <= DATE '{d}'
+                              AND f.end_date >= DATE '{d}' - INTERVAL '{years} years'
+                              AND f.data ? %s""", (field, codes, stmt, field))
             rows = cur.fetchall()
     finally:
         c.close()
-    df = pd.DataFrame(rows, columns=["ts_code", "end_date", "ann_date", "value"])
+    df = pd.DataFrame(rows, columns=["ts_code", "end_date", "ann_date", "value", "fd"])
     if df.empty:
-        return df
-    ann = pd.to_datetime(df["ann_date"])
-    dl = _statutory_deadline(df["end_date"])
-    df["ann_date"] = dl.where(dl.notna() & (dl < ann), ann)      # = min(ann, 截止日)，NaT 安全
+        return df.drop(columns=["fd"])
+    df["ann_date"] = _knowability(df["ann_date"], df["end_date"], df["fd"])
+    df = df.drop(columns=["fd"])
     return df[df["ann_date"] <= asof].reset_index(drop=True)
+
+
+def _knowability(ann_date: pd.Series, end_date: pd.Series,
+                 first_disclosure: pd.Series) -> pd.Series:
+    """修正可知日（纯函数，2026-08-24 设计稿 §1）。
+
+    首披日非空 → 首披日（两源规则：即便批次日更早也用首披日，宁晚勿早）；
+    否则回退 `min(ann_date, 法定披露截止日)`（截止日 NaT 安全，如 01-01 伪行）。
+    """
+    ann = pd.to_datetime(ann_date)
+    fd = pd.to_datetime(first_disclosure)
+    dl = _statutory_deadline(end_date)
+    fallback = dl.where(dl.notna() & (dl < ann), ann)
+    return fd.where(fd.notna(), fallback)
 
 
 def _ttm_latest(df: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
