@@ -170,7 +170,26 @@ def audit_changes(before: dict, after: dict, today: str) -> list[str]:
             if old is None or new is None or old != new:
                 problems.append(f"{code} {day} 历史收盘价被改写: {old!r} → {new!r}")
 
+    # 5)/6) 同族共动性（跳飞 / 冻结）—— 判据与标定见 family_sentinel 模块
+    problems.extend(family_sentinel_problems(after_closes, new_dates))
+
     return problems
+
+
+def family_sentinel_problems(after_closes: dict, new_dates: set[str]) -> list[str]:
+    """把同族共动性哨兵的 **CRITICAL** findings 并入审计（只判本次新增的日期）。
+
+    只升级 CRITICAL：其判据在 12.6~13.5 年历史上仅命中两起真事故
+    （2026-06-16 level shift / 2026-08-03 序列冻结），拿来阻断链路是安全的。
+    WARN 档（约 1.8 年/次，含疑似真实风格轮动）**不阻断**，由 `--mode scan`
+    的定期回扫交人工复核——否则会用未证实的可疑拖停生产。
+    """
+    from deploy.daily_signals.family_sentinel import scan_findings
+
+    out = []
+    for day, found in sorted(scan_findings(after_closes, only_days=new_dates).items()):
+        out.extend(f"{day} {line}" for line in found if line.startswith("CRITICAL"))
+    return out
 
 
 # ─────────────────────────────── 只读 IO ───────────────────────────────
