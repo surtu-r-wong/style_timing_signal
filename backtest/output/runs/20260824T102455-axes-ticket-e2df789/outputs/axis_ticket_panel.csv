@@ -1,0 +1,9 @@
+axis,row,target,k,window,partial_ic,partial_p,ic,ic_p,n_windows
+quality,primary,blend,20,full,0.0988909194492745,0.23388305847076463,0.1299431785570797,0.13543228385807096,132
+quality,ref_k,blend,5,full,0.024176378631469455,,,,533
+quality,ref_k,blend,10,full,0.0042903874400020085,,,,266
+quality,ref_target,500,20,full,0.13848222355800938,,,,132
+quality,ref_target,1000,20,full,0.07565016472814254,,,,132
+quality,ref_half,blend,20,h1,-0.01681872151105266,,,,64
+quality,ref_half,blend,20,h2,0.09291829658643398,,,,67
+ew_anchor,magnitude,blend,20,full,,,0.20098824437916438,,132

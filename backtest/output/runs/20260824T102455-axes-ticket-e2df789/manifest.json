@@ -1,0 +1,82 @@
+{
+  "artifacts": [
+    {
+      "path": "logs/step-1-build.log",
+      "sha256": "0a073a962dc1b5585a6fb14021bd06ce9e192813f650634abcbddf64d3791f0c",
+      "size": 4979
+    },
+    {
+      "path": "logs/step-2-ticket.log",
+      "sha256": "2a2ecf3896bb96fc6f7d979c382d6203938679ab66ef3a7ca81a0c36cba98d03",
+      "size": 800
+    },
+    {
+      "path": "outputs/axis_build.json",
+      "sha256": "f43c0a4f049c8b8c3182d6c252c14ecdbcff5c70ed3b01b68657bcfcdfb04ad7",
+      "size": 17612
+    },
+    {
+      "path": "outputs/axis_legs_daily.csv",
+      "sha256": "57958a046704cae8e28bf8ebaed1f10cb03485f84baaba93e0469166ee681996",
+      "size": 723300
+    },
+    {
+      "path": "outputs/axis_ticket_panel.csv",
+      "sha256": "782e2780ba55ef3826f77bc27b00bea16fe333dcd9c0547682427b7bd87e4812",
+      "size": 577
+    },
+    {
+      "path": "outputs/axis_ticket_verdict.json",
+      "sha256": "a0668d4197a1dd8eb031d1572f03e8a32afab8d8b356a367e6b8a728fe9895aa",
+      "size": 782
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.axis_rotation_builder",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260824T102455-axes-ticket-e2df789/outputs",
+        "--axes",
+        "quality"
+      ],
+      "step": "build"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.axis_entry_ticket",
+        "--legs-csv",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260824T102455-axes-ticket-e2df789/outputs/axis_legs_daily.csv",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260824T102455-axes-ticket-e2df789/outputs",
+        "--n-perm",
+        "2000"
+      ],
+      "step": "ticket"
+    }
+  ],
+  "experiment": "axes-entry-ticket",
+  "finished_at": "2026-08-24T10:38:23+08:00",
+  "inputs": {},
+  "metadata": {
+    "database_cutoffs": {
+      "index_daily": "2026-08-21",
+      "stock_daily_price": "2026-08-21",
+      "stock_financial": "2026-06-30",
+      "stock_indicator": "2026-08-21",
+      "stock_share_capital": "2026-07-31"
+    },
+    "git": {
+      "commit": "e2df789a0b3b99a510d5d01ed7c6fd36f8e3ed4a",
+      "dirty": true
+    },
+    "spec": "docs/plans/2026-08-24-quality-axis-entry-ticket-b2.md"
+  },
+  "seed": 0,
+  "started_at": "2026-08-24T10:24:58+08:00",
+  "status": "complete"
+}
