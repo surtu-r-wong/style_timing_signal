@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 from backtest.run_manifest import (
+    DEFAULT_INPUT_CONTRACT,
     artifact_record,
     create_run_dir,
     git_state,
@@ -22,13 +23,7 @@ from backtest.run_manifest import (
 ROOT = Path(__file__).resolve().parents[1]
 EXPERIMENT = "p0-revalidation"
 SEED = 0
-CUTOFF_CONTRACT = {
-    "index_daily": "trade_date",
-    "stock_daily_price": "trade_date",
-    "stock_indicator": "trade_date",
-    "stock_financial": "end_date",
-    "index_constituent": "effective_date",
-}
+CUTOFF_CONTRACT = DEFAULT_INPUT_CONTRACT      # 单一定义在 run_manifest
 LEGACY_FILES = {
     "gate0r": "gate0r_result.json",
     "fifth": "fifth_bucket_verdict.json",

@@ -30,6 +30,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import backtest.pure_style_builder as psb  # noqa: E402
+from backtest.run_manifest import (  # noqa: E402
+    DEFAULT_INPUT_CONTRACT,
+    input_drift_report,
+    query_table_write_marks,
+)
 from backtest.pure_style_builder import (  # noqa: E402
     BAND_1000,
     PairResult,
@@ -134,8 +139,45 @@ def dump(name: str, payload: dict, mine: pd.Series | None = None,
     print(f"落盘 {p}", flush=True)
 
 
+def _drift_marks() -> tuple[dict, str]:
+    """起跑前拍一次输入表写入时刻 + 库时钟（用库时钟而非本机时钟，避免时钟漂移）。"""
+    c, s = _conn()
+    try:
+        with c.cursor() as cur:
+            cur.execute("SELECT now()::text")
+            now = cur.fetchone()[0]
+        return query_table_write_marks(c, s, DEFAULT_INPUT_CONTRACT), now
+    finally:
+        c.close()
+
+
+def _drift_check(marks: dict, since: str) -> dict:
+    """收尾时比对：run 期间输入被动过吗？动的行落在分析窗口内吗？
+
+    2026-08-25 立此机制的直接教训见 `run_manifest.query_table_write_marks` docstring
+    与 `docs/plans/2026-08-25-gate0-anchor-contamination.md`。
+    """
+    c, s = _conn()
+    try:
+        rep = input_drift_report(c, s, DEFAULT_INPUT_CONTRACT, marks, since,
+                                 TERMINAL.date().isoformat())
+    finally:
+        c.close()
+    if rep["inputs_moved_in_window"]:
+        print("  ⛔ 输入在 run 期间被改写，且改动落在分析窗口内："
+              f"{rep['rows_touched_in_window']}", flush=True)
+        print("  ⛔ 本次读数**不得**登记为首跑值 / 不得用于重登锚。", flush=True)
+    elif rep["inputs_moved"]:
+        print(f"  ⚠️ 输入有写入但全在分析窗口外（{TERMINAL.date()} 之后），不影响读数："
+              f"{sorted(rep['moved_tables'])}", flush=True)
+    else:
+        print("  ✓ 输入在 run 期间未被改写 → 读数可登记为首跑值", flush=True)
+    return rep
+
+
 def run_0r(outdir: Path = OUTDIR) -> int:
     t0 = time.time()
+    marks0, since = _drift_marks()
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
     off2000 = official_spread("932409.CSI", "932408.CSI")
     res: dict = {"gate": "0R", "anchors_registered": "2026-08-25",
@@ -174,6 +216,7 @@ def run_0r(outdir: Path = OUTDIR) -> int:
                        and res["sim2000_guarded"]["rho"] >= FLOOR_SIM2000
                        and res["band500_true"]["rho"] >= FLOOR_BAND500)
     res["elapsed_s"] = round(time.time() - t0, 1)
+    res["input_drift"] = _drift_check(marks0, since)
     dump("gate0r_result", res, outdir=outdir)
     print(f"0R {'PASS' if res['pass'] else 'FAIL'}（{res['elapsed_s']}s）", flush=True)
     return 0
@@ -181,6 +224,7 @@ def run_0r(outdir: Path = OUTDIR) -> int:
 
 def run_0a(outdir: Path = OUTDIR) -> int:
     t0 = time.time()
+    marks0, since = _drift_marks()
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
     off = official_spread("932407.CSI", "932406.CSI")
     res: dict = {"gate": "0A", "threshold": 0.85,
@@ -208,6 +252,7 @@ def run_0a(outdir: Path = OUTDIR) -> int:
 
     res["pass"] = bool(res["first_run"]["rho"] is not None and res["first_run"]["rho"] >= 0.85)
     res["elapsed_s"] = round(time.time() - t0, 1)
+    res["input_drift"] = _drift_check(marks0, since)
     dump("gate0a_result", res, mine, off, outdir=outdir)
     print(f"0A 首跑 {'PASS' if res['pass'] else 'FAIL — 进入诊断-修复-重跑循环（§4.1）'}"
           f"（{res['elapsed_s']}s）", flush=True)
@@ -216,6 +261,7 @@ def run_0a(outdir: Path = OUTDIR) -> int:
 
 def run_0b(outdir: Path = OUTDIR) -> int:
     t0 = time.time()
+    marks0, since = _drift_marks()
     dates = rebalance_dates("2023-10-01", "2026-08-18") + [TERMINAL]
     off = official_spread("932409.CSI", "932408.CSI")
     print("== 0B 副闸：2000 带真值直通，运营期", flush=True)
@@ -227,6 +273,7 @@ def run_0b(outdir: Path = OUTDIR) -> int:
            "truth": rho_report(mine, off)}
     res["pass"] = bool(res["truth"]["rho"] is not None and res["truth"]["rho"] >= 0.85)
     res["elapsed_s"] = round(time.time() - t0, 1)
+    res["input_drift"] = _drift_check(marks0, since)
     dump("gate0b_result", res, mine, off, outdir=outdir)
     print(f"0B ρ = {res['truth']['rho']} → {'PASS' if res['pass'] else 'FAIL'}"
           f"（{res['elapsed_s']}s）", flush=True)
@@ -237,6 +284,7 @@ def run_0b(outdir: Path = OUTDIR) -> int:
 def run_preflight500(outdir: Path = OUTDIR) -> int:
     """0R'（等比5桶预登记 裁决点3）：只复算 500 带真值锚，确认代码未从 Gate 0 状态漂移。"""
     t0 = time.time()
+    marks0, since = _drift_marks()
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
     cbd = truth_codes_by_date("000905.SH", dates, require_all=True)
     pair = build_pair(None, None, dates, take_top_half=False, official_space=True,
@@ -246,6 +294,7 @@ def run_preflight500(outdir: Path = OUTDIR) -> int:
     ok = rep["rho"] is not None and rep["rho"] >= FLOOR_BAND500
     res = {"gate": "0R'", "anchor": ANCHOR_BAND500, "threshold": FLOOR_BAND500,
            "band500_true": rep, "pass": bool(ok), "elapsed_s": round(time.time() - t0, 1)}
+    res["input_drift"] = _drift_check(marks0, since)
     dump("gate0rp_result", res, outdir=outdir)
     print(f"0R' rho = {rep['rho']} -> {'PASS' if ok else 'FAIL'}（{res['elapsed_s']}s）", flush=True)
     return 0
