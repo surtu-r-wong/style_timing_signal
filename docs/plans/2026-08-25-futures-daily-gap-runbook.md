@@ -71,12 +71,69 @@ C1 基差率复检要的是「样本拉长后重测」，那是个持续性需�
   2. carry 承载方式分析里「**当前**贴水水平」那半个问题（2026-08-24 的描述性分析只能用
      2022-07~2026-04 共同窗作答）。
 
-## 若要根治（需另行立项，本文不主张）
+## 根治：方案 B 已实现（用户 2026-08-25 裁「都按建议跑」）
 
-两条路，都不是「重启」能解决的：
+`tools/topup_futures_daily.py` —— gateway 取数 → market-monitor writer API
+→ `public.futures_daily`（后端按 `(symbol, trade_date)` upsert，幂等）。
+可无人值守，不需要 Windows 桌面会话。
 
-- **A**：给 `backfill_optimized.py` 配一个 Windows 计划任务做增量日更 —— 但它是交互式脚本，
-  且 360 拒 WMI（见 `ops-b3-windows-execution-box` 的实测），要先改成非交互。
-- **B**：Linux 侧走 gateway 建轻量 topup（只取 IC/IM 的 close/oi），可无人值守，
-  与现有 `tools/topup_index_daily.sh` 同姿势；代价是新管道 + 写 market-monitor
-  `public` schema，须按该仓规矩过。
+**写入路径遵 market-monitor 客户端硬规**：不直连 SQL，POST `/api/data/daily`，
+primary(Debian)→fallback(Pi5)，host 从 `config/settings.yaml` 的
+`market_monitor_writer` 段读、**不硬编码**。
+
+### ⛔ 前置条件：网关缺 `oi` 字段（推荐方案 B 时我不知道这一条）
+
+gateway 是**哑管道**：每个端点向 Wind 要哪些字段，由 Windows 机上
+`wind_gateway/config.yaml` 的 `fetchers.<name>.wsd_fields` 决定
+（`endpoints.py:157-163` 读它）。实测现有端点：
+
+| 端点 | 字段口径 | 有 `oi`？ |
+|---|---|---|
+| `/fetch/price` | 股票：open/high/low/close/volume/**amt/turn/adjfactor** | **无** |
+| 其余 35 个端点 | 基金/财务/成分/EDB… | 无期货端点 |
+
+而 carry 的定义是「**持仓量最大**的主力合约的年化基差」（`backtest/data.py:43`
+`day_df.loc[day_df["oi"].idxmax()]`）—— **没有 `oi` 就选不出主力合约，carry 算不出来**。
+
+**⇒ 需要你在 Windows 机上做一次网关侧改动**（我不碰那台机器）：
+
+1. `wind_gateway/config.yaml` 加一个 fetcher：
+
+   ```yaml
+   fetchers:
+     futures:
+       wsd_fields: "open,high,low,close,volume,oi,amt,settle"
+       wsd_options: ""
+   ```
+
+2. `wind_gateway/endpoints.py` 加 `/fetch/futures`（与 `/fetch/price` 同形，
+   `endpoints.py:150-163` 抄一份改 fetcher 名即可）——这是**代码改动**，
+   在 `stock_selector` 仓，需重新部署到 Windows 机。
+3. 重启网关或 `POST /admin/reload`。
+
+⚠️ **不要图省事往 `fetchers.price.wsd_fields` 里加 `oi,settle`** —— `/fetch/price`
+是 `stock_daily_price` 写入链的共用端点，加列会波及所有消费方。
+
+**在网关改好之前**可以 `--endpoint /fetch/price` 跑通全链路，但 `oi`/`settle` 会是空；
+脚本对此有显式体检（`carry_readiness`），会打印 `⛔ 全空 —— carry 算不出`
+而**不是**静默写入一批 NULL。
+
+### 另一条路（未采纳，登记备查）
+
+给 `backfill_optimized.py` 配 Windows 计划任务做增量日更 —— 它是交互式脚本
+（跑完 `input("按回车键退出...")`），且 360 拒 WMI（见 `ops-b3-windows-execution-box`），
+要先改成非交互。仍然依赖 Windows 桌面会话。
+
+### 用法
+
+```bash
+python3 tools/topup_futures_daily.py \
+    --codes "IC2609.CFE,IM2609.CFE" --start 2026-04-30 --end 2026-08-25 [--dry-run]
+```
+
+合约名单**不内置**（哑管道原则的客户端侧延伸）；补 118 天缺口用的 16 行清单见
+`docs/plans/2026-08-25-futures-daily-gap-tasks.csv`。
+
+⚠️ **2026-08-25 当日 Wind 日配额已耗尽**（`-40522017`，另一会话的 indicator 洞补撞的墙），
+真跑要等配额恢复。当日已冒烟验证：鉴权通过、绕代理成功、请求到达网关、
+配额错误被完整暴露（`gateway 429: {"error":"quota_exceeded",...}`）而非静默吞掉。

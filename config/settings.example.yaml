@@ -13,3 +13,11 @@ database:
 wind_gateway:
   url: http://100.120.152.1:8080
   token: replace_me
+
+# market-monitor writer（tools/topup_futures_daily.py 用）。
+# host 不得硬编码在代码里 —— market-monitor CLAUDE.md「客户端硬规」。
+# primary = Debian（2026-05-08 切换后的主写），fallback = Pi5 热备。
+market_monitor_writer:
+  primary_url: http://100.65.111.79:8000/api/data/daily
+  fallback_url: http://100.75.102.44:8000/api/data/daily
+  api_key: replace_me
