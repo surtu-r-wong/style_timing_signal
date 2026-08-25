@@ -43,6 +43,18 @@ def test_statutory_deadline_returns_nat_for_pseudo_rows():
     assert pd.isna(got.iloc[0]) and got.iloc[1] == pd.Timestamp("2016-04-30")
 
 
+def test_statutory_deadline_rejects_quarter_month_but_wrong_day():
+    """2026-08-25 收紧：季末**月**但非季末**日**（库里 5,350 行，如 03-28/09-02）也必须 NaT。
+
+    收紧前只按月份查表，`2020-03-28` 会拿到 Q1 的 04-30 —— 一个不存在的报告期
+    被当成按时披露的一季报。
+    """
+    got = _statutory_deadline(pd.Series(pd.to_datetime(
+        ["2020-03-28", "2020-09-02", "2020-06-30"])))
+    assert pd.isna(got.iloc[0]) and pd.isna(got.iloc[1])
+    assert got.iloc[2] == pd.Timestamp("2020-08-31")
+
+
 def test_statutory_deadline_is_an_upper_bound_on_true_disclosure():
     """截止日 ≥ 报告期末，且年报跨年 —— 这是"保守而非前视"论证的算术前提。"""
     ends = pd.Series(pd.to_datetime(["2020-03-31", "2020-06-30", "2020-09-30", "2020-12-31"]))
@@ -290,46 +302,96 @@ def test_dp_source_boundary_keeps_csmar_history_and_switches_2026():
 
 
 # ---------------------------------------------------------------- 首披日 PIT 升级（2026-08-24 设计稿 §1）
+def _kn(ann, end, fd, quality="ok", use_fd=True):
+    """`_knowability` 的窄封装：把四条等长序列喂进去，返回可知日序列。"""
+    n = len(end)
+    as_ser = lambda v: pd.Series(v if isinstance(v, list) else [v] * n)
+    return _knowability(as_ser(ann), as_ser(end), as_ser(fd), as_ser(quality), use_fd)
+
+
 def test_knowability_prefers_first_disclosure_even_when_batch_earlier():
     # 两源规则：批次日(04-10)早于首披日(04-20) → 仍用首披日（宁晚勿早，不静默取 min）
-    out = _knowability(
-        pd.Series([pd.Timestamp("2020-04-10")]),
-        pd.Series([pd.Timestamp("2020-03-31")]),
-        pd.Series([pd.Timestamp("2020-04-20")]),
-    )
+    out = _kn([pd.Timestamp("2020-04-10")], [pd.Timestamp("2020-03-31")],
+              [pd.Timestamp("2020-04-20")])
     assert out.iloc[0] == pd.Timestamp("2020-04-20")
 
 
 def test_knowability_first_disclosure_wins_over_deadline_cap():
     # 超期披露实案形态：批次日晚(2021-02)、首披日也超截止日(2020-06-30 > 04-30)
-    # 旧规则会封顶到截止日 04-30（前视）；新规则用真实首披日 06-30（去前视）
-    out = _knowability(
-        pd.Series([pd.Timestamp("2021-02-03")]),
-        pd.Series([pd.Timestamp("2020-03-31")]),
-        pd.Series([pd.Timestamp("2020-06-30")]),
-    )
+    # 封顶到 04-30 就是前视；用真实首披日 06-30 才对
+    out = _kn([pd.Timestamp("2021-02-03")], [pd.Timestamp("2020-03-31")],
+              [pd.Timestamp("2020-06-30")])
     assert out.iloc[0] == pd.Timestamp("2020-06-30")
 
 
-def test_knowability_falls_back_to_min_rule_when_fd_missing():
-    # sentinel/未覆盖行：回退 min(批次日, 截止日)
-    out = _knowability(
-        pd.Series([pd.Timestamp("2021-02-03"), pd.Timestamp("2020-04-10")]),
-        pd.Series([pd.Timestamp("2020-03-31"), pd.Timestamp("2020-03-31")]),
-        pd.Series([pd.NaT, pd.NaT]),
-    )
-    assert out.iloc[0] == pd.Timestamp("2020-04-30")   # 批次晚 → 封顶截止日
-    assert out.iloc[1] == pd.Timestamp("2020-04-10")   # 批次早于截止 → 用批次
+# ---------------------------------------------------------------- 2026-08-25 跨仓口径统一
+def test_knowability_falls_back_to_statutory_deadline_only():
+    """未命中首披日 → **纯法定截止日**，无论批次日早晚都不再参与（用户 08-25 裁决）。
+
+    第二行是决定性判例：批次日 04-10 **早于**截止日 04-30，旧 `min` 规则会用 04-10，
+    统一后必须仍是 04-30 —— `ann_date` 已完全退出定期报告路径。
+    """
+    out = _kn([pd.Timestamp("2021-02-03"), pd.Timestamp("2020-04-10")],
+              [pd.Timestamp("2020-03-31"), pd.Timestamp("2020-03-31")],
+              [pd.NaT, pd.NaT])
+    assert out.iloc[0] == pd.Timestamp("2020-04-30")   # 批次晚 → 截止日（与旧规则同解）
+    assert out.iloc[1] == pd.Timestamp("2020-04-30")   # 批次早 → 仍是截止日（旧规则会给 04-10）
 
 
-def test_knowability_non_quarter_end_keeps_ann_date():
-    # 01-01 伪行：截止日 NaT 且无首披 → 保持原 ann_date
+def test_knowability_non_quarter_end_becomes_nat_and_drops_the_row():
+    """01-01 伪行：截止日 NaT ⇒ 可知日 NaT ⇒ 被 `<= asof` 整行剔除。
+
+    统一前靠 `ann_date`（批次日 2020-04-30）兜住而可见 —— 实测 2020-10-31 那个考察
+    截止日上有 18 票的 balance 只剩这种伪行，它们的 BP 是拿一个不存在的报告期算的。
+    """
+    out = _kn([pd.Timestamp("2020-04-30")], [pd.Timestamp("2020-01-01")], [pd.NaT])
+    assert pd.isna(out.iloc[0])
+    assert not (out <= pd.Timestamp("2020-10-31")).iloc[0]   # 下游过滤真的会剔掉它
+
+
+def test_knowability_guard_rejects_first_disclosure_before_period_end():
+    """有效性守卫：首披日 < 报告期末（实案=非日历财年港股）是真前视，退回截止日。
+
+    2026-06-30 期末配 2024-11-15 的"首披日"，等于断言半年报在一年半前就公开了。
+    """
+    out = _kn([pd.NaT], [pd.Timestamp("2026-06-30")], [pd.Timestamp("2024-11-15")])
+    assert out.iloc[0] == pd.Timestamp("2026-08-31")
+
+
+def test_knowability_guard_rejects_sentinel_quality():
+    """`quality != 'ok'` 的行不采信其日期（D2 裁定让这类行落 NULL，但正确性不依赖上游）。"""
+    out = _kn([pd.NaT], [pd.Timestamp("2020-03-31")],
+              [pd.Timestamp("2020-04-20")], quality="sentinel")
+    assert out.iloc[0] == pd.Timestamp("2020-04-30")
+
+
+def test_knowability_guard_survives_misaligned_quality_index():
+    """`quality` 的索引与 `end_date` 不一致时守卫仍须生效（防按标签重索引的静默错位）。
+
+    `pd.Series(quality, index=e.index)` 会**重索引**：索引对不上就全变 NaN，
+    `.eq("ok")` 全 False —— 表面上"更保守"，实则守卫失效、`quality` 形同虚设。
+    """
     out = _knowability(
-        pd.Series([pd.Timestamp("2020-05-01")]),
-        pd.Series([pd.Timestamp("2020-01-01")]),
-        pd.Series([pd.NaT]),
+        pd.Series([pd.NaT], index=[7]),
+        pd.Series([pd.Timestamp("2020-03-31")], index=[7]),
+        pd.Series([pd.Timestamp("2020-04-20")], index=[7]),
+        pd.Series(["ok"], index=[0]),          # 索引故意错开
+        True,
     )
-    assert out.iloc[0] == pd.Timestamp("2020-05-01")
+    assert out.iloc[0] == pd.Timestamp("2020-04-20")   # 按位置取到 'ok' → 采信首披日
+
+
+def test_knowability_event_rows_keep_the_old_min_rule():
+    """事件行（dividend, `use_fd=False`）不在统一射程内：仍是 `min(ann_date, 截止日)`。
+
+    选股仓 reader 只处理定期报告、事件行无对应物；而红利可知日直接决定 DP 的 12 个月
+    滚动窗（08-20 刚修好死因子）。实测强行套截止日会平移 9.26% 的行、中位 1 天。
+    """
+    out = _kn([pd.Timestamp("2021-02-03"), pd.Timestamp("2020-04-10")],
+              [pd.Timestamp("2020-03-31"), pd.Timestamp("2020-03-31")],
+              [pd.NaT, pd.NaT], use_fd=False)
+    assert out.iloc[0] == pd.Timestamp("2020-04-30")   # 公告晚于截止 → 封顶
+    assert out.iloc[1] == pd.Timestamp("2020-04-10")   # 公告早于截止 → 用公告日
 
 
 def test_fd_statements_scope_excludes_dividend():

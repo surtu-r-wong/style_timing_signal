@@ -29,15 +29,18 @@
 
 ## PIT
 
-可知日（2026-08-24 首披日升级，设计稿 =
-`docs/plans/2026-08-24-first-disclosure-pit-upgrade.md` §1）：定期报告类报表行 =
-**`stock_first_disclosure.first_disclosure_date`（真实首披日）优先**，未覆盖行回退
-**`min(ann_date, 法定披露截止日)`**；dividend 事件行豁免（分红可知日≠年报首披日，
-维持 DP 机器现状）。取 `<= 调样日` 的财务行（见 `_fetch_series` / `_knowability`）。
+可知日（设计稿 = `docs/plans/2026-08-24-first-disclosure-pit-upgrade.md` §1 + §4.1）：
+定期报告类报表行 = **`stock_first_disclosure.first_disclosure_date`（真实首披日）优先**
+（须过有效性守卫：`quality=='ok'` 且首披日 ≥ 报告期末），未覆盖行回退**纯法定披露截止日**
+（2026-08-25 用户裁决，与选股仓 `resolve_financial_availability` 统一）；
+dividend 事件行豁免（选股仓无对应物，且红利可知日直接决定 DP 的 12 个月窗），
+维持旧 `min(ann_date, 截止日)`。取 `<= 调样日` 的财务行（见 `_fetch_series` / `_knowability`）。
 
 ⚠️ 直接用 `stock_financial.ann_date` 是**错的**：96.5% 来自 CSMAR，其 `ann_date` 是数据集
 批次日而非首披日，会在每个调样日丢掉最近整整一个季度（实测 Q1 通过率 0~1%），把成长因子
-打成噪声。法定截止日是真实披露日的**上界**，故该修正保守而非前视。
+打成噪声。而它在 Wind 段又被上游封顶成 `min(真值, 截止日)`、真值已丢——**语义分段污染
+且上游明确不修**，故 08-25 起它完全退出定期报告路径。法定截止日是真实披露日的**上界**，
+故该回退保守而非前视。
 
 ⚠️ **残余限制**：超期披露的公司会被当成按时披露（无对照字段可逐票剔除）→ 结论仍须标
 **provisional**（同 B3）。
@@ -594,12 +597,19 @@ _DEADLINE = {3: (0, 4, 30), 6: (0, 8, 31), 9: (0, 10, 31), 12: (1, 4, 30)}
 
 
 def _statutory_deadline(end_date: pd.Series) -> pd.Series:
-    """报告期 → 法定披露截止日；非自然季末（CSMAR 的 01-01 伪行等）→ NaT。"""
+    """报告期 → 法定披露截止日；**非自然季末 → NaT**。
+
+    2026-08-25 收紧：原实现只按**月份**判（`_DEADLINE` 以月为键），于是 `2020-03-28`
+    这类季末月非季末日也会拿到 Q1 的 04-30 截止日 —— 库里实测 5,350 行（09-02/09-01/
+    03-28/03-27/…）。与选股仓 `is_standard_quarter_end` 对齐后，只有 03-31 / 06-30 /
+    09-30 / 12-31 才有截止日，其余（01-01 伪行、04-22 日频行、季末月错日）一律 NaT，
+    经 `_fetch_series` 末行的 `<= asof` 比较被整行剔除。
+    """
     e = pd.to_datetime(pd.Series(end_date))
     m = e.dt.month
     dm, dd = m.map({k: v[1] for k, v in _DEADLINE.items()}), m.map({k: v[2] for k, v in _DEADLINE.items()})
     add_y = m.map({k: v[0] for k, v in _DEADLINE.items()})
-    ok = dm.notna()
+    ok = dm.notna() & e.dt.is_quarter_end
     out = pd.Series(pd.NaT, index=e.index, dtype="datetime64[ns]")
     if ok.any():
         out[ok] = pd.to_datetime(pd.DataFrame({"year": (e.dt.year + add_y)[ok].astype(int),
@@ -621,20 +631,18 @@ def _fetch_series(codes: list[str], asof: pd.Timestamp, stmt: str, field: str,
     后果实测：成长因子（趋势/差分，命脉在最新一季）被打成噪声（对官方成分的 top-N 命中
     12.4%，随机基线 10.6%），价值因子（水平）尚可（50.3% vs 15.7%）。
 
-    ## 修正可知日 = min(ann_date, 法定披露截止日)
-
-    **法定截止日是真实披露日的上界**（合规公司必在其前披露），故用它当可知日**只会晚于、
-    不会早于**真实可知时刻 —— 是保守，不是前视。取 min 是为了让确有首披日的行
-    （Wind 段、以及 CSMAR 里 ann_date 早于截止日的行）继续用它们自己的真实日期。
-
     ## 2026-08-24 首披日升级（设计稿 §1）
 
-    定期报告类报表（`FD_STATEMENTS`）改用 `stock_first_disclosure` 的**真实首披日**
-    作可知日（96.0% 覆盖，R5 回填资产）；未覆盖行（sentinel / 2003 前 / 01-01 伪行 /
-    Wind 段）回退上述 min 规则——Wind 段 ann_date 本就是真实 `stm_issuingdate`，
-    回退即正确。**两源规则：首披日一律优先**，即便批次日更早（5.82% 疑快报行，
-    宁晚勿早，不静默取 min）。旧规则的残余前视（超期披露被当按时）由此收窄到
-    未覆盖的回退路径。
+    定期报告类报表（`FD_STATEMENTS`）用 `stock_first_disclosure` 的**真实首披日**作
+    可知日（96.0% 覆盖，R5 回填资产）。**两源规则：首披日一律优先**，即便批次日更早
+    （5.82% 疑快报行，宁晚勿早，不静默取 min）。
+
+    ## 2026-08-25 跨仓口径统一（用户裁决）
+
+    未命中首披日时回退**纯法定截止日**，`ann_date` 就此退出定期报告路径（事件行
+    dividend 不在射程内，仍走旧 min 规则）。**法定截止日是真实披露日的上界**
+    （合规公司必在其前披露），故用它当可知日**只会晚于、不会早于**真实可知时刻
+    —— 是保守，不是前视。判据与取舍见 `_knowability` docstring。
 
     `years=6`：SalG/ProG 需 12 个 TTM 点，而 TTM 要 4 季暖机 + CSMAR 的 01-01 伪行被剔除，
     4 年只剩 11 个非空 TTM（实测 600110.SH），故必须拉够 6 年。
@@ -644,12 +652,13 @@ def _fetch_series(codes: list[str], asof: pd.Timestamp, stmt: str, field: str,
     fd_join = (f"LEFT JOIN {{s}}.stock_first_disclosure fd "
                "ON fd.ts_code=f.ts_code AND fd.end_date=f.end_date") if use_fd else ""
     fd_col = "fd.first_disclosure_date" if use_fd else "NULL::date"
+    fq_col = "fd.quality" if use_fd else "NULL::text"
     c, s = _conn()
     try:
         with c.cursor() as cur:
             # SQL 只按 end_date 粗筛（报告期结束前不可能可知）；PIT 过滤放到修正可知日之后
             cur.execute(f"""SELECT f.ts_code, f.end_date, f.ann_date,
-                                   (f.data->>%s)::float8, {fd_col}
+                                   (f.data->>%s)::float8, {fd_col}, {fq_col}
                             FROM {s}.stock_financial f
                             {fd_join.format(s=s)}
                             WHERE f.ts_code=ANY(%s) AND f.statement_type=%s
@@ -659,26 +668,61 @@ def _fetch_series(codes: list[str], asof: pd.Timestamp, stmt: str, field: str,
             rows = cur.fetchall()
     finally:
         c.close()
-    df = pd.DataFrame(rows, columns=["ts_code", "end_date", "ann_date", "value", "fd"])
+    df = pd.DataFrame(rows, columns=["ts_code", "end_date", "ann_date", "value", "fd", "fdq"])
     if df.empty:
-        return df.drop(columns=["fd"])
-    df["ann_date"] = _knowability(df["ann_date"], df["end_date"], df["fd"])
-    df = df.drop(columns=["fd"])
+        return df.drop(columns=["fd", "fdq"])
+    df["ann_date"] = _knowability(df["ann_date"], df["end_date"], df["fd"], df["fdq"], use_fd)
+    df = df.drop(columns=["fd", "fdq"])
+    # NaT（非自然季末）在此比较下为 False → 整行剔除，与选股仓 is_standard_quarter_end 同解
     return df[df["ann_date"] <= asof].reset_index(drop=True)
 
 
 def _knowability(ann_date: pd.Series, end_date: pd.Series,
-                 first_disclosure: pd.Series) -> pd.Series:
-    """修正可知日（纯函数，2026-08-24 设计稿 §1）。
+                 first_disclosure: pd.Series, quality: pd.Series,
+                 use_fd: bool) -> pd.Series:
+    """修正可知日（纯函数）。2026-08-25 用户裁决：**定期报告口径统一到选股仓**。
 
-    首披日非空 → 首披日（两源规则：即便批次日更早也用首披日，宁晚勿早）；
-    否则回退 `min(ann_date, 法定披露截止日)`（截止日 NaT 安全，如 01-01 伪行）。
+    ## 定期报告五类（`use_fd=True`）—— 与 `resolve_financial_availability` 逐条对齐
+
+    可用首披日 → 用它（即便晚于法定截止日，见 08-24 两源规则：宁晚勿早）；
+    否则回退**纯法定截止日**，不再看 `ann_date`。
+    「可用」= `quality == 'ok'` 且非空 且 **首披日 ≥ 报告期末**（有效性守卫）。
+
+    ### 为什么弃用 `min(ann_date, 截止日)`（用户 2026-08-25 裁决）
+
+    `stock_financial.ann_date` 的语义**分段污染**且不打算修（采集计划 §3 明写划界）：
+    CSMAR 段是数据集**批次日**（可晚数月至数年），Wind 段被上游 `load_wind_quarterly.py`
+    封顶成 `min(stm_issuingdate, 截止日)`、真值已丢。把 PIT 正确性押在这样一个字段上，
+    等于把 reader 的语义绑给一个随时可能改口径的上游——而首披日回填正是为了摆脱它。
+    纯截止日是**密闭**的：只依赖日历，任何上游改动都动不了它。
+
+    代价 = Wind 段月度消费方每季晚一个月看到真实已公开信息（实测 2026-03-31 差 2,087 行），
+    随 2025Q2~2026Q1 首披日回填落地而自然消失。**对腿工厂代价为 0**：考察截止日
+    （6 月调样用 04-30、12 月用 10-31）恰等于法定披露截止日，cutoff ≥ 截止日时两口径同解。
+
+    ### 有效性守卫防的是什么
+
+    坏行（`首披日 < 报告期末`，实案 = 非日历财年港股，Wind 返回的是另一份报告的发布日）
+    若被直接采信，就是**真前视**。本仓此前**裸奔**，安全只靠上游不写坏行；今日 D2 裁定
+    让这类行落成 `NULL + quality='sentinel'`，但正确性不该依赖上游的防御性写入。
+
+    ## 事件行（`use_fd=False`，当前只有 dividend）—— 维持旧 `min` 规则，**不在统一射程内**
+
+    选股仓 reader 只处理定期报告，事件行没有对应物，统一过去买不到任何一致性；
+    而红利的可知日直接决定 DP 的 12 个月滚动窗，2026-08-20 刚修好死因子。
+    实测若强行套截止日：9.26% 的行平移，**中位/p10/p90 均为 1 天** —— 代价虽小但纯是浪费。
     """
-    ann = pd.to_datetime(ann_date)
+    e = pd.to_datetime(end_date)
+    dl = _statutory_deadline(e)
+    if not use_fd:
+        ann = pd.to_datetime(ann_date)
+        return dl.where(dl.notna() & (dl < ann), ann)
     fd = pd.to_datetime(first_disclosure)
-    dl = _statutory_deadline(end_date)
-    fallback = dl.where(dl.notna() & (dl < ann), ann)
-    return fd.where(fd.notna(), fallback)
+    # np.asarray：按**位置**取值再挂 e 的索引。直接 `pd.Series(quality, index=e.index)`
+    # 会对已是 Series 的入参按标签**重索引**，索引不同就静默错位成全 NaN（=全部退回截止日）
+    q = pd.Series(np.asarray(quality), index=e.index)
+    usable = fd.notna() & (fd >= e) & q.eq("ok")
+    return fd.where(usable & dl.notna(), dl)
 
 
 def _ttm_latest(df: pd.DataFrame, asof: pd.Timestamp) -> pd.Series:
