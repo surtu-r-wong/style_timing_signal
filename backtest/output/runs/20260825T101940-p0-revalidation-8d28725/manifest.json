@@ -1,0 +1,185 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/fifth_bucket_verdict.json",
+      "sha256": "404cc11b515622214cdffdf98e6f6a67caed88b1f6ded0631f21574e94f8f82d",
+      "size": 2453
+    },
+    {
+      "path": "inputs/gate0r_result.json",
+      "sha256": "7cb53fe86bbb2bdb7e7c17e4e2b3920908b634dbc41f6441b92fb35245fd88dd",
+      "size": 1350
+    },
+    {
+      "path": "inputs/geo5_verdict.json",
+      "sha256": "efb04a3e7f8685622abbf789dbe7c3f139df83ef827135278884f72778434326",
+      "size": 3105
+    },
+    {
+      "path": "logs/step-1-gate0r.log",
+      "sha256": "8fbfb335f60d6eb43bd96dae7a933d5a2f304d3af12685b0515b5af2201fef13",
+      "size": 10644
+    },
+    {
+      "path": "logs/step-2-tail.log",
+      "sha256": "64e9b1dfdf92490d6f5189b826c12243a916d0daac3a40f75716cc4b6f7655f7",
+      "size": 11833
+    },
+    {
+      "path": "logs/step-3-fifth.log",
+      "sha256": "a25c8a1ca69f2241a7ccdc11a9fc7d9c6730e422ffb8b58f6d0403dd97caa2d5",
+      "size": 1065
+    },
+    {
+      "path": "logs/step-4-geo_pairs.log",
+      "sha256": "44be7d838aa23333e0eec5a0c935994f2d1fe1bf9edfbc50534bd82a8796d9a3",
+      "size": 6181
+    },
+    {
+      "path": "logs/step-5-geo_formal.log",
+      "sha256": "3a969d26b4f13e6f0a772e57320425889332b58757be36d5caa1526057fd5c0e",
+      "size": 1209
+    },
+    {
+      "path": "outputs/fifth_bucket_verdict.json",
+      "sha256": "9613b568682cf60c1e6d2496910ed44a8fc47078e7bd056eb59bf5c6cfdff90f",
+      "size": 2455
+    },
+    {
+      "path": "outputs/gate0r_result.json",
+      "sha256": "03f5f650a7da003c003e937328468c9f68f1157fa47b3ba0262111200197ba99",
+      "size": 1354
+    },
+    {
+      "path": "outputs/geo5_pairs_build.json",
+      "sha256": "03baaa6886885b5e51afca12b88bf63e726e3a0db3e1f403ecae1aeb079ead46",
+      "size": 4938
+    },
+    {
+      "path": "outputs/geo5_pairs_daily.csv",
+      "sha256": "b0f93b0fac68f046e25239f50c50f7873967bd2a5c47638dcf8426ae4ce175c3",
+      "size": 614763
+    },
+    {
+      "path": "outputs/geo5_verdict.json",
+      "sha256": "847bfe50335d7feb3950b096ee57570af5640a6465a9523e45dff2c13a07bbd9",
+      "size": 3087
+    },
+    {
+      "path": "outputs/tail_pair_build.json",
+      "sha256": "3872a214871d709e0d632bb6d1976a1daab2df9a94ee366197ed9c57bbdb695f",
+      "size": 681
+    },
+    {
+      "path": "outputs/tail_pair_daily.csv",
+      "sha256": "9ae1b90d56676c839478d9ba57dc4d684db48a725ac0689303d1a54e0ac769af",
+      "size": 54644
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.gate0_runner",
+        "0r",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260825T101940-p0-revalidation-8d28725/outputs"
+      ],
+      "step": "gate0r"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.tail_pair_runner",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260825T101940-p0-revalidation-8d28725/outputs"
+      ],
+      "step": "tail"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.fifth_bucket_formal",
+        "--tail-csv",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260825T101940-p0-revalidation-8d28725/outputs/tail_pair_daily.csv",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260825T101940-p0-revalidation-8d28725/outputs",
+        "--start",
+        "2022-12-12",
+        "--n-perm",
+        "1000",
+        "--seed",
+        "0"
+      ],
+      "step": "fifth"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.geometric_pairs_runner",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260825T101940-p0-revalidation-8d28725/outputs"
+      ],
+      "step": "geo_pairs"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python3",
+        "-m",
+        "backtest.geometric_5b_formal",
+        "--geo-csv",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260825T101940-p0-revalidation-8d28725/outputs/geo5_pairs_daily.csv",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260825T101940-p0-revalidation-8d28725/outputs",
+        "--n-perm",
+        "1000",
+        "--seed",
+        "0"
+      ],
+      "step": "geo_formal"
+    }
+  ],
+  "error": {
+    "message": "gate0 pass must be True",
+    "type": "ValueError"
+  },
+  "experiment": "p0-revalidation",
+  "finished_at": "2026-08-25T13:17:58+08:00",
+  "inputs": {
+    "fifth": {
+      "path": "inputs/fifth_bucket_verdict.json",
+      "sha256": "404cc11b515622214cdffdf98e6f6a67caed88b1f6ded0631f21574e94f8f82d",
+      "size": 2453
+    },
+    "gate0r": {
+      "path": "inputs/gate0r_result.json",
+      "sha256": "7cb53fe86bbb2bdb7e7c17e4e2b3920908b634dbc41f6441b92fb35245fd88dd",
+      "size": 1350
+    },
+    "geo": {
+      "path": "inputs/geo5_verdict.json",
+      "sha256": "efb04a3e7f8685622abbf789dbe7c3f139df83ef827135278884f72778434326",
+      "size": 3105
+    }
+  },
+  "metadata": {
+    "database_cutoffs": {
+      "index_constituent": "2026-08-11",
+      "index_daily": "2026-08-24",
+      "stock_daily_price": "2026-08-21",
+      "stock_financial": "2026-06-30",
+      "stock_indicator": "2026-08-21"
+    },
+    "git": {
+      "commit": "8d287259837ec62aed52421eb6c9897bfa674735",
+      "dirty": true
+    }
+  },
+  "seed": 0,
+  "started_at": "2026-08-25T10:19:41+08:00",
+  "status": "failed"
+}
