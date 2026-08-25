@@ -47,26 +47,38 @@ from backtest.pure_style_builder import (  # noqa: E402
 
 OUTDIR = ROOT / "backtest" / "output"
 
-# 锚与地板登记（2026-08-25 用户裁决重登：首披日 PIT 升级后的 08-24 首跑值）。
+# 锚与地板登记（2026-08-25 **第二次**重登：`index_daily` 修复后、库静默期的干净跑）。
 #
-# ⚠️ 锚与地板从此**解耦**：地板是**绝对标准**，不随锚漂移。08-21 之前注释里写的
+# ⚠️ 锚与地板**解耦**：地板是**绝对标准**，不随锚漂移。08-21 之前注释里写的
 # 「地板 = 各判定量自己的锚 − 0.01」只是当时的标定由来，不是维护规则——若地板
 # 每次重登都跟着锚下移，绝对标准会被逐轮棘轮稀释，Gate 0 就不再是关卡。
 #
-# 重登理由：ANCHOR_REPRO_HK 是三个锚里**唯一进 pass/fail 的**（±0.01 复现带，用于
-# 探测代码漂移）；不重登则 08-24 那次有意变更已吃掉一半容差，探测器变有偏、将来分不清
-# 「代码漂移」与「修复累积」。ANCHOR_SIM2000 / ANCHOR_BAND500 只进 JSON 报表，
-# 判据是下面两条 FLOOR。
+# 三个锚里只有第一个进 pass/fail（±0.01 复现带，用途 = 探测代码漂移）；
+# 另两个只进 JSON 报表，判据是下面两条 FLOOR。
 #
-# ⚠️ 现存余量：sim2000 首跑 0.7847 距 FLOOR_SIM2000 仅 **0.0047**。下一个成本 >0.005
-# 的正当变更会让 0R 形式 FAIL —— 那是绝对地板的设计意图，不是事故，别当回归查。
+# ## 为什么当天重登两次（教训，勿删）
 #
-# 历史锚永久在案（勿删）：08-19 首跑 0.8046/0.8007/0.9636 + 旧地板 0.7946/0.9536
-# （DP 恒 0 时代）；08-21 重登 0.7951/0.7900/0.9698（DP 修复后、首披日升级前）。
+# 08-25 上午那次重登用的是 08-24 run 的读数，而**那次 run（15:46 起跑）早于同日
+# 19:18 的 `index_daily` 风格腿滞后修复 3.5 小时** —— 932408/932409 有 12 个交易日
+# 装着滞后一天的值，锚因此在**被污染的对照序列**上标定，偏低约 0.012。
+# 取证与双向 A/B 归因（已排除代码改动、伪行、重述 tie-break 三种解释）见
+# `docs/plans/2026-08-25-gate0-anchor-contamination.md`。
+#
+# 由此立了 `input_drift` 机制（`run_manifest.input_drift_report`）：四个 runner
+# 起跑拍输入表 `max(updated_at)`、收尾比对，窗口内被改写则**拒绝登记为首跑值**。
+# 本次登记的运行 `registrable_as_first_run=True`（五张表写入时刻逐个未动）。
+#
+# ⚠️ 现存余量：sim2000 距 FLOOR_SIM2000 为 0.0166。跌破即 0R 形式 FAIL ——
+# 那是绝对地板的设计意图，不是事故，别当回归查。
+#
+# 历史锚永久在案（勿删）：
+#   08-19 首跑 0.8046/0.8007/0.9636 + 旧地板 0.7946/0.9536（DP 恒 0 时代）
+#   08-21 重登 0.7951/0.7900/0.9698（DP 修复后、首披日升级前）
+#   08-25 上午 0.7900/0.7847/0.9698（**污染值，勿用** —— 见上文）
 # 证据：git 历史 + data_fixes/2026-08-20-dp-factor-and-leg-lists/ +
-# backtest/output/runs/20260824T154604-p0-revalidation-da4db0e/
-ANCHOR_REPRO_HK = 0.7900   # 0R-A 锚复现（样本空间含 .HK 旧口径），复现带 ±0.01
-ANCHOR_SIM2000 = 0.7847    # 0R-B1 现口径 2000 带模拟全窗（.HK 护栏生效）—— 仅报表用
+# backtest/output/runs/20260825T163511-gate0r-anchor-recalibration-2e83a20/
+ANCHOR_REPRO_HK = 0.8022   # 0R-A 锚复现（样本空间含 .HK 旧口径），复现带 ±0.01
+ANCHOR_SIM2000 = 0.7966    # 0R-B1 现口径 2000 带模拟全窗（.HK 护栏生效）—— 仅报表用
 ANCHOR_BAND500 = 0.9698    # 0R-B2 / 0R' 500 带真值 + T9（08-24 逐位不变）—— 仅报表用
 FLOOR_SIM2000 = 0.7800
 FLOOR_BAND500 = 0.9598
@@ -180,7 +192,7 @@ def run_0r(outdir: Path = OUTDIR) -> int:
     marks0, since = _drift_marks()
     dates = rebalance_dates(*WINDOW) + [TERMINAL]
     off2000 = official_spread("932409.CSI", "932408.CSI")
-    res: dict = {"gate": "0R", "anchors_registered": "2026-08-25",
+    res: dict = {"gate": "0R", "anchors_registered": "2026-08-25b",
                  "anchors": {"repro_hk": ANCHOR_REPRO_HK, "sim2000_guarded": ANCHOR_SIM2000,
                              "band500": ANCHOR_BAND500},
                  "thresholds": {"sim2000": FLOOR_SIM2000, "band500": FLOOR_BAND500}}
