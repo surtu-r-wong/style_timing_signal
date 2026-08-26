@@ -1,0 +1,226 @@
+{
+  "artifacts": [
+    {
+      "path": "comparison.json",
+      "sha256": "5edc7e2e6c5a9942d3be252a26a15dad863c394a8fdb7a0c53d5e88b50824d8b",
+      "size": 17637
+    },
+    {
+      "path": "inputs/fifth_bucket_verdict.json",
+      "sha256": "404cc11b515622214cdffdf98e6f6a67caed88b1f6ded0631f21574e94f8f82d",
+      "size": 2453
+    },
+    {
+      "path": "inputs/gate0r_result.json",
+      "sha256": "7cb53fe86bbb2bdb7e7c17e4e2b3920908b634dbc41f6441b92fb35245fd88dd",
+      "size": 1350
+    },
+    {
+      "path": "inputs/geo5_verdict.json",
+      "sha256": "efb04a3e7f8685622abbf789dbe7c3f139df83ef827135278884f72778434326",
+      "size": 3105
+    },
+    {
+      "path": "logs/step-1-gate0r.log",
+      "sha256": "07a42b7010ab1ebd1147184c40babf3cad14bdab31e6479ec6d069013c114d53",
+      "size": 10717
+    },
+    {
+      "path": "logs/step-2-tail.log",
+      "sha256": "1a01cf5617fa47f41aee0abeef2596ed763994edbd4df97a02841847dbcda71b",
+      "size": 11833
+    },
+    {
+      "path": "logs/step-3-fifth.log",
+      "sha256": "343867fc2bf83adbc794ed951549028e13321ba054e54b47fb1ceff75368e5fb",
+      "size": 1065
+    },
+    {
+      "path": "logs/step-4-geo_pairs.log",
+      "sha256": "c55c87929496245c3df4f481971bcf2113a63caf35f385662249885aeeca63d2",
+      "size": 6181
+    },
+    {
+      "path": "logs/step-5-geo_formal.log",
+      "sha256": "0a662d520fda6005cea2b06a5a2569932221fbf0c6b9fa347c44f75486dfea70",
+      "size": 1209
+    },
+    {
+      "path": "outputs/fifth_bucket_verdict.json",
+      "sha256": "9613b568682cf60c1e6d2496910ed44a8fc47078e7bd056eb59bf5c6cfdff90f",
+      "size": 2455
+    },
+    {
+      "path": "outputs/gate0r_result.json",
+      "sha256": "1797140ddac913a16104cccd48b84e7c8e7e608644e20a29897a87c23be815a0",
+      "size": 2136
+    },
+    {
+      "path": "outputs/geo5_pairs_build.json",
+      "sha256": "fb2b3082561ec8cdda5b7dda4b5d75fc4346564edcd938dfd135b66e46d5d1d4",
+      "size": 4938
+    },
+    {
+      "path": "outputs/geo5_pairs_daily.csv",
+      "sha256": "b0f93b0fac68f046e25239f50c50f7873967bd2a5c47638dcf8426ae4ce175c3",
+      "size": 614763
+    },
+    {
+      "path": "outputs/geo5_verdict.json",
+      "sha256": "847bfe50335d7feb3950b096ee57570af5640a6465a9523e45dff2c13a07bbd9",
+      "size": 3087
+    },
+    {
+      "path": "outputs/tail_pair_build.json",
+      "sha256": "875c0b8675ceb6a7eb1d26ed87f85582b57cf92c1dcbc367813bbddba6b8df04",
+      "size": 681
+    },
+    {
+      "path": "outputs/tail_pair_daily.csv",
+      "sha256": "a3ce42378d7449e43e040abae1fb2503689e3320acc52fc1f47dd94b082d00b1",
+      "size": 54641
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.gate0_runner",
+        "0r",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs"
+      ],
+      "step": "gate0r"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.tail_pair_runner",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs"
+      ],
+      "step": "tail"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.fifth_bucket_formal",
+        "--tail-csv",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs/tail_pair_daily.csv",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs",
+        "--start",
+        "2022-12-12",
+        "--n-perm",
+        "1000",
+        "--seed",
+        "0"
+      ],
+      "step": "fifth"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.geometric_pairs_runner",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs"
+      ],
+      "step": "geo_pairs"
+    },
+    {
+      "command": [
+        "/home/elfbob/miniconda3/bin/python",
+        "-m",
+        "backtest.geometric_5b_formal",
+        "--geo-csv",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs/geo5_pairs_daily.csv",
+        "--output-dir",
+        "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs",
+        "--n-perm",
+        "1000",
+        "--seed",
+        "0"
+      ],
+      "step": "geo_formal"
+    }
+  ],
+  "experiment": "p0-revalidation",
+  "finished_at": "2026-08-26T22:16:10+08:00",
+  "inputs": {
+    "fifth": {
+      "path": "inputs/fifth_bucket_verdict.json",
+      "sha256": "404cc11b515622214cdffdf98e6f6a67caed88b1f6ded0631f21574e94f8f82d",
+      "size": 2453
+    },
+    "gate0r": {
+      "path": "inputs/gate0r_result.json",
+      "sha256": "7cb53fe86bbb2bdb7e7c17e4e2b3920908b634dbc41f6441b92fb35245fd88dd",
+      "size": 1350
+    },
+    "geo": {
+      "path": "inputs/geo5_verdict.json",
+      "sha256": "efb04a3e7f8685622abbf789dbe7c3f139df83ef827135278884f72778434326",
+      "size": 3105
+    }
+  },
+  "metadata": {
+    "database_cutoffs": {
+      "index_constituent": "2026-08-21",
+      "index_daily": "2026-08-26",
+      "stock_daily_price": "2026-08-24",
+      "stock_financial": "2026-06-30",
+      "stock_indicator": "2026-08-24"
+    },
+    "database_input_start": {
+      "cutoffs": {
+        "index_constituent": "2026-08-21",
+        "index_daily": "2026-08-26",
+        "stock_daily_price": "2026-08-24",
+        "stock_financial": "2026-06-30",
+        "stock_indicator": "2026-08-24"
+      },
+      "database_time": "2026-08-26 18:39:45.299707+08",
+      "write_marks": {
+        "index_constituent": "2026-08-25 18:55:54.623583+08",
+        "index_daily": "2026-08-26 18:30:52.684608+08",
+        "stock_daily_price": "2026-08-25 11:16:33.448701+08",
+        "stock_financial": "2026-08-25 14:37:05.819659+08",
+        "stock_indicator": "2026-08-25 13:09:33.075669+08"
+      }
+    },
+    "git": {
+      "commit": "ac11b3c6b04e952af53af9a13c75e5d79adf5c97",
+      "dirty": false,
+      "porcelain": [],
+      "tracked_dirty": false
+    },
+    "input_drift": {
+      "inputs_moved": false,
+      "inputs_moved_in_window": false,
+      "moved_tables": {},
+      "registrable_as_first_run": true,
+      "rows_touched_in_window": {},
+      "write_marks_after": {
+        "index_constituent": "2026-08-25 18:55:54.623583+08",
+        "index_daily": "2026-08-26 18:30:52.684608+08",
+        "stock_daily_price": "2026-08-25 11:16:33.448701+08",
+        "stock_financial": "2026-08-25 14:37:05.819659+08",
+        "stock_indicator": "2026-08-25 13:09:33.075669+08"
+      },
+      "write_marks_before": {
+        "index_constituent": "2026-08-25 18:55:54.623583+08",
+        "index_daily": "2026-08-26 18:30:52.684608+08",
+        "stock_daily_price": "2026-08-25 11:16:33.448701+08",
+        "stock_financial": "2026-08-25 14:37:05.819659+08",
+        "stock_indicator": "2026-08-25 13:09:33.075669+08"
+      }
+    }
+  },
+  "seed": 0,
+  "started_at": "2026-08-26T18:39:48+08:00",
+  "status": "complete"
+}
