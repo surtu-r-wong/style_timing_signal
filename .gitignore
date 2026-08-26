@@ -28,6 +28,7 @@ backtest/output/*.log
 /backtest/output/runs/20260821T165746-p0-revalidation-3030109/
 /backtest/output/runs/20260824T100630-axes-ticket-e2df789/
 /backtest/output/runs/20260824T151754-p0-revalidation-da4db0e/
+/backtest/output/runs/20260826T110842-p0-revalidation-95c4405/
 
 # LibreOffice 编辑锁文件（打开 CSV 时生成，绝不入库）
 .~lock.*#
