@@ -1,0 +1,2313 @@
+{
+ "n_periods": 23,
+ "start_eff": "2015-06-15",
+ "end": "2026-08-24",
+ "axes": [
+  "lowvol",
+  "momentum",
+  "liquidity",
+  "dividend"
+ ],
+ "periods": [
+  {
+   "band": "300",
+   "eff": "2015-06-15",
+   "cutoff": "2015-04-30",
+   "space": 232,
+   "legs": {
+    "lowvol": {
+     "long": 75,
+     "short": 75
+    },
+    "momentum": {
+     "long": 76,
+     "short": 76
+    },
+    "liquidity": {
+     "long": 77,
+     "short": 77
+    },
+    "dividend": {
+     "long": 77,
+     "short": 77
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2015-06-15",
+   "cutoff": "2015-04-30",
+   "space": 384,
+   "legs": {
+    "lowvol": {
+     "long": 128,
+     "short": 128
+    },
+    "momentum": {
+     "long": 127,
+     "short": 127
+    },
+    "liquidity": {
+     "long": 128,
+     "short": 128
+    },
+    "dividend": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2015-06-15",
+   "cutoff": "2015-04-30",
+   "space": 763,
+   "legs": {
+    "lowvol": {
+     "long": 250,
+     "short": 250
+    },
+    "momentum": {
+     "long": 251,
+     "short": 251
+    },
+    "liquidity": {
+     "long": 254,
+     "short": 254
+    },
+    "dividend": {
+     "long": 254,
+     "short": 254
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2015-06-15",
+   "cutoff": "2015-04-30",
+   "space": 629,
+   "legs": {
+    "lowvol": {
+     "long": 202,
+     "short": 202
+    },
+    "momentum": {
+     "long": 204,
+     "short": 204
+    },
+    "liquidity": {
+     "long": 209,
+     "short": 209
+    },
+    "dividend": {
+     "long": 209,
+     "short": 209
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2015-12-14",
+   "cutoff": "2015-10-31",
+   "space": 229,
+   "legs": {
+    "lowvol": {
+     "long": 75,
+     "short": 75
+    },
+    "momentum": {
+     "long": 75,
+     "short": 75
+    },
+    "liquidity": {
+     "long": 76,
+     "short": 76
+    },
+    "dividend": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2015-12-14",
+   "cutoff": "2015-10-31",
+   "space": 385,
+   "legs": {
+    "lowvol": {
+     "long": 125,
+     "short": 125
+    },
+    "momentum": {
+     "long": 127,
+     "short": 127
+    },
+    "liquidity": {
+     "long": 128,
+     "short": 128
+    },
+    "dividend": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2015-12-14",
+   "cutoff": "2015-10-31",
+   "space": 738,
+   "legs": {
+    "lowvol": {
+     "long": 237,
+     "short": 237
+    },
+    "momentum": {
+     "long": 238,
+     "short": 238
+    },
+    "liquidity": {
+     "long": 246,
+     "short": 246
+    },
+    "dividend": {
+     "long": 246,
+     "short": 246
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2015-12-14",
+   "cutoff": "2015-10-31",
+   "space": 690,
+   "legs": {
+    "lowvol": {
+     "long": 220,
+     "short": 220
+    },
+    "momentum": {
+     "long": 223,
+     "short": 223
+    },
+    "liquidity": {
+     "long": 230,
+     "short": 230
+    },
+    "dividend": {
+     "long": 230,
+     "short": 230
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2016-06-13",
+   "cutoff": "2016-04-30",
+   "space": 234,
+   "legs": {
+    "lowvol": {
+     "long": 75,
+     "short": 75
+    },
+    "momentum": {
+     "long": 75,
+     "short": 75
+    },
+    "liquidity": {
+     "long": 78,
+     "short": 78
+    },
+    "dividend": {
+     "long": 78,
+     "short": 78
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2016-06-13",
+   "cutoff": "2016-04-30",
+   "space": 389,
+   "legs": {
+    "lowvol": {
+     "long": 123,
+     "short": 123
+    },
+    "momentum": {
+     "long": 124,
+     "short": 124
+    },
+    "liquidity": {
+     "long": 129,
+     "short": 129
+    },
+    "dividend": {
+     "long": 129,
+     "short": 129
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2016-06-13",
+   "cutoff": "2016-04-30",
+   "space": 751,
+   "legs": {
+    "lowvol": {
+     "long": 236,
+     "short": 236
+    },
+    "momentum": {
+     "long": 238,
+     "short": 238
+    },
+    "liquidity": {
+     "long": 250,
+     "short": 250
+    },
+    "dividend": {
+     "long": 250,
+     "short": 250
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2016-06-13",
+   "cutoff": "2016-04-30",
+   "space": 772,
+   "legs": {
+    "lowvol": {
+     "long": 238,
+     "short": 238
+    },
+    "momentum": {
+     "long": 243,
+     "short": 243
+    },
+    "liquidity": {
+     "long": 257,
+     "short": 257
+    },
+    "dividend": {
+     "long": 257,
+     "short": 257
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2016-12-12",
+   "cutoff": "2016-10-31",
+   "space": 230,
+   "legs": {
+    "lowvol": {
+     "long": 74,
+     "short": 74
+    },
+    "momentum": {
+     "long": 75,
+     "short": 75
+    },
+    "liquidity": {
+     "long": 76,
+     "short": 76
+    },
+    "dividend": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2016-12-12",
+   "cutoff": "2016-10-31",
+   "space": 378,
+   "legs": {
+    "lowvol": {
+     "long": 121,
+     "short": 121
+    },
+    "momentum": {
+     "long": 122,
+     "short": 122
+    },
+    "liquidity": {
+     "long": 126,
+     "short": 126
+    },
+    "dividend": {
+     "long": 126,
+     "short": 126
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2016-12-12",
+   "cutoff": "2016-10-31",
+   "space": 757,
+   "legs": {
+    "lowvol": {
+     "long": 245,
+     "short": 245
+    },
+    "momentum": {
+     "long": 246,
+     "short": 246
+    },
+    "liquidity": {
+     "long": 252,
+     "short": 252
+    },
+    "dividend": {
+     "long": 252,
+     "short": 252
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2016-12-12",
+   "cutoff": "2016-10-31",
+   "space": 852,
+   "legs": {
+    "lowvol": {
+     "long": 270,
+     "short": 270
+    },
+    "momentum": {
+     "long": 274,
+     "short": 274
+    },
+    "liquidity": {
+     "long": 284,
+     "short": 284
+    },
+    "dividend": {
+     "long": 284,
+     "short": 284
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2017-06-12",
+   "cutoff": "2017-04-30",
+   "space": 225,
+   "legs": {
+    "lowvol": {
+     "long": 73,
+     "short": 73
+    },
+    "momentum": {
+     "long": 74,
+     "short": 74
+    },
+    "liquidity": {
+     "long": 75,
+     "short": 75
+    },
+    "dividend": {
+     "long": 75,
+     "short": 75
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2017-06-12",
+   "cutoff": "2017-04-30",
+   "space": 369,
+   "legs": {
+    "lowvol": {
+     "long": 119,
+     "short": 119
+    },
+    "momentum": {
+     "long": 120,
+     "short": 120
+    },
+    "liquidity": {
+     "long": 123,
+     "short": 123
+    },
+    "dividend": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2017-06-12",
+   "cutoff": "2017-04-30",
+   "space": 749,
+   "legs": {
+    "lowvol": {
+     "long": 243,
+     "short": 243
+    },
+    "momentum": {
+     "long": 245,
+     "short": 245
+    },
+    "liquidity": {
+     "long": 249,
+     "short": 249
+    },
+    "dividend": {
+     "long": 249,
+     "short": 249
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2017-06-12",
+   "cutoff": "2017-04-30",
+   "space": 921,
+   "legs": {
+    "lowvol": {
+     "long": 298,
+     "short": 298
+    },
+    "momentum": {
+     "long": 297,
+     "short": 297
+    },
+    "liquidity": {
+     "long": 307,
+     "short": 307
+    },
+    "dividend": {
+     "long": 307,
+     "short": 307
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2017-12-11",
+   "cutoff": "2017-10-31",
+   "space": 229,
+   "legs": {
+    "lowvol": {
+     "long": 75,
+     "short": 75
+    },
+    "momentum": {
+     "long": 75,
+     "short": 75
+    },
+    "liquidity": {
+     "long": 76,
+     "short": 76
+    },
+    "dividend": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2017-12-11",
+   "cutoff": "2017-10-31",
+   "space": 373,
+   "legs": {
+    "lowvol": {
+     "long": 121,
+     "short": 121
+    },
+    "momentum": {
+     "long": 121,
+     "short": 121
+    },
+    "liquidity": {
+     "long": 124,
+     "short": 124
+    },
+    "dividend": {
+     "long": 124,
+     "short": 124
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2017-12-11",
+   "cutoff": "2017-10-31",
+   "space": 727,
+   "legs": {
+    "lowvol": {
+     "long": 231,
+     "short": 231
+    },
+    "momentum": {
+     "long": 233,
+     "short": 233
+    },
+    "liquidity": {
+     "long": 242,
+     "short": 242
+    },
+    "dividend": {
+     "long": 242,
+     "short": 242
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2017-12-11",
+   "cutoff": "2017-10-31",
+   "space": 1019,
+   "legs": {
+    "lowvol": {
+     "long": 327,
+     "short": 327
+    },
+    "momentum": {
+     "long": 332,
+     "short": 332
+    },
+    "liquidity": {
+     "long": 339,
+     "short": 339
+    },
+    "dividend": {
+     "long": 339,
+     "short": 339
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2018-06-11",
+   "cutoff": "2018-04-30",
+   "space": 230,
+   "legs": {
+    "lowvol": {
+     "long": 75,
+     "short": 75
+    },
+    "momentum": {
+     "long": 75,
+     "short": 75
+    },
+    "liquidity": {
+     "long": 76,
+     "short": 76
+    },
+    "dividend": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2018-06-11",
+   "cutoff": "2018-04-30",
+   "space": 375,
+   "legs": {
+    "lowvol": {
+     "long": 122,
+     "short": 122
+    },
+    "momentum": {
+     "long": 121,
+     "short": 121
+    },
+    "liquidity": {
+     "long": 125,
+     "short": 125
+    },
+    "dividend": {
+     "long": 125,
+     "short": 125
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2018-06-11",
+   "cutoff": "2018-04-30",
+   "space": 741,
+   "legs": {
+    "lowvol": {
+     "long": 237,
+     "short": 237
+    },
+    "momentum": {
+     "long": 238,
+     "short": 238
+    },
+    "liquidity": {
+     "long": 247,
+     "short": 247
+    },
+    "dividend": {
+     "long": 247,
+     "short": 247
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2018-06-11",
+   "cutoff": "2018-04-30",
+   "space": 1206,
+   "legs": {
+    "lowvol": {
+     "long": 388,
+     "short": 388
+    },
+    "momentum": {
+     "long": 390,
+     "short": 390
+    },
+    "liquidity": {
+     "long": 402,
+     "short": 402
+    },
+    "dividend": {
+     "long": 402,
+     "short": 402
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2018-12-17",
+   "cutoff": "2018-10-31",
+   "space": 222,
+   "legs": {
+    "lowvol": {
+     "long": 72,
+     "short": 72
+    },
+    "momentum": {
+     "long": 73,
+     "short": 73
+    },
+    "liquidity": {
+     "long": 74,
+     "short": 74
+    },
+    "dividend": {
+     "long": 74,
+     "short": 74
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2018-12-17",
+   "cutoff": "2018-10-31",
+   "space": 383,
+   "legs": {
+    "lowvol": {
+     "long": 124,
+     "short": 124
+    },
+    "momentum": {
+     "long": 125,
+     "short": 125
+    },
+    "liquidity": {
+     "long": 127,
+     "short": 127
+    },
+    "dividend": {
+     "long": 127,
+     "short": 127
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2018-12-17",
+   "cutoff": "2018-10-31",
+   "space": 763,
+   "legs": {
+    "lowvol": {
+     "long": 247,
+     "short": 247
+    },
+    "momentum": {
+     "long": 249,
+     "short": 249
+    },
+    "liquidity": {
+     "long": 254,
+     "short": 254
+    },
+    "dividend": {
+     "long": 254,
+     "short": 254
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2018-12-17",
+   "cutoff": "2018-10-31",
+   "space": 1346,
+   "legs": {
+    "lowvol": {
+     "long": 442,
+     "short": 442
+    },
+    "momentum": {
+     "long": 442,
+     "short": 442
+    },
+    "liquidity": {
+     "long": 448,
+     "short": 448
+    },
+    "dividend": {
+     "long": 448,
+     "short": 448
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2019-06-17",
+   "cutoff": "2019-04-30",
+   "space": 225,
+   "legs": {
+    "lowvol": {
+     "long": 74,
+     "short": 74
+    },
+    "momentum": {
+     "long": 74,
+     "short": 74
+    },
+    "liquidity": {
+     "long": 75,
+     "short": 75
+    },
+    "dividend": {
+     "long": 75,
+     "short": 75
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2019-06-17",
+   "cutoff": "2019-04-30",
+   "space": 384,
+   "legs": {
+    "lowvol": {
+     "long": 127,
+     "short": 127
+    },
+    "momentum": {
+     "long": 126,
+     "short": 126
+    },
+    "liquidity": {
+     "long": 128,
+     "short": 128
+    },
+    "dividend": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2019-06-17",
+   "cutoff": "2019-04-30",
+   "space": 777,
+   "legs": {
+    "lowvol": {
+     "long": 257,
+     "short": 257
+    },
+    "momentum": {
+     "long": 256,
+     "short": 256
+    },
+    "liquidity": {
+     "long": 259,
+     "short": 259
+    },
+    "dividend": {
+     "long": 259,
+     "short": 259
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2019-06-17",
+   "cutoff": "2019-04-30",
+   "space": 1413,
+   "legs": {
+    "lowvol": {
+     "long": 470,
+     "short": 470
+    },
+    "momentum": {
+     "long": 470,
+     "short": 470
+    },
+    "liquidity": {
+     "long": 471,
+     "short": 471
+    },
+    "dividend": {
+     "long": 471,
+     "short": 471
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2019-12-16",
+   "cutoff": "2019-10-31",
+   "space": 224,
+   "legs": {
+    "lowvol": {
+     "long": 74,
+     "short": 74
+    },
+    "momentum": {
+     "long": 74,
+     "short": 74
+    },
+    "liquidity": {
+     "long": 74,
+     "short": 74
+    },
+    "dividend": {
+     "long": 74,
+     "short": 74
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2019-12-16",
+   "cutoff": "2019-10-31",
+   "space": 369,
+   "legs": {
+    "lowvol": {
+     "long": 123,
+     "short": 123
+    },
+    "momentum": {
+     "long": 123,
+     "short": 123
+    },
+    "liquidity": {
+     "long": 123,
+     "short": 123
+    },
+    "dividend": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2019-12-16",
+   "cutoff": "2019-10-31",
+   "space": 757,
+   "legs": {
+    "lowvol": {
+     "long": 252,
+     "short": 252
+    },
+    "momentum": {
+     "long": 252,
+     "short": 252
+    },
+    "liquidity": {
+     "long": 252,
+     "short": 252
+    },
+    "dividend": {
+     "long": 252,
+     "short": 252
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2019-12-16",
+   "cutoff": "2019-10-31",
+   "space": 1478,
+   "legs": {
+    "lowvol": {
+     "long": 492,
+     "short": 492
+    },
+    "momentum": {
+     "long": 492,
+     "short": 492
+    },
+    "liquidity": {
+     "long": 492,
+     "short": 492
+    },
+    "dividend": {
+     "long": 492,
+     "short": 492
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2020-06-15",
+   "cutoff": "2020-04-30",
+   "space": 225,
+   "legs": {
+    "lowvol": {
+     "long": 75,
+     "short": 75
+    },
+    "momentum": {
+     "long": 75,
+     "short": 75
+    },
+    "liquidity": {
+     "long": 75,
+     "short": 75
+    },
+    "dividend": {
+     "long": 75,
+     "short": 75
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2020-06-15",
+   "cutoff": "2020-04-30",
+   "space": 369,
+   "legs": {
+    "lowvol": {
+     "long": 123,
+     "short": 123
+    },
+    "momentum": {
+     "long": 123,
+     "short": 123
+    },
+    "liquidity": {
+     "long": 123,
+     "short": 123
+    },
+    "dividend": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2020-06-15",
+   "cutoff": "2020-04-30",
+   "space": 735,
+   "legs": {
+    "lowvol": {
+     "long": 244,
+     "short": 244
+    },
+    "momentum": {
+     "long": 244,
+     "short": 244
+    },
+    "liquidity": {
+     "long": 245,
+     "short": 245
+    },
+    "dividend": {
+     "long": 245,
+     "short": 245
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2020-06-15",
+   "cutoff": "2020-04-30",
+   "space": 1521,
+   "legs": {
+    "lowvol": {
+     "long": 506,
+     "short": 506
+    },
+    "momentum": {
+     "long": 506,
+     "short": 506
+    },
+    "liquidity": {
+     "long": 507,
+     "short": 507
+    },
+    "dividend": {
+     "long": 507,
+     "short": 507
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2020-12-14",
+   "cutoff": "2020-10-31",
+   "space": 220,
+   "legs": {
+    "lowvol": {
+     "long": 73,
+     "short": 73
+    },
+    "momentum": {
+     "long": 73,
+     "short": 73
+    },
+    "liquidity": {
+     "long": 73,
+     "short": 73
+    },
+    "dividend": {
+     "long": 73,
+     "short": 73
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2020-12-14",
+   "cutoff": "2020-10-31",
+   "space": 369,
+   "legs": {
+    "lowvol": {
+     "long": 123,
+     "short": 123
+    },
+    "momentum": {
+     "long": 123,
+     "short": 123
+    },
+    "liquidity": {
+     "long": 123,
+     "short": 123
+    },
+    "dividend": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2020-12-14",
+   "cutoff": "2020-10-31",
+   "space": 703,
+   "legs": {
+    "lowvol": {
+     "long": 234,
+     "short": 234
+    },
+    "momentum": {
+     "long": 234,
+     "short": 234
+    },
+    "liquidity": {
+     "long": 234,
+     "short": 234
+    },
+    "dividend": {
+     "long": 234,
+     "short": 234
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2020-12-14",
+   "cutoff": "2020-10-31",
+   "space": 1445,
+   "legs": {
+    "lowvol": {
+     "long": 481,
+     "short": 481
+    },
+    "momentum": {
+     "long": 481,
+     "short": 481
+    },
+    "liquidity": {
+     "long": 481,
+     "short": 481
+    },
+    "dividend": {
+     "long": 481,
+     "short": 481
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2021-06-15",
+   "cutoff": "2021-04-30",
+   "space": 227,
+   "legs": {
+    "lowvol": {
+     "long": 75,
+     "short": 75
+    },
+    "momentum": {
+     "long": 75,
+     "short": 75
+    },
+    "liquidity": {
+     "long": 75,
+     "short": 75
+    },
+    "dividend": {
+     "long": 75,
+     "short": 75
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2021-06-15",
+   "cutoff": "2021-04-30",
+   "space": 365,
+   "legs": {
+    "lowvol": {
+     "long": 121,
+     "short": 121
+    },
+    "momentum": {
+     "long": 121,
+     "short": 121
+    },
+    "liquidity": {
+     "long": 121,
+     "short": 121
+    },
+    "dividend": {
+     "long": 121,
+     "short": 121
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2021-06-15",
+   "cutoff": "2021-04-30",
+   "space": 716,
+   "legs": {
+    "lowvol": {
+     "long": 238,
+     "short": 238
+    },
+    "momentum": {
+     "long": 238,
+     "short": 238
+    },
+    "liquidity": {
+     "long": 238,
+     "short": 238
+    },
+    "dividend": {
+     "long": 238,
+     "short": 238
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2021-06-15",
+   "cutoff": "2021-04-30",
+   "space": 1361,
+   "legs": {
+    "lowvol": {
+     "long": 453,
+     "short": 453
+    },
+    "momentum": {
+     "long": 453,
+     "short": 453
+    },
+    "liquidity": {
+     "long": 453,
+     "short": 453
+    },
+    "dividend": {
+     "long": 453,
+     "short": 453
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2021-12-13",
+   "cutoff": "2021-10-31",
+   "space": 229,
+   "legs": {
+    "lowvol": {
+     "long": 76,
+     "short": 76
+    },
+    "momentum": {
+     "long": 76,
+     "short": 76
+    },
+    "liquidity": {
+     "long": 76,
+     "short": 76
+    },
+    "dividend": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2021-12-13",
+   "cutoff": "2021-10-31",
+   "space": 371,
+   "legs": {
+    "lowvol": {
+     "long": 123,
+     "short": 123
+    },
+    "momentum": {
+     "long": 123,
+     "short": 123
+    },
+    "liquidity": {
+     "long": 123,
+     "short": 123
+    },
+    "dividend": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2021-12-13",
+   "cutoff": "2021-10-31",
+   "space": 733,
+   "legs": {
+    "lowvol": {
+     "long": 244,
+     "short": 244
+    },
+    "momentum": {
+     "long": 244,
+     "short": 244
+    },
+    "liquidity": {
+     "long": 244,
+     "short": 244
+    },
+    "dividend": {
+     "long": 244,
+     "short": 244
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2021-12-13",
+   "cutoff": "2021-10-31",
+   "space": 1379,
+   "legs": {
+    "lowvol": {
+     "long": 459,
+     "short": 459
+    },
+    "momentum": {
+     "long": 459,
+     "short": 459
+    },
+    "liquidity": {
+     "long": 459,
+     "short": 459
+    },
+    "dividend": {
+     "long": 459,
+     "short": 459
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2022-06-13",
+   "cutoff": "2022-04-30",
+   "space": 229,
+   "legs": {
+    "lowvol": {
+     "long": 76,
+     "short": 76
+    },
+    "momentum": {
+     "long": 76,
+     "short": 76
+    },
+    "liquidity": {
+     "long": 76,
+     "short": 76
+    },
+    "dividend": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2022-06-13",
+   "cutoff": "2022-04-30",
+   "space": 369,
+   "legs": {
+    "lowvol": {
+     "long": 123,
+     "short": 123
+    },
+    "momentum": {
+     "long": 123,
+     "short": 123
+    },
+    "liquidity": {
+     "long": 123,
+     "short": 123
+    },
+    "dividend": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2022-06-13",
+   "cutoff": "2022-04-30",
+   "space": 733,
+   "legs": {
+    "lowvol": {
+     "long": 244,
+     "short": 244
+    },
+    "momentum": {
+     "long": 244,
+     "short": 244
+    },
+    "liquidity": {
+     "long": 244,
+     "short": 244
+    },
+    "dividend": {
+     "long": 244,
+     "short": 244
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2022-06-13",
+   "cutoff": "2022-04-30",
+   "space": 1429,
+   "legs": {
+    "lowvol": {
+     "long": 476,
+     "short": 476
+    },
+    "momentum": {
+     "long": 476,
+     "short": 476
+    },
+    "liquidity": {
+     "long": 476,
+     "short": 476
+    },
+    "dividend": {
+     "long": 476,
+     "short": 476
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2022-12-12",
+   "cutoff": "2022-10-31",
+   "space": 229,
+   "legs": {
+    "lowvol": {
+     "long": 76,
+     "short": 76
+    },
+    "momentum": {
+     "long": 76,
+     "short": 76
+    },
+    "liquidity": {
+     "long": 76,
+     "short": 76
+    },
+    "dividend": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2022-12-12",
+   "cutoff": "2022-10-31",
+   "space": 377,
+   "legs": {
+    "lowvol": {
+     "long": 125,
+     "short": 125
+    },
+    "momentum": {
+     "long": 125,
+     "short": 125
+    },
+    "liquidity": {
+     "long": 125,
+     "short": 125
+    },
+    "dividend": {
+     "long": 125,
+     "short": 125
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2022-12-12",
+   "cutoff": "2022-10-31",
+   "space": 739,
+   "legs": {
+    "lowvol": {
+     "long": 246,
+     "short": 246
+    },
+    "momentum": {
+     "long": 246,
+     "short": 246
+    },
+    "liquidity": {
+     "long": 246,
+     "short": 246
+    },
+    "dividend": {
+     "long": 246,
+     "short": 246
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2022-12-12",
+   "cutoff": "2022-10-31",
+   "space": 1461,
+   "legs": {
+    "lowvol": {
+     "long": 487,
+     "short": 487
+    },
+    "momentum": {
+     "long": 487,
+     "short": 487
+    },
+    "liquidity": {
+     "long": 487,
+     "short": 487
+    },
+    "dividend": {
+     "long": 487,
+     "short": 487
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2023-06-12",
+   "cutoff": "2023-04-30",
+   "space": 235,
+   "legs": {
+    "lowvol": {
+     "long": 78,
+     "short": 78
+    },
+    "momentum": {
+     "long": 78,
+     "short": 78
+    },
+    "liquidity": {
+     "long": 78,
+     "short": 78
+    },
+    "dividend": {
+     "long": 78,
+     "short": 78
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2023-06-12",
+   "cutoff": "2023-04-30",
+   "space": 378,
+   "legs": {
+    "lowvol": {
+     "long": 126,
+     "short": 126
+    },
+    "momentum": {
+     "long": 126,
+     "short": 126
+    },
+    "liquidity": {
+     "long": 126,
+     "short": 126
+    },
+    "dividend": {
+     "long": 126,
+     "short": 126
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2023-06-12",
+   "cutoff": "2023-04-30",
+   "space": 751,
+   "legs": {
+    "lowvol": {
+     "long": 250,
+     "short": 250
+    },
+    "momentum": {
+     "long": 250,
+     "short": 250
+    },
+    "liquidity": {
+     "long": 250,
+     "short": 250
+    },
+    "dividend": {
+     "long": 250,
+     "short": 250
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2023-06-12",
+   "cutoff": "2023-04-30",
+   "space": 1495,
+   "legs": {
+    "lowvol": {
+     "long": 498,
+     "short": 498
+    },
+    "momentum": {
+     "long": 498,
+     "short": 498
+    },
+    "liquidity": {
+     "long": 498,
+     "short": 498
+    },
+    "dividend": {
+     "long": 498,
+     "short": 498
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2023-12-11",
+   "cutoff": "2023-10-31",
+   "space": 236,
+   "legs": {
+    "lowvol": {
+     "long": 78,
+     "short": 78
+    },
+    "momentum": {
+     "long": 78,
+     "short": 78
+    },
+    "liquidity": {
+     "long": 78,
+     "short": 78
+    },
+    "dividend": {
+     "long": 78,
+     "short": 78
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2023-12-11",
+   "cutoff": "2023-10-31",
+   "space": 384,
+   "legs": {
+    "lowvol": {
+     "long": 128,
+     "short": 128
+    },
+    "momentum": {
+     "long": 128,
+     "short": 128
+    },
+    "liquidity": {
+     "long": 128,
+     "short": 128
+    },
+    "dividend": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2023-12-11",
+   "cutoff": "2023-10-31",
+   "space": 758,
+   "legs": {
+    "lowvol": {
+     "long": 252,
+     "short": 252
+    },
+    "momentum": {
+     "long": 252,
+     "short": 252
+    },
+    "liquidity": {
+     "long": 252,
+     "short": 252
+    },
+    "dividend": {
+     "long": 252,
+     "short": 252
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2023-12-11",
+   "cutoff": "2023-10-31",
+   "space": 1494,
+   "legs": {
+    "lowvol": {
+     "long": 498,
+     "short": 498
+    },
+    "momentum": {
+     "long": 498,
+     "short": 498
+    },
+    "liquidity": {
+     "long": 498,
+     "short": 498
+    },
+    "dividend": {
+     "long": 498,
+     "short": 498
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2024-06-17",
+   "cutoff": "2024-04-30",
+   "space": 237,
+   "legs": {
+    "lowvol": {
+     "long": 79,
+     "short": 79
+    },
+    "momentum": {
+     "long": 79,
+     "short": 79
+    },
+    "liquidity": {
+     "long": 79,
+     "short": 79
+    },
+    "dividend": {
+     "long": 79,
+     "short": 79
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2024-06-17",
+   "cutoff": "2024-04-30",
+   "space": 394,
+   "legs": {
+    "lowvol": {
+     "long": 131,
+     "short": 131
+    },
+    "momentum": {
+     "long": 131,
+     "short": 131
+    },
+    "liquidity": {
+     "long": 131,
+     "short": 131
+    },
+    "dividend": {
+     "long": 131,
+     "short": 131
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2024-06-17",
+   "cutoff": "2024-04-30",
+   "space": 770,
+   "legs": {
+    "lowvol": {
+     "long": 256,
+     "short": 256
+    },
+    "momentum": {
+     "long": 256,
+     "short": 256
+    },
+    "liquidity": {
+     "long": 256,
+     "short": 256
+    },
+    "dividend": {
+     "long": 256,
+     "short": 256
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2024-06-17",
+   "cutoff": "2024-04-30",
+   "space": 1521,
+   "legs": {
+    "lowvol": {
+     "long": 507,
+     "short": 507
+    },
+    "momentum": {
+     "long": 507,
+     "short": 507
+    },
+    "liquidity": {
+     "long": 507,
+     "short": 507
+    },
+    "dividend": {
+     "long": 507,
+     "short": 507
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2024-12-16",
+   "cutoff": "2024-10-31",
+   "space": 240,
+   "legs": {
+    "lowvol": {
+     "long": 80,
+     "short": 80
+    },
+    "momentum": {
+     "long": 80,
+     "short": 80
+    },
+    "liquidity": {
+     "long": 80,
+     "short": 80
+    },
+    "dividend": {
+     "long": 80,
+     "short": 80
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2024-12-16",
+   "cutoff": "2024-10-31",
+   "space": 393,
+   "legs": {
+    "lowvol": {
+     "long": 131,
+     "short": 131
+    },
+    "momentum": {
+     "long": 131,
+     "short": 131
+    },
+    "liquidity": {
+     "long": 131,
+     "short": 131
+    },
+    "dividend": {
+     "long": 131,
+     "short": 131
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2024-12-16",
+   "cutoff": "2024-10-31",
+   "space": 786,
+   "legs": {
+    "lowvol": {
+     "long": 262,
+     "short": 262
+    },
+    "momentum": {
+     "long": 262,
+     "short": 262
+    },
+    "liquidity": {
+     "long": 262,
+     "short": 262
+    },
+    "dividend": {
+     "long": 262,
+     "short": 262
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2024-12-16",
+   "cutoff": "2024-10-31",
+   "space": 1561,
+   "legs": {
+    "lowvol": {
+     "long": 520,
+     "short": 520
+    },
+    "momentum": {
+     "long": 520,
+     "short": 520
+    },
+    "liquidity": {
+     "long": 520,
+     "short": 520
+    },
+    "dividend": {
+     "long": 520,
+     "short": 520
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2025-06-16",
+   "cutoff": "2025-04-30",
+   "space": 239,
+   "legs": {
+    "lowvol": {
+     "long": 79,
+     "short": 79
+    },
+    "momentum": {
+     "long": 79,
+     "short": 79
+    },
+    "liquidity": {
+     "long": 79,
+     "short": 79
+    },
+    "dividend": {
+     "long": 79,
+     "short": 79
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2025-06-16",
+   "cutoff": "2025-04-30",
+   "space": 396,
+   "legs": {
+    "lowvol": {
+     "long": 132,
+     "short": 132
+    },
+    "momentum": {
+     "long": 132,
+     "short": 132
+    },
+    "liquidity": {
+     "long": 132,
+     "short": 132
+    },
+    "dividend": {
+     "long": 132,
+     "short": 132
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2025-06-16",
+   "cutoff": "2025-04-30",
+   "space": 781,
+   "legs": {
+    "lowvol": {
+     "long": 260,
+     "short": 260
+    },
+    "momentum": {
+     "long": 260,
+     "short": 260
+    },
+    "liquidity": {
+     "long": 260,
+     "short": 260
+    },
+    "dividend": {
+     "long": 260,
+     "short": 260
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2025-06-16",
+   "cutoff": "2025-04-30",
+   "space": 1559,
+   "legs": {
+    "lowvol": {
+     "long": 519,
+     "short": 519
+    },
+    "momentum": {
+     "long": 519,
+     "short": 519
+    },
+    "liquidity": {
+     "long": 519,
+     "short": 519
+    },
+    "dividend": {
+     "long": 519,
+     "short": 519
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2025-12-15",
+   "cutoff": "2025-10-31",
+   "space": 235,
+   "legs": {
+    "lowvol": {
+     "long": 78,
+     "short": 78
+    },
+    "momentum": {
+     "long": 78,
+     "short": 78
+    },
+    "liquidity": {
+     "long": 78,
+     "short": 78
+    },
+    "dividend": {
+     "long": 78,
+     "short": 78
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2025-12-15",
+   "cutoff": "2025-10-31",
+   "space": 393,
+   "legs": {
+    "lowvol": {
+     "long": 131,
+     "short": 131
+    },
+    "momentum": {
+     "long": 131,
+     "short": 131
+    },
+    "liquidity": {
+     "long": 131,
+     "short": 131
+    },
+    "dividend": {
+     "long": 131,
+     "short": 131
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2025-12-15",
+   "cutoff": "2025-10-31",
+   "space": 782,
+   "legs": {
+    "lowvol": {
+     "long": 260,
+     "short": 260
+    },
+    "momentum": {
+     "long": 260,
+     "short": 260
+    },
+    "liquidity": {
+     "long": 260,
+     "short": 260
+    },
+    "dividend": {
+     "long": 260,
+     "short": 260
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2025-12-15",
+   "cutoff": "2025-10-31",
+   "space": 1570,
+   "legs": {
+    "lowvol": {
+     "long": 523,
+     "short": 523
+    },
+    "momentum": {
+     "long": 523,
+     "short": 523
+    },
+    "liquidity": {
+     "long": 523,
+     "short": 523
+    },
+    "dividend": {
+     "long": 523,
+     "short": 523
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2026-06-15",
+   "cutoff": "2026-04-30",
+   "space": 230,
+   "legs": {
+    "lowvol": {
+     "long": 76,
+     "short": 76
+    },
+    "momentum": {
+     "long": 76,
+     "short": 76
+    },
+    "liquidity": {
+     "long": 76,
+     "short": 76
+    },
+    "dividend": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2026-06-15",
+   "cutoff": "2026-04-30",
+   "space": 390,
+   "legs": {
+    "lowvol": {
+     "long": 130,
+     "short": 130
+    },
+    "momentum": {
+     "long": 130,
+     "short": 130
+    },
+    "liquidity": {
+     "long": 130,
+     "short": 130
+    },
+    "dividend": {
+     "long": 130,
+     "short": 130
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2026-06-15",
+   "cutoff": "2026-04-30",
+   "space": 784,
+   "legs": {
+    "lowvol": {
+     "long": 261,
+     "short": 261
+    },
+    "momentum": {
+     "long": 261,
+     "short": 261
+    },
+    "liquidity": {
+     "long": 261,
+     "short": 261
+    },
+    "dividend": {
+     "long": 261,
+     "short": 261
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2026-06-15",
+   "cutoff": "2026-04-30",
+   "space": 1576,
+   "legs": {
+    "lowvol": {
+     "long": 525,
+     "short": 525
+    },
+    "momentum": {
+     "long": 525,
+     "short": 525
+    },
+    "liquidity": {
+     "long": 525,
+     "short": 525
+    },
+    "dividend": {
+     "long": 525,
+     "short": 525
+    }
+   },
+   "skipped": []
+  }
+ ]
+}

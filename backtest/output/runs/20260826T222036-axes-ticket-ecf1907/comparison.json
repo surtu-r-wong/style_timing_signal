@@ -1,0 +1,148 @@
+{
+  "old": {
+    "run": "backtest/output/runs/20260824T094843-axes-ticket-8d3e099",
+    "legs": {
+      "path": "outputs/axis_legs_daily.csv",
+      "size": 2926760,
+      "sha256": "9fca039fa0185c586c32ea77d59b7773ef1d0be7349631619500c6691f843999"
+    },
+    "overall": "ALL_FAIL",
+    "anchors_ok": true,
+    "axes": {
+      "lowvol": {
+        "partial_ic": 0.01410241366493348,
+        "permutation_p": 0.8680659670164917,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": -0.0671755766068613,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": 0.05628520704185132,
+            "n_windows": 67
+          }
+        }
+      },
+      "momentum": {
+        "partial_ic": 0.07293543578803127,
+        "permutation_p": 0.3633183408295852,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": -0.12740623433003842,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": 0.03828751030887115,
+            "n_windows": 67
+          }
+        }
+      },
+      "liquidity": {
+        "partial_ic": -0.020369243202698117,
+        "permutation_p": 0.8220889555222389,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": 0.07257419714475306,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": -0.12276798849771797,
+            "n_windows": 67
+          }
+        }
+      },
+      "dividend": {
+        "partial_ic": 0.15979760180919136,
+        "permutation_p": 0.06296851574212893,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": -0.00607130893800943,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": 0.21749440714958554,
+            "n_windows": 67
+          }
+        }
+      }
+    }
+  },
+  "new": {
+    "run": "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T222036-axes-ticket-ecf1907",
+    "legs": {
+      "path": "outputs/axis_legs_daily.csv",
+      "size": 2927831,
+      "sha256": "5b59b47c4d50647765efb4fd459f539f9c5d8abcbc9ab9ea8c845a84f7c7aa3e"
+    },
+    "overall": "ALL_FAIL",
+    "anchors_ok": true,
+    "axes": {
+      "dividend": {
+        "partial_ic": 0.15715418152500354,
+        "permutation_p": 0.06496751624187906,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": -0.00607130893800943,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": 0.2229086478291245,
+            "n_windows": 67
+          }
+        }
+      },
+      "liquidity": {
+        "partial_ic": -0.018691553321423245,
+        "permutation_p": 0.809095452273863,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": 0.07257419714475306,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": -0.1122132128902544,
+            "n_windows": 67
+          }
+        }
+      },
+      "lowvol": {
+        "partial_ic": 0.007467087327359657,
+        "permutation_p": 0.9320339830084957,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": -0.0671755766068613,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": 0.05517341890674229,
+            "n_windows": 67
+          }
+        }
+      },
+      "momentum": {
+        "partial_ic": 0.07380408192657648,
+        "permutation_p": 0.3798100949525237,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": -0.12740623433003842,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": 0.040442806865283336,
+            "n_windows": 67
+          }
+        }
+      }
+    }
+  },
+  "flipped_axes": [],
+  "verdicts_maintained": true
+}
