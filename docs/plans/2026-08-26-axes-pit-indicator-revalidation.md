@@ -42,3 +42,18 @@
 - 若五轴 pass 均与旧基线一致，则更新权威索引并登记数值变化。
 - 若任一关键 pass 翻转、锚失败或出现窗口内输入漂移，停止更新生产结论，
   保留完整 run 并请求用户裁决。
+
+## 6. 执行记录（2026-08-26）
+
+两批均从 clean tracked worktree 启动，manifest 为 `status=complete`、
+`dirty=false`、`inputs_moved_in_window=false`、`anchors_ok=true`；所有工件哈希复核通过。
+
+- 批次一：`20260826T222036-axes-ticket-ecf1907`，`ALL_FAIL` maintained，
+  `flipped_axes=[]`。低波 IC/p：0.0141/0.8681 → 0.0075/0.9320；动量：
+  0.0729/0.3633 → 0.0738/0.3798；流动性：-0.0204/0.8221 →
+  -0.0187/0.8091；股息：0.1598/0.0630 → 0.1572/0.0650。
+- 批次二：`20260826T223022-axes-ticket-06776ab`，`ALL_FAIL` maintained，
+  `flipped_axes=[]`。质量 IC/p：0.0989/0.2339 → 0.1002/0.2349。
+
+结论：PIT 升级与 indicator 回填改变了腿文件哈希和少量读数，但五轴逐轴 pass
+均未翻转；按 §5 规则直接更新权威索引，无需追加用户裁决。
