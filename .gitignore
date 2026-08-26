@@ -24,5 +24,10 @@ backtest/output/*.log
 !backtest/output/runs/**/
 !backtest/output/runs/**
 
+# 已核查并保留的 interrupted runs（逐目录登记；未来失败 run 不自动忽略）
+/backtest/output/runs/20260821T165746-p0-revalidation-3030109/
+/backtest/output/runs/20260824T100630-axes-ticket-e2df789/
+/backtest/output/runs/20260824T151754-p0-revalidation-da4db0e/
+
 # LibreOffice 编辑锁文件（打开 CSV 时生成，绝不入库）
 .~lock.*#

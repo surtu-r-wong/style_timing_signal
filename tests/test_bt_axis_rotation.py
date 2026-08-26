@@ -27,6 +27,7 @@ from backtest.axis_ticket_runner import (
     STEP_NAMES,
     _validate_complete_evidence,
     build_commands,
+    compare_axis_evidence,
     run_ticket,
 )
 
@@ -174,14 +175,31 @@ def test_judge_axis_frozen_wording():
 def _make_outputs(run_dir):
     (run_dir / "outputs").mkdir(parents=True, exist_ok=True)
     (run_dir / "logs").mkdir(parents=True, exist_ok=True)
-    for name in REQUIRED_OUTPUTS:
-        p = run_dir / "outputs" / name
-        if name.endswith(".json"):
-            payload = ({"OVERALL": "ALL_FAIL", "anchors_ok": True}
-                       if name == "axis_ticket_verdict.json" else {"n_periods": 1})
-            p.write_text(json.dumps(payload))
-        else:
-            p.write_text("date,axis\n2020-01-02,lowvol\n")
+    (run_dir / "outputs" / "axis_legs_daily.csv").write_text(
+        "date,axis,band,long_ret,short_ret\n2020-01-02,lowvol,300,0.01,0.00\n"
+    )
+    (run_dir / "outputs" / "axis_build.json").write_text(
+        json.dumps({"n_periods": 1})
+    )
+    (run_dir / "outputs" / "axis_ticket_panel.csv").write_text(
+        "axis,row,target,k,window,partial_ic,partial_p,ic,ic_p,n_windows\n"
+        "lowvol,primary,blend,20,full,0.1,0.2,0.0,0.5,10\n"
+        "lowvol,ref_half,blend,20,h1,0.05,,,,5\n"
+        "lowvol,ref_half,blend,20,h2,0.15,,,,5\n"
+    )
+    (run_dir / "outputs" / "axis_ticket_verdict.json").write_text(
+        json.dumps({
+            "OVERALL": "ALL_FAIL",
+            "anchors_ok": True,
+            "axes": {
+                "lowvol": {
+                    "partial_ic": 0.1,
+                    "partial_ic_pvalue": 0.2,
+                    "pass": False,
+                }
+            },
+        })
+    )
     for i, step in enumerate(STEP_NAMES, start=1):
         (run_dir / "logs" / f"step-{i}-{step}.log").write_text("ok")
 
@@ -200,18 +218,19 @@ def test_build_commands_two_steps(tmp_path):
     cmds = build_commands(tmp_path, 2000, python="python")
     assert [s for s, _ in cmds] == list(STEP_NAMES)
     assert "backtest.axis_rotation_builder" in cmds[0][1]
+    assert "--end" in cmds[0][1] and "2026-08-24" in cmds[0][1]
     assert "--n-perm" in cmds[1][1] and "2000" in cmds[1][1]
+    assert "--seed" in cmds[1][1] and "0" in cmds[1][1]
 
 
-def test_run_ticket_fail_closed(tmp_path, monkeypatch):
-    monkeypatch.setattr("backtest.axis_ticket_runner.database_cutoffs", lambda: {})
+def test_run_ticket_fail_closed(tmp_path):
 
     def failing_runner(command, log_path):
         log_path.write_text("boom")
         return 1
 
     with pytest.raises(RuntimeError, match="build failed"):
-        run_ticket(tmp_path, "t1", runner=failing_runner)
+        run_ticket(tmp_path, "t1", runner=failing_runner, metadata={})
     manifest = json.loads((tmp_path / "t1" / "manifest.json").read_text())
     assert manifest["status"] == "failed"
 
@@ -220,8 +239,51 @@ def test_run_ticket_fail_closed(tmp_path, monkeypatch):
         log_path.write_text("ok")
         return 0
 
-    run_dir = run_ticket(tmp_path, "t2", runner=ok_runner)
+    run_dir = run_ticket(tmp_path, "t2", runner=ok_runner, metadata={})
     manifest = json.loads((run_dir / "manifest.json").read_text())
     assert manifest["status"] == "complete"
     assert manifest["seed"] == 0
     assert len(manifest["artifacts"]) >= len(REQUIRED_OUTPUTS) + len(STEP_NAMES)
+
+
+def test_axis_comparison_captures_hash_metrics_halves_and_verdict(tmp_path):
+    baseline = tmp_path / "baseline"
+    _make_outputs(baseline)
+    current = tmp_path / "current"
+    _make_outputs(current)
+
+    comparison = compare_axis_evidence(baseline, current)
+
+    assert comparison["old"]["legs"]["sha256"]
+    assert comparison["new"]["axes"]["lowvol"]["partial_ic"] == 0.1
+    assert comparison["new"]["axes"]["lowvol"]["permutation_p"] == 0.2
+    assert comparison["new"]["axes"]["lowvol"]["halves"] == {
+        "h1": {"partial_ic": 0.05, "n_windows": 5},
+        "h2": {"partial_ic": 0.15, "n_windows": 5},
+    }
+    assert comparison["flipped_axes"] == []
+
+
+def test_run_ticket_writes_comparison_and_fails_on_input_drift(tmp_path):
+    baseline = tmp_path / "baseline"
+    _make_outputs(baseline)
+
+    def ok_runner(_command, log_path):
+        _make_outputs(tmp_path / "drifted")
+        log_path.write_text("ok")
+        return 0
+
+    drift = {
+        "inputs_moved_in_window": True,
+        "rows_touched_in_window": {"stock_indicator": 2},
+    }
+    with pytest.raises(RuntimeError, match="input drift"):
+        run_ticket(
+            tmp_path, "drifted", runner=ok_runner, metadata={},
+            baseline_run=baseline, drift_check=lambda: drift,
+        )
+
+    manifest = json.loads((tmp_path / "drifted" / "manifest.json").read_text())
+    assert manifest["status"] == "failed"
+    assert manifest["metadata"]["input_drift"] == drift
+    assert (tmp_path / "drifted" / "comparison.json").is_file()

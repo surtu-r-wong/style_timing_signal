@@ -69,7 +69,7 @@
 
 - [ ] 在干净提交上、日更完成后的安静窗口启动 P0。runner 必须生成 `status=complete`、`pass=true`、新锚 `0.8022/0.7966/0.9698`、完整 manifest 与 `input_drift.moved_in_window=false`。
 - [ ] 正式运行 lowvol/momentum/liquidity/dividend，截止 `2026-08-24`，基线 `20260824T094843-axes-ticket-8d3e099`。
-- [ ] 正式运行 quality，截止 `2026-08-24`，基线 `20260824T101433-axes-ticket-8d3e099`。
+- [ ] 正式运行 quality，截止 `2026-08-24`，基线 `20260824T102455-axes-ticket-e2df789`。
 - [ ] 验证每个 run 的 manifest、artifact hash、数据库只读与 comparison。若关键 verdict 翻转，停止后续生产结论更新并报告。
 
 ## Task 7: 固化权威证据

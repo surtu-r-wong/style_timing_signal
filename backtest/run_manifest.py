@@ -54,9 +54,12 @@ def _git_output(root: Path, *args: str) -> str:
 
 
 def git_state(root: Path) -> dict[str, object]:
+    porcelain = _git_output(root, "status", "--porcelain").splitlines()
     return {
         "commit": _git_output(root, "rev-parse", "HEAD").strip(),
-        "dirty": bool(_git_output(root, "status", "--porcelain").strip()),
+        "dirty": bool(porcelain),
+        "tracked_dirty": any(not line.startswith("?? ") for line in porcelain),
+        "porcelain": porcelain,
     }
 
 
@@ -135,6 +138,18 @@ def input_drift_report(connection, schema: str, contract: dict[str, str],
         "inputs_moved": bool(moved),
         "inputs_moved_in_window": bool(in_window),
         "registrable_as_first_run": not in_window,
+    }
+
+
+def capture_input_state(connection, schema: str, contract: dict[str, str]) -> dict:
+    """Capture one runner start watermark using the database server clock."""
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT now()::text")
+        database_time = cursor.fetchone()[0]
+    return {
+        "database_time": database_time,
+        "cutoffs": query_table_cutoffs(connection, schema, contract),
+        "write_marks": query_table_write_marks(connection, schema, contract),
     }
 
 

@@ -109,11 +109,14 @@ def test_git_output_runs_git_in_requested_root(tmp_path, monkeypatch):
     ]
 
 
-def test_git_state_records_commit_and_dirty(monkeypatch, tmp_path):
+def test_git_state_records_porcelain_and_distinguishes_tracked_changes(monkeypatch, tmp_path):
     commit = "abcdef0123456789abcdef0123456789abcdef01"
     answers = {
         ("rev-parse", "HEAD"): f"{commit}\n",
-        ("status", "--porcelain"): " M backtest/engine.py\n",
+        ("status", "--porcelain"): (
+            " M backtest/engine.py\n"
+            "?? backtest/output/runs/interrupted/\n"
+        ),
     }
 
     def fake_git_output(root, *args):
@@ -122,7 +125,31 @@ def test_git_state_records_commit_and_dirty(monkeypatch, tmp_path):
 
     monkeypatch.setattr(run_manifest, "_git_output", fake_git_output)
 
-    assert run_manifest.git_state(tmp_path) == {"commit": commit, "dirty": True}
+    assert run_manifest.git_state(tmp_path) == {
+        "commit": commit,
+        "dirty": True,
+        "tracked_dirty": True,
+        "porcelain": [
+            " M backtest/engine.py",
+            "?? backtest/output/runs/interrupted/",
+        ],
+    }
+
+
+def test_git_state_allows_untracked_only_formal_run(monkeypatch, tmp_path):
+    answers = {
+        ("rev-parse", "HEAD"): "abcdef\n",
+        ("status", "--porcelain"): "?? scratch.txt\n",
+    }
+    monkeypatch.setattr(
+        run_manifest, "_git_output", lambda _root, *args: answers[args]
+    )
+
+    state = run_manifest.git_state(tmp_path)
+
+    assert state["dirty"] is True
+    assert state["tracked_dirty"] is False
+    assert state["porcelain"] == ["?? scratch.txt"]
 
 
 class FakeCursor:
@@ -183,6 +210,35 @@ def test_query_table_cutoffs_rejects_missing_cutoff():
             "stock_selector",
             {"index_daily": "trade_date"},
         )
+
+
+def test_capture_input_state_uses_database_clock_and_records_both_watermarks():
+    connection = FakeConnection([
+        "2026-08-26 09:00:00+08",
+        "2026-08-24",
+        "2026-06-30",
+        "2026-08-25 18:31:00+08",
+        "2026-08-25 11:20:00+08",
+    ])
+    contract = {
+        "index_daily": "trade_date",
+        "stock_financial": "end_date",
+    }
+
+    assert run_manifest.capture_input_state(
+        connection, "stock_selector", contract
+    ) == {
+        "database_time": "2026-08-26 09:00:00+08",
+        "cutoffs": {
+            "index_daily": "2026-08-24",
+            "stock_financial": "2026-06-30",
+        },
+        "write_marks": {
+            "index_daily": "2026-08-25 18:31:00+08",
+            "stock_financial": "2026-08-25 11:20:00+08",
+        },
+    }
+    assert connection.cursor_instance.queries[0] == "SELECT now()::text"
 
 
 # ---------------------------------------------------------------- 输入漂移检测（2026-08-25 立）
