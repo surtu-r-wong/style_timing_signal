@@ -13,8 +13,10 @@ from pathlib import Path
 from backtest.run_manifest import (
     DEFAULT_INPUT_CONTRACT,
     artifact_record,
+    capture_input_state,
     create_run_dir,
     git_state,
+    input_drift_report,
     query_table_cutoffs,
     write_manifest,
 )
@@ -23,6 +25,7 @@ from backtest.run_manifest import (
 ROOT = Path(__file__).resolve().parents[1]
 EXPERIMENT = "p0-revalidation"
 SEED = 0
+P0_TERMINAL = "2026-08-18"
 CUTOFF_CONTRACT = DEFAULT_INPUT_CONTRACT      # 单一定义在 run_manifest
 LEGACY_FILES = {
     "gate0r": "gate0r_result.json",
@@ -188,13 +191,37 @@ def compare_verdicts(old: dict[str, dict], new: dict[str, dict]) -> dict[str, di
     return comparison
 
 
+def database_input_state() -> dict:
+    """Capture P0 input watermarks without import-time I/O."""
+    from backtest.pure_style_builder import _conn
+
+    connection, _schema = _conn()
+    try:
+        return capture_input_state(connection, "stock_selector", CUTOFF_CONTRACT)
+    finally:
+        connection.close()
+
+
 def database_cutoffs() -> dict[str, str]:
-    """Query the frozen source-table cutoff contract without import-time I/O."""
+    """Compatibility helper for callers that only need data-date cutoffs."""
     from backtest.pure_style_builder import _conn
 
     connection, _schema = _conn()
     try:
         return query_table_cutoffs(connection, "stock_selector", CUTOFF_CONTRACT)
+    finally:
+        connection.close()
+
+
+def database_input_drift(start: dict) -> dict:
+    from backtest.pure_style_builder import _conn
+
+    connection, _schema = _conn()
+    try:
+        return input_drift_report(
+            connection, "stock_selector", CUTOFF_CONTRACT,
+            start["write_marks"], start["database_time"], P0_TERMINAL,
+        )
     finally:
         connection.close()
 
@@ -243,7 +270,7 @@ def _validate_complete_evidence(run_dir: Path) -> None:
 
 def run_revalidation(run_root: Path, run_id: str, *, root: Path = ROOT,
                      metadata: dict | None = None, python: str = sys.executable,
-                     runner=subprocess_runner) -> Path:
+                     runner=subprocess_runner, drift_check=None) -> Path:
     """Create a sealed evidence run, re-execute P0, and preserve failure state."""
     run_dir = create_run_dir(Path(run_root), run_id)
     commands = build_commands(run_dir, python)
@@ -282,6 +309,11 @@ def run_revalidation(run_root: Path, run_id: str, *, root: Path = ROOT,
         _write_comparison(run_dir / "comparison.json", compare_verdicts(old, new))
 
         _validate_complete_evidence(run_dir)
+        if drift_check is not None:
+            drift = drift_check()
+            manifest["metadata"]["input_drift"] = drift
+            if drift.get("inputs_moved_in_window"):
+                raise RuntimeError("input drift touched the P0 analysis window")
         manifest["status"] = "complete"
         manifest["artifacts"] = _artifact_records(run_dir)
         manifest["finished_at"] = _now_iso()
@@ -310,9 +342,19 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     git = git_state(ROOT)
+    if git.get("tracked_dirty", git["dirty"]):
+        raise RuntimeError("formal run refused: tracked changes are present")
+    database_start = database_input_state()
     run_id = datetime.now().strftime("%Y%m%dT%H%M%S-p0-revalidation-") + git["commit"][:7]
-    metadata = {"git": git, "database_cutoffs": database_cutoffs()}
-    run_revalidation(args.run_root, run_id, metadata=metadata)
+    metadata = {
+        "git": git,
+        "database_cutoffs": database_start["cutoffs"],
+        "database_input_start": database_start,
+    }
+    run_revalidation(
+        args.run_root, run_id, metadata=metadata,
+        drift_check=lambda: database_input_drift(database_start),
+    )
     return 0
 
 

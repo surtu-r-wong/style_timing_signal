@@ -1,0 +1,58 @@
+{
+  "old": {
+    "run": "backtest/output/runs/20260824T102455-axes-ticket-e2df789",
+    "legs": {
+      "path": "outputs/axis_legs_daily.csv",
+      "size": 723300,
+      "sha256": "57958a046704cae8e28bf8ebaed1f10cb03485f84baaba93e0469166ee681996"
+    },
+    "overall": "ALL_FAIL",
+    "anchors_ok": true,
+    "axes": {
+      "quality": {
+        "partial_ic": 0.0988909194492745,
+        "permutation_p": 0.23388305847076463,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": -0.01681872151105266,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": 0.09291829658643398,
+            "n_windows": 67
+          }
+        }
+      }
+    }
+  },
+  "new": {
+    "run": "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T223022-axes-ticket-06776ab",
+    "legs": {
+      "path": "outputs/axis_legs_daily.csv",
+      "size": 723528,
+      "sha256": "ae07a6d60e9f6b339de9a47490006bc632ffe03283177f38065e83837c935548"
+    },
+    "overall": "ALL_FAIL",
+    "anchors_ok": true,
+    "axes": {
+      "quality": {
+        "partial_ic": 0.10024092928356505,
+        "permutation_p": 0.23488255872063968,
+        "pass": false,
+        "halves": {
+          "h1": {
+            "partial_ic": -0.013234513872744963,
+            "n_windows": 64
+          },
+          "h2": {
+            "partial_ic": 0.0846908778655048,
+            "n_windows": 67
+          }
+        }
+      }
+    }
+  },
+  "flipped_axes": [],
+  "verdicts_maintained": true
+}

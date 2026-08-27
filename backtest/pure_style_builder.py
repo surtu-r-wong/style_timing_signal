@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -72,9 +73,17 @@ WEIGHT_CAP, TOP5_CAP = 0.15, 0.60
 def _conn():
     import psycopg2
     db = load_db_config()
-    c = psycopg2.connect(host=db["host"], port=db["port"], dbname=db["name"],
-                         user=db["user"], password=db["password"], connect_timeout=15)
-    return c, db["schema"]
+    for attempt in range(3):
+        try:
+            c = psycopg2.connect(
+                host=db["host"], port=db["port"], dbname=db["name"],
+                user=db["user"], password=db["password"], connect_timeout=15,
+            )
+            return c, db["schema"]
+        except psycopg2.OperationalError:
+            if attempt == 2:
+                raise
+            time.sleep(3)
 
 
 # ---------------------------------------------------------------- 调样日

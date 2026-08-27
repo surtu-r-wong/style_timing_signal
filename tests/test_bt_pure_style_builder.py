@@ -12,6 +12,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import backtest.pure_style_builder as pure_style_builder  # noqa: E402
 from backtest.pure_style_builder import (  # noqa: E402
     BAND_1000,
     BAND_2000,
@@ -26,6 +27,74 @@ from backtest.pure_style_builder import (  # noqa: E402
     _statutory_deadline,
     review_cutoff,
 )
+
+
+def test_conn_retries_only_operational_errors(monkeypatch):
+    from types import SimpleNamespace
+
+    class OperationalError(Exception):
+        pass
+
+    connection = object()
+    calls = []
+
+    def connect(**kwargs):
+        calls.append(kwargs)
+        if len(calls) < 3:
+            raise OperationalError("timeout")
+        return connection
+
+    monkeypatch.setitem(
+        sys.modules, "psycopg2",
+        SimpleNamespace(connect=connect, OperationalError=OperationalError),
+    )
+    monkeypatch.setattr(
+        pure_style_builder, "load_db_config",
+        lambda: {
+            "host": "db", "port": 5432, "name": "stock",
+            "user": "reader", "password": "secret", "schema": "s",
+        },
+    )
+    sleeps = []
+    monkeypatch.setattr(pure_style_builder.time, "sleep", sleeps.append)
+
+    got, schema = pure_style_builder._conn()
+
+    assert got is connection
+    assert schema == "s"
+    assert len(calls) == 3
+    assert sleeps == [3, 3]
+
+
+def test_conn_does_not_retry_non_operational_errors(monkeypatch):
+    from types import SimpleNamespace
+    import pytest
+
+    class OperationalError(Exception):
+        pass
+
+    calls = []
+
+    def connect(**_kwargs):
+        calls.append(True)
+        raise ValueError("bad config")
+
+    monkeypatch.setitem(
+        sys.modules, "psycopg2",
+        SimpleNamespace(connect=connect, OperationalError=OperationalError),
+    )
+    monkeypatch.setattr(
+        pure_style_builder, "load_db_config",
+        lambda: {
+            "host": "db", "port": 5432, "name": "stock",
+            "user": "reader", "password": "secret", "schema": "s",
+        },
+    )
+
+    with pytest.raises(ValueError, match="bad config"):
+        pure_style_builder._conn()
+
+    assert calls == [True]
 
 
 # ---------------------------------------------------------------- 法定披露截止日

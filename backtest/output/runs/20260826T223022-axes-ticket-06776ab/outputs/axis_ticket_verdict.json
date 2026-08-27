@@ -1,0 +1,36 @@
+{
+ "spec": "docs/plans/2026-08-24-new-rotation-axes-entry-ticket.md",
+ "eval_start": "2015-08-15",
+ "primary_k": 20,
+ "primary_target": "blend",
+ "n_perm": 2000,
+ "seed": 0,
+ "alpha": 0.05,
+ "anchors": {
+  "self_control_zero": {
+   "value": 0.0,
+   "ok": true
+  },
+  "rotation_negative_control": {
+   "partial_ic": -0.00922003877659996,
+   "pvalue": 0.92103948025987,
+   "ok": true
+  }
+ },
+ "anchors_ok": true,
+ "axes": {
+  "quality": {
+   "partial_ic": 0.10024092928356505,
+   "partial_ic_pvalue": 0.23488255872063968,
+   "sign": "+",
+   "pass": false,
+   "bonferroni_family_ref": false,
+   "family_n": 5,
+   "wording": "未过闸：当前功效下不可辨认（不得写『无增量信息』）",
+   "n_windows": 132,
+   "bands_min": 4,
+   "bands_median": 4.0
+  }
+ },
+ "OVERALL": "ALL_FAIL"
+}

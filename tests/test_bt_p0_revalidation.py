@@ -454,6 +454,54 @@ def test_p0_revalidation_rejects_every_invalid_required_numeric_field(field, mod
     with pytest.raises(ValueError, match=field):
         p0_revalidation.validate_verdict(payload)
 
+def test_p0_main_refuses_tracked_changes_before_database_or_run(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr(
+        p0_revalidation,
+        "git_state",
+        lambda _root: {
+            "commit": "abcdef0",
+            "dirty": True,
+            "tracked_dirty": True,
+            "porcelain": [" M backtest/p0_revalidation.py"],
+        },
+    )
+    monkeypatch.setattr(
+        p0_revalidation, "database_input_state",
+        lambda: calls.append("database")
+    )
+    monkeypatch.setattr(
+        p0_revalidation, "run_revalidation",
+        lambda *_args, **_kwargs: calls.append("run")
+    )
+
+    with pytest.raises(RuntimeError, match="tracked changes"):
+        p0_revalidation.main(["--run-root", str(tmp_path / "runs")])
+
+    assert calls == []
+
+
+def test_p0_revalidation_fails_when_whole_chain_inputs_move_in_window(tmp_path):
+    _write_legacy_outputs(tmp_path)
+    drift = {
+        "inputs_moved_in_window": True,
+        "rows_touched_in_window": {"stock_indicator": 3},
+        "registrable_as_first_run": False,
+    }
+
+    with pytest.raises(RuntimeError, match="input drift"):
+        p0_revalidation.run_revalidation(
+            tmp_path / "runs", "drifted", root=tmp_path, metadata={},
+            runner=_complete_runner, drift_check=lambda: drift,
+        )
+
+    manifest = json.loads(
+        (tmp_path / "runs" / "drifted" / "manifest.json").read_text()
+    )
+    assert manifest["status"] == "failed"
+    assert manifest["metadata"]["input_drift"] == drift
+
+
 def _complete_runner(command, log_path, *, include_build=True):
     log_path.write_bytes(b"step log")
     output = Path(command[command.index("--output-dir") + 1])

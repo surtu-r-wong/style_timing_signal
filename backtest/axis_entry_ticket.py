@@ -97,7 +97,7 @@ def partial_ic_point(sig: pd.Series, ret: pd.Series, control: pd.Series,
 
 
 # ---------------------------------------------------------------- 编排
-def run(legs: pd.DataFrame, n_perm: int = 2000, db=None) -> tuple[pd.DataFrame, dict]:
+def run(legs: pd.DataFrame, n_perm: int = 2000, seed: int = 0, db=None) -> tuple[pd.DataFrame, dict]:
     from backtest.data import load_underlying_returns
     from backtest.rotation_target_probe import build_signals
     from signals.common.config import load_db_config
@@ -117,7 +117,7 @@ def run(legs: pd.DataFrame, n_perm: int = 2000, db=None) -> tuple[pd.DataFrame, 
     anchor_self, _ = partial_ic_point(clip(ew), blend, ew, PRIMARY_K)
     # ── 锚 ②：rotation 负控（预期不过闸）
     rot = clip(build_signals("U2")["rotation"])
-    rot_pic, rot_p = partial_ic_with_pvalue(rot, blend, ew, PRIMARY_K, n_perm=n_perm)
+    rot_pic, rot_p = partial_ic_with_pvalue(rot, blend, ew, PRIMARY_K, n_perm=n_perm, seed=seed)
     anchors = {
         "self_control_zero": {"value": float(anchor_self),
                               "ok": bool(abs(anchor_self) < 1e-12)},
@@ -139,9 +139,9 @@ def run(legs: pd.DataFrame, n_perm: int = 2000, db=None) -> tuple[pd.DataFrame, 
                               "note": "信号为空"}
             continue
 
-        pic, p_pic = partial_ic_with_pvalue(sig, blend, ew, PRIMARY_K, n_perm=n_perm)
+        pic, p_pic = partial_ic_with_pvalue(sig, blend, ew, PRIMARY_K, n_perm=n_perm, seed=seed)
         ic_raw, n_win = nonoverlap_ic(sig, blend, PRIMARY_K)
-        p_raw = shift_permutation_pvalue(sig, blend, PRIMARY_K, n_perm=n_perm)
+        p_raw = shift_permutation_pvalue(sig, blend, PRIMARY_K, n_perm=n_perm, seed=seed)
         rows.append({"axis": axis, "row": "primary", "target": PRIMARY_TARGET,
                      "k": PRIMARY_K, "window": "full", "partial_ic": pic,
                      "partial_p": p_pic, "ic": ic_raw, "ic_p": p_raw,
@@ -177,7 +177,7 @@ def run(legs: pd.DataFrame, n_perm: int = 2000, db=None) -> tuple[pd.DataFrame, 
     verdict = {
         "spec": "docs/plans/2026-08-24-new-rotation-axes-entry-ticket.md",
         "eval_start": EVAL_START, "primary_k": PRIMARY_K,
-        "primary_target": PRIMARY_TARGET, "n_perm": n_perm, "alpha": ALPHA,
+        "primary_target": PRIMARY_TARGET, "n_perm": n_perm, "seed": seed, "alpha": ALPHA,
         "anchors": anchors, "anchors_ok": bool(anchors_ok),
         "axes": verdicts,
         "OVERALL": ("ANCHOR_FAIL" if not anchors_ok else
@@ -194,12 +194,13 @@ def main() -> int:
     ap.add_argument("--legs-csv", required=True)
     ap.add_argument("--output-dir", required=True)
     ap.add_argument("--n-perm", type=int, default=2000)
+    ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     legs = pd.read_csv(args.legs_csv, parse_dates=["date"])
-    panel, verdict = run(legs, n_perm=args.n_perm)
+    panel, verdict = run(legs, n_perm=args.n_perm, seed=args.seed)
     panel.to_csv(out_dir / "axis_ticket_panel.csv", index=False)
     (out_dir / "axis_ticket_verdict.json").write_text(
         json.dumps(verdict, ensure_ascii=False, indent=1))

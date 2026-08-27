@@ -1,0 +1,1206 @@
+{
+ "n_periods": 23,
+ "start_eff": "2015-06-15",
+ "end": "2026-08-24",
+ "axes": [
+  "quality"
+ ],
+ "periods": [
+  {
+   "band": "300",
+   "eff": "2015-06-15",
+   "cutoff": "2015-04-30",
+   "space": 232,
+   "legs": {
+    "quality": {
+     "long": 77,
+     "short": 77
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2015-06-15",
+   "cutoff": "2015-04-30",
+   "space": 384,
+   "legs": {
+    "quality": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2015-06-15",
+   "cutoff": "2015-04-30",
+   "space": 763,
+   "legs": {
+    "quality": {
+     "long": 253,
+     "short": 253
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2015-06-15",
+   "cutoff": "2015-04-30",
+   "space": 629,
+   "legs": {
+    "quality": {
+     "long": 207,
+     "short": 207
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2015-12-14",
+   "cutoff": "2015-10-31",
+   "space": 229,
+   "legs": {
+    "quality": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2015-12-14",
+   "cutoff": "2015-10-31",
+   "space": 385,
+   "legs": {
+    "quality": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2015-12-14",
+   "cutoff": "2015-10-31",
+   "space": 738,
+   "legs": {
+    "quality": {
+     "long": 244,
+     "short": 244
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2015-12-14",
+   "cutoff": "2015-10-31",
+   "space": 690,
+   "legs": {
+    "quality": {
+     "long": 226,
+     "short": 226
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2016-06-13",
+   "cutoff": "2016-04-30",
+   "space": 234,
+   "legs": {
+    "quality": {
+     "long": 78,
+     "short": 78
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2016-06-13",
+   "cutoff": "2016-04-30",
+   "space": 389,
+   "legs": {
+    "quality": {
+     "long": 129,
+     "short": 129
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2016-06-13",
+   "cutoff": "2016-04-30",
+   "space": 751,
+   "legs": {
+    "quality": {
+     "long": 246,
+     "short": 246
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2016-06-13",
+   "cutoff": "2016-04-30",
+   "space": 772,
+   "legs": {
+    "quality": {
+     "long": 251,
+     "short": 251
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2016-12-12",
+   "cutoff": "2016-10-31",
+   "space": 230,
+   "legs": {
+    "quality": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2016-12-12",
+   "cutoff": "2016-10-31",
+   "space": 378,
+   "legs": {
+    "quality": {
+     "long": 126,
+     "short": 126
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2016-12-12",
+   "cutoff": "2016-10-31",
+   "space": 757,
+   "legs": {
+    "quality": {
+     "long": 252,
+     "short": 252
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2016-12-12",
+   "cutoff": "2016-10-31",
+   "space": 852,
+   "legs": {
+    "quality": {
+     "long": 280,
+     "short": 280
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2017-06-12",
+   "cutoff": "2017-04-30",
+   "space": 225,
+   "legs": {
+    "quality": {
+     "long": 75,
+     "short": 75
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2017-06-12",
+   "cutoff": "2017-04-30",
+   "space": 369,
+   "legs": {
+    "quality": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2017-06-12",
+   "cutoff": "2017-04-30",
+   "space": 749,
+   "legs": {
+    "quality": {
+     "long": 249,
+     "short": 249
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2017-06-12",
+   "cutoff": "2017-04-30",
+   "space": 921,
+   "legs": {
+    "quality": {
+     "long": 302,
+     "short": 302
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2017-12-11",
+   "cutoff": "2017-10-31",
+   "space": 229,
+   "legs": {
+    "quality": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2017-12-11",
+   "cutoff": "2017-10-31",
+   "space": 373,
+   "legs": {
+    "quality": {
+     "long": 124,
+     "short": 124
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2017-12-11",
+   "cutoff": "2017-10-31",
+   "space": 727,
+   "legs": {
+    "quality": {
+     "long": 241,
+     "short": 241
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2017-12-11",
+   "cutoff": "2017-10-31",
+   "space": 1019,
+   "legs": {
+    "quality": {
+     "long": 335,
+     "short": 335
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2018-06-11",
+   "cutoff": "2018-04-30",
+   "space": 230,
+   "legs": {
+    "quality": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2018-06-11",
+   "cutoff": "2018-04-30",
+   "space": 375,
+   "legs": {
+    "quality": {
+     "long": 124,
+     "short": 124
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2018-06-11",
+   "cutoff": "2018-04-30",
+   "space": 741,
+   "legs": {
+    "quality": {
+     "long": 244,
+     "short": 244
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2018-06-11",
+   "cutoff": "2018-04-30",
+   "space": 1206,
+   "legs": {
+    "quality": {
+     "long": 394,
+     "short": 394
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2018-12-17",
+   "cutoff": "2018-10-31",
+   "space": 222,
+   "legs": {
+    "quality": {
+     "long": 73,
+     "short": 73
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2018-12-17",
+   "cutoff": "2018-10-31",
+   "space": 383,
+   "legs": {
+    "quality": {
+     "long": 127,
+     "short": 127
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2018-12-17",
+   "cutoff": "2018-10-31",
+   "space": 763,
+   "legs": {
+    "quality": {
+     "long": 253,
+     "short": 253
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2018-12-17",
+   "cutoff": "2018-10-31",
+   "space": 1346,
+   "legs": {
+    "quality": {
+     "long": 442,
+     "short": 442
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2019-06-17",
+   "cutoff": "2019-04-30",
+   "space": 225,
+   "legs": {
+    "quality": {
+     "long": 75,
+     "short": 75
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2019-06-17",
+   "cutoff": "2019-04-30",
+   "space": 384,
+   "legs": {
+    "quality": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2019-06-17",
+   "cutoff": "2019-04-30",
+   "space": 777,
+   "legs": {
+    "quality": {
+     "long": 257,
+     "short": 257
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2019-06-17",
+   "cutoff": "2019-04-30",
+   "space": 1413,
+   "legs": {
+    "quality": {
+     "long": 465,
+     "short": 465
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2019-12-16",
+   "cutoff": "2019-10-31",
+   "space": 224,
+   "legs": {
+    "quality": {
+     "long": 74,
+     "short": 74
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2019-12-16",
+   "cutoff": "2019-10-31",
+   "space": 369,
+   "legs": {
+    "quality": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2019-12-16",
+   "cutoff": "2019-10-31",
+   "space": 757,
+   "legs": {
+    "quality": {
+     "long": 252,
+     "short": 252
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2019-12-16",
+   "cutoff": "2019-10-31",
+   "space": 1478,
+   "legs": {
+    "quality": {
+     "long": 484,
+     "short": 484
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2020-06-15",
+   "cutoff": "2020-04-30",
+   "space": 225,
+   "legs": {
+    "quality": {
+     "long": 74,
+     "short": 74
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2020-06-15",
+   "cutoff": "2020-04-30",
+   "space": 369,
+   "legs": {
+    "quality": {
+     "long": 121,
+     "short": 121
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2020-06-15",
+   "cutoff": "2020-04-30",
+   "space": 735,
+   "legs": {
+    "quality": {
+     "long": 238,
+     "short": 238
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2020-06-15",
+   "cutoff": "2020-04-30",
+   "space": 1521,
+   "legs": {
+    "quality": {
+     "long": 480,
+     "short": 480
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2020-12-14",
+   "cutoff": "2020-10-31",
+   "space": 220,
+   "legs": {
+    "quality": {
+     "long": 73,
+     "short": 73
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2020-12-14",
+   "cutoff": "2020-10-31",
+   "space": 369,
+   "legs": {
+    "quality": {
+     "long": 122,
+     "short": 122
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2020-12-14",
+   "cutoff": "2020-10-31",
+   "space": 703,
+   "legs": {
+    "quality": {
+     "long": 233,
+     "short": 233
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2020-12-14",
+   "cutoff": "2020-10-31",
+   "space": 1445,
+   "legs": {
+    "quality": {
+     "long": 478,
+     "short": 478
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2021-06-15",
+   "cutoff": "2021-04-30",
+   "space": 227,
+   "legs": {
+    "quality": {
+     "long": 75,
+     "short": 75
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2021-06-15",
+   "cutoff": "2021-04-30",
+   "space": 365,
+   "legs": {
+    "quality": {
+     "long": 120,
+     "short": 120
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2021-06-15",
+   "cutoff": "2021-04-30",
+   "space": 716,
+   "legs": {
+    "quality": {
+     "long": 237,
+     "short": 237
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2021-06-15",
+   "cutoff": "2021-04-30",
+   "space": 1361,
+   "legs": {
+    "quality": {
+     "long": 452,
+     "short": 452
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2021-12-13",
+   "cutoff": "2021-10-31",
+   "space": 229,
+   "legs": {
+    "quality": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2021-12-13",
+   "cutoff": "2021-10-31",
+   "space": 371,
+   "legs": {
+    "quality": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2021-12-13",
+   "cutoff": "2021-10-31",
+   "space": 733,
+   "legs": {
+    "quality": {
+     "long": 243,
+     "short": 243
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2021-12-13",
+   "cutoff": "2021-10-31",
+   "space": 1379,
+   "legs": {
+    "quality": {
+     "long": 454,
+     "short": 454
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2022-06-13",
+   "cutoff": "2022-04-30",
+   "space": 229,
+   "legs": {
+    "quality": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2022-06-13",
+   "cutoff": "2022-04-30",
+   "space": 369,
+   "legs": {
+    "quality": {
+     "long": 123,
+     "short": 123
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2022-06-13",
+   "cutoff": "2022-04-30",
+   "space": 733,
+   "legs": {
+    "quality": {
+     "long": 243,
+     "short": 243
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2022-06-13",
+   "cutoff": "2022-04-30",
+   "space": 1429,
+   "legs": {
+    "quality": {
+     "long": 472,
+     "short": 472
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2022-12-12",
+   "cutoff": "2022-10-31",
+   "space": 229,
+   "legs": {
+    "quality": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2022-12-12",
+   "cutoff": "2022-10-31",
+   "space": 377,
+   "legs": {
+    "quality": {
+     "long": 125,
+     "short": 125
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2022-12-12",
+   "cutoff": "2022-10-31",
+   "space": 739,
+   "legs": {
+    "quality": {
+     "long": 245,
+     "short": 245
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2022-12-12",
+   "cutoff": "2022-10-31",
+   "space": 1461,
+   "legs": {
+    "quality": {
+     "long": 484,
+     "short": 484
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2023-06-12",
+   "cutoff": "2023-04-30",
+   "space": 235,
+   "legs": {
+    "quality": {
+     "long": 78,
+     "short": 78
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2023-06-12",
+   "cutoff": "2023-04-30",
+   "space": 378,
+   "legs": {
+    "quality": {
+     "long": 126,
+     "short": 126
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2023-06-12",
+   "cutoff": "2023-04-30",
+   "space": 751,
+   "legs": {
+    "quality": {
+     "long": 250,
+     "short": 250
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2023-06-12",
+   "cutoff": "2023-04-30",
+   "space": 1495,
+   "legs": {
+    "quality": {
+     "long": 492,
+     "short": 492
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2023-12-11",
+   "cutoff": "2023-10-31",
+   "space": 236,
+   "legs": {
+    "quality": {
+     "long": 78,
+     "short": 78
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2023-12-11",
+   "cutoff": "2023-10-31",
+   "space": 384,
+   "legs": {
+    "quality": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2023-12-11",
+   "cutoff": "2023-10-31",
+   "space": 758,
+   "legs": {
+    "quality": {
+     "long": 252,
+     "short": 252
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2023-12-11",
+   "cutoff": "2023-10-31",
+   "space": 1494,
+   "legs": {
+    "quality": {
+     "long": 495,
+     "short": 495
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2024-06-17",
+   "cutoff": "2024-04-30",
+   "space": 237,
+   "legs": {
+    "quality": {
+     "long": 79,
+     "short": 79
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2024-06-17",
+   "cutoff": "2024-04-30",
+   "space": 394,
+   "legs": {
+    "quality": {
+     "long": 131,
+     "short": 131
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2024-06-17",
+   "cutoff": "2024-04-30",
+   "space": 770,
+   "legs": {
+    "quality": {
+     "long": 256,
+     "short": 256
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2024-06-17",
+   "cutoff": "2024-04-30",
+   "space": 1521,
+   "legs": {
+    "quality": {
+     "long": 504,
+     "short": 504
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2024-12-16",
+   "cutoff": "2024-10-31",
+   "space": 240,
+   "legs": {
+    "quality": {
+     "long": 80,
+     "short": 80
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2024-12-16",
+   "cutoff": "2024-10-31",
+   "space": 393,
+   "legs": {
+    "quality": {
+     "long": 131,
+     "short": 131
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2024-12-16",
+   "cutoff": "2024-10-31",
+   "space": 786,
+   "legs": {
+    "quality": {
+     "long": 261,
+     "short": 261
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2024-12-16",
+   "cutoff": "2024-10-31",
+   "space": 1561,
+   "legs": {
+    "quality": {
+     "long": 517,
+     "short": 517
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2025-06-16",
+   "cutoff": "2025-04-30",
+   "space": 239,
+   "legs": {
+    "quality": {
+     "long": 79,
+     "short": 79
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2025-06-16",
+   "cutoff": "2025-04-30",
+   "space": 396,
+   "legs": {
+    "quality": {
+     "long": 132,
+     "short": 132
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2025-06-16",
+   "cutoff": "2025-04-30",
+   "space": 781,
+   "legs": {
+    "quality": {
+     "long": 260,
+     "short": 260
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2025-06-16",
+   "cutoff": "2025-04-30",
+   "space": 1559,
+   "legs": {
+    "quality": {
+     "long": 518,
+     "short": 518
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2025-12-15",
+   "cutoff": "2025-10-31",
+   "space": 235,
+   "legs": {
+    "quality": {
+     "long": 78,
+     "short": 78
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2025-12-15",
+   "cutoff": "2025-10-31",
+   "space": 393,
+   "legs": {
+    "quality": {
+     "long": 130,
+     "short": 130
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2025-12-15",
+   "cutoff": "2025-10-31",
+   "space": 782,
+   "legs": {
+    "quality": {
+     "long": 258,
+     "short": 258
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2025-12-15",
+   "cutoff": "2025-10-31",
+   "space": 1570,
+   "legs": {
+    "quality": {
+     "long": 516,
+     "short": 516
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "300",
+   "eff": "2026-06-15",
+   "cutoff": "2026-04-30",
+   "space": 230,
+   "legs": {
+    "quality": {
+     "long": 76,
+     "short": 76
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "500",
+   "eff": "2026-06-15",
+   "cutoff": "2026-04-30",
+   "space": 390,
+   "legs": {
+    "quality": {
+     "long": 128,
+     "short": 128
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "1000",
+   "eff": "2026-06-15",
+   "cutoff": "2026-04-30",
+   "space": 784,
+   "legs": {
+    "quality": {
+     "long": 256,
+     "short": 256
+    }
+   },
+   "skipped": []
+  },
+  {
+   "band": "2000",
+   "eff": "2026-06-15",
+   "cutoff": "2026-04-30",
+   "space": 1576,
+   "legs": {
+    "quality": {
+     "long": 514,
+     "short": 514
+    }
+   },
+   "skipped": []
+  }
+ ]
+}
