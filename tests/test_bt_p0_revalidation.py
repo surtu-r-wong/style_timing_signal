@@ -15,6 +15,8 @@ import pandas as pd
 import pytest
 
 from backtest import p0_revalidation
+from backtest.pit_metadata import current_pit_metadata, sha256_file
+from backtest.pure_style_builder import FD_STATEMENTS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -102,7 +104,18 @@ def test_tail_runner_main_writes_only_requested_output_directory(monkeypatch, tm
     assert runner.main(["--output-dir", str(tmp_path)]) == 0
 
     assert (tmp_path / "tail_pair_daily.csv").is_file()
-    assert json.loads((tmp_path / "tail_pair_build.json").read_text())["skipped"] == []
+    meta = json.loads((tmp_path / "tail_pair_build.json").read_text())
+    assert meta["skipped"] == []
+    assert meta["schema_version"] == 2
+    assert meta["artifact_type"] == "tail_pair_build"
+    assert meta["pit"]["periodic_statement_policy"] == (
+        "first_disclosure_else_statutory_deadline"
+    )
+    assert meta["pit"]["first_disclosure_coverage"] == "partial"
+    assert meta["data_artifact"]["path"] == "tail_pair_daily.csv"
+    assert meta["data_artifact"]["sha256"] == sha256_file(
+        tmp_path / "tail_pair_daily.csv"
+    )
     assert not (runner.OUTDIR / "tail_pair_daily.csv").exists()
 
 
@@ -116,7 +129,15 @@ def test_geometric_runner_writes_only_requested_output_directory(monkeypatch, tm
     assert runner.main(["--output-dir", str(explicit_output)]) == 0
 
     assert (explicit_output / "geo5_pairs_daily.csv").is_file()
-    assert json.loads((explicit_output / "geo5_pairs_build.json").read_text())["skipped"] == []
+    meta = json.loads((explicit_output / "geo5_pairs_build.json").read_text())
+    assert meta["skipped"] == []
+    assert meta["schema_version"] == 2
+    assert meta["artifact_type"] == "geometric_pairs_build"
+    assert meta["pit"]["periodic_statement_types"] == sorted(FD_STATEMENTS)
+    assert meta["data_artifact"]["path"] == "geo5_pairs_daily.csv"
+    assert meta["data_artifact"]["sha256"] == sha256_file(
+        explicit_output / "geo5_pairs_daily.csv"
+    )
     assert not (runner.OUTDIR / "geo5_pairs_daily.csv").exists()
 
 
@@ -132,6 +153,19 @@ def test_geometric_smoke_keeps_diagnostic_dates_and_writes_no_artifacts(monkeypa
                                                pd.Timestamp("2026-06-15")]
     assert all(call[1]["legs_only"] is True for call in calls)
     assert not list(tmp_path.iterdir())
+
+
+def test_current_pit_metadata_describes_partial_first_disclosure_contract():
+    pit = current_pit_metadata(FD_STATEMENTS)
+    joined = json.dumps(pit, ensure_ascii=False)
+    assert pit["periodic_statement_types"] == sorted(FD_STATEMENTS)
+    assert pit["first_disclosure_source"] == (
+        "stock_first_disclosure.first_disclosure_date"
+    )
+    assert pit["fallback_policy"] == "statutory_deadline"
+    assert pit["limitations"][0]["code"] == "late_filer_fallback"
+    assert "approximate-PIT" not in joined
+    assert "2025-03-31" not in joined
 
 
 @pytest.mark.parametrize(

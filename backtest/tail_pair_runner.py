@@ -20,7 +20,12 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from backtest.pure_style_builder import build_tail_pair, rebalance_dates  # noqa: E402
+from backtest.pit_metadata import current_pit_metadata, data_artifact  # noqa: E402
+from backtest.pure_style_builder import (  # noqa: E402
+    FD_STATEMENTS,
+    build_tail_pair,
+    rebalance_dates,
+)
 
 OUTDIR = ROOT / "backtest" / "output"
 WINDOW = ("2015-01-01", "2026-08-18")
@@ -35,8 +40,13 @@ def run_full_build(output_dir: Path) -> int:
     pair = build_tail_pair(dates, verbose=True)
 
     df = pd.concat([pair.growth.rename("growth"), pair.value.rename("value")], axis=1)
-    df.to_csv(output_dir / "tail_pair_daily.csv")
-    meta = {"n_days": int(len(df)),
+    data_path = output_dir / "tail_pair_daily.csv"
+    df.to_csv(data_path)
+    meta = {"schema_version": 2,
+            "artifact_type": "tail_pair_build",
+            "pit": current_pit_metadata(FD_STATEMENTS),
+            "data_artifact": data_artifact(data_path, output_dir),
+            "n_days": int(len(df)),
             "window": [str(df.index.min().date()), str(df.index.max().date())],
             "n_by_date": {k: [pair.n_growth[k], pair.n_value[k]] for k in pair.n_growth},
             "skipped": pair.skipped,

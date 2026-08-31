@@ -20,7 +20,12 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from backtest.pure_style_builder import build_geometric_pairs, rebalance_dates  # noqa: E402
+from backtest.pit_metadata import current_pit_metadata, data_artifact  # noqa: E402
+from backtest.pure_style_builder import (  # noqa: E402
+    FD_STATEMENTS,
+    build_geometric_pairs,
+    rebalance_dates,
+)
 
 OUTDIR = ROOT / "backtest" / "output"
 WINDOW = ("2015-01-01", "2026-08-18")
@@ -39,8 +44,13 @@ def run_full_build(output_dir: Path) -> int:
     for k, p in enumerate(pairs, start=1):
         cols[f"g{k}_growth"], cols[f"g{k}_value"] = p.growth, p.value
     df = pd.DataFrame(cols)
-    df.to_csv(output_dir / "geo5_pairs_daily.csv")
-    meta = {"n_days": int(len(df)),
+    data_path = output_dir / "geo5_pairs_daily.csv"
+    df.to_csv(data_path)
+    meta = {"schema_version": 2,
+            "artifact_type": "geometric_pairs_build",
+            "pit": current_pit_metadata(FD_STATEMENTS),
+            "data_artifact": data_artifact(data_path, output_dir),
+            "n_days": int(len(df)),
             "window": [str(df.index.min().date()), str(df.index.max().date())],
             "n_by_date": {f"g{k}": {d: [p.n_growth[d], p.n_value[d]] for d in p.n_growth}
                           for k, p in enumerate(pairs, start=1)},
