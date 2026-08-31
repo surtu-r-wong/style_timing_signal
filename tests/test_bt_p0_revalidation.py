@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 
 from backtest import p0_revalidation
-from backtest.pit_metadata import current_pit_metadata, sha256_file
+from backtest.pit_metadata import current_pit_metadata, data_artifact, sha256_file
 from backtest.pure_style_builder import FD_STATEMENTS
 
 
@@ -61,6 +61,18 @@ def _verdict_data(window_names: tuple[str, ...], start_name: str) -> type:
             return float(np.asarray(pos).mean())
 
     return FakeData
+
+
+def _write_build_metadata(data_path, metadata_path, artifact_type):
+    payload = {
+        "schema_version": 2,
+        "artifact_type": artifact_type,
+        "pit": current_pit_metadata(FD_STATEMENTS),
+        "data_artifact": data_artifact(data_path, data_path.parent),
+    }
+    metadata_path.write_text(
+        json.dumps(payload, ensure_ascii=False), encoding="utf-8"
+    )
 
 
 def test_gate0_dump_writes_json_and_series_only_to_explicit_directory(tmp_path):
@@ -169,14 +181,22 @@ def test_current_pit_metadata_describes_partial_first_disclosure_contract():
 
 
 @pytest.mark.parametrize(
-    ("module_name", "flag", "keyword"),
-    [("backtest.fifth_bucket_formal", "--tail-csv", "tail_csv"),
-     ("backtest.geometric_5b_formal", "--geo-csv", "geo_csv")],
+    ("module_name", "flag", "keyword", "metadata_name", "artifact_type"),
+    [
+        ("backtest.fifth_bucket_formal", "--tail-csv", "tail_csv",
+         "tail_pair_build.json", "tail_pair_build"),
+        ("backtest.geometric_5b_formal", "--geo-csv", "geo_csv",
+         "geo5_pairs_build.json", "geometric_pairs_build"),
+    ],
 )
-def test_verdict_cli_passes_explicit_input_path_to_data(monkeypatch, tmp_path,
-                                                        module_name, flag, keyword):
+def test_verdict_cli_passes_explicit_input_path_to_data(
+    monkeypatch, tmp_path, module_name, flag, keyword, metadata_name, artifact_type
+):
     module = importlib.import_module(module_name)
     requested = tmp_path / "input.csv"
+    requested.write_text("date,value\n2024-01-02,0.0\n", encoding="utf-8")
+    metadata_path = tmp_path / metadata_name
+    _write_build_metadata(requested, metadata_path, artifact_type)
     seen = {}
 
     class SentinelData:
@@ -185,38 +205,90 @@ def test_verdict_cli_passes_explicit_input_path_to_data(monkeypatch, tmp_path,
             raise RuntimeError("sentinel input path captured")
 
     monkeypatch.setattr(module, "Data", SentinelData)
-
     with pytest.raises(RuntimeError, match="sentinel input path captured"):
-        module.main([flag, str(requested), "--output-dir", str(tmp_path)])
+        module.main([
+            flag, str(requested), "--build-metadata", str(metadata_path),
+            "--output-dir", str(tmp_path),
+        ])
     assert seen[keyword] == requested
 
 
 @pytest.mark.parametrize(
-    ("module_name", "input_flag", "start_name", "window_names", "output_name"),
-    [("backtest.fifth_bucket_formal", "--tail-csv", "tail_start", ("full", "H1", "H2"),
-      "fifth_bucket_verdict.json"),
-     ("backtest.geometric_5b_formal", "--geo-csv", "geo_start",
-      ("full", "2015-2020", "2021-2023", "2024-2026"), "geo5_verdict.json")],
+    ("module_name", "input_flag", "metadata_name", "artifact_type"),
+    [
+        ("backtest.fifth_bucket_formal", "--tail-csv",
+         "tail_pair_build.json", "tail_pair_build"),
+        ("backtest.geometric_5b_formal", "--geo-csv",
+         "geo5_pairs_build.json", "geometric_pairs_build"),
+    ],
 )
-def test_verdicts_include_revalidation_evidence(monkeypatch, tmp_path, module_name,
-                                                 input_flag, start_name, window_names,
-    output_name):
+def test_verdict_rejects_missing_or_mismatched_build_metadata(
+    tmp_path, module_name, input_flag, metadata_name, artifact_type
+):
     module = importlib.import_module(module_name)
+    data_path = tmp_path / "input.csv"
+    data_path.write_text("date,value\n2024-01-02,0.0\n", encoding="utf-8")
+    metadata_path = tmp_path / metadata_name
+    args = [input_flag, str(data_path), "--output-dir", str(tmp_path / "out")]
+
+    with pytest.raises(RuntimeError, match="build metadata"):
+        module.main([*args, "--build-metadata", str(metadata_path)])
+
+    _write_build_metadata(data_path, metadata_path, "wrong_artifact")
+    with pytest.raises(RuntimeError, match="artifact_type"):
+        module.main([*args, "--build-metadata", str(metadata_path)])
+
+    _write_build_metadata(data_path, metadata_path, artifact_type)
+    data_path.write_text("date,value\n2024-01-02,0.1\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="sha256"):
+        module.main([*args, "--build-metadata", str(metadata_path)])
+
+
+@pytest.mark.parametrize(
+    ("module_name", "input_flag", "start_name", "window_names", "output_name",
+     "metadata_name", "artifact_type"),
+    [
+        ("backtest.fifth_bucket_formal", "--tail-csv", "tail_start",
+         ("full", "H1", "H2"), "fifth_bucket_verdict.json",
+         "tail_pair_build.json", "tail_pair_build"),
+        ("backtest.geometric_5b_formal", "--geo-csv", "geo_start",
+         ("full", "2015-2020", "2021-2023", "2024-2026"), "geo5_verdict.json",
+         "geo5_pairs_build.json", "geometric_pairs_build"),
+    ],
+)
+def test_verdicts_include_revalidation_evidence(
+    monkeypatch, tmp_path, module_name, input_flag, start_name, window_names,
+    output_name, metadata_name, artifact_type
+):
+    module = importlib.import_module(module_name)
+    input_path = tmp_path / "input.csv"
+    input_path.write_text("date,value\n2024-01-02,0.0\n", encoding="utf-8")
+    metadata_path = tmp_path / metadata_name
+    _write_build_metadata(input_path, metadata_path, artifact_type)
     monkeypatch.setattr(module, "OUT", tmp_path / "flat-output" / output_name)
     monkeypatch.setattr(module, "Data", _verdict_data(window_names, start_name))
     monkeypatch.setattr(module, "selection_permutation_test",
                         lambda *_args, **_kwargs: SimpleNamespace(
                             observed_best=0.1, p_selected=0.01, p_naive=0.01))
 
-    assert module.main([input_flag, str(tmp_path / "input.csv"), "--output-dir", str(tmp_path),
-                        "--n-perm", "1", "--seed", "19"]) == 0
+    assert module.main([
+        input_flag, str(input_path), "--build-metadata", str(metadata_path),
+        "--output-dir", str(tmp_path), "--n-perm", "1", "--seed", "19",
+    ]) == 0
 
     payload = json.loads((tmp_path / output_name).read_text())
+    joined = json.dumps(payload, ensure_ascii=False)
     assert payload["seed"] == 19
     assert payload["position_diff_days"] == 130
     assert payload["position_diff_ratio"] == 1.0
     assert payload["metrics_incumbent"]["full"]["sharpe"] == 0.2
     assert payload["metrics_candidate"]["full"]["sharpe"] == 0.2
+    assert payload["pit_metadata"]["periodic_statement_policy"] == (
+        "first_disclosure_else_statutory_deadline"
+    )
+    assert payload["caveats"][0].startswith("缺失或无效首披日")
+    assert "approximate-PIT" not in joined
+    assert "2025-03-31" not in joined
     assert not (module.OUT.parent / output_name).exists()
 
 

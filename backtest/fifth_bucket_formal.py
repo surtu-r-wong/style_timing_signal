@@ -20,8 +20,7 @@ lb20/zw40；执行 = 现役部署 `blend(500+1000)`、cost 3bp、含 carry；
 
 ## 限定（§7）
 
-结论标 **provisional**（approximate-PIT）；有效窗截至 **2025-03-31**（stock_financial 停更），
-其后为数据外推。
+结论标 **provisional**；具体 PIT 限制由输入数据相邻的构建元数据校验后写入判定结果。
 
 用法：python3 -m backtest.fifth_bucket_formal [--n-perm 1000]
 """
@@ -42,6 +41,7 @@ from backtest.baseline import evaluate  # noqa: E402
 from backtest.data import load_carry, load_underlying_returns  # noqa: E402
 from backtest.engine import run_strategy  # noqa: E402
 from backtest.metrics import sharpe  # noqa: E402
+from backtest.pit_metadata import load_build_pit_metadata  # noqa: E402
 from backtest.positions import production_position  # noqa: E402
 from backtest.selection_permutation import selection_permutation_test  # noqa: E402
 
@@ -150,9 +150,14 @@ def main(argv=None) -> int:
     ap.add_argument("--start", default=None,
                     help="公共窗起点（调样期锚，用户裁决后传入；默认=尾部收益首日）")
     ap.add_argument("--tail-csv", type=Path, default=TAIL_CSV)
+    ap.add_argument("--build-metadata", type=Path, default=None)
     ap.add_argument("--output-dir", type=Path, default=OUT.parent)
     args = ap.parse_args(argv)
 
+    build_metadata = args.build_metadata or args.tail_csv.with_name("tail_pair_build.json")
+    pit_metadata = load_build_pit_metadata(
+        build_metadata, args.tail_csv, "tail_pair_build"
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     d = Data(start_override=args.start, tail_csv=args.tail_csv)
     n = len(d.idx)
@@ -199,7 +204,7 @@ def main(argv=None) -> int:
         verdict = "① 候选过闸 → 尾部规模带携带现有四对没有的信息（provisional）"
     elif res.p_selected >= GATE_ALPHA:
         verdict = ("② 差异不显著 → 在现役架构与本实现下，尾部的增量不可辨认；"
-                   "**不得**表述为「尾部无信息」（approximate-PIT / 实现差异 / 1/5 权重稀释"
+                   "**不得**表述为「尾部无信息」（首披缺失回退限制 / 实现差异 / 1/5 权重稀释"
                    "都在压效应）")
     else:
         verdict = "③ 显著为负 → 记为「异常，待解释」，找到机制前**不得**宣称「尾部有害」"
@@ -219,9 +224,11 @@ def main(argv=None) -> int:
         "worst_tv_incumbent": round(inc_wtv, 4), "worst_tv_candidate": round(cand_wtv, 4),
         "gate1": g1, "gate2": g2, "gate3": g3, "OVERALL": "GO" if overall else "STOP",
         "verdict_case": verdict,
+        "pit_metadata": pit_metadata,
         "zero_carry_diff": round(zc, 4),
-        "caveats": ["provisional: approximate-PIT（CSMAR ann_date 批次日，min(ann,法定截止) 缓解）",
-                    "有效窗截至 2025-03-31（stock_financial 停更），其后为数据外推"],
+        "caveats": [item["text"] for item in pit_metadata["limitations"]] + [
+            "尾部对加入后存在实现差异与五对等权的 1/5 权重稀释。"
+        ],
     }
     print(f"\n── ⓪ 机器（单点候选，n_perm={args.n_perm}）──")
     print(f"  full Sharpe：现役 {out['sharpe_incumbent_full']}  候选 {out['sharpe_candidate_full']}"

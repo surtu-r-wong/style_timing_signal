@@ -11,7 +11,7 @@
 公共窗 = 自建收益首日 + 60 交易日暖机，对照同窗重算；
 关2 = worst(train=起点~2020, val=2021-2023) ≥ 现役 − 0.02（裁决点 4，日历窗）。
 
-结论 provisional；有效窗截至 2025-03-31。
+结论 provisional；具体 PIT 限制由输入数据相邻的构建元数据校验后写入判定结果。
 用法：python3 -m backtest.geometric_5b_formal [--n-perm 1000]
 """
 from __future__ import annotations
@@ -31,6 +31,7 @@ from backtest.baseline import evaluate  # noqa: E402
 from backtest.data import load_carry, load_underlying_returns  # noqa: E402
 from backtest.engine import run_strategy  # noqa: E402
 from backtest.metrics import sharpe  # noqa: E402
+from backtest.pit_metadata import load_build_pit_metadata  # noqa: E402
 from backtest.positions import production_position  # noqa: E402
 from backtest.selection_permutation import selection_permutation_test  # noqa: E402
 
@@ -128,9 +129,14 @@ def main(argv=None) -> int:
     ap.add_argument("--n-perm", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--geo-csv", type=Path, default=GEO_CSV)
+    ap.add_argument("--build-metadata", type=Path, default=None)
     ap.add_argument("--output-dir", type=Path, default=OUT.parent)
     args = ap.parse_args(argv)
 
+    build_metadata = args.build_metadata or args.geo_csv.with_name("geo5_pairs_build.json")
+    pit_metadata = load_build_pit_metadata(
+        build_metadata, args.geo_csv, "geometric_pairs_build"
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     d = Data(geo_csv=args.geo_csv)
     n = len(d.idx)
@@ -201,10 +207,11 @@ def main(argv=None) -> int:
                         round(cand_m["2024-2026"]["sharpe"], 4)],
         "gate1": g1, "gate2": g2, "gate3": g3, "OVERALL": "GO" if overall else "STOP",
         "verdict_case": verdict,
+        "pit_metadata": pit_metadata,
         "zero_carry_diff": round(zc, 4),
-        "caveats": ["provisional: approximate-PIT",
-                    "有效窗截至 2025-03-31（stock_financial 停更）",
-                    "候选全自建 vs 现役官方发布序列的信息不对称（§4-5）"],
+        "caveats": [item["text"] for item in pit_metadata["limitations"]] + [
+            "候选全自建 vs 现役官方发布序列的信息不对称（§4-5）"
+        ],
     }
     print(f"\n── ⓪ 机器（单点候选，n_perm={args.n_perm}）──")
     print(f"  full Sharpe：现役 {out['sharpe_incumbent_full']}  候选 {out['sharpe_candidate_full']}"
