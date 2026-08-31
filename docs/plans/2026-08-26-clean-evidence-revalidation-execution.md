@@ -40,7 +40,8 @@
 
 ## 4. 工作区与下一次对话
 
-- 当前分支：`clean-evidence-revalidation`；尚未合并到 `main`，`origin/main` 仍为 `91148cf`。
+- 运行时分支为 `clean-evidence-revalidation`，该分支后来已合并到 `main`；这里保留分支名与
+  当时的 `origin/main=91148cf` 仅作为历史 provenance。
 - 2026-08-26 日更产生的 8 个 output CSV 已从 stash 恢复，保持为未提交修改；
   它们不属于正式重验提交，也没有污染任何 formal manifest。
 - 本任务没有待裁决事项。下一次可先查看本文件、`docs/plans/README.md` 和 `git status`。

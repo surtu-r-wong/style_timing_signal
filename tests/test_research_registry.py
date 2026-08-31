@@ -130,3 +130,19 @@ def test_generated_block_preserves_manual_text_outside_markers():
         "prefix\n<!-- research-registry:start -->\nnew\n"
         "<!-- research-registry:end -->\nsuffix\n"
     )
+
+
+def test_known_stale_or_overbroad_wording_is_absent():
+    mapping = (
+        ROOT / "docs/plans/2026-08-13-probe-1b-mapping-grid.md"
+    ).read_text(encoding="utf-8")
+    prescreen = (
+        ROOT / "docs/plans/2026-08-26-signal-generator-prescreens.md"
+    ).read_text(encoding="utf-8")
+    execution = (
+        ROOT / "docs/plans/2026-08-26-clean-evidence-revalidation-execution.md"
+    ).read_text(encoding="utf-8")
+    assert "现役是稳健最优\"" not in mapping
+    assert "唯一实测有增量、待裁" not in prescreen
+    assert "整层归档关闭，不立项" not in prescreen
+    assert "尚未合并到 `main`" not in execution
