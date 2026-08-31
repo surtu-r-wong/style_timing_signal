@@ -193,9 +193,12 @@ ORDER BY calendar_date"""
 TRADING_CALENDAR_QUERY_TEMPLATE_HASH = hashlib.sha256(
     TRADING_CALENDAR_QUERY_TEMPLATE.encode("utf-8")
 ).hexdigest()
+TRUE_DISCLOSURE_COVERAGE_START = "2014-10"
+TRUE_DISCLOSURE_COVERAGE_END = "2023-12"
 TRUE_DISCLOSURE_COVERAGE_BASIS = (
     "explicit true_first_disclosure_verified on model rows for every frozen "
-    "PIT policy and formation month from 2014-01 through 2023-12"
+    f"PIT policy and formation month from {TRUE_DISCLOSURE_COVERAGE_START} "
+    f"through {TRUE_DISCLOSURE_COVERAGE_END}"
 )
 
 
@@ -854,7 +857,11 @@ def compute_true_disclosure_coverage(
     ]
     model["_formation_date"] = model_dates
     periods = pd.PeriodIndex(model["_formation_date"], freq="M")
-    required_periods = pd.period_range("2014-01", "2023-12", freq="M")
+    required_periods = pd.period_range(
+        TRUE_DISCLOSURE_COVERAGE_START,
+        TRUE_DISCLOSURE_COVERAGE_END,
+        freq="M",
+    )
     required_mask = periods.isin(required_periods)
     required = model.loc[required_mask].copy()
     if required.empty:

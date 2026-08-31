@@ -18,6 +18,7 @@ from backtest.b3_eval import (
     VERDICT_COLUMNS,
     TRADING_CALENDAR_QUERY_TEMPLATE_HASH,
     TRUE_DISCLOSURE_COVERAGE_BASIS,
+    TRUE_DISCLOSURE_COVERAGE_START,
     EvaluationFrames,
     RunEvidence,
     PreflightManifestContract,
@@ -4158,7 +4159,7 @@ _PIT_POLICIES = [
 def _required_disclosure_rows(verified=True):
     rows = []
     for policy in _PIT_POLICIES:
-        for period in pd.period_range("2014-01", "2023-12", freq="M"):
+        for period in pd.period_range("2014-10", "2023-12", freq="M"):
             for ticker in ("000001.SZ", "600000.SH"):
                 rows.append(
                     {
@@ -4183,7 +4184,7 @@ def test_true_disclosure_coverage_counts_explicit_mixed_booleans_only():
                     {
                         "universe_role": "size_only",
                         "pit_policy": _PIT_POLICIES[0],
-                        "formation_date": "2014-01-31",
+                        "formation_date": "2014-10-31",
                         "ticker": "000002.SZ",
                         "true_first_disclosure_verified": False,
                     },
@@ -4203,9 +4204,9 @@ def test_true_disclosure_coverage_counts_explicit_mixed_booleans_only():
     got = compute_true_disclosure_coverage(frame, _PIT_POLICIES)
 
     assert got == {
-        "verified_numerator": 479,
-        "required_denominator": 480,
-        "ratio": 479 / 480,
+        "verified_numerator": 443,
+        "required_denominator": 444,
+        "ratio": 443 / 444,
         "coverage_basis": TRUE_DISCLOSURE_COVERAGE_BASIS,
     }
     json.dumps(got, sort_keys=True, allow_nan=False)
@@ -4222,15 +4223,15 @@ def test_true_disclosure_coverage_handles_conservative_and_verified_extremes(
     )
 
     assert got["ratio"] == ratio
-    assert got["verified_numerator"] == (480 if verified else 0)
-    assert got["required_denominator"] == 480
+    assert got["verified_numerator"] == (444 if verified else 0)
+    assert got["required_denominator"] == 444
 
 
 def test_true_disclosure_coverage_blocks_missing_required_month_or_policy():
     frame = _required_disclosure_rows()
     missing_month = ~(
         frame["pit_policy"].eq(_PIT_POLICIES[1])
-        & frame["formation_date"].eq("2014-01-31")
+        & frame["formation_date"].eq("2014-10-31")
     )
     with pytest.raises(DataBlocked, match="required month"):
         compute_true_disclosure_coverage(frame.loc[missing_month], _PIT_POLICIES)
@@ -4428,8 +4429,8 @@ def test_raw_carry_freshness_rejects_invalid_raw_contracts(raw, expected, match)
 
 def _full_disclosure_coverage():
     return {
-        "verified_numerator": 480,
-        "required_denominator": 480,
+        "verified_numerator": 444,
+        "required_denominator": 444,
         "ratio": 1.0,
         "coverage_basis": TRUE_DISCLOSURE_COVERAGE_BASIS,
     }
@@ -4459,8 +4460,8 @@ def test_freshness_blockers_have_exact_schema_unique_deterministic_order():
     coverage = _full_disclosure_coverage()
     coverage.update(
         {
-            "verified_numerator": 479,
-            "ratio": 479 / 480,
+            "verified_numerator": 443,
+            "ratio": 443 / 444,
         }
     )
     carry = _fresh_carry_evidence()
@@ -4690,7 +4691,7 @@ def _full_evidence(**overrides):
         "salg_valid_through": "2026-10-31",
         "true_first_disclosure_coverage": {
             "verified_numerator": 0,
-            "required_denominator": 240,
+            "required_denominator": 222,
             "ratio": 0.0,
             "coverage_basis": TRUE_DISCLOSURE_COVERAGE_BASIS,
         },
@@ -5234,7 +5235,12 @@ def test_run_evaluation_post_data_coverage_gap_blocks_but_keeps_statistics(tmp_p
     # Break true-disclosure coverage after the fact: one model row unverified.
     exposure_path = research / "monthly_exposures.csv.gz"
     exposures = pd.read_csv(exposure_path)
-    exposures.loc[0, "true_first_disclosure_verified"] = False
+    coverage_rows = exposures["universe_role"].eq("model") & pd.to_datetime(
+        exposures["formation_date"]
+    ).ge(pd.Timestamp(TRUE_DISCLOSURE_COVERAGE_START))
+    exposures.loc[
+        exposures.index[coverage_rows][0], "true_first_disclosure_verified"
+    ] = False
     exposures.to_csv(
         exposure_path,
         index=False,
@@ -5332,7 +5338,7 @@ def test_true_disclosure_coverage_accepts_producer_size_only_rows():
             {
                 "universe_role": "size_only",
                 "pit_policy": _PIT_POLICIES[0],
-                "formation_date": "2014-01-31",
+                "formation_date": "2014-10-31",
                 "ticker": "000002.SZ",
                 "true_first_disclosure_verified": False,
             }
@@ -5394,10 +5400,10 @@ def test_flatten_exposures_output_passes_eval_disclosure_validators(tmp_path):
         q=result.q,
         diagnostics=result.diagnostics,
     )
-    # Coverage demands the complete 2014-2023 formation grid; stamping the
+    # Coverage demands the complete 2014-10 through 2023-12 grid; stamping the
     # same exposure result on every month keeps the producer path authentic
     # while staying cheap (flatten assigns formation_date per key).
-    grid_calendar = pd.bdate_range("2014-01-01", "2023-12-31")
+    grid_calendar = pd.bdate_range("2014-10-01", "2023-12-31")
     formations = pd.DatetimeIndex(
         pd.Series(grid_calendar, index=grid_calendar)
         .groupby(grid_calendar.to_period("M"))
