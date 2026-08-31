@@ -1,0 +1,723 @@
+schema_version: 1
+inventory:
+  include_globs:
+    - docs/plans/2026-*.md
+  exclusions:
+    - {path: docs/plans/2026-07-02-reorganization-design.md, reason: "仓库重组设计，不形成信号研究裁决。"}
+    - {path: docs/plans/2026-07-02-reorganization-plan.md, reason: "仓库重组实施计划，不形成信号研究裁决。"}
+    - {path: docs/plans/2026-07-03-optimization-roadmap-design.md, reason: "项目级路线图，具体裁决由各研究记录承接。"}
+    - {path: docs/plans/2026-07-03-phase1-db-integration-plan.md, reason: "数据库接入工程计划。"}
+    - {path: docs/plans/2026-07-06-phase2-eval-framework-plan.md, reason: "回测评估框架工程计划。"}
+    - {path: docs/plans/2026-07-08-style-dashboard-design.md, reason: "诊断看板设计，不形成候选裁决。"}
+    - {path: docs/plans/2026-07-08-unlock-short-axis-data-runbook.md, reason: "数据解锁运行手册。"}
+    - {path: docs/plans/2026-07-10-optimization-roadmap-retrospective.md, reason: "项目级复盘，当前状态由本台账逐项取代。"}
+    - {path: docs/plans/2026-08-10-wsl2-execution-environment.md, reason: "执行环境说明。"}
+    - {path: docs/plans/2026-08-10-wsl2-runbook.md, reason: "执行环境运行手册。"}
+    - {path: docs/plans/2026-08-12-project-review-and-priorities.md, reason: "阶段性综述，当前逐项状态由本台账取代。"}
+    - {path: docs/plans/2026-08-12-selection-permutation-machine.md, reason: "通用统计机器方法说明，不是单独研究裁决。"}
+    - {path: docs/plans/2026-08-12-signal-research-agenda.md, reason: "研究议程，具体结论由各研究记录承接。"}
+    - {path: docs/plans/2026-08-25-market-monitor-handover-index-daily.md, reason: "外部数据日更交接说明。"}
+
+studies:
+  - id: production-equal-weight-long-flat
+    title: "现役等权 long-flat"
+    family: production-mapping
+    status: adopted
+    outcome: selected
+    evidence_level: committed_formal_probe
+    scope: "equal_weight 20d40z 因子以零阈值映射为 long-flat，并在既有同秤、执行价审计和风险偏好下作为现役。"
+    claim: "采用理由是回撤、换手和生产风险形态，而非统计意义上的全面最优。"
+    non_claims: ["不声称其 Sharpe 显著高于对称映射。", "不声称它在所有未来样本和所有映射中全局最优。"]
+    caveats: ["①a 配对 block bootstrap 的 Sharpe 差未达到显著。", "现有执行引擎经济上等价于按信号日收盘成交。"]
+    reopen_condition: "出现预登记的新映射或独立信息源并在同秤门槛下通过时重开。"
+    production: {affects: true, role: incumbent}
+    documents:
+      spec: [docs/plans/2026-06-18-equal-weight-signal-design.md, docs/plans/2026-08-12-probe-1a-symmetric-vs-longflat.md]
+      report: [docs/plans/2026-07-11-external-review-fixes.md, docs/plans/2026-08-13-exec-price-audit.md]
+      evidence: [backtest/output/probe_1a_paired_bootstrap.csv, backtest/output/probe_exec_price_summary.json]
+    supersedes: []
+    depends_on: []
+
+  - id: mapping-grid-32
+    title: "持仓映射 32 格"
+    family: position-mapping
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "冻结的 4×2×4 映射网格、2014-2023 选择窗和预登记三项部署门槛。"
+    claim: "网格内没有候选同时通过三项门槛，现役保持不变。"
+    non_claims: ["不证明所有可能的持仓映射均劣于现役。"]
+    caveats: ["部分候选 Sharpe 更高，但伴随更深回撤或更高换手。"]
+    reopen_condition: "网格外候选必须先给出新机制并重新预登记。"
+    production: {affects: true, role: incumbent_unchanged}
+    documents:
+      spec: [docs/plans/2026-08-13-probe-1b-mapping-grid.md]
+      report: [docs/plans/2026-08-13-probe-1b-mapping-grid.md]
+      evidence: [backtest/output/probe_1b_mapping_verdict.csv, backtest/output/probe_1b_mapping_summary.json]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: divergence-probe
+    title: "背离二阶增量"
+    family: signal-enhancement
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "预登记的背离定义、强度和冻结网格内二阶增量。"
+    claim: "指定背离候选未通过替换或增量门槛。"
+    non_claims: ["不否定所有可能的背离定义。"]
+    caveats: ["结论受预登记强度和样本功效约束。"]
+    reopen_condition: "具有新数据或不同机制的背离定义须独立预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-12-probe-2-divergence.md]
+      report: [docs/plans/2026-08-12-probe-2-divergence.md]
+      evidence: [backtest/output/probe_2_divergence_verdict.csv, backtest/output/probe_2_divergence_summary.json]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: fusion-slope20
+    title: "slope20 融合候选"
+    family: signal-fusion
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "预登记的 slope20 融合公式、权重和同秤窗口。"
+    claim: "指定融合候选没有提供足以替换现役的稳健增量。"
+    non_claims: ["不否定未来新增独立信息源的融合。"]
+    caveats: ["只覆盖文档冻结的单一融合族。"]
+    reopen_condition: "只有新增可解释的独立输入并重新预登记时重开。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-12-probe-3-fusion-slope20.md]
+      report: [docs/plans/2026-08-12-probe-3-fusion-slope20.md]
+      evidence: [backtest/output/probe_3_fusion_verdict.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: pair-set
+    title: "风格配对子集与股息 partner"
+    family: style-pair-selection
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "已测配对子集以及预登记的 dividend partner 候选。"
+    claim: "冻结候选集均未形成可部署增量。"
+    non_claims: ["不否定尚未定义的新风格配对。"]
+    caveats: ["候选集和多重选择校正均以原预登记为限。"]
+    reopen_condition: "新增经济机制明确的 partner 时另立预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-13-probe-5-pair-set.md, docs/plans/2026-08-13-probe-5b-dividend-partner-prereg.md]
+      report: [docs/plans/2026-08-13-probe-5-pair-set.md]
+      evidence: [backtest/output/probe_5_pairset_verdict.csv, backtest/output/probe_5b_dividend_partner_verdict.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: conditional-modulation
+    title: "条件调制"
+    family: conditional-signal
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "Probe 4 预登记状态、调制方向、门槛和技术附录中的实现。"
+    claim: "指定条件调制候选未通过增量门槛。"
+    non_claims: ["不得外推成风格状态与条件变量完全无关。"]
+    caveats: ["结果只约束已测状态定义和样本窗口。"]
+    reopen_condition: "新条件变量或新交互机制须重新预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-14-probe-4-conditional-prereg.md]
+      report: [docs/plans/2026-08-14-probe-4-results.md, docs/plans/2026-08-14-probe-4-tech-annex.md]
+      evidence: [backtest/output/probe4_conditional_verdict.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: fund-crowding
+    title: "基金拥挤度"
+    family: manager-positioning
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "Probe 7 冻结的基金拥挤指标、敏感性和门槛。"
+    claim: "预登记拥挤候选未形成生产可用增量。"
+    non_claims: ["不否定其他管理人行为或基金仓位数据。"]
+    caveats: ["基金披露频率和指标构造限制了功效。"]
+    reopen_condition: "获得更高频且时点可审计的管理人行为数据时重开。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-14-fund-crowding-agenda.md, docs/plans/2026-08-14-probe-7-preregistration.md]
+      report: [docs/plans/2026-08-14-probe-7-results.md]
+      evidence: [backtest/output/probe_7_fund_crowding_verdict.csv, backtest/output/probe_7_fund_crowding_summary.json]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: mian2-cross-section
+    title: "面2横截面候选"
+    family: cross-sectional-state
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "面2预登记横截面构造、置换方案和冻结窗口。"
+    claim: "指定横截面候选未通过增量门槛。"
+    non_claims: ["不否定全部横截面分散度或行业结构特征。"]
+    caveats: ["只覆盖技术附录所列实现。"]
+    reopen_condition: "新横截面机制须提供独立定义和预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-14-probe-mian2-xsection-prereg.md]
+      report: [docs/plans/2026-08-14-probe-mian2-results.md, docs/plans/2026-08-14-probe-mian2-tech-annex.md]
+      evidence: [backtest/output/probe_xsection_verdict.csv, backtest/output/probe_xsection_summary.json]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: dual-channel
+    title: "双通道执行标的"
+    family: execution-channel
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "08-17预登记的spot/futures双通道候选及两种正式秤。"
+    claim: "两种正式秤均为STOP，当前候选不进入生产。"
+    non_claims: ["不得写成更换执行标的普遍无价值。"]
+    caveats: ["结果保留小幅增量迹象，但不足以通过冻结门槛。"]
+    reopen_condition: "执行成本、标的可得性或候选机制实质变化后重新预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-17-dual-channel-preregistration-draft.md]
+      report: [docs/plans/2026-08-17-dual-channel-formal-results.md]
+      evidence: [backtest/output/dual_channel_formal_verdict.json, backtest/output/dual_channel_ic_verdict.json]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: staged-entry
+    title: "分批建仓"
+    family: position-mapping
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "08-17探索文档中冻结的阈值、阶梯、暴露缩放和T+2敏感性。"
+    claim: "已测分批建仓规格没有形成替换现役的证据。"
+    non_claims: ["不否定面向其他策略或冲击成本环境的分批成交。"]
+    caveats: ["研究基于当前换仓成本和现役信号频率。"]
+    reopen_condition: "交易冲击模型或生产约束改变时另立研究。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-17-staged-entry-exploration.md]
+      report: [docs/plans/2026-08-17-staged-entry-exploration.md]
+      evidence: [backtest/output/staged_entry_probe.csv, backtest/output/staged_entry_sweep_threshold.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: family-unification
+    title: "信号族统一"
+    family: signal-family
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "08-18预登记的family unification候选、权重和判据。"
+    claim: "指定统一规格未提供可部署增量。"
+    non_claims: ["不否定未来对新信号族采用统一框架。"]
+    caveats: ["结论限于已测家族与统一方式。"]
+    reopen_condition: "新增信号族或统一机制时重新预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-18-family-unification-preregistration.md]
+      report: [docs/plans/2026-08-18-family-unification-results.md]
+      evidence: [backtest/output/family_unification_verdict.json]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: threshold-and-microcap-grids
+    title: "阈值、微盘与带宽网格"
+    family: parameter-robustness
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "08-18冻结的按标的阈值、微盘上界/联合网格、带宽曲线和参数稳定性诊断。"
+    claim: "已测网格没有产生足以替换现役的稳健配置。"
+    non_claims: ["不证明阈值或股票池边界永远无需调整。"]
+    caveats: ["多项结果属于局部网格和诊断，不构成全局优化。"]
+    reopen_condition: "数据分布或生产标的显著变化时先冻结新网格。"
+    production: {affects: false, role: closed_grid}
+    documents:
+      spec: [docs/plans/2026-08-18-threshold-by-underlying.md, docs/plans/2026-08-18-microcap-joint-grid.md]
+      report: [docs/plans/2026-08-18-microcap-upper-bound.md, docs/plans/2026-08-18-band-fidelity-curve.md, docs/plans/2026-08-18-param-stability-diagnostic.md]
+      evidence: [backtest/output/threshold_selection_verdict.json, backtest/output/joint_grid_verdict.json, backtest/output/param_stability_probe.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: tail-fifth-bucket
+    title: "尾部第五桶"
+    family: style-basket-structure
+    status: closed
+    outcome: stop
+    evidence_level: immutable_formal_run
+    scope: "r3预登记的四对加尾部第五对、完整生产库重验和原三道门。"
+    claim: "当前架构下尾部增量不可辨认，正式结果维持STOP。"
+    non_claims: ["不等于尾部股票没有信息。"]
+    caveats: ["等权稀释、PIT回退和当前样本会压缩可辨识增量。"]
+    reopen_condition: "更长更新鲜PIT窗口或改变稀释架构后新预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-18-fifth-bucket-preregistration.md, docs/plans/2026-08-18-fifth-bucket-preregistration-r2-DRAFT.md, docs/plans/2026-08-18-fifth-bucket-scoping.md, docs/plans/2026-08-19-fifth-bucket-preregistration-r3.md]
+      report: [docs/plans/2026-08-26-clean-evidence-revalidation-execution.md]
+      evidence: [backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs/fifth_bucket_verdict.json]
+    supersedes: []
+    depends_on: [gate0r-data-foundation]
+
+  - id: geometric-five-bucket
+    title: "等比五桶全替换"
+    family: style-basket-structure
+    status: closed
+    outcome: stop
+    evidence_level: immutable_formal_run
+    scope: "08-19预登记的等比五桶全替换候选及冻结门槛。"
+    claim: "当前实现下两种划法不可辨认，正式结果维持STOP。"
+    non_claims: ["不等于任何重划方式都无价值。"]
+    caveats: ["候选自建序列与现役官方发布序列存在信息口径不对称。"]
+    reopen_condition: "新候选须说明如何逃出多重平均钝化并重新预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-08-19-geometric-5buckets-preregistration.md]
+      report: [docs/plans/2026-08-19-geometric-5buckets-verdict.md]
+      evidence: [backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs/geo5_verdict.json]
+    supersedes: []
+    depends_on: [gate0r-data-foundation]
+
+  - id: axes-batch-1
+    title: "新轴批次一"
+    family: rotation-axis
+    status: closed
+    outcome: all_fail
+    evidence_level: immutable_formal_run
+    scope: "低波、动量、流动性、股息四轴在冻结同窗、PIT回填和功效门槛下的entry ticket。"
+    claim: "四轴均未过闸，当前功效下ALL_FAIL。"
+    non_claims: ["不等于这些轴没有任何增量信息。"]
+    caveats: ["股息轴贴线读数仅作未来排队参考。"]
+    reopen_condition: "新证据或更长评窗并重新预登记后重开。"
+    production: {affects: false, role: closed_axis_batch}
+    documents:
+      spec: [docs/plans/2026-08-24-new-rotation-axes-entry-ticket.md, docs/plans/2026-08-26-axes-pit-indicator-revalidation.md]
+      report: [docs/plans/2026-08-26-axes-pit-indicator-revalidation.md]
+      evidence: [backtest/output/runs/20260826T222036-axes-ticket-ecf1907/outputs/axis_ticket_verdict.json]
+    supersedes: []
+    depends_on: [gate0r-data-foundation]
+
+  - id: axes-batch-2-quality
+    title: "新轴批次二质量轴"
+    family: rotation-axis
+    status: closed
+    outcome: all_fail
+    evidence_level: immutable_formal_run
+    scope: "质量轴在批次二冻结设计、PIT回填和同一功效门槛下的entry ticket。"
+    claim: "质量轴未过闸，当前功效下ALL_FAIL。"
+    non_claims: ["不等于质量信息普遍无效。"]
+    caveats: ["受stock_indicator起点和冻结窗口约束。"]
+    reopen_condition: "获得更长评窗或新质量定义并重新预登记。"
+    production: {affects: false, role: closed_axis_batch}
+    documents:
+      spec: [docs/plans/2026-08-24-quality-axis-entry-ticket-b2.md, docs/plans/2026-08-26-axes-pit-indicator-revalidation.md]
+      report: [docs/plans/2026-08-26-axes-pit-indicator-revalidation.md]
+      evidence: [backtest/output/runs/20260826T223022-axes-ticket-06776ab/outputs/axis_ticket_verdict.json]
+    supersedes: []
+    depends_on: [gate0r-data-foundation]
+
+  - id: dual-engine-v1
+    title: "双引擎v1"
+    family: execution-engine
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "Phase 3定义的双引擎v1候选和当时评估窗口。"
+    claim: "已测v1候选停止推进。"
+    non_claims: ["不替代后续dual-channel的独立正式裁决。"]
+    caveats: ["属于早期框架下候选。"]
+    reopen_condition: "新执行引擎机制须独立预登记。"
+    production: {affects: false, role: superseded_candidate}
+    documents:
+      spec: [docs/plans/2026-07-06-phase3-dual-engine-v1-plan.md]
+      report: [docs/plans/2026-07-06-phase3-dual-engine-v1-plan.md]
+      evidence: [backtest/output/dual_engine_metrics.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: breadth-divergence
+    title: "广度与背离早期候选"
+    family: market-breadth
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "Phase 4已测breadth/divergence规格和方向。"
+    claim: "冻结候选停止推进。"
+    non_claims: ["不否定所有市场广度定义。"]
+    caveats: ["该记录独立于后续Probe 2的二阶背离。"]
+    reopen_condition: "新广度机制须新预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-07-07-phase4-breadth-divergence-plan.md]
+      report: [docs/plans/2026-07-07-phase4-breadth-divergence-plan.md]
+      evidence: [backtest/output/breadth_divergence_metrics.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: leverage-probe
+    title: "两融轴"
+    family: leverage-axis
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "07-08设计冻结的两融指标、方向和窗口。"
+    claim: "已测两融候选未过闸。"
+    non_claims: ["不外推为两融数据永远无效。"]
+    caveats: ["可用历史和数据口径限制结论范围。"]
+    reopen_condition: "更长高质量两融历史或新机制下重新预登记。"
+    production: {affects: false, role: closed_axis}
+    documents:
+      spec: [docs/plans/2026-07-08-leverage-probe-design.md]
+      report: [docs/plans/2026-07-08-leverage-probe-design.md]
+      evidence: [backtest/output/leverage_probe_verdicts.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: thermo-probe
+    title: "市场温度轴"
+    family: market-thermometer
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "07-08冻结的涨跌停与市场温度候选。"
+    claim: "指定温度候选未过闸。"
+    non_claims: ["不否定所有情绪或温度指标。"]
+    caveats: ["只覆盖既定温度构造。"]
+    reopen_condition: "新情绪数据或不同形成机制须独立预登记。"
+    production: {affects: false, role: closed_axis}
+    documents:
+      spec: [docs/plans/2026-07-08-thermo-probe-design.md]
+      report: [docs/plans/2026-07-08-thermo-probe-design.md]
+      evidence: [backtest/output/thermo_probe_verdicts.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: rotation-short-window
+    title: "行业轮动短窗命题"
+    family: industry-rotation
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "B2派生的rotation短窗定义和07-08冻结测试。"
+    claim: "指定短窗轮动命题停止推进。"
+    non_claims: ["不否定其他轮动目标或更长样本。"]
+    caveats: ["属于B2分解后的局部命题。"]
+    reopen_condition: "新轮动目标须给出独立机制和预登记。"
+    production: {affects: false, role: closed_axis}
+    documents:
+      spec: [docs/plans/2026-07-08-rotation-probe-design.md]
+      report: [docs/plans/2026-07-08-rotation-probe-design.md]
+      evidence: [backtest/output/rotation_probe.csv]
+    supersedes: []
+    depends_on: [b2-industry-neutral]
+
+  - id: long-axes-probes
+    title: "旧长轴批次"
+    family: rotation-axis
+    status: closed
+    outcome: all_fail
+    evidence_level: committed_formal_probe
+    scope: "07-09文档中广度多头、ERP等可执行长轴候选；C1基差另列blocked。"
+    claim: "已测长轴候选在冻结门槛下均未通过。"
+    non_claims: ["不包含因数据新鲜度阻塞的C1基差复检。"]
+    caveats: ["各轴受自身数据起点和功效限制。"]
+    reopen_condition: "新数据或新定义必须逐轴重新预登记。"
+    production: {affects: false, role: closed_axis_batch}
+    documents:
+      spec: [docs/plans/2026-07-09-long-axes-probe-design.md]
+      report: [docs/plans/2026-07-09-long-axes-probe-design.md]
+      evidence: [backtest/output/long_axes_probe_verdicts.csv, backtest/output/erp_probe_verdicts.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: momentum-transform
+    title: "动量变换扫描"
+    family: momentum-transform
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "07-10冻结的动量变换扫描和head-to-head替换门槛。"
+    claim: "替代候选未过更换主信号门槛。"
+    non_claims: ["不取消文档中已登记的第一替补语义。"]
+    caveats: ["扫描结论限于冻结变换集合。"]
+    reopen_condition: "新变换须说明经济机制并控制再次选择。"
+    production: {affects: false, role: first_alternate_only}
+    documents:
+      spec: [docs/plans/2026-07-10-momentum-transform-scan-design.md]
+      report: [docs/plans/2026-07-10-momentum-transform-scan-design.md]
+      evidence: [backtest/output/momentum_head2head.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: yearly-concentration
+    title: "年度集中度诊断"
+    family: robustness-diagnostic
+    status: research_only
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: "现役与未来挑战者的逐年收益集中度及最强年份依赖诊断。"
+    claim: "作为常规稳健性诊断保留，不单独决定GO/STOP。"
+    non_claims: ["不是独立生产信号。"]
+    caveats: ["年度切分功效有限。"]
+    reopen_condition: "当新候选进入正式门槛时同步更新诊断。"
+    production: {affects: false, role: diagnostic}
+    documents:
+      spec: [docs/plans/2026-07-12-yearly-concentration-design.md]
+      report: [docs/plans/2026-07-12-yearly-concentration-design.md]
+      evidence: [backtest/output/yearly_concentration.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: basis-c1-retest
+    title: "C1基差复检"
+    family: futures-basis
+    status: blocked
+    outcome: pending
+    evidence_level: exploratory
+    scope: "C1基差轴在futures_daily新鲜度恢复并积累新增样本后的预登记复检。"
+    claim: "当前仅记录数据阻塞，不形成有效性裁决。"
+    non_claims: ["不把数据阻塞写成候选失败。"]
+    caveats: ["历史futures_daily缺口和样本增长不足。"]
+    reopen_condition: "补齐并审计futures_daily，且新增样本达到预登记最低要求。"
+    production: {affects: false, role: blocked_retest}
+    documents:
+      spec: [docs/plans/2026-07-09-long-axes-probe-design.md]
+      report: [docs/plans/2026-08-25-futures-daily-gap-runbook.md]
+      evidence: []
+    supersedes: []
+    depends_on: [long-axes-probes]
+
+  - id: adaptive-bucket
+    title: "自适应桶探索"
+    family: classifier-swap
+    status: research_only
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: "classifier-swap论证中的adaptive-bucket探索性比较。"
+    claim: "保留为研究观察，不形成正式verdict或生产候选。"
+    non_claims: ["legacy snapshot不证明生成代码版本。"]
+    caveats: ["证据是提交后的legacy snapshot。"]
+    reopen_condition: "先冻结正式规格、闸门和措辞，再生成不可变run。"
+    production: {affects: false, role: research_probe}
+    documents:
+      spec: [docs/plans/2026-08-20-classifier-swap-argument.md]
+      report: [docs/plans/2026-08-20-classifier-swap-argument.md]
+      evidence: [backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/outputs/adaptive_bucket_compare_report.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: mixed-ensemble
+    title: "混合集成探索"
+    family: classifier-swap
+    status: research_only
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: "classifier-swap论证中的mixed-ensemble探索性比较。"
+    claim: "保留为研究观察，不形成正式verdict或生产候选。"
+    non_claims: ["legacy snapshot不证明生成代码版本。"]
+    caveats: ["尚未有冻结正式机器裁决。"]
+    reopen_condition: "先冻结正式规格、闸门和措辞，再生成不可变run。"
+    production: {affects: false, role: research_probe}
+    documents:
+      spec: [docs/plans/2026-08-20-classifier-swap-argument.md]
+      report: [docs/plans/2026-08-20-classifier-swap-argument.md]
+      evidence: [backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/outputs/mixed_ensemble_probe_report.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: rotation-target
+    title: "轮动目标探索"
+    family: classifier-swap
+    status: research_only
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: "classifier-swap论证中的rotation-target探索。"
+    claim: "保留为研究观察，不形成正式verdict或生产候选。"
+    non_claims: ["不等于早期rotation短窗命题被重开。"]
+    caveats: ["证据仅为legacy snapshot。"]
+    reopen_condition: "先冻结正式规格和门槛再进入裁决。"
+    production: {affects: false, role: research_probe}
+    documents:
+      spec: [docs/plans/2026-08-20-classifier-swap-argument.md]
+      report: [docs/plans/2026-08-20-classifier-swap-argument.md]
+      evidence: [backtest/output/runs/20260821T000000-legacy-pre-p0-2c17b32/outputs/rotation_target_probe.csv]
+    supersedes: []
+    depends_on: [rotation-short-window]
+
+  - id: signal-generator-ewma-std
+    title: "EWMA-std生成器prescreen"
+    family: signal-generator
+    status: closed
+    outcome: stop
+    evidence_level: committed_prescreen
+    scope: "08-26文档指定的EWMA-std分母、参数和prescreen门槛。"
+    claim: "该固定配置停止推进，并降低线性滤波再参数化优先级。"
+    non_claims: ["不构成整个EWMA或线性滤波方法族的实证否定。"]
+    caveats: ["证据等级为prescreen，不是正式不可变run。"]
+    reopen_condition: "只有新的机制性配置和独立功效论证才重开。"
+    production: {affects: false, role: closed_prescreen}
+    documents:
+      spec: [docs/plans/2026-08-26-signal-generator-prescreens.md]
+      report: [docs/plans/2026-08-26-signal-generator-prescreens.md]
+      evidence: [docs/plans/2026-08-26-signal-generator-prescreens/ewma_output.txt]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: signal-generator-cusum-hamilton
+    title: "CUSUM/Hamilton生成器prescreen"
+    family: signal-generator
+    status: closed
+    outcome: stop
+    evidence_level: committed_prescreen
+    scope: "08-26文档固定的CUSUM与Hamilton规格和prescreen门槛。"
+    claim: "这两个固定规格停止推进。"
+    non_claims: ["ML生成器未实测，不能写成实证失败。"]
+    caveats: ["ML只因功效先验不立项。"]
+    reopen_condition: "新规格须先解决短样本功效并预登记。"
+    production: {affects: false, role: closed_prescreen}
+    documents:
+      spec: [docs/plans/2026-08-26-signal-generator-prescreens.md]
+      report: [docs/plans/2026-08-26-signal-generator-prescreens.md]
+      evidence: [docs/plans/2026-08-26-signal-generator-prescreens/cusum_hmm_output.txt]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: signal-generator-smoothing
+    title: "raw/DEMA平滑插点"
+    family: signal-generator
+    status: closed
+    outcome: stop
+    evidence_level: committed_prescreen
+    scope: "raw、DEMA(5)、DEMA(7)插点比较及文档冻结门槛。"
+    claim: "已测插点范围停止推进。"
+    non_claims: ["不否定所有平滑方法或窗口。"]
+    caveats: ["仅为固定插点的prescreen。"]
+    reopen_condition: "新平滑机制须独立预登记而非继续同样本搜参。"
+    production: {affects: false, role: closed_prescreen}
+    documents:
+      spec: [docs/plans/2026-08-26-signal-generator-prescreens.md]
+      report: [docs/plans/2026-08-26-signal-generator-prescreens.md]
+      evidence: [docs/plans/2026-08-26-signal-generator-prescreens/dema_output.txt]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: b1-style-replication
+    title: "B1风格篮子复现"
+    family: style-basket-foundation
+    status: closed
+    outcome: pass
+    evidence_level: committed_formal_probe
+    scope: "07-08 B1定义的风格篮子复现目标和验收指标。"
+    claim: "复现目标完成，为后续结构研究提供底座。"
+    non_claims: ["底座复现PASS不等于任何新增候选GO。"]
+    caveats: ["后续数据修复和Gate 0R另有独立证据。"]
+    reopen_condition: "官方方法或底层数据口径变更时重验。"
+    production: {affects: false, role: validated_foundation}
+    documents:
+      spec: [docs/plans/2026-07-08-b1-style-basket-replication.md]
+      report: [docs/plans/2026-07-08-b1-style-basket-replication.md]
+      evidence: [backtest/output/pure_style_eval.csv]
+    supersedes: []
+    depends_on: []
+
+  - id: b2-industry-neutral
+    title: "B2行业中性分解"
+    family: style-basket-foundation
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "07-08 B2行业中性测量分解及切换主信号门槛。"
+    claim: "测量分解完成，但切换生产主信号未过闸。"
+    non_claims: ["不把测量完成误写成生产候选GO。"]
+    caveats: ["派生rotation短窗命题另列记录。"]
+    reopen_condition: "行业分类或中性化机制实质改变时重新预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-07-08-b2-industry-neutral-decomposition.md]
+      report: [docs/plans/2026-07-08-b2-industry-neutral-decomposition.md]
+      evidence: [backtest/output/underlying_probe.csv]
+    supersedes: []
+    depends_on: [b1-style-replication]
+
+  - id: b3-continuous-style-state
+    title: "B3连续风格状态"
+    family: continuous-style-state
+    status: provisional
+    outcome: data_blocked
+    evidence_level: legacy_formal_archive
+    scope: "冻结B3候选、旧近似PIT正式统计裁决，以及等待真首披模型行覆盖审计的最终裁决。"
+    claim: "旧统计verdict为STOP，但最终verdict仍为DATA_BLOCKED，尚不能终局关账。"
+    non_claims: ["不把旧近似PIT结果升级成真首披终局结论。", "coverage ready也不证明B3因子有效。"]
+    caveats: ["缺失或无效首披日仍回退法定截止日。", "Git内archive仅含10文件review core。"]
+    reopen_condition: "实际B3模型行真首披覆盖100%，再按冻结设计正式重跑并按原判据裁决。"
+    production: {affects: false, role: provisional_data_blocked}
+    documents:
+      spec: [docs/plans/2026-08-14-pit-foundation-handover-proposal.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
+      report: [docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
+      evidence: [data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/verdicts.csv, data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/run_manifest.json]
+    supersedes: []
+    depends_on: [gate0r-data-foundation]
+
+  - id: gate0r-data-foundation
+    title: "Gate 0R数据底座"
+    family: style-basket-foundation
+    status: closed
+    outcome: pass
+    evidence_level: immutable_formal_run
+    scope: "B1复制根因、方法审计、DP修复、锚重登及2026-08-26完整生产库重验。"
+    claim: "当前锚和完整生产库重验pass=true，底座可供后续冻结研究使用。"
+    non_claims: ["底座PASS不等于第五桶、等比五桶或B3候选GO。"]
+    caveats: ["规格或DP数据变更会使当前锚失效。"]
+    reopen_condition: "底层规格、官方方法或DP数据再次变化时先重验并重登锚。"
+    production: {affects: false, role: validated_foundation}
+    documents:
+      spec: [docs/plans/2026-08-18-style-index-methodology-audit.md, docs/plans/2026-08-19-replication-improvement-plan.md, docs/plans/2026-08-20-data-foundation-repair.md]
+      report: [docs/plans/2026-08-18-gate0-replication-result.md, docs/plans/2026-08-18-replication-root-cause.md, docs/plans/2026-08-19-gate0-execution-record.md, docs/plans/2026-08-25-gate0-anchor-contamination.md, docs/plans/2026-08-26-clean-evidence-revalidation-execution.md]
+      evidence: [backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/manifest.json]
+    supersedes: []
+    depends_on: [b1-style-replication]
+
+  - id: carry-mode
+    title: "IC/IM承载模式"
+    family: execution-carry
+    status: research_only
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: "08-24对IC、IM和blend承载及carry影响的描述性分析。"
+    claim: "只用于理解承载差异，不形成独立GO/STOP候选。"
+    non_claims: ["不声称历史carry序列当前完全新鲜。"]
+    caveats: ["受futures_daily覆盖和维护状态约束。"]
+    reopen_condition: "futures数据底座更新后可刷新描述性结果。"
+    production: {affects: false, role: diagnostic}
+    documents:
+      spec: [docs/plans/2026-08-24-carry-carrying-mode-descriptive.md]
+      report: [docs/plans/2026-08-24-carry-carrying-mode-descriptive.md]
+      evidence: [docs/plans/2026-08-24-carry-carrying-mode-descriptive.md]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
+  - id: equal-weight-5d20z
+    title: "equal_weight 5d20z"
+    family: production-monitoring
+    status: research_only
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "当前日更链中的equal_weight 5d20z变体及既有同秤证据。"
+    claim: "不作为生产候选，本阶段不改变其日更链位置。"
+    non_claims: ["不等于已决定永久删除该序列。"]
+    caveats: ["后续仍需单独决定保留研究监控或退出生成链。"]
+    reopen_condition: "只有新预登记用途或退出日更链决策时更新状态。"
+    production: {affects: false, role: research_monitor}
+    documents:
+      spec: [docs/plans/2026-06-18-equal-weight-signal-design.md]
+      report: [docs/plans/2026-06-18-equal-weight-signal-design.md]
+      evidence: [backtest/output/baseline_metrics.csv]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]

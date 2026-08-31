@@ -3,7 +3,16 @@ from pathlib import Path
 import pytest
 import yaml
 
-from tools.research_registry import load_registry, validate_registry
+from tools.research_registry import (
+    load_registry,
+    render_readme,
+    replace_generated_block,
+    validate_registry,
+)
+
+ROOT = Path(__file__).resolve().parents[1]
+REGISTRY = ROOT / "docs" / "plans" / "research_registry.yaml"
+README = ROOT / "docs" / "plans" / "README.md"
 
 
 def valid_payload():
@@ -92,3 +101,32 @@ def test_load_registry_rejects_non_mapping_yaml(tmp_path):
     path.write_text("- not-a-mapping\n", encoding="utf-8")
     with pytest.raises(ValueError, match="top level must be a mapping"):
         load_registry(path)
+
+
+def test_repository_registry_is_valid_and_covers_decision_documents():
+    payload = load_registry(REGISTRY)
+    assert validate_registry(payload, ROOT) == []
+
+
+def test_dual_channel_preserves_dual_engine_as_independent_verdict():
+    payload = load_registry(REGISTRY)
+    studies = {study["id"]: study for study in payload["studies"]}
+    assert "dual-engine-v1" not in studies["dual-channel"]["supersedes"]
+
+
+def test_readme_is_exact_registry_render():
+    payload = load_registry(REGISTRY)
+    current = README.read_text(encoding="utf-8")
+    assert replace_generated_block(current, render_readme(payload, README)) == current
+
+
+def test_generated_block_preserves_manual_text_outside_markers():
+    original = (
+        "prefix\n<!-- research-registry:start -->\nold\n"
+        "<!-- research-registry:end -->\nsuffix\n"
+    )
+    got = replace_generated_block(original, "new\n")
+    assert got == (
+        "prefix\n<!-- research-registry:start -->\nnew\n"
+        "<!-- research-registry:end -->\nsuffix\n"
+    )
