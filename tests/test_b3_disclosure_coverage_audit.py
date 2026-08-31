@@ -15,7 +15,7 @@ POLICIES = ["legal_deadline", "legal_deadline_plus_one_month_end"]
 def exposure_grid(verified=True):
     rows = []
     for policy in POLICIES:
-        for period in pd.period_range("2014-01", "2023-12", freq="M"):
+        for period in pd.period_range("2014-10", "2023-12", freq="M"):
             rows.append({
                 "universe_role": "model",
                 "pit_policy": policy,
@@ -31,7 +31,7 @@ def test_audit_total_is_the_existing_coverage_contract():
     frame = pd.concat([frame, pd.DataFrame([{
         "universe_role": "size_only",
         "pit_policy": POLICIES[0],
-        "formation_date": "2014-01-31",
+        "formation_date": "2014-10-31",
         "ticker": "000002.SZ",
         "true_first_disclosure_verified": False,
     }, {
@@ -44,10 +44,10 @@ def test_audit_total_is_the_existing_coverage_contract():
     summary, missing = audit_frame(frame, POLICIES)
     assert summary["coverage"] == compute_true_disclosure_coverage(frame, POLICIES)
     assert summary["coverage_ready"] is True
-    assert summary["coverage"]["required_denominator"] == 240
+    assert summary["coverage"]["required_denominator"] == 222
     assert len(summary["by_policy"]) == 2
-    assert len(summary["by_formation_month"]) == 120
-    assert len(summary["by_policy_formation_month"]) == 240
+    assert len(summary["by_formation_month"]) == 111
+    assert len(summary["by_policy_formation_month"]) == 222
     assert missing.empty
 
 
@@ -56,14 +56,14 @@ def test_partial_coverage_reports_exact_model_key():
     frame.loc[0, "true_first_disclosure_verified"] = False
     summary, missing = audit_frame(frame, POLICIES)
     assert summary["coverage_ready"] is False
-    assert summary["coverage"]["verified_numerator"] == 239
+    assert summary["coverage"]["verified_numerator"] == 221
     assert missing[["pit_policy", "formation_date", "ticker"]].to_dict("records") == [{
         "pit_policy": POLICIES[0],
-        "formation_date": "2014-01-31",
+        "formation_date": "2014-10-31",
         "ticker": "000001.SZ",
     }]
-    assert summary["by_formation_month"][0]["formation_month"] == "2014-01"
-    assert summary["by_policy_formation_month"][0]["formation_month"] == "2014-01"
+    assert summary["by_formation_month"][0]["formation_month"] == "2014-10"
+    assert summary["by_policy_formation_month"][0]["formation_month"] == "2014-10"
 
 
 @pytest.mark.parametrize("mutation", ["empty-model", "duplicate", "missing-column", "integer-bool"])

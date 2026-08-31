@@ -214,6 +214,10 @@ ORDER BY calendar_date"""
 TRADING_CALENDAR_QUERY_TEMPLATE_HASH = hashlib.sha256(
     TRADING_CALENDAR_QUERY_TEMPLATE.encode("utf-8")
 ).hexdigest()
+# Exported for tools/audit_b3_disclosure_coverage.py; derived from the frozen
+# calendar so the audit window can never drift from compute_true_disclosure_coverage.
+TRUE_DISCLOSURE_COVERAGE_START = f"{STRUCTURAL_DISCOVERY_START:%Y-%m}"
+TRUE_DISCLOSURE_COVERAGE_END = f"{_FROZEN_MODEL_END:%Y-%m}"
 TRUE_DISCLOSURE_COVERAGE_BASIS = (
     "explicit true_first_disclosure_verified on model rows for every frozen "
     f"PIT policy and formation month from "

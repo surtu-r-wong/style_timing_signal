@@ -18,6 +18,7 @@ from backtest.b3_eval import (
     VERDICT_COLUMNS,
     TRADING_CALENDAR_QUERY_TEMPLATE_HASH,
     TRUE_DISCLOSURE_COVERAGE_BASIS,
+    TRUE_DISCLOSURE_COVERAGE_START,
     EvaluationFrames,
     RunEvidence,
     PreflightManifestContract,
@@ -5149,7 +5150,7 @@ def _full_evidence(**overrides):
         "salg_valid_through": "2026-10-31",
         "true_first_disclosure_coverage": {
             "verified_numerator": 0,
-            "required_denominator": 240,
+            "required_denominator": 222,
             "ratio": 0.0,
             "coverage_basis": TRUE_DISCLOSURE_COVERAGE_BASIS,
         },
@@ -5693,7 +5694,12 @@ def test_run_evaluation_post_data_coverage_gap_blocks_but_keeps_statistics(tmp_p
     # Break true-disclosure coverage after the fact: one model row unverified.
     exposure_path = research / "monthly_exposures.csv.gz"
     exposures = pd.read_csv(exposure_path)
-    exposures.loc[0, "true_first_disclosure_verified"] = False
+    coverage_rows = exposures["universe_role"].eq("model") & pd.to_datetime(
+        exposures["formation_date"]
+    ).ge(pd.Timestamp(TRUE_DISCLOSURE_COVERAGE_START))
+    exposures.loc[
+        exposures.index[coverage_rows][0], "true_first_disclosure_verified"
+    ] = False
     exposures.to_csv(
         exposure_path,
         index=False,

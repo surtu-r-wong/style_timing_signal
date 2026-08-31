@@ -11,7 +11,12 @@ import sys
 import pandas as pd
 import yaml
 
-from backtest.b3_eval import DataBlocked, compute_true_disclosure_coverage
+from backtest.b3_eval import (
+    DataBlocked,
+    TRUE_DISCLOSURE_COVERAGE_END,
+    TRUE_DISCLOSURE_COVERAGE_START,
+    compute_true_disclosure_coverage,
+)
 from backtest.run_manifest import artifact_record, git_state
 from signals.style_basket.b3_config import CONFIG_PATH, config_hash, load_b3_config
 
@@ -53,7 +58,11 @@ def audit_frame(
     model = frame.loc[frame["universe_role"].eq("model")].copy()
     dates = pd.to_datetime(model["formation_date"], errors="raise")
     periods = dates.dt.to_period("M")
-    required_periods = pd.period_range("2014-01", "2023-12", freq="M")
+    required_periods = pd.period_range(
+        TRUE_DISCLOSURE_COVERAGE_START,
+        TRUE_DISCLOSURE_COVERAGE_END,
+        freq="M",
+    )
     required = model.loc[periods.isin(required_periods)].copy()
     required["formation_date"] = dates.loc[required.index].dt.strftime("%Y-%m-%d")
     required["formation_month"] = periods.loc[required.index].astype(str)
