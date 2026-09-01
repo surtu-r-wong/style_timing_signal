@@ -1369,7 +1369,8 @@ def _fetch_raw_financial(
                sf.ann_date AS stored_ann_date,
                sf.statement_type, sf.data, sf.data_source,
                fd.first_disclosure_date,
-               fd.quality AS disclosure_quality
+               fd.quality AS disclosure_quality,
+               fd.end_date AS first_disclosure_evidence_end_date
         FROM {db['schema']}.stock_financial AS sf
         LEFT JOIN {db['schema']}.stock_first_disclosure AS fd
           ON fd.ts_code = sf.ts_code AND fd.end_date = sf.end_date
@@ -1404,12 +1405,29 @@ def _fetch_raw_financial(
                     facts,
                     "end_date",
                 )
+                disclosure_evidence = (
+                    facts.loc[
+                        facts[
+                            "first_disclosure_evidence_end_date"
+                        ].notna(),
+                        ["ts_code", "first_disclosure_evidence_end_date"],
+                    ]
+                    .rename(
+                        columns={
+                            "first_disclosure_evidence_end_date": "end_date"
+                        }
+                    )
+                    .drop_duplicates(subset=["ts_code", "end_date"])
+                )
                 recorder.record(
                     f"{db['schema']}.stock_first_disclosure",
                     sql,
-                    facts,
+                    disclosure_evidence,
                     "end_date",
                 )
+            facts = facts.drop(
+                columns=["first_disclosure_evidence_end_date"]
+            )
             facts = _validate_raw_financial_facts(facts)
             translated = []
             for data, source, statement in zip(

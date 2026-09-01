@@ -1443,6 +1443,7 @@ _RAW_FINANCIAL_COLUMNS = [
     "data_source",
     "first_disclosure_date",
     "disclosure_quality",
+    "first_disclosure_evidence_end_date",
 ]
 
 
@@ -1493,6 +1494,7 @@ def _raw_db_row(**overrides):
         "data_source": "csmar",
         "first_disclosure_date": None,
         "disclosure_quality": "sentinel",
+        "first_disclosure_evidence_end_date": None,
     }
     row.update(overrides)
     return tuple(row[column] for column in _RAW_FINANCIAL_COLUMNS)
@@ -1511,6 +1513,19 @@ def _patch_raw_financial_connection(
         lambda db: connection,
     )
     return connection
+
+
+def _raw_financial_recorder():
+    from signals.style_basket.b3_build import DatabaseEvidenceRecorder
+
+    recorder = DatabaseEvidenceRecorder()
+    recorder.record(
+        "public.trading_calendar",
+        "SELECT calendar_date FROM public.trading_calendar",
+        pd.DataFrame({"calendar_date": [pd.Timestamp("2020-04-17")]}),
+        "calendar_date",
+    )
+    return recorder
 
 
 @pytest.mark.parametrize(
@@ -1640,7 +1655,14 @@ class _BatchAwareRawFinancialCursor:
         return self._current
 
 
-def _run_batch_aware_fetch(monkeypatch, rows, tickers, batch_size):
+def _run_batch_aware_fetch(
+    monkeypatch,
+    rows,
+    tickers,
+    batch_size,
+    *,
+    recorder=None,
+):
     cursor = _BatchAwareRawFinancialCursor(rows)
     connection = _RawFinancialConnection(cursor)
     monkeypatch.setattr(
@@ -1657,29 +1679,23 @@ def _run_batch_aware_fetch(monkeypatch, rows, tickers, batch_size):
         "2020-01-01",
         "2020-12-31",
         {"schema": "public"},
+        recorder=recorder,
     )
     return frame, cursor
 
 
 def test_fetch_raw_financial_joins_and_records_first_disclosure(monkeypatch):
-    from signals.style_basket.b3_build import DatabaseEvidenceRecorder
-
     connection = _patch_raw_financial_connection(
         monkeypatch,
         [
             _raw_db_row(
                 first_disclosure_date="2020-04-17",
                 disclosure_quality="ok",
+                first_disclosure_evidence_end_date="2020-03-31",
             )
         ],
     )
-    recorder = DatabaseEvidenceRecorder()
-    recorder.record(
-        "public.trading_calendar",
-        "SELECT calendar_date FROM public.trading_calendar",
-        pd.DataFrame({"calendar_date": [pd.Timestamp("2020-04-17")]}),
-        "calendar_date",
-    )
+    recorder = _raw_financial_recorder()
 
     frame = _fetch_raw_financial(
         ["X"],
@@ -1693,14 +1709,129 @@ def test_fetch_raw_financial_joins_and_records_first_disclosure(monkeypatch):
     assert frame.loc[0, "first_disclosure_date"] == pd.Timestamp(
         "2020-04-17"
     )
+    assert list(frame.columns) == _RAW_FINANCIAL_COLUMNS[:-1]
     assert (
         "LEFT JOIN public.stock_first_disclosure"
+        in connection._cursor.executed_sql[0]
+    )
+    assert (
+        "fd.end_date AS first_disclosure_evidence_end_date"
         in connection._cursor.executed_sql[0]
     )
     payload = recorder.payload()
     assert payload is not None
     assert "public.stock_financial" in payload["consumed_sources"]
     assert "public.stock_first_disclosure" in payload["consumed_sources"]
+
+
+def test_fetch_raw_financial_records_only_matched_disclosure_evidence(
+    monkeypatch,
+):
+    _patch_raw_financial_connection(
+        monkeypatch,
+        [
+            _raw_db_row(
+                disclosure_quality=None,
+                first_disclosure_evidence_end_date=None,
+            )
+        ],
+    )
+    recorder = _raw_financial_recorder()
+
+    frame = _fetch_raw_financial(
+        ["X"],
+        "2020-01-01",
+        "2020-12-31",
+        {"schema": "public"},
+        recorder=recorder,
+    )
+
+    payload = recorder.payload()
+    assert payload is not None
+    assert payload["sources"]["public.stock_financial"]["row_count"] == 1
+    disclosure = payload["sources"]["public.stock_first_disclosure"]
+    assert disclosure["row_count"] == 0
+    assert disclosure["min_date"] is None
+    assert disclosure["max_date"] is None
+    assert list(frame.columns) == _RAW_FINANCIAL_COLUMNS[:-1]
+
+
+def test_fetch_raw_financial_deduplicates_matched_disclosure_evidence(
+    monkeypatch,
+):
+    marker = "2020-03-31"
+    rows = [
+        _raw_db_row(
+            statement_type="income",
+            disclosure_quality=None,
+            first_disclosure_evidence_end_date=marker,
+        ),
+        _raw_db_row(
+            statement_type="balance",
+            disclosure_quality=None,
+            first_disclosure_evidence_end_date=marker,
+        ),
+    ]
+    _patch_raw_financial_connection(monkeypatch, rows)
+    recorder = _raw_financial_recorder()
+
+    frame = _fetch_raw_financial(
+        ["X"],
+        "2020-01-01",
+        "2020-12-31",
+        {"schema": "public"},
+        recorder=recorder,
+    )
+
+    assert len(frame) == 2
+    payload = recorder.payload()
+    assert payload is not None
+    financial = payload["sources"]["public.stock_financial"]
+    disclosure = payload["sources"]["public.stock_first_disclosure"]
+    assert financial["row_count"] == 2
+    assert disclosure["row_count"] == 1
+    assert disclosure["min_date"] == "2020-03-31"
+    assert disclosure["max_date"] == "2020-03-31"
+    assert (
+        financial["query_template_hash"]
+        == disclosure["query_template_hash"]
+    )
+
+
+def test_fetch_raw_financial_aggregates_disclosure_evidence_across_batches(
+    monkeypatch,
+):
+    rows = [
+        _raw_db_row(
+            ts_code="X",
+            first_disclosure_evidence_end_date="2020-03-31",
+        ),
+        _raw_db_row(
+            ts_code="Y",
+            end_date="2020-06-30",
+            stored_ann_date="2020-07-15",
+            first_disclosure_evidence_end_date="2020-06-30",
+        ),
+    ]
+    recorder = _raw_financial_recorder()
+
+    frame, cursor = _run_batch_aware_fetch(
+        monkeypatch,
+        rows,
+        ["Y", "X"],
+        1,
+        recorder=recorder,
+    )
+
+    assert len(frame) == 2
+    assert cursor.executed_ticker_chunks == [["X"], ["Y"]]
+    payload = recorder.payload()
+    assert payload is not None
+    assert payload["sources"]["public.stock_financial"]["row_count"] == 2
+    disclosure = payload["sources"]["public.stock_first_disclosure"]
+    assert disclosure["row_count"] == 2
+    assert disclosure["min_date"] == "2020-03-31"
+    assert disclosure["max_date"] == "2020-06-30"
 
 
 def test_fetch_raw_financial_batches_tickers_and_matches_single_query(
