@@ -413,6 +413,41 @@ def test_month_exposures_reports_and_strips_unverified_dependencies():
     assert "_unverified_dependency_keys" not in flattened.columns
 
 
+def test_month_exposures_serializes_timestamp_ticker_diagnostics():
+    snapshot = _explicit_snapshot()
+    tickers = pd.date_range(
+        "2000-01-01",
+        periods=len(snapshot),
+        freq="D",
+    )
+    snapshot["ticker"] = tickers
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    snapshot.at[0, "true_first_disclosure_verified"] = False
+    snapshot.at[0, "_unverified_dependency_keys"] = ("X",)
+
+    result = compute_month_exposures(snapshot, load_b3_config())
+
+    details = json.loads(
+        result.diagnostics[
+            "unverified_first_disclosure_dependencies_json"
+        ]
+    )
+    assert details == [
+        {
+            "ticker": str(tickers[0]),
+            "dependencies": ["X"],
+        }
+    ]
+    json.dumps(
+        result.diagnostics,
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+
+
 def test_month_exposures_empty_provenance_preserves_legacy_numbers():
     snapshot = _explicit_snapshot()
     legacy = compute_month_exposures(snapshot, load_b3_config())
@@ -467,6 +502,49 @@ def test_month_exposures_private_dependencies_without_public_flag_blocks():
     )
 
     with pytest.raises(DataBlocked, match="public"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+@pytest.mark.parametrize(
+    "duplicated_columns",
+    [
+        pytest.param(
+            ["true_first_disclosure_verified"],
+            id="duplicate-public",
+        ),
+        pytest.param(
+            ["_unverified_dependency_keys"],
+            id="duplicate-private",
+        ),
+        pytest.param(
+            [
+                "true_first_disclosure_verified",
+                "_unverified_dependency_keys",
+            ],
+            id="duplicate-both",
+        ),
+    ],
+)
+def test_month_exposures_rejects_duplicate_provenance_columns(
+    duplicated_columns,
+):
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    for column in duplicated_columns:
+        snapshot.insert(
+            len(snapshot.columns),
+            column,
+            snapshot[column],
+            allow_duplicates=True,
+        )
+
+    with pytest.raises(
+        DataBlocked,
+        match=r"(?=.*duplicate)(?=.*provenance)",
+    ):
         compute_month_exposures(snapshot, load_b3_config())
 
 

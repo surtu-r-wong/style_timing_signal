@@ -407,6 +407,19 @@ def compute_month_exposures(
     if missing:
         raise DataBlocked("snapshot is missing required columns: " + ", ".join(missing))
 
+    public_provenance = "true_first_disclosure_verified"
+    private_provenance = "_unverified_dependency_keys"
+    duplicate_provenance = [
+        column
+        for column in (public_provenance, private_provenance)
+        if snapshot.columns.tolist().count(column) > 1
+    ]
+    if duplicate_provenance:
+        raise DataBlocked(
+            "duplicate provenance columns: "
+            + ", ".join(duplicate_provenance)
+        )
+
     frame = snapshot.copy()
     if frame["ticker"].isna().any():
         raise DataBlocked("ticker contains missing values")
@@ -421,8 +434,6 @@ def compute_month_exposures(
     size_mask, model_mask, exemption = _eligibility_masks(
         frame, resolve_data_materiality_threshold(cfg)
     )
-    public_provenance = "true_first_disclosure_verified"
-    private_provenance = "_unverified_dependency_keys"
     has_public_provenance = public_provenance in frame.columns
     has_private_provenance = private_provenance in frame.columns
     provenance_diagnostics: dict[str, int | str] = {}
@@ -467,7 +478,7 @@ def compute_month_exposures(
             if stable_keys:
                 details.append(
                     {
-                        "ticker": ticker,
+                        "ticker": str(ticker),
                         "dependencies": list(stable_keys),
                     }
                 )
