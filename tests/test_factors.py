@@ -384,6 +384,69 @@ def test_unselected_restatement_cannot_fill_invalid_first_provenance():
         pit_ttm_with_known(income)
 
 
+def test_ttm_provenance_rejects_value_row_with_later_announcement():
+    """value 实际来自晚披露行时，冻结 known_date 无法准确表达，必须 fail closed。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance()
+    income.loc[0, "value"] = np.nan
+    value_row = income.iloc[[0]].copy()
+    value_row["ann_date"] = value_row["ann_date"] + pd.Timedelta(days=10)
+    value_row["value"] = 10.0
+    value_row["true_first_disclosure_verified"] = False
+    value_row["unverified_dependency_keys"] = [("later-value",)]
+    income = pd.concat([income, value_row], ignore_index=True)
+
+    with pytest.raises(ValueError, match="provenance"):
+        pit_ttm_with_known(income)
+
+
+def test_ttm_provenance_uses_value_row_when_announcement_matches():
+    """同披露日首行 value 为空时，依赖绑定实际提供 value 的同行。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance()
+    income.loc[0, "value"] = np.nan
+    value_row = income.iloc[[0]].copy()
+    value_row["value"] = 10.0
+    value_row["true_first_disclosure_verified"] = False
+    value_row["unverified_dependency_keys"] = [("same-day-value",)]
+    income = pd.concat([income, value_row], ignore_index=True)
+
+    got = pit_ttm_with_known(income)
+
+    row = got.loc[pd.Timestamp("2020-03-31")]
+    assert row["ttm"] == 102.0
+    assert row["true_first_disclosure_verified"] is False
+    assert row["unverified_dependency_keys"] == ("same-day-value",)
+
+
+def test_legacy_groupby_first_value_and_known_date_remain_frozen():
+    """无 provenance 的同构输入仍沿用逐列 groupby.first 数值与 known_date 语义。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance().drop(
+        columns=["true_first_disclosure_verified", "unverified_dependency_keys"]
+    )
+    income.loc[0, "value"] = np.nan
+    value_row = income.iloc[[0]].copy()
+    value_row["ann_date"] = value_row["ann_date"] + pd.Timedelta(days=10)
+    value_row["value"] = 10.0
+    income = pd.concat([income, value_row], ignore_index=True)
+
+    got = pit_ttm_with_known(income)
+
+    assert list(got.columns) == ["ttm", "known_date"]
+    assert got.loc[pd.Timestamp("2019-12-31"), "ttm"] == 100.0
+    assert got.loc[pd.Timestamp("2019-12-31"), "known_date"] == pd.Timestamp(
+        "2020-01-30"
+    )
+    assert got.loc[pd.Timestamp("2020-03-31"), "ttm"] == 102.0
+    assert got.loc[pd.Timestamp("2020-03-31"), "known_date"] == pd.Timestamp(
+        "2020-04-30"
+    )
+
+
 def test_ttm_without_provenance_preserves_legacy_schema():
     """公共 B1 facts 不含 provenance 时，输出 schema 必须完全不变。"""
     from signals.common.factors import pit_ttm_with_known

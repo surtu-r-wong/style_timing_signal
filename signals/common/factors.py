@@ -304,12 +304,29 @@ def pit_ttm_with_known(df: pd.DataFrame) -> pd.DataFrame:
             )
         return pd.DataFrame(columns=columns)
     df = df.sort_values(["end_date", "ann_date"])
-    first_rows = df.drop_duplicates("end_date", keep="first") if has_provenance else None
+    provenance_rows = None
+    if has_provenance:
+        first_rows = df.drop_duplicates("end_date", keep="first").set_index("end_date")
+        value_rows = (
+            df[df["value"].notna()]
+            .drop_duplicates("end_date", keep="first")
+            .set_index("end_date")
+        )
+        provenance_rows = pd.concat(
+            [value_rows, first_rows.loc[~first_rows.index.isin(value_rows.index)]]
+        )
     df = df.groupby("end_date", as_index=False).first()
-    if first_rows is not None:
-        first_rows = first_rows.set_index("end_date").reindex(df["end_date"])
+    if provenance_rows is not None:
+        provenance_rows = provenance_rows.reindex(df["end_date"])
+        frozen_ann = df["ann_date"].reset_index(drop=True)
+        value_ann = provenance_rows["ann_date"].reset_index(drop=True)
+        same_ann = frozen_ann.eq(value_ann) | (frozen_ann.isna() & value_ann.isna())
+        if not same_ann.all():
+            raise ValueError(
+                "invalid provenance: value row announcement differs from known_date row"
+            )
         for column in _PROVENANCE_COLUMNS:
-            df[column] = first_rows[column].to_numpy(copy=True)
+            df[column] = provenance_rows[column].to_numpy(copy=True)
     ytd = pd.Series(df["value"].to_numpy(dtype=float), index=pd.DatetimeIndex(df["end_date"]))
     single = quarterize_ytd(ytd)
     periods = pd.PeriodIndex(single.index, freq="Q")
