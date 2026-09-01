@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 import numpy as np
@@ -25,7 +26,7 @@ class ExposureResult:
     size: pd.DataFrame
     model: pd.DataFrame
     q: dict[str, float]
-    diagnostics: dict[str, float | int]
+    diagnostics: dict[str, float | int | str]
     #: Present only when the month was measured with an immaterial data hole.
     exemption: dict | None = None
 
@@ -38,6 +39,64 @@ DATA_MATERIALITY_THRESHOLD_KEY = "data_materiality_threshold"
 #: Lives in the B3 config so that moving it changes ``config_hash`` and leaves
 #: a fingerprint on every verdict that quotes it.
 DEFAULT_DATA_MATERIALITY_THRESHOLD = 0.0025
+
+
+def _aggregate_style_dependency_provenance(
+    factors: pd.DataFrame,
+    dependencies: pd.DataFrame,
+    style_score: pd.Series,
+) -> tuple[pd.Series, pd.Series]:
+    """Aggregate disclosure dependencies from factors used by each score."""
+    if not isinstance(factors, pd.DataFrame) or not isinstance(
+        dependencies, pd.DataFrame
+    ):
+        raise DataBlocked("style dependency inputs must be DataFrames")
+    if not isinstance(style_score, pd.Series):
+        raise DataBlocked("style score provenance input must be a Series")
+    if not factors.index.equals(dependencies.index) or not factors.columns.equals(
+        dependencies.columns
+    ):
+        raise DataBlocked("style dependency coordinates must match factors exactly")
+    if not factors.index.equals(style_score.index):
+        raise DataBlocked("style score coordinates must match factors exactly")
+
+    verified_values: list[bool] = []
+    dependency_values: list[tuple[str, ...]] = []
+    for position in range(len(factors)):
+        if pd.isna(style_score.iloc[position]):
+            verified_values.append(False)
+            dependency_values.append(())
+            continue
+
+        used_keys: set[str] = set()
+        for column_position in range(len(factors.columns)):
+            if pd.isna(factors.iloc[position, column_position]):
+                continue
+            keys = dependencies.iloc[position, column_position]
+            if not isinstance(keys, tuple) or any(
+                not isinstance(key, str) or not key for key in keys
+            ):
+                raise DataBlocked(
+                    "used style dependencies must be tuple[str, ...]"
+                )
+            used_keys.update(keys)
+        stable_keys = tuple(sorted(used_keys))
+        verified_values.append(len(stable_keys) == 0)
+        dependency_values.append(stable_keys)
+
+    verified = pd.Series(
+        verified_values,
+        index=factors.index,
+        dtype=bool,
+        name="true_first_disclosure_verified",
+    )
+    dependency_keys = pd.Series(
+        dependency_values,
+        index=factors.index,
+        dtype=object,
+        name="_unverified_dependency_keys",
+    )
+    return verified, dependency_keys
 
 
 def resolve_data_materiality_threshold(cfg: object) -> float:
@@ -362,6 +421,67 @@ def compute_month_exposures(
     size_mask, model_mask, exemption = _eligibility_masks(
         frame, resolve_data_materiality_threshold(cfg)
     )
+    public_provenance = "true_first_disclosure_verified"
+    private_provenance = "_unverified_dependency_keys"
+    has_public_provenance = public_provenance in frame.columns
+    has_private_provenance = private_provenance in frame.columns
+    provenance_diagnostics: dict[str, int | str] = {}
+    if has_private_provenance and not has_public_provenance:
+        raise DataBlocked(
+            "private disclosure dependencies require the public verification flag"
+        )
+    if has_public_provenance:
+        flags = frame[public_provenance]
+        if not flags.map(
+            lambda value: isinstance(value, (bool, np.bool_))
+        ).all():
+            raise DataBlocked(
+                "true_first_disclosure_verified must contain actual bool values"
+            )
+        flags = flags.astype(bool)
+        if not has_private_provenance:
+            if (~flags.loc[model_mask]).any():
+                raise DataBlocked(
+                    "false model verification flags require private dependencies"
+                )
+            frame[private_provenance] = pd.Series(
+                [()] * len(frame), index=frame.index, dtype=object
+            )
+
+        details: list[dict[str, object]] = []
+        model_tickers = frame.index[model_mask]
+        for ticker in model_tickers:
+            keys = frame.at[ticker, private_provenance]
+            if not isinstance(keys, tuple) or any(
+                not isinstance(key, str) or not key for key in keys
+            ):
+                raise DataBlocked(
+                    "model disclosure dependencies must be tuple[str, ...]"
+                )
+            stable_keys = tuple(sorted(set(keys)))
+            if bool(flags.loc[ticker]) != (len(stable_keys) == 0):
+                raise DataBlocked(
+                    "model disclosure verification flag disagrees with dependencies"
+                )
+            frame.at[ticker, private_provenance] = stable_keys
+            if stable_keys:
+                details.append(
+                    {
+                        "ticker": ticker,
+                        "dependencies": list(stable_keys),
+                    }
+                )
+        details.sort(key=lambda detail: str(detail["ticker"]))
+        provenance_diagnostics = {
+            "unverified_first_disclosure_model_rows": len(details),
+            "unverified_first_disclosure_dependencies_json": json.dumps(
+                details,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+        }
+
     size = frame.loc[size_mask].copy()
     model = frame.loc[model_mask].copy()
 
@@ -464,7 +584,7 @@ def compute_month_exposures(
             f"orthogonality error {max_error:.6g} exceeds tolerance {tolerance:.6g}"
         )
 
-    diagnostics: dict[str, float | int] = {
+    diagnostics: dict[str, float | int | str] = {
         "input_n": int(len(frame)),
         "size_excluded_n": int(len(frame) - len(size)),
         "model_excluded_n": int(len(frame) - len(model)),
@@ -484,7 +604,10 @@ def compute_month_exposures(
             resolve_data_materiality_threshold(cfg)
         ),
         **{name: float(value) for name, value in q.items()},
+        **provenance_diagnostics,
     }
+    size = size.drop(columns=private_provenance, errors="ignore")
+    model = model.drop(columns=private_provenance, errors="ignore")
     return ExposureResult(
         size=size,
         model=model,

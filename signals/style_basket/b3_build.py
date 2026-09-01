@@ -27,6 +27,7 @@ from signals.style_basket.b3_exposures import (
     CoverageBlocked,
     DataBlocked,
     ExposureResult,
+    _aggregate_style_dependency_provenance,
     compute_month_exposures,
 )
 from signals.style_basket.b3_portfolios import build_portfolio_panels
@@ -2400,14 +2401,26 @@ def build_policy_snapshots(
 
     facts = apply_pit_policy(raw_facts, policy)
 
+    provenance_columns = [
+        "true_first_disclosure_verified",
+        "unverified_dependency_keys",
+    ]
     empty_columns = {
-        "ttm": ["ts_code", "field", "end_date", "known_date", "ttm"],
+        "ttm": [
+            "ts_code",
+            "field",
+            "end_date",
+            "known_date",
+            "ttm",
+            *provenance_columns,
+        ],
         "slope": [
             "ts_code",
             "field",
             "end_date",
             "known_date",
             "slope",
+            *provenance_columns,
         ],
         "event": [
             "ts_code",
@@ -2415,6 +2428,7 @@ def build_policy_snapshots(
             "end_date",
             "known_date",
             "value",
+            *provenance_columns,
         ],
     }
     pool_parts: dict[str, list[pd.DataFrame]] = {
@@ -2433,6 +2447,14 @@ def build_policy_snapshots(
     for name, parts in pool_parts.items():
         if parts:
             pool = pd.concat(parts, ignore_index=True)
+            missing_provenance = sorted(
+                set(provenance_columns).difference(pool.columns)
+            )
+            if missing_provenance:
+                raise DataBlocked(
+                    f"derived {name} provenance columns are missing: "
+                    + ", ".join(missing_provenance)
+                )
             _require_columns(
                 pool,
                 set(empty_columns[name]),
@@ -2451,6 +2473,26 @@ def build_policy_snapshots(
                 ("end_date", "known_date"),
                 f"derived {name} pool",
             )
+            for flag, keys in zip(
+                pool["true_first_disclosure_verified"],
+                pool["unverified_dependency_keys"],
+            ):
+                if not isinstance(flag, (bool, np.bool_)):
+                    raise DataBlocked(
+                        f"derived {name} provenance flag must be bool"
+                    )
+                if not isinstance(keys, tuple) or any(
+                    not isinstance(key, str) or not key for key in keys
+                ):
+                    raise DataBlocked(
+                        f"derived {name} provenance dependencies must be "
+                        "tuple[str, ...]"
+                    )
+                if bool(flag) != (len(keys) == 0):
+                    raise DataBlocked(
+                        f"derived {name} provenance flag disagrees with "
+                        "dependencies"
+                    )
             pool = _deduplicate_or_block(
                 pool,
                 ("ts_code", "field", "end_date"),
@@ -2473,13 +2515,10 @@ def build_policy_snapshots(
             return selected.set_index("ts_code")
         return selected.set_index("ts_code").sort_index()
 
-    def asof_field(
-        pool: pd.DataFrame,
-        date: pd.Timestamp,
-        field: str,
+    def selected_field(
+        selected: pd.DataFrame,
         column: str,
     ) -> pd.Series:
-        selected = asof_selected(pool, date, field)
         if selected.empty:
             return pd.Series(dtype=float, name=column)
         return selected[column].rename(column)
@@ -2723,68 +2762,54 @@ def build_policy_snapshots(
             .astype(str)
         )
 
-        rev_slope_selected = asof_selected(
-            pools["slope"],
-            formation_date,
-            "rev",
-        )
+        selected_factors = {
+            "sal_g": asof_selected(
+                pools["slope"], formation_date, "rev"
+            ),
+            "pro_g": asof_selected(
+                pools["slope"], formation_date, "np"
+            ),
+            "ep": asof_selected(
+                pools["ttm"], formation_date, "np"
+            ),
+            "bp": asof_selected(
+                pools["event"], formation_date, "equity"
+            ),
+            "cfp": asof_selected(
+                pools["ttm"], formation_date, "cfo"
+            ),
+            "dp": asof_selected(
+                pools["event"], formation_date, "dps"
+            ),
+        }
+        rev_slope_selected = selected_factors["sal_g"]
         salg_source_end_date = pd.to_datetime(
             rev_slope_selected["end_date"],
             errors="coerce",
         ).reindex(base)
 
         sal_g = pd.to_numeric(
-            asof_field(
-                pools["slope"],
-                formation_date,
-                "rev",
-                "slope",
-            ),
+            selected_field(selected_factors["sal_g"], "slope"),
             errors="coerce",
         )
         pro_g = pd.to_numeric(
-            asof_field(
-                pools["slope"],
-                formation_date,
-                "np",
-                "slope",
-            ),
+            selected_field(selected_factors["pro_g"], "slope"),
             errors="coerce",
         )
         np_ttm = pd.to_numeric(
-            asof_field(
-                pools["ttm"],
-                formation_date,
-                "np",
-                "ttm",
-            ),
+            selected_field(selected_factors["ep"], "ttm"),
             errors="coerce",
         )
         cfo_ttm = pd.to_numeric(
-            asof_field(
-                pools["ttm"],
-                formation_date,
-                "cfo",
-                "ttm",
-            ),
+            selected_field(selected_factors["cfp"], "ttm"),
             errors="coerce",
         )
         equity = pd.to_numeric(
-            asof_field(
-                pools["event"],
-                formation_date,
-                "equity",
-                "value",
-            ),
+            selected_field(selected_factors["bp"], "value"),
             errors="coerce",
         )
         dps = pd.to_numeric(
-            asof_field(
-                pools["event"],
-                formation_date,
-                "dps",
-                "value",
-            ),
+            selected_field(selected_factors["dp"], "value"),
             errors="coerce",
         )
 
@@ -2812,6 +2837,29 @@ def build_policy_snapshots(
             * eligible_shares
             / eligible_market_value
         )
+        factor_dependencies = pd.DataFrame(
+            index=eligible_tickers,
+            columns=factors.columns,
+            dtype=object,
+        )
+        for factor in factors.columns:
+            selected = selected_factors[factor]
+            if selected.empty:
+                factor_dependencies[factor] = pd.Series(
+                    [()] * len(eligible_tickers),
+                    index=eligible_tickers,
+                    dtype=object,
+                )
+            else:
+                factor_dependencies[factor] = selected[
+                    "unverified_dependency_keys"
+                ].reindex(eligible_tickers)
+        if financial.any():
+            factor_dependencies.loc[financial, "cfp"] = pd.Series(
+                [()] * int(financial.sum()),
+                index=financial.index[financial],
+                dtype=object,
+            )
 
         style_score = pd.Series(
             np.nan,
@@ -2829,32 +2877,26 @@ def build_policy_snapshots(
                 "style_score"
             ].reindex(eligible_tickers)
 
+        verified = pd.Series(False, index=base, dtype=bool)
+        dependency_keys = pd.Series(
+            [()] * len(base), index=base, dtype=object
+        )
+        if len(factors):
+            eligible_verified, eligible_dependencies = (
+                _aggregate_style_dependency_provenance(
+                    factors,
+                    factor_dependencies,
+                    style_score.reindex(eligible_tickers),
+                )
+            )
+            verified.loc[eligible_tickers] = eligible_verified
+            dependency_keys.loc[eligible_tickers] = eligible_dependencies
+
         model_eligible = size_eligible & style_score.notna()
         model_reason = size_reason.copy()
         model_reason.loc[
             size_eligible & ~model_eligible
         ] = "MISSING_STYLE_SCORE"
-
-        known_facts = facts[facts["ann_date"].le(formation_date)]
-        if known_facts.empty:
-            has_csmar_dependency = pd.Series(
-                False,
-                index=base,
-                dtype=bool,
-            )
-        else:
-            has_csmar = (
-                known_facts.assign(
-                    _is_csmar=known_facts["data_source"].eq("csmar")
-                )
-                .groupby("ts_code")["_is_csmar"]
-                .any()
-            )
-            has_csmar_dependency = has_csmar.reindex(
-                base,
-                fill_value=False,
-            ).astype(bool)
-        verified = ~has_csmar_dependency
 
         snapshot = pd.DataFrame(
             {
@@ -2874,6 +2916,7 @@ def build_policy_snapshots(
                 "true_first_disclosure_verified": verified.to_numpy(
                     dtype=bool
                 ),
+                "_unverified_dependency_keys": dependency_keys.to_numpy(),
                 "close_method": close_method.to_numpy(),
                 "close_carried": carried_mask.to_numpy(dtype=bool),
             }

@@ -12,6 +12,7 @@ import pytest
 import yaml
 
 from signals.style_basket import b3_build as b3_build_module
+from signals.style_basket import b3_exposures as b3_exposures_module
 from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_build import (
     B3Sources,
@@ -278,6 +279,271 @@ def _explicit_snapshot():
     snapshot["size_exclusion_reason"] = ""
     snapshot["model_exclusion_reason"] = ""
     return snapshot
+
+
+def test_style_dependency_aggregation_ignores_unused_factor_dependencies():
+    factors = pd.DataFrame(
+        {
+            "sal_g": [0.1],
+            "pro_g": [0.2],
+            "ep": [0.3],
+            "bp": [np.nan],
+            "cfp": [np.nan],
+            "dp": [0.4],
+        },
+        index=["A"],
+    )
+    dependencies = pd.DataFrame(
+        {
+            "sal_g": [()],
+            "pro_g": [()],
+            "ep": [()],
+            "bp": [("OLD",)],
+            "cfp": [("BANK_CFP",)],
+            "dp": [()],
+        },
+        index=factors.index,
+    )
+
+    verified, keys = (
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            pd.Series([0.5], index=factors.index),
+        )
+    )
+
+    assert verified.to_dict() == {"A": True}
+    assert keys.to_dict() == {"A": ()}
+
+
+def test_style_dependency_aggregation_reports_used_dependencies_stably():
+    columns = ["sal_g", "pro_g", "ep", "bp", "cfp", "dp"]
+    factors = pd.DataFrame([[0.1] * len(columns)], columns=columns, index=["A"])
+    dependencies = pd.DataFrame(
+        [[(), (), ("Z", "X", "X"), (), (), ()]],
+        columns=columns,
+        index=factors.index,
+    )
+
+    verified, keys = (
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            pd.Series([0.5], index=factors.index),
+        )
+    )
+
+    assert verified.to_dict() == {"A": False}
+    assert keys.to_dict() == {"A": ("X", "Z")}
+
+
+@pytest.mark.parametrize("coordinate", ["index", "columns", "score_index"])
+def test_style_dependency_aggregation_requires_exact_coordinates(coordinate):
+    factors = pd.DataFrame({"ep": [0.1]}, index=["A"])
+    dependencies = pd.DataFrame({"ep": [()]}, index=["A"])
+    style_score = pd.Series([0.5], index=["A"])
+    if coordinate == "index":
+        dependencies.index = ["B"]
+    elif coordinate == "columns":
+        dependencies.columns = ["bp"]
+    else:
+        style_score.index = ["B"]
+
+    with pytest.raises(DataBlocked, match="coordinate"):
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            style_score,
+        )
+
+
+@pytest.mark.parametrize("bad_dependencies", [None, ["X"], ("X", 1), ("")])
+def test_style_dependency_aggregation_rejects_invalid_used_dependencies(
+    bad_dependencies,
+):
+    factors = pd.DataFrame({"ep": [0.1]}, index=["A"])
+    dependencies = pd.DataFrame({"ep": [bad_dependencies]}, index=["A"])
+
+    with pytest.raises(DataBlocked, match=r"tuple\[str"):
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            pd.Series([0.5], index=factors.index),
+        )
+
+
+def test_style_dependency_aggregation_does_not_validate_unscored_rows():
+    factors = pd.DataFrame({"ep": [0.1]}, index=["A"])
+    dependencies = pd.DataFrame({"ep": [None]}, index=["A"])
+
+    verified, keys = (
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            pd.Series([np.nan], index=factors.index),
+        )
+    )
+
+    assert verified.to_dict() == {"A": False}
+    assert keys.to_dict() == {"A": ()}
+
+
+def test_month_exposures_reports_and_strips_unverified_dependencies():
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    snapshot.at[0, "true_first_disclosure_verified"] = False
+    snapshot.at[0, "_unverified_dependency_keys"] = ("Z", "X", "X")
+
+    result = compute_month_exposures(snapshot, load_b3_config())
+
+    assert result.diagnostics["unverified_first_disclosure_model_rows"] == 1
+    assert result.diagnostics[
+        "unverified_first_disclosure_dependencies_json"
+    ] == '[{"dependencies":["X","Z"],"ticker":"S0000"}]'
+    for frame in (result.size, result.model):
+        assert "_unverified_dependency_keys" not in frame.columns
+        assert "true_first_disclosure_verified" in frame.columns
+    flattened = flatten_exposures(
+        {POLICY_MAIN: {pd.Timestamp("2021-01-29"): result}}
+    )
+    assert "_unverified_dependency_keys" not in flattened.columns
+
+
+def test_month_exposures_empty_provenance_preserves_legacy_numbers():
+    snapshot = _explicit_snapshot()
+    legacy = compute_month_exposures(snapshot, load_b3_config())
+    enriched_snapshot = snapshot.copy()
+    enriched_snapshot["true_first_disclosure_verified"] = True
+    enriched_snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+
+    enriched = compute_month_exposures(enriched_snapshot, load_b3_config())
+
+    pd.testing.assert_frame_equal(
+        legacy.size,
+        enriched.size.drop(columns="true_first_disclosure_verified"),
+    )
+    pd.testing.assert_frame_equal(
+        legacy.model,
+        enriched.model.drop(columns="true_first_disclosure_verified"),
+    )
+    assert legacy.q == enriched.q
+
+
+@pytest.mark.parametrize("bad_flag", [None, "True", 1, np.nan])
+def test_month_exposures_disclosure_verification_flag_requires_bool(bad_flag):
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["true_first_disclosure_verified"] = snapshot[
+        "true_first_disclosure_verified"
+    ].astype(object)
+    snapshot.loc[0, "true_first_disclosure_verified"] = bad_flag
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+
+    with pytest.raises(DataBlocked, match="bool"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_false_model_flag_without_private_dependencies_blocks():
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot.loc[0, "true_first_disclosure_verified"] = False
+
+    with pytest.raises(DataBlocked, match="dependencies"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_private_dependencies_without_public_flag_blocks():
+    snapshot = _explicit_snapshot()
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+
+    with pytest.raises(DataBlocked, match="public"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_all_true_public_flag_synthesizes_empty_provenance():
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+
+    result = compute_month_exposures(snapshot, load_b3_config())
+
+    assert result.diagnostics["unverified_first_disclosure_model_rows"] == 0
+    assert result.diagnostics[
+        "unverified_first_disclosure_dependencies_json"
+    ] == "[]"
+    assert "_unverified_dependency_keys" not in result.size.columns
+    assert "_unverified_dependency_keys" not in result.model.columns
+
+
+def test_month_exposures_size_only_false_flag_is_not_a_model_dependency():
+    snapshot = _explicit_snapshot()
+    snapshot.loc[0, "style_score"] = np.nan
+    snapshot.loc[0, "model_eligible"] = False
+    snapshot.loc[0, "model_exclusion_reason"] = "MISSING_STYLE_SCORE"
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot.loc[0, "true_first_disclosure_verified"] = False
+
+    result = compute_month_exposures(snapshot, load_b3_config())
+
+    assert result.diagnostics["unverified_first_disclosure_model_rows"] == 0
+    assert result.diagnostics[
+        "unverified_first_disclosure_dependencies_json"
+    ] == "[]"
+    assert not bool(
+        result.size.set_index("ticker").loc[
+            "S0000", "true_first_disclosure_verified"
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    "bad_dependencies",
+    [None, ["X"], ("X", 1), ("",)],
+)
+def test_month_exposures_model_dependencies_require_tuple_of_strings(
+    bad_dependencies,
+):
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    snapshot.loc[0, "true_first_disclosure_verified"] = False
+    snapshot.at[0, "_unverified_dependency_keys"] = bad_dependencies
+
+    with pytest.raises(DataBlocked, match=r"tuple\[str"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_model_flag_must_agree_with_dependencies():
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    snapshot.at[0, "_unverified_dependency_keys"] = ("X",)
+
+    with pytest.raises(DataBlocked, match="disagrees"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_legacy_schema_has_no_provenance_diagnostics():
+    result = compute_month_exposures(_explicit_snapshot(), load_b3_config())
+
+    assert "unverified_first_disclosure_model_rows" not in result.diagnostics
+    assert (
+        "unverified_first_disclosure_dependencies_json"
+        not in result.diagnostics
+    )
 
 
 def test_single_industry_snapshot_has_standardized_exposures_and_valid_legs():
@@ -575,10 +841,21 @@ def test_build_policy_snapshots_assembles_eligibility_and_provenance(
     def fake_ticker_financial_rows(facts):
         ticker = facts["ts_code"].iloc[0]
         known_date = facts["ann_date"].max()
+        dependencies = tuple(
+            sorted(
+                {
+                    key
+                    for keys in facts["unverified_dependency_keys"]
+                    for key in keys
+                }
+            )
+        )
         common = {
             "ts_code": [ticker, ticker],
             "end_date": [pd.Timestamp("2020-12-31")] * 2,
             "known_date": [known_date] * 2,
+            "true_first_disclosure_verified": [not dependencies] * 2,
+            "unverified_dependency_keys": [dependencies] * 2,
         }
         return {
             "ttm": pd.DataFrame(
@@ -704,6 +981,9 @@ def test_build_policy_snapshots_assembles_eligibility_and_provenance(
         "A", "salg_source_end_date"
     ] == pd.Timestamp("2020-12-31")
     assert not got["true_first_disclosure_verified"].any()
+    assert got.set_index("ticker").loc[
+        "A", "_unverified_dependency_keys"
+    ] == ("A|2020-12-31|income|csmar",)
 
 
 def _single_pit_fact(**overrides):
@@ -1081,10 +1361,21 @@ def _minimal_assembly_inputs():
 def _minimal_derived_rows(facts):
     ticker = facts["ts_code"].iloc[0]
     known_date = facts["ann_date"].max()
+    dependencies = tuple(
+        sorted(
+            {
+                key
+                for keys in facts["unverified_dependency_keys"]
+                for key in keys
+            }
+        )
+    )
     common = {
         "ts_code": [ticker, ticker],
         "end_date": [pd.Timestamp("2020-12-31")] * 2,
         "known_date": [known_date] * 2,
+        "true_first_disclosure_verified": [not dependencies] * 2,
+        "unverified_dependency_keys": [dependencies] * 2,
     }
     return {
         "ttm": pd.DataFrame(
@@ -1128,6 +1419,210 @@ def _patch_minimal_assembly_dependencies(
         "signals.style_basket.scoring.style_scores",
         fake_style_scores,
     )
+
+
+def _derived_rows_with_factor_dependencies(facts, dependencies_by_factor):
+    ticker = facts["ts_code"].iloc[0]
+    known_date = facts["ann_date"].max()
+
+    def provenance(factor):
+        keys = dependencies_by_factor.get((ticker, factor), ())
+        return {
+            "true_first_disclosure_verified": not keys,
+            "unverified_dependency_keys": keys,
+        }
+
+    def rows(pool, fields, values, factors):
+        return pd.DataFrame(
+            [
+                {
+                    "ts_code": ticker,
+                    "field": field,
+                    "end_date": pd.Timestamp("2020-12-31"),
+                    "known_date": known_date,
+                    pool: value,
+                    **provenance(factor),
+                }
+                for field, value, factor in zip(fields, values, factors)
+            ]
+        )
+
+    return {
+        "ttm": rows("ttm", ["np", "cfo"], [100.0, 80.0], ["ep", "cfp"]),
+        "slope": rows(
+            "slope", ["rev", "np"], [0.2, 0.1], ["sal_g", "pro_g"]
+        ),
+        "event": rows(
+            "value", ["equity", "dps"], [500.0, 0.5], ["bp", "dp"]
+        ),
+    }
+
+
+def test_snapshot_selected_dependency_mapping_covers_all_six_factors(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    dependencies = {
+        ("A", "sal_g"): ("REV",),
+        ("A", "pro_g"): ("NP_SLOPE",),
+        ("A", "ep"): ("NP_TTM",),
+        ("A", "bp"): ("EQUITY",),
+        ("A", "cfp"): ("CFO_TTM",),
+        ("A", "dp"): ("DPS",),
+    }
+    _patch_minimal_assembly_dependencies(
+        monkeypatch,
+        lambda facts: _derived_rows_with_factor_dependencies(
+            facts, dependencies
+        ),
+    )
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert not bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == (
+        "CFO_TTM",
+        "DPS",
+        "EQUITY",
+        "NP_SLOPE",
+        "NP_TTM",
+        "REV",
+    )
+
+
+def test_snapshot_verified_csmar_facts_produce_verified_model_rows(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    inputs["raw_facts"]["first_disclosure_date"] = "2021-04-30"
+    inputs["raw_facts"]["disclosure_quality"] = "ok"
+    formation = inputs["month_ends"][0]
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    snapshot = build_policy_snapshots(**inputs)[formation]
+
+    model = snapshot.loc[snapshot["model_eligible"]]
+    assert len(model) == 2
+    assert model["true_first_disclosure_verified"].all()
+    assert model["_unverified_dependency_keys"].map(len).eq(0).all()
+
+
+def test_snapshot_unused_history_does_not_block_selected_verified_factor(
+    monkeypatch,
+):
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+
+    def rows_builder(facts):
+        rows = _derived_rows_with_factor_dependencies(facts, {})
+        if facts["ts_code"].iloc[0] == "A":
+            selected = rows["slope"].loc[
+                rows["slope"]["field"].eq("rev")
+            ].iloc[0].to_dict()
+            old = {
+                **selected,
+                "end_date": pd.Timestamp("2019-12-31"),
+                "true_first_disclosure_verified": False,
+                "unverified_dependency_keys": ("OLD",),
+            }
+            rows["slope"] = pd.concat(
+                [pd.DataFrame([old]), rows["slope"]], ignore_index=True
+            )
+        return rows
+
+    _patch_minimal_assembly_dependencies(monkeypatch, rows_builder)
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == ()
+
+
+def test_snapshot_financial_cfp_dependency_is_unused(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    inputs["industry_pool"].loc[
+        inputs["industry_pool"]["ticker"].eq("A"), "industry"
+    ] = "银行"
+    formation = inputs["month_ends"][0]
+    dependencies = {("A", "cfp"): ("BANK_CFP",)}
+    _patch_minimal_assembly_dependencies(
+        monkeypatch,
+        lambda facts: _derived_rows_with_factor_dependencies(
+            facts, dependencies
+        ),
+    )
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == ()
+
+
+def test_snapshot_missing_unused_factor_dependency_does_not_block(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    dependencies = {("A", "dp"): ("MISSING_DPS",)}
+
+    def rows_builder(facts):
+        rows = _derived_rows_with_factor_dependencies(facts, dependencies)
+        if facts["ts_code"].iloc[0] == "A":
+            rows["event"].loc[
+                rows["event"]["field"].eq("dps"), "value"
+            ] = np.nan
+        return rows
+
+    _patch_minimal_assembly_dependencies(monkeypatch, rows_builder)
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == ()
+
+
+def test_snapshot_empty_provenance_pools_are_supported(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    inputs["raw_facts"] = inputs["raw_facts"].iloc[:0]
+    formation = inputs["month_ends"][0]
+    monkeypatch.setattr(
+        "signals.style_basket.build.ticker_financial_rows",
+        _minimal_derived_rows,
+    )
+
+    def fake_style_scores(factors):
+        out = factors.copy()
+        out["style_score"] = np.nan
+        return out
+
+    monkeypatch.setattr(
+        "signals.style_basket.scoring.style_scores",
+        fake_style_scores,
+    )
+
+    snapshot = build_policy_snapshots(**inputs)[formation]
+
+    assert not snapshot["true_first_disclosure_verified"].any()
+    assert snapshot["_unverified_dependency_keys"].map(len).eq(0).all()
+
+
+@pytest.mark.parametrize("bad_case", ["missing", "invalid_flag", "disagree"])
+def test_snapshot_disclosure_verification_flag_validates_derived_provenance(
+    monkeypatch,
+    bad_case,
+):
+    inputs = _minimal_assembly_inputs()
+
+    def rows_builder(facts):
+        rows = _minimal_derived_rows(facts)
+        pool = rows["ttm"]
+        if bad_case == "missing":
+            rows["ttm"] = pool.drop(columns="unverified_dependency_keys")
+        elif bad_case == "invalid_flag":
+            pool["true_first_disclosure_verified"] = "False"
+        else:
+            pool["true_first_disclosure_verified"] = True
+        return rows
+
+    _patch_minimal_assembly_dependencies(monkeypatch, rows_builder)
+
+    with pytest.raises(DataBlocked, match="provenance"):
+        build_policy_snapshots(**inputs)
 
 
 @pytest.mark.parametrize(
