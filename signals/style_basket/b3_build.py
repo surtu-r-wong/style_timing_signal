@@ -1161,21 +1161,6 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         {"ok", "sentinel"},
         "raw financial disclosure_quality",
     )
-    invalid_disclosure_contract = (
-        (out["first_disclosure_date"].notna() & missing_quality)
-        | (
-            out["first_disclosure_date"].isna()
-            & out["disclosure_quality"].eq("ok")
-        )
-        | (
-            out["first_disclosure_date"].notna()
-            & out["disclosure_quality"].eq("sentinel")
-        )
-    )
-    if invalid_disclosure_contract.any():
-        raise DataBlocked(
-            "raw financial first disclosure date/quality contract is invalid"
-        )
 
     canonical_payloads = pd.Series(
         [

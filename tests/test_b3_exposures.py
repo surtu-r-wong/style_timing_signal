@@ -844,18 +844,33 @@ def test_pit_policy_rejects_unknown_disclosure_quality():
         pytest.param("2020-04-17", "sentinel", id="sentinel-with-date"),
     ],
 )
-def test_pit_policy_rejects_invalid_first_disclosure_null_contract(
+@pytest.mark.parametrize(
+    ("policy", "expected_date"),
+    [
+        pytest.param(POLICY_MAIN, "2020-04-15", id="main"),
+        pytest.param(POLICY_LAG, "2020-05-31", id="lag"),
+    ],
+)
+def test_pit_policy_falls_back_on_incomplete_disclosure_evidence(
     first_disclosure_date,
     disclosure_quality,
+    policy,
+    expected_date,
 ):
-    with pytest.raises(DataBlocked, match="disclosure.*contract"):
-        apply_pit_policy(
-            _single_pit_fact(
-                first_disclosure_date=first_disclosure_date,
-                disclosure_quality=disclosure_quality,
-            ),
-            POLICY_MAIN,
-        )
+    got = apply_pit_policy(
+        _single_pit_fact(
+            first_disclosure_date=first_disclosure_date,
+            disclosure_quality=disclosure_quality,
+        ),
+        policy,
+    )
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp(expected_date)
+    assert got.loc[0, "known_date_source"] == f"{policy}_fallback"
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == (
+        "X|2020-03-31|income|csmar",
+    )
 
 
 def test_pit_policy_blocks_conflicting_first_disclosure_metadata():
