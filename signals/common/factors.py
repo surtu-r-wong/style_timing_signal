@@ -204,6 +204,79 @@ def composite_score(z_frame: pd.DataFrame, min_factors: int = 1) -> pd.Series:
     return composite.where(count >= min_factors)
 
 
+_PROVENANCE_COLUMNS = (
+    "true_first_disclosure_verified",
+    "unverified_dependency_keys",
+)
+
+
+def _has_provenance_columns(frame: pd.DataFrame) -> bool:
+    """返回 provenance 是否启用；成对列只出现一列时拒绝降级。"""
+    present = [column in frame.columns for column in _PROVENANCE_COLUMNS]
+    if any(present) and not all(present):
+        raise ValueError("provenance columns must be provided together")
+    return all(present)
+
+
+def _dependency_union(values) -> tuple[str, ...]:
+    """依赖 key 的稳定排序去重并集。"""
+    return tuple(sorted({key for value in values for key in value}))
+
+
+def _validated_dependency_tuple(flag, value) -> tuple[str, ...]:
+    """校验 raw fact 的 strict provenance 合同并返回依赖 tuple。"""
+    if not isinstance(flag, (bool, np.bool_)):
+        raise ValueError("invalid provenance: verified flag must be bool")
+    if not isinstance(value, tuple):
+        raise ValueError("invalid provenance: dependency keys must be a tuple")
+    if any(not isinstance(key, str) or not key for key in value):
+        raise ValueError("invalid provenance: dependency keys must be non-empty strings")
+    if bool(flag) != (len(value) == 0):
+        raise ValueError("invalid provenance: verified flag disagrees with dependency keys")
+    return value
+
+
+def _ttm_unverified_dependencies(
+    selected: pd.DataFrame,
+    full: pd.PeriodIndex,
+    ttm: pd.Series,
+) -> list[tuple[str, ...] | None]:
+    """在既有数值网格旁传播 YTD→单季→四季 TTM 的符号依赖。"""
+    periods = pd.PeriodIndex(selected["end_date"], freq="Q")
+    raw_dependencies = {
+        period: _validated_dependency_tuple(flag, value)
+        for period, flag, value in zip(
+            periods,
+            selected["true_first_disclosure_verified"],
+            selected["unverified_dependency_keys"],
+        )
+    }
+
+    single_dependencies: list[tuple[str, ...] | None] = []
+    for period in full:
+        current = raw_dependencies.get(period)
+        if current is None:
+            single_dependencies.append(None)
+        elif period.quarter == 1:
+            single_dependencies.append(current)
+        else:
+            previous = raw_dependencies.get(period - 1)
+            single_dependencies.append(
+                None
+                if previous is None
+                else _dependency_union((current, previous))
+            )
+
+    dependencies: list[tuple[str, ...] | None] = []
+    for offset, value in enumerate(ttm):
+        window = single_dependencies[offset - 3 : offset + 1]
+        if offset < 3 or pd.isna(value) or any(item is None for item in window):
+            dependencies.append(None)
+        else:
+            dependencies.append(_dependency_union(window))
+    return dependencies
+
+
 def pit_ttm_with_known(df: pd.DataFrame) -> pd.DataFrame:
     """单只股票某 YTD 科目明细 → 完整季度网格上的 TTM + 每期可知日 known_date。
 
@@ -215,18 +288,28 @@ def pit_ttm_with_known(df: pd.DataFrame) -> pd.DataFrame:
       依赖到上年同季/上年年报（TTM(Q1)=Q1ytd+年报−上年Q1ytd），任一依赖行未披露
       则整期不可知。年报晚于 Q1 披露的乱序场景由此挡住前视。
     返回 index=季末（min..max 完整网格）、columns=[ttm, known_date]；不足依赖处均 NaN。
+    输入若携带成对 provenance 列，则在同一首披选择与数值网格上追加精确依赖；
+    legacy 输入仍严格返回原两列。
     """
+    has_provenance = _has_provenance_columns(df)
     df = df.copy()
     df["end_date"] = pd.to_datetime(df["end_date"])
     df["ann_date"] = pd.to_datetime(df["ann_date"])
     df = df[df["end_date"].dt.is_quarter_end]
     if df.empty:
-        return pd.DataFrame(columns=["ttm", "known_date"])
-    df = (
-        df.sort_values(["end_date", "ann_date"])
-        .groupby("end_date", as_index=False)
-        .first()
-    )
+        columns = ["ttm", "known_date"]
+        if has_provenance:
+            columns.extend(
+                ["unverified_dependency_keys", "true_first_disclosure_verified"]
+            )
+        return pd.DataFrame(columns=columns)
+    df = df.sort_values(["end_date", "ann_date"])
+    first_rows = df.drop_duplicates("end_date", keep="first") if has_provenance else None
+    df = df.groupby("end_date", as_index=False).first()
+    if first_rows is not None:
+        first_rows = first_rows.set_index("end_date").reindex(df["end_date"])
+        for column in _PROVENANCE_COLUMNS:
+            df[column] = first_rows[column].to_numpy(copy=True)
     ytd = pd.Series(df["value"].to_numpy(dtype=float), index=pd.DatetimeIndex(df["end_date"]))
     single = quarterize_ytd(ytd)
     periods = pd.PeriodIndex(single.index, freq="Q")
@@ -241,13 +324,24 @@ def pit_ttm_with_known(df: pd.DataFrame) -> pd.DataFrame:
     known_days = ann_grid.rolling(5, min_periods=4).max()
     ttm = ttm.where(known_days.notna())
     idx = full.to_timestamp(how="end").normalize()
-    return pd.DataFrame(
+    result = pd.DataFrame(
         {
             "ttm": ttm.to_numpy(),
             "known_date": pd.to_datetime(known_days.to_numpy(), unit="D"),
         },
         index=idx,
     )
+    if has_provenance:
+        dependencies = _ttm_unverified_dependencies(df, full, ttm)
+        result["unverified_dependency_keys"] = pd.Series(
+            dependencies, index=idx, dtype=object
+        )
+        result["true_first_disclosure_verified"] = pd.Series(
+            [bool(value is not None and not value) for value in dependencies],
+            index=idx,
+            dtype=object,
+        )
+    return result
 
 
 def pit_ttm_series(df: pd.DataFrame, as_of: pd.Timestamp) -> pd.Series:
@@ -268,19 +362,29 @@ def extract_statement_field(
     """从 fetch_financial_facts 输出按 statement_type 抽单字段 → end_date/ann_date/value。
 
     facts.data 是 friendly-name JSONB dict；缺该键的行 value=NaN（保留季度结构，
-    让 quarterize/TTM 自行在缺口处产生 NaN）。
+    让 quarterize/TTM 自行在缺口处产生 NaN）。成对 provenance 列若存在则按
+    原 statement 子集行序、不做类型强转地透传；只出现一列时拒绝。
     """
+    has_provenance = _has_provenance_columns(facts)
     sub = facts[facts["statement_type"] == statement_type]
     value = sub["data"].apply(
         lambda d: d.get(field) if isinstance(d, dict) else None
     )
-    return pd.DataFrame(
+    result = pd.DataFrame(
         {
             "end_date": pd.to_datetime(sub["end_date"].to_numpy()),
             "ann_date": pd.to_datetime(sub["ann_date"].to_numpy()),
             "value": pd.to_numeric(value.to_numpy(), errors="coerce"),
         }
     )
+    if has_provenance:
+        result["true_first_disclosure_verified"] = sub[
+            "true_first_disclosure_verified"
+        ].to_numpy(copy=True)
+        result["unverified_dependency_keys"] = sub[
+            "unverified_dependency_keys"
+        ].to_numpy(copy=True)
+    return result
 
 
 def _latest(series: pd.Series) -> float:

@@ -39,6 +39,20 @@ def _income_ytd(rows):
     )
 
 
+def _five_quarter_ytd_with_provenance():
+    """2019Q1..2020Q1 的 YTD 明细，默认全部依赖已验证。"""
+    end_dates = pd.date_range("2019-03-31", periods=5, freq="QE")
+    return pd.DataFrame(
+        {
+            "end_date": end_dates,
+            "ann_date": end_dates + pd.Timedelta(days=30),
+            "value": [10.0, 30.0, 60.0, 100.0, 12.0],
+            "true_first_disclosure_verified": [True] * 5,
+            "unverified_dependency_keys": [()] * 5,
+        }
+    )
+
+
 def test_quarterize_ytd_differences_within_year_and_resets():
     """YTD 累计 → 单季：同年后续季度差分，跨年 Q1 重置为 YTD 本身。"""
     ytd = pd.Series(
@@ -257,6 +271,146 @@ def test_pit_ttm_with_known_dedups_same_quarter_keeping_first_announced():
     assert got.loc[pd.Timestamp("2019-12-31"), "ttm"] == 70.0  # 用原始首披值
 
 
+def test_ttm_provenance_propagates_actual_ytd_dependencies():
+    """2020Q1 TTM 的真实差分链包含 2019Q1，故精确传播其未验证依赖。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance()
+    key = "X|2019-03-31|income|csmar"
+    income.loc[0, "true_first_disclosure_verified"] = False
+    income.at[0, "unverified_dependency_keys"] = (key,)
+
+    got = pit_ttm_with_known(income)
+
+    row = got.loc[pd.Timestamp("2020-03-31")]
+    assert row["true_first_disclosure_verified"] is False
+    assert row["unverified_dependency_keys"] == (key,)
+    assert got.loc[pd.Timestamp("2019-09-30"), "unverified_dependency_keys"] is None
+
+
+def test_ttm_provenance_dependency_union_is_sorted_and_deduplicated():
+    """多个实际 YTD 依赖的 keys 在 TTM 行上稳定排序并去重。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance()
+    income.loc[[0, 1], "true_first_disclosure_verified"] = False
+    income.at[0, "unverified_dependency_keys"] = ("z", "a", "z")
+    income.at[1, "unverified_dependency_keys"] = ("m", "a")
+
+    got = pit_ttm_with_known(income)
+
+    assert got.loc[pd.Timestamp("2020-03-31"), "unverified_dependency_keys"] == (
+        "a",
+        "m",
+        "z",
+    )
+
+
+def test_ttm_provenance_rejects_inconsistent_flag_and_keys():
+    """verified flag 必须与依赖 tuple 是否为空严格一致。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance()
+    income.loc[0, "true_first_disclosure_verified"] = False
+
+    with pytest.raises(ValueError, match="provenance"):
+        pit_ttm_with_known(income)
+
+
+@pytest.mark.parametrize(
+    ("flag", "keys"),
+    [
+        (1, ()),
+        (True, []),
+        (False, ("",)),
+        (False, (1,)),
+    ],
+)
+def test_ttm_provenance_rejects_invalid_types(flag, keys):
+    """flag、tuple 容器及其中 key 都执行 strict provenance 类型校验。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance()
+    income["true_first_disclosure_verified"] = income[
+        "true_first_disclosure_verified"
+    ].astype(object)
+    income.at[0, "true_first_disclosure_verified"] = flag
+    income.at[0, "unverified_dependency_keys"] = keys
+
+    with pytest.raises(ValueError, match="provenance"):
+        pit_ttm_with_known(income)
+
+
+def test_unselected_restatement_does_not_contaminate_ttm_provenance():
+    """同季晚披露重述未被数值路径选中，也不应成为 TTM 的 provenance 依赖。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance()
+    restatement = income.iloc[[0]].copy()
+    restatement["ann_date"] = restatement["ann_date"] + pd.Timedelta(days=10)
+    restatement["value"] = 999.0
+    restatement["true_first_disclosure_verified"] = False
+    restatement["unverified_dependency_keys"] = [
+        ("X|2019-03-31|income|later-restatement",)
+    ]
+    income = pd.concat([income, restatement], ignore_index=True)
+
+    got = pit_ttm_with_known(income)
+
+    row = got.loc[pd.Timestamp("2020-03-31")]
+    assert row["ttm"] == 102.0
+    assert row["true_first_disclosure_verified"] is True
+    assert row["unverified_dependency_keys"] == ()
+
+
+def test_unselected_restatement_cannot_fill_invalid_first_provenance():
+    """晚重述的有效 pair 不得填补首披 null provenance 并绕过 strict 校验。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance()
+    income["true_first_disclosure_verified"] = income[
+        "true_first_disclosure_verified"
+    ].astype(object)
+    income.at[0, "true_first_disclosure_verified"] = None
+    income.at[0, "unverified_dependency_keys"] = None
+    restatement = income.iloc[[0]].copy()
+    restatement["ann_date"] = restatement["ann_date"] + pd.Timedelta(days=10)
+    restatement["value"] = 999.0
+    restatement["true_first_disclosure_verified"] = True
+    restatement["unverified_dependency_keys"] = [()]
+    income = pd.concat([income, restatement], ignore_index=True)
+
+    with pytest.raises(ValueError, match="provenance"):
+        pit_ttm_with_known(income)
+
+
+def test_ttm_without_provenance_preserves_legacy_schema():
+    """公共 B1 facts 不含 provenance 时，输出 schema 必须完全不变。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance().drop(
+        columns=["true_first_disclosure_verified", "unverified_dependency_keys"]
+    )
+
+    got = pit_ttm_with_known(income)
+
+    assert list(got.columns) == ["ttm", "known_date"]
+
+
+@pytest.mark.parametrize(
+    "missing_column",
+    ["true_first_disclosure_verified", "unverified_dependency_keys"],
+)
+def test_partial_provenance_is_rejected(missing_column):
+    """成对 provenance 列只出现一列时不得静默降级。"""
+    from signals.common.factors import pit_ttm_with_known
+
+    income = _five_quarter_ytd_with_provenance().drop(columns=[missing_column])
+
+    with pytest.raises(ValueError, match="provenance"):
+        pit_ttm_with_known(income)
+
+
 def test_rolling_growth_slope_matches_growth_slope_on_contiguous_windows():
     """滚动斜率 = 逐季调用 growth_slope 的向量化等价（连续窗口逐值恒等）。"""
     from signals.common.factors import rolling_growth_slope
@@ -356,6 +510,48 @@ def test_extract_statement_field_pulls_field_and_keeps_missing_as_nan():
     npf = extract_statement_field(facts, "income", "net_profit_ytd")
     assert npf["value"].iloc[0] == 5.0
     assert np.isnan(npf["value"].iloc[1])  # 第二季缺该字段 → NaN（保留季结构）
+
+
+def test_extract_statement_field_preserves_provenance_in_source_order():
+    """成对 provenance 列原值、原行序透传到字段明细，不做 bool 强转。"""
+    facts = pd.DataFrame(
+        {
+            "statement_type": ["income", "balance", "income"],
+            "end_date": pd.to_datetime(["2019-03-31", "2019-03-31", "2019-06-30"]),
+            "ann_date": pd.to_datetime(["2019-04-30", "2019-04-30", "2019-08-31"]),
+            "data": [{"revenue": 10.0}, {"equity_parent": 50.0}, {"revenue": 30.0}],
+            "true_first_disclosure_verified": [np.bool_(True), True, False],
+            "unverified_dependency_keys": [(), (), ("second",)],
+        }
+    )
+
+    got = extract_statement_field(facts, "income", "revenue")
+
+    assert list(got.columns) == [
+        "end_date",
+        "ann_date",
+        "value",
+        "true_first_disclosure_verified",
+        "unverified_dependency_keys",
+    ]
+    assert got["true_first_disclosure_verified"].tolist() == [np.bool_(True), False]
+    assert got["unverified_dependency_keys"].tolist() == [(), ("second",)]
+
+
+def test_extract_statement_field_rejects_partial_provenance():
+    """字段抽取入口同样拒绝只出现一列的 provenance 合同。"""
+    facts = pd.DataFrame(
+        {
+            "statement_type": ["income"],
+            "end_date": pd.to_datetime(["2019-03-31"]),
+            "ann_date": pd.to_datetime(["2019-04-30"]),
+            "data": [{"revenue": 10.0}],
+            "true_first_disclosure_verified": [True],
+        }
+    )
+
+    with pytest.raises(ValueError, match="provenance"):
+        extract_statement_field(facts, "income", "revenue")
 
 
 def _seven_quarter_facts():
