@@ -1124,6 +1124,8 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         "statement_type",
         "data",
         "data_source",
+        "first_disclosure_date",
+        "disclosure_quality",
     }
     _require_columns(raw, required, "raw financial facts")
 
@@ -1148,6 +1150,32 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         "raw financial facts.stored_ann_date",
         nullable=True,
     )
+    out["first_disclosure_date"] = _strict_datetime_series(
+        out["first_disclosure_date"],
+        "raw financial facts.first_disclosure_date",
+        nullable=True,
+    )
+    missing_quality = out["disclosure_quality"].isna()
+    _validate_allowed_values(
+        out.loc[~missing_quality, "disclosure_quality"],
+        {"ok", "sentinel"},
+        "raw financial disclosure_quality",
+    )
+    invalid_disclosure_contract = (
+        (out["first_disclosure_date"].notna() & missing_quality)
+        | (
+            out["first_disclosure_date"].isna()
+            & out["disclosure_quality"].eq("ok")
+        )
+        | (
+            out["first_disclosure_date"].notna()
+            & out["disclosure_quality"].eq("sentinel")
+        )
+    )
+    if invalid_disclosure_contract.any():
+        raise DataBlocked(
+            "raw financial first disclosure date/quality contract is invalid"
+        )
 
     canonical_payloads = pd.Series(
         [
@@ -1166,10 +1194,11 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         "statement_type",
         "data_source",
     ]
-    identity = out[semantic_key].copy()
+    provenance_key = ["first_disclosure_date", "disclosure_quality"]
+    identity = out[semantic_key + provenance_key].copy()
     identity["_canonical_payload"] = canonical_payloads
     unique_identities = identity.drop_duplicates(
-        subset=semantic_key + ["_canonical_payload"]
+        subset=semantic_key + provenance_key + ["_canonical_payload"]
     )
     if unique_identities.duplicated(
         subset=semantic_key,
@@ -1181,7 +1210,7 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         )
 
     keep = ~identity.duplicated(
-        subset=semantic_key + ["_canonical_payload"],
+        subset=semantic_key + provenance_key + ["_canonical_payload"],
         keep="first",
     )
     out = out.loc[keep].reset_index(drop=True)
@@ -1275,6 +1304,12 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
     )
     csmar = out["data_source"].eq("csmar")
     wind = out["data_source"].eq("wind")
+    valid_first = (
+        csmar
+        & out["disclosure_quality"].eq("ok")
+        & out["first_disclosure_date"].notna()
+        & out["first_disclosure_date"].ge(out["end_date"])
+    )
 
     out["ann_date"] = pd.Series(
         pd.NaT, index=out.index, dtype="datetime64[ns]"
@@ -1288,20 +1323,42 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
         csmar_known = legal_dates + pd.offsets.MonthEnd(1)
 
     out.loc[csmar, "ann_date"] = csmar_known.loc[csmar]
+    out.loc[valid_first, "ann_date"] = out.loc[
+        valid_first,
+        "first_disclosure_date",
+    ]
     out.loc[wind, "ann_date"] = out.loc[wind, "stored_ann_date"]
     out["ann_date"] = pd.to_datetime(out["ann_date"])
 
     out["known_date_source"] = pd.Series(
         "", index=out.index, dtype=object
     )
-    out.loc[csmar, "known_date_source"] = policy
+    out.loc[csmar, "known_date_source"] = f"{policy}_fallback"
+    out.loc[valid_first, "known_date_source"] = "stock_first_disclosure"
     out.loc[wind, "known_date_source"] = "wind_first_disclosure"
 
-    out["true_first_disclosure_verified"] = False
-    out.loc[wind, "true_first_disclosure_verified"] = True
-    out["true_first_disclosure_verified"] = out[
-        "true_first_disclosure_verified"
-    ].astype(bool)
+    verified = (wind | valid_first).astype(bool)
+    out["true_first_disclosure_verified"] = verified
+    dependency_keys = [
+        ()
+        if is_verified
+        else (
+            f"{ts_code}|{end_date:%Y-%m-%d}|"
+            f"{statement_type}|{data_source}",
+        )
+        for is_verified, ts_code, end_date, statement_type, data_source in zip(
+            verified,
+            out["ts_code"],
+            out["end_date"],
+            out["statement_type"],
+            out["data_source"],
+        )
+    ]
+    out["unverified_dependency_keys"] = pd.Series(
+        dependency_keys,
+        index=out.index,
+        dtype=object,
+    )
     return out
 
 
@@ -1323,21 +1380,19 @@ def _fetch_raw_financial(
     """
     db = db or load_db_config()
     sql = f"""
-        SELECT ts_code,
-               end_date,
-               ann_date AS stored_ann_date,
-               statement_type,
-               data,
-               data_source
-        FROM {db['schema']}.stock_financial
-        WHERE ts_code = ANY(%s)
-          AND end_date BETWEEN %s AND %s
-          AND (
-              (data_source = 'csmar' AND end_date <= %s)
-              OR
-              (data_source = 'wind' AND end_date > %s)
-          )
-        ORDER BY ts_code, statement_type, end_date
+        SELECT sf.ts_code, sf.end_date,
+               sf.ann_date AS stored_ann_date,
+               sf.statement_type, sf.data, sf.data_source,
+               fd.first_disclosure_date,
+               fd.quality AS disclosure_quality
+        FROM {db['schema']}.stock_financial AS sf
+        LEFT JOIN {db['schema']}.stock_first_disclosure AS fd
+          ON fd.ts_code = sf.ts_code AND fd.end_date = sf.end_date
+        WHERE sf.ts_code = ANY(%s)
+          AND sf.end_date BETWEEN %s AND %s
+          AND ((sf.data_source = 'csmar' AND sf.end_date <= %s)
+            OR (sf.data_source = 'wind' AND sf.end_date > %s))
+        ORDER BY sf.ts_code, sf.statement_type, sf.end_date
     """
     ordered_tickers = sorted(set(tickers))
     batch_size = _RAW_FINANCIAL_TICKER_BATCH
@@ -1360,6 +1415,12 @@ def _fetch_raw_financial(
             if recorder is not None:
                 recorder.record(
                     f"{db['schema']}.stock_financial",
+                    sql,
+                    facts,
+                    "end_date",
+                )
+                recorder.record(
+                    f"{db['schema']}.stock_first_disclosure",
                     sql,
                     facts,
                     "end_date",

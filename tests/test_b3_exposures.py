@@ -452,6 +452,8 @@ def test_csmar_pit_policies_use_legal_deadlines_and_flag_approximation():
             "statement_type": ["income", "income"],
             "data": [{"revenue": 1.0}, {"revenue": 2.0}],
             "data_source": ["csmar", "csmar"],
+            "first_disclosure_date": [None, None],
+            "disclosure_quality": ["sentinel", "sentinel"],
         }
     )
 
@@ -466,10 +468,12 @@ def test_csmar_pit_policies_use_legal_deadlines_and_flag_approximation():
         pd.Timestamp("2020-05-31"),
         pd.Timestamp("2020-09-30"),
     ]
-    assert main["known_date_source"].eq(POLICY_MAIN).all()
-    assert lag["known_date_source"].eq(POLICY_LAG).all()
+    assert main["known_date_source"].eq(f"{POLICY_MAIN}_fallback").all()
+    assert lag["known_date_source"].eq(f"{POLICY_LAG}_fallback").all()
     assert not main["true_first_disclosure_verified"].any()
     assert not lag["true_first_disclosure_verified"].any()
+    assert main["unverified_dependency_keys"].map(len).eq(1).all()
+    assert lag["unverified_dependency_keys"].map(len).eq(1).all()
 
 
 def test_wind_pit_date_is_preserved_and_verified_under_both_policies():
@@ -481,6 +485,8 @@ def test_wind_pit_date_is_preserved_and_verified_under_both_policies():
             "statement_type": ["income"],
             "data": [{"revenue": 1.0}],
             "data_source": ["wind"],
+            "first_disclosure_date": [None],
+            "disclosure_quality": [None],
         }
     )
 
@@ -490,6 +496,7 @@ def test_wind_pit_date_is_preserved_and_verified_under_both_policies():
         assert got.loc[0, "ann_date"] == pd.Timestamp("2025-08-20")
         assert got.loc[0, "known_date_source"] == "wind_first_disclosure"
         assert bool(got.loc[0, "true_first_disclosure_verified"])
+        assert got.loc[0, "unverified_dependency_keys"] == ()
 
 
 def test_industry_snapshot_extends_earliest_label_and_applies_later_update():
@@ -528,6 +535,8 @@ def test_build_policy_snapshots_assembles_eligibility_and_provenance(
             "statement_type": ["income"] * 4,
             "data": [{"revenue": float(i)} for i in range(1, 5)],
             "data_source": ["csmar"] * 4,
+            "first_disclosure_date": [None] * 4,
+            "disclosure_quality": ["sentinel"] * 4,
         }
     )
     closes = pd.DataFrame(
@@ -705,6 +714,8 @@ def _single_pit_fact(**overrides):
         "statement_type": "income",
         "data": {"revenue": 1.0},
         "data_source": "csmar",
+        "first_disclosure_date": None,
+        "disclosure_quality": "sentinel",
     }
     row.update(overrides)
     return pd.DataFrame([row])
@@ -719,6 +730,8 @@ def _single_pit_fact(**overrides):
         "statement_type",
         "data",
         "data_source",
+        "first_disclosure_date",
+        "disclosure_quality",
     ],
 )
 def test_pit_policy_requires_complete_raw_schema(missing_column):
@@ -747,6 +760,125 @@ def test_pit_policy_rejects_unparsable_stored_announcement_date():
 
     with pytest.raises(DataBlocked):
         apply_pit_policy(raw, POLICY_MAIN)
+
+
+def test_pit_policy_rejects_unparsable_first_disclosure_date():
+    raw = _single_pit_fact(first_disclosure_date="not-a-date")
+
+    with pytest.raises(DataBlocked):
+        apply_pit_policy(raw, POLICY_MAIN)
+
+
+@pytest.mark.parametrize("policy", [POLICY_MAIN, POLICY_LAG])
+@pytest.mark.parametrize(
+    "statement_type",
+    ["income", "balance", "cashflow_direct", "dividend"],
+)
+def test_csmar_uses_verified_stock_first_disclosure(
+    policy,
+    statement_type,
+):
+    got = apply_pit_policy(
+        _single_pit_fact(
+            statement_type=statement_type,
+            first_disclosure_date="2020-04-17",
+            disclosure_quality="ok",
+        ),
+        policy,
+    )
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp("2020-04-17")
+    assert got.loc[0, "known_date_source"] == "stock_first_disclosure"
+    assert bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == ()
+
+
+@pytest.mark.parametrize(
+    ("policy", "expected_date"),
+    [
+        pytest.param(POLICY_MAIN, "2020-04-15", id="main"),
+        pytest.param(POLICY_LAG, "2020-05-31", id="lag"),
+    ],
+)
+def test_csmar_sentinel_falls_back_with_dependency_key(
+    policy,
+    expected_date,
+):
+    got = apply_pit_policy(_single_pit_fact(), policy)
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp(expected_date)
+    assert got.loc[0, "known_date_source"] == f"{policy}_fallback"
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == (
+        "X|2020-03-31|income|csmar",
+    )
+
+
+def test_csmar_first_disclosure_before_period_end_falls_back():
+    got = apply_pit_policy(
+        _single_pit_fact(
+            first_disclosure_date="2020-03-30",
+            disclosure_quality="ok",
+        ),
+        POLICY_MAIN,
+    )
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp("2020-04-15")
+    assert got.loc[0, "known_date_source"] == f"{POLICY_MAIN}_fallback"
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+
+
+def test_pit_policy_rejects_unknown_disclosure_quality():
+    with pytest.raises(DataBlocked, match="disclosure_quality"):
+        apply_pit_policy(
+            _single_pit_fact(disclosure_quality="guessed"),
+            POLICY_MAIN,
+        )
+
+
+@pytest.mark.parametrize(
+    ("first_disclosure_date", "disclosure_quality"),
+    [
+        pytest.param("2020-04-17", None, id="date-with-null-quality"),
+        pytest.param(None, "ok", id="ok-with-null-date"),
+        pytest.param("2020-04-17", "sentinel", id="sentinel-with-date"),
+    ],
+)
+def test_pit_policy_rejects_invalid_first_disclosure_null_contract(
+    first_disclosure_date,
+    disclosure_quality,
+):
+    with pytest.raises(DataBlocked, match="disclosure.*contract"):
+        apply_pit_policy(
+            _single_pit_fact(
+                first_disclosure_date=first_disclosure_date,
+                disclosure_quality=disclosure_quality,
+            ),
+            POLICY_MAIN,
+        )
+
+
+def test_pit_policy_blocks_conflicting_first_disclosure_metadata():
+    first = _single_pit_fact(
+        first_disclosure_date="2020-04-17",
+        disclosure_quality="ok",
+    ).iloc[0].to_dict()
+    second = {**first, "first_disclosure_date": "2020-04-18"}
+
+    with pytest.raises(DataBlocked, match="conflicting"):
+        apply_pit_policy(pd.DataFrame([first, second]), POLICY_MAIN)
+
+
+def test_pit_policy_treats_nan_disclosure_quality_as_unverified():
+    got = apply_pit_policy(
+        _single_pit_fact(disclosure_quality=np.nan),
+        POLICY_MAIN,
+    )
+
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == (
+        "X|2020-03-31|income|csmar",
+    )
 
 
 @pytest.mark.parametrize("policy", [POLICY_MAIN, POLICY_LAG])
@@ -802,8 +934,11 @@ def test_csmar_missing_stored_announcement_falls_back_to_legal_deadline():
     )
 
     assert got.loc[0, "ann_date"] == pd.Timestamp("2020-04-30")
-    assert got.loc[0, "known_date_source"] == POLICY_MAIN
+    assert got.loc[0, "known_date_source"] == f"{POLICY_MAIN}_fallback"
     assert not bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == (
+        "X|2020-03-31|income|csmar",
+    )
 
 
 def test_pit_policy_rejects_unknown_policy_with_value_error():
@@ -892,6 +1027,8 @@ def _minimal_assembly_inputs():
                 "statement_type": ["income", "income"],
                 "data": [{"revenue": 1.0}, {"revenue": 2.0}],
                 "data_source": ["csmar", "csmar"],
+                "first_disclosure_date": [None, None],
+                "disclosure_quality": ["sentinel", "sentinel"],
             }
         ),
         "month_ends": [formation],
@@ -1289,6 +1426,8 @@ _RAW_FINANCIAL_COLUMNS = [
     "statement_type",
     "data",
     "data_source",
+    "first_disclosure_date",
+    "disclosure_quality",
 ]
 
 
@@ -1296,6 +1435,7 @@ class _RawFinancialCursor:
     def __init__(self, rows, execute_error=None):
         self._rows = rows
         self._execute_error = execute_error
+        self.executed_sql = []
         self.description = [
             (column, None, None, None, None, None, None)
             for column in _RAW_FINANCIAL_COLUMNS
@@ -1308,6 +1448,7 @@ class _RawFinancialCursor:
         return False
 
     def execute(self, sql, params):
+        self.executed_sql.append(sql)
         if self._execute_error is not None:
             raise self._execute_error
 
@@ -1335,6 +1476,8 @@ def _raw_db_row(**overrides):
         "statement_type": "income",
         "data": {"B001100000": 1.0},
         "data_source": "csmar",
+        "first_disclosure_date": None,
+        "disclosure_quality": "sentinel",
     }
     row.update(overrides)
     return tuple(row[column] for column in _RAW_FINANCIAL_COLUMNS)
@@ -1363,6 +1506,11 @@ def _patch_raw_financial_connection(
             "stored_ann_date",
             "not-a-date",
             id="stored-announcement-date",
+        ),
+        pytest.param(
+            "first_disclosure_date",
+            "not-a-date",
+            id="first-disclosure-date",
         ),
     ],
 )
@@ -1450,6 +1598,7 @@ class _BatchAwareRawFinancialCursor:
     def __init__(self, rows):
         self._rows = list(rows)
         self.executed_ticker_chunks = []
+        self.executed_sql = []
         self._current = []
         self.description = [
             (column, None, None, None, None, None, None)
@@ -1463,6 +1612,7 @@ class _BatchAwareRawFinancialCursor:
         return False
 
     def execute(self, sql, params):
+        self.executed_sql.append(sql)
         chunk = list(params[0])
         self.executed_ticker_chunks.append(chunk)
         requested = set(chunk)
@@ -1494,6 +1644,48 @@ def _run_batch_aware_fetch(monkeypatch, rows, tickers, batch_size):
         {"schema": "public"},
     )
     return frame, cursor
+
+
+def test_fetch_raw_financial_joins_and_records_first_disclosure(monkeypatch):
+    from signals.style_basket.b3_build import DatabaseEvidenceRecorder
+
+    connection = _patch_raw_financial_connection(
+        monkeypatch,
+        [
+            _raw_db_row(
+                first_disclosure_date="2020-04-17",
+                disclosure_quality="ok",
+            )
+        ],
+    )
+    recorder = DatabaseEvidenceRecorder()
+    recorder.record(
+        "public.trading_calendar",
+        "SELECT calendar_date FROM public.trading_calendar",
+        pd.DataFrame({"calendar_date": [pd.Timestamp("2020-04-17")]}),
+        "calendar_date",
+    )
+
+    frame = _fetch_raw_financial(
+        ["X"],
+        "2020-01-01",
+        "2020-12-31",
+        {"schema": "public"},
+        recorder=recorder,
+    )
+
+    assert len(frame) == 1
+    assert frame.loc[0, "first_disclosure_date"] == pd.Timestamp(
+        "2020-04-17"
+    )
+    assert (
+        "LEFT JOIN public.stock_first_disclosure"
+        in connection._cursor.executed_sql[0]
+    )
+    payload = recorder.payload()
+    assert payload is not None
+    assert "public.stock_financial" in payload["consumed_sources"]
+    assert "public.stock_first_disclosure" in payload["consumed_sources"]
 
 
 def test_fetch_raw_financial_batches_tickers_and_matches_single_query(
@@ -5027,6 +5219,17 @@ def test_preflight_manifest_database_evidence_contract_roundtrip(tmp_path):
         ),
         "calendar_date",
     )
+    recorder.record(
+        "public.stock_first_disclosure",
+        "SELECT ts_code, end_date FROM public.stock_first_disclosure",
+        pd.DataFrame(
+            {
+                "ts_code": ["000001.SZ"],
+                "end_date": [pd.Timestamp("2020-03-31")],
+            }
+        ),
+        "end_date",
+    )
     sources = replace(
         _preflight_sources(
             snapshot,
@@ -5049,6 +5252,13 @@ def test_preflight_manifest_database_evidence_contract_roundtrip(tmp_path):
     assert "database_source_evidence" in manifest
     contract = verify_preflight_manifest(tmp_path, config_hash(cfg))
     assert contract.database_source_evidence is not None
+    assert (
+        "public.stock_first_disclosure"
+        in contract.database_source_evidence["consumed_sources"]
+    )
+    assert contract.database_source_evidence["sources"][
+        "public.stock_first_disclosure"
+    ]["row_count"] == 1
     assert database_source_evidence_blocker(contract) is None
 
 
