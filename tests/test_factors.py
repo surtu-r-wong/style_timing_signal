@@ -506,6 +506,68 @@ def test_rolling_growth_slope_nan_across_gap():
     assert got["slope"].isna().all()
 
 
+def test_slope_provenance_expires_when_dependency_leaves_window():
+    """斜率只继承实际 n 期窗依赖；窗外未验证 key 到期后恢复 verified。"""
+    from signals.common.factors import rolling_growth_slope
+
+    idx = pd.date_range("2018-03-31", periods=13, freq="QE")
+    ttm = pd.Series(np.arange(1.0, 14.0), index=idx)
+    known = pd.Series(idx + pd.Timedelta(days=30), index=idx)
+    key = "X1|2018-03-31|income|csmar"
+    dependencies = pd.Series([(key,)] + [()] * 12, index=idx, dtype=object)
+
+    got = rolling_growth_slope(
+        ttm,
+        known,
+        n=12,
+        unverified_dependencies=dependencies,
+    )
+
+    first = got.iloc[11]
+    assert first["true_first_disclosure_verified"] is False
+    assert first["unverified_dependency_keys"] == (key,)
+    second = got.iloc[12]
+    assert second["true_first_disclosure_verified"] is True
+    assert second["unverified_dependency_keys"] == ()
+
+
+def test_slope_provenance_none_preserves_legacy_schema_and_values():
+    """显式 None 等同旧调用，且绝不向 legacy 输出追加私有列。"""
+    from signals.common.factors import rolling_growth_slope
+
+    idx = pd.date_range("2018-03-31", periods=13, freq="QE")
+    ttm = pd.Series(np.arange(1.0, 14.0), index=idx)
+    known = pd.Series(idx + pd.Timedelta(days=30), index=idx)
+    before = rolling_growth_slope(ttm, known, n=12)
+
+    got = rolling_growth_slope(
+        ttm, known, n=12, unverified_dependencies=None
+    )
+
+    assert list(got.columns) == ["slope", "known_date"]
+    pd.testing.assert_frame_equal(got, before)
+
+
+@pytest.mark.parametrize("invalid", [None, ["not-a-tuple"]])
+def test_slope_provenance_rejects_missing_dependency_in_valid_window(invalid):
+    """实际可算的 slope 窗内依赖缺失或类型非法时必须 fail closed。"""
+    from signals.common.factors import rolling_growth_slope
+
+    idx = pd.date_range("2018-03-31", periods=12, freq="QE")
+    ttm = pd.Series(np.arange(1.0, 13.0), index=idx)
+    known = pd.Series(idx + pd.Timedelta(days=30), index=idx)
+    dependencies = pd.Series([()] * 12, index=idx, dtype=object)
+    dependencies.iloc[3] = invalid
+
+    with pytest.raises(ValueError, match="provenance|dependency"):
+        rolling_growth_slope(
+            ttm,
+            known,
+            n=12,
+            unverified_dependencies=dependencies,
+        )
+
+
 def test_asof_latest_picks_freshest_known_row_per_ticker():
     """pooled 长表 → as_of 时每股 known_date≤as_of 的最新（end_date 最大）一行。"""
     from signals.common.factors import asof_latest

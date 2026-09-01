@@ -79,7 +79,13 @@ def growth_slope(ttm: pd.Series, n: int = 12) -> float:
     return float(slope / mean)
 
 
-def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.DataFrame:
+def rolling_growth_slope(
+    ttm: pd.Series,
+    known: pd.Series,
+    n: int = 12,
+    *,
+    unverified_dependencies: pd.Series | None = None,
+) -> pd.DataFrame:
     """整段 TTM 网格 → 每季末的成长斜率 + 可知日（growth_slope 的批量预计算形态）。
 
     slope(q) = growth_slope(ttm[q−n+1..q])，但窗口内**任一季缺失即 NaN**（严于
@@ -91,6 +97,15 @@ def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.Da
     out = pd.DataFrame(
         {"slope": np.nan, "known_date": pd.NaT}, index=idx
     )
+    dependencies = None
+    if unverified_dependencies is not None:
+        dependencies = unverified_dependencies.reindex(idx)
+        out["unverified_dependency_keys"] = pd.Series(
+            [None] * len(idx), index=idx, dtype=object
+        )
+        out["true_first_disclosure_verified"] = pd.Series(
+            [False] * len(idx), index=idx, dtype=object
+        )
     y = ttm.to_numpy(dtype=float)
     if len(y) < n:
         return out
@@ -142,6 +157,26 @@ def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.Da
         )
     out["known_date"] = known_dates
     out["slope"] = out["slope"].where(out["known_date"].notna())
+    if dependencies is not None:
+        for offset in np.flatnonzero(out["slope"].notna().to_numpy()):
+            window = dependencies.iloc[offset - n + 1 : offset + 1]
+            values = window.tolist()
+            if any(
+                not isinstance(value, tuple)
+                or any(not isinstance(key, str) or not key for key in value)
+                for value in values
+            ):
+                raise ValueError(
+                    "invalid provenance dependency: slope window requires "
+                    "tuple[str, ...] for every TTM row"
+                )
+            keys = _dependency_union(values)
+            out.iat[
+                offset, out.columns.get_loc("unverified_dependency_keys")
+            ] = keys
+            out.iat[
+                offset, out.columns.get_loc("true_first_disclosure_verified")
+            ] = bool(not keys)
     return out
 
 

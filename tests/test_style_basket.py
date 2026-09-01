@@ -118,6 +118,8 @@ def _ticker_facts():
             "ann_date": [r[1] for r in rows],
             "statement_type": [r[2] for r in rows],
             "data": [r[3] for r in rows],
+            "true_first_disclosure_verified": True,
+            "unverified_dependency_keys": [()] * len(rows),
         }
     )
 
@@ -153,6 +155,140 @@ def test_ticker_financial_rows_builds_pools_with_wind_cfo_splice():
     assert dps["value"].iloc[0] == 5.0
     # 所有 pooled 行都带 ts_code
     assert (ttm["ts_code"] == "X1").all() and (slope["ts_code"] == "X1").all()
+
+
+def test_ticker_financial_rows_preserves_optional_provenance_in_all_pools():
+    """enriched facts 的 TTM、slope、event 池都保留严格成对 provenance。"""
+    from signals.style_basket.build import ticker_financial_rows
+
+    pools = ticker_financial_rows(_ticker_facts(), growth_n=12)
+
+    for pool in pools.values():
+        assert not pool.empty
+        assert "true_first_disclosure_verified" in pool.columns
+        assert "unverified_dependency_keys" in pool.columns
+        assert pool["true_first_disclosure_verified"].map(
+            lambda value: type(value) is bool
+        ).all()
+        assert pool["unverified_dependency_keys"].map(
+            lambda value: isinstance(value, tuple)
+        ).all()
+        assert (
+            pool["true_first_disclosure_verified"]
+            == pool["unverified_dependency_keys"].map(lambda value: len(value) == 0)
+        ).all()
+
+
+def test_ticker_financial_rows_legacy_schema_is_frozen():
+    """无 provenance 时三个 pool 的 B1 schema 必须逐列保持冻结。"""
+    from signals.style_basket.build import ticker_financial_rows
+
+    facts = _ticker_facts().drop(
+        columns=["true_first_disclosure_verified", "unverified_dependency_keys"]
+    )
+    pools = ticker_financial_rows(facts, growth_n=12)
+
+    assert list(pools["ttm"].columns) == [
+        "ts_code", "field", "end_date", "known_date", "ttm"
+    ]
+    assert list(pools["slope"].columns) == [
+        "ts_code", "field", "end_date", "known_date", "slope"
+    ]
+    assert list(pools["event"].columns) == [
+        "ts_code", "field", "end_date", "known_date", "value"
+    ]
+
+
+def test_wind_direct_ttm_cfo_inherits_only_its_own_provenance():
+    """Wind 直接 CFO TTM 只绑定自身 raw 行，不继承 CSMAR 差分链。"""
+    from signals.style_basket.build import ticker_financial_rows
+
+    facts = _ticker_facts()
+    raw = facts.index[
+        (facts["statement_type"] == "cashflow")
+        & (facts["end_date"] == pd.Timestamp("2022-03-31"))
+    ][0]
+    key = "X1|2022-03-31|cashflow|wind"
+    facts.loc[raw, "true_first_disclosure_verified"] = False
+    facts.at[raw, "unverified_dependency_keys"] = (key,)
+
+    cfo = ticker_financial_rows(facts, growth_n=12)["ttm"]
+    row = cfo[
+        (cfo["field"] == "cfo")
+        & (cfo["end_date"] == pd.Timestamp("2022-03-31"))
+    ].iloc[0]
+
+    assert row["true_first_disclosure_verified"] is False
+    assert row["unverified_dependency_keys"] == (key,)
+
+
+def test_all_verified_provenance_preserves_legacy_pool_values():
+    """全 verified enriched 输入去私有列后，与 legacy 三池逐 frame 恒等。"""
+    from signals.style_basket.build import ticker_financial_rows
+
+    enriched_facts = _ticker_facts()
+    legacy_facts = enriched_facts.drop(
+        columns=["true_first_disclosure_verified", "unverified_dependency_keys"]
+    )
+    enriched = ticker_financial_rows(enriched_facts, growth_n=12)
+    legacy = ticker_financial_rows(legacy_facts, growth_n=12)
+
+    for key in legacy:
+        pd.testing.assert_frame_equal(
+            enriched[key].drop(
+                columns=[
+                    "true_first_disclosure_verified",
+                    "unverified_dependency_keys",
+                ]
+            ),
+            legacy[key],
+        )
+
+
+def test_event_provenance_inherits_selected_equity_and_dps_rows():
+    """事件池 equity/dps 直接继承各自被选 raw 事实的 provenance。"""
+    from signals.style_basket.build import ticker_financial_rows
+
+    facts = _ticker_facts()
+    cases = [
+        ("balance", pd.Timestamp("2022-09-30"), "equity", "equity-key"),
+        ("dividend", pd.Timestamp("2021-12-31"), "dps", "dps-key"),
+    ]
+    for statement, end_date, _, key in cases:
+        raw = facts.index[
+            (facts["statement_type"] == statement)
+            & (facts["end_date"] == end_date)
+        ][0]
+        facts.loc[raw, "true_first_disclosure_verified"] = False
+        facts.at[raw, "unverified_dependency_keys"] = (key,)
+
+    events = ticker_financial_rows(facts, growth_n=12)["event"]
+    for _, end_date, field, key in cases:
+        row = events[
+            (events["field"] == field) & (events["end_date"] == end_date)
+        ].iloc[0]
+        assert row["true_first_disclosure_verified"] is False
+        assert row["unverified_dependency_keys"] == (key,)
+
+
+def test_preserves_optional_provenance_schema_for_empty_pool():
+    """enriched 输入即使某类事实缺失，空 pool 也保留成对 optional schema。"""
+    from signals.style_basket.build import ticker_financial_rows
+
+    facts = _ticker_facts()
+    facts = facts[facts["statement_type"] == "income"]
+    event = ticker_financial_rows(facts, growth_n=12)["event"]
+
+    assert event.empty
+    assert list(event.columns) == [
+        "ts_code",
+        "field",
+        "end_date",
+        "known_date",
+        "value",
+        "true_first_disclosure_verified",
+        "unverified_dependency_keys",
+    ]
 
 
 # ---------------------------------------------------------------- B2 行业中性
