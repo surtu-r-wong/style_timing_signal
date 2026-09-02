@@ -17,6 +17,7 @@ inventory:
     - {path: docs/plans/2026-08-12-selection-permutation-machine.md, reason: "通用统计机器方法说明，不是单独研究裁决。"}
     - {path: docs/plans/2026-08-12-signal-research-agenda.md, reason: "研究议程，具体结论由各研究记录承接。"}
     - {path: docs/plans/2026-08-25-market-monitor-handover-index-daily.md, reason: "外部数据日更交接说明。"}
+    - {path: docs/plans/2026-08-06-b3-windows-execution-migration-design.md, reason: "B3 执行平台迁移工程设计，不形成研究裁决。"}
 
 studies:
   - id: production-equal-weight-long-flat
@@ -659,8 +660,8 @@ studies:
     reopen_condition: "实际B3模型行真首披覆盖100%，再按冻结设计正式重跑并按原判据裁决。"
     production: {affects: false, role: provisional_data_blocked}
     documents:
-      spec: [docs/plans/2026-08-14-pit-foundation-handover-proposal.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
-      report: [docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
+      spec: [docs/plans/2026-08-05-data-materiality-exemption-design.md, docs/plans/2026-08-06-q500-direct-measurement-design.md, docs/plans/2026-08-14-pit-foundation-handover-proposal.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
+      report: [docs/plans/2026-08-12-b3-formal-run-verdict-analysis.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
       evidence: [data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/verdicts.csv, data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/run_manifest.json]
     supersedes: []
     depends_on: [gate0r-data-foundation]
