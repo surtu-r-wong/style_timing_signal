@@ -1,0 +1,22 @@
+{
+ "prereg": "docs/plans/2026-09-02-overnight-intraday-citic40d-prereg.md",
+ "reproduce_check": {
+  "n_common": 3986,
+  "n_mismatch": 0,
+  "max_abs_diff": 0.0
+ },
+ "flat_bar_days_in_eval_window": 4,
+ "n_candidates": 6,
+ "n_pass": 0,
+ "verdict": "STOP",
+ "corr_vs_incumbent": {
+  "overnight_lb20_zw40": 0.41823646314921586,
+  "overnight_lb20_zw120": 0.3601259084091366,
+  "intraday_lb20_zw40": 0.9142409561670373,
+  "intraday_lb20_zw120": 0.7660352054619665,
+  "fused_lb20_zw40": 0.8622649548308278,
+  "fused_lb20_zw120": 0.7533385603365539
+ },
+ "data_end": "2026-09-01",
+ "bootstrap_n": 10000
+}

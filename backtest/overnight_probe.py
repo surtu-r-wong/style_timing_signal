@@ -161,7 +161,8 @@ def evaluate(cands: dict[str, pd.Series], ic_rep: pd.DataFrame, ic_diff: pd.Data
         return float(h.iloc[0]) if len(h) else float("nan")
 
     def lf(f, kj, w):
-        h = ret_rep[(ret_rep["signal"] == f"{f}_lf") & (ret_rep["kou_jing"] == kj) & (ret_rep["window"] == w)]["sharpe"]
+        seg = ret_rep["seg"] == "full" if "seg" in ret_rep else pd.Series(True, index=ret_rep.index)
+        h = ret_rep[seg & (ret_rep["signal"] == f"{f}_lf") & (ret_rep["kou_jing"] == kj) & (ret_rep["window"] == w)]["sharpe"]
         return float(h.iloc[0]) if len(h) else float("nan")
 
     rows = []
@@ -194,7 +195,16 @@ def main(argv=None) -> int:
     ap.add_argument("--check-only", action="store_true", help="只跑前置自检")
     ap.add_argument("--bootstrap", type=int, default=10000)
     ap.add_argument("--baseline-bootstrap", type=int, default=500)
+    ap.add_argument("--reevaluate", action="store_true", help="只从已存 CSV 重判闸门（不重跑 bootstrap）")
     a = ap.parse_args(argv)
+    if a.reevaluate:
+        cands = {n: None for n in [INCUMBENT] + [f"{k}_lb{LOOKBACK}_zw{z}" for k in KINDS for z in Z_WINDOWS]}
+        gates = evaluate(cands, pd.read_csv(OUT_DIR / "ic_report.csv"), pd.read_csv(OUT_DIR / "ic_paired_diff.csv"),
+                         pd.read_csv(OUT_DIR / "scan_symmetric.csv"), pd.read_csv(OUT_DIR / "baseline_report.csv"))
+        old = pd.read_csv(OUT_DIR / "gates.csv")
+        same = old.round(10).equals(gates.round(10))
+        print("reevaluate identical to stored gates.csv:", same)
+        return 0 if same else 1
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     o, c = load_pg_ohlc(STYLE_NAMES)
     chk = reproduce_check(component_factor(o, c, "full"))

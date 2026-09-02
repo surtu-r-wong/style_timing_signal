@@ -666,6 +666,25 @@ studies:
     supersedes: []
     depends_on: [gate0r-data-foundation]
 
+  - id: overnight-intraday-decomposition
+    title: "隔夜/日内分解（候选⑥）"
+    family: signal-transformer
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "citic40d五腿把配对收益拆成隔夜/日内/两段合成后作为因子输入，lb20×zw{40,120}×sm0共6点，同秤三窗+⓪rank IC头对头。"
+    claim: "6点全STOP：隔夜段几乎无择时信息（val窗配对IC差−0.39/−0.44，CI不含0），日内段与现任相关0.91为近克隆，收益层小幅改善（LF worst +0.07）不过⓪闸也不到+0.10门槛；收益变换器第六次确认，变换器族封轴。"
+    non_claims: ["不得引作隔夜效应在A股股票级无价值。", "不等于在equal_weight对象上已测：中证1000/2000成长价值对在Wind中从未有open，数据不可做（data_blocked）。"]
+    caveats: ["中信腿2010-01至2012-02为平K线，评窗内另有4个孤立平K线日按原始数据处理。", "6点选优，⓪的p只作诊断。"]
+    reopen_condition: "仅当获得932406-932409的真实开盘价（Wind之外的源）后，equal_weight对象可按原议程重新预登记；citic40d对象不再重开。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-09-02-overnight-intraday-citic40d-prereg.md]
+      report: [docs/plans/2026-09-02-overnight-intraday-citic40d-results.md]
+      evidence: [backtest/output/overnight_probe/gates.csv, backtest/output/overnight_probe/verdict.json, data_fixes/2026-09-02-index-daily-ohl-backfill/README.md]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
   - id: gate0r-data-foundation
     title: "Gate 0R数据底座"
     family: style-basket-foundation
