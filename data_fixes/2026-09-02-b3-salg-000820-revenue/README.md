@@ -49,7 +49,7 @@ B3 真首披正式重跑 r4（`data_fixes/2026-09-02-b3-true-disclosure-formal/`
 见 `data_fixes/2026-09-02-b3-true-disclosure-formal-r5/`。注意：SalG 在 exposures 阶段计算，
 所以**不能**只重跑 structure→eval（r4 裁决记录里那句「只需重跑 structure→eval」是错的，已在 r5 记录中更正）。
 
-## 同类发现（未处理，待裁）
+## 同类发现（→ 已于同日晚按用户裁决处理：`data_fixes/2026-09-02-csmar-zero-revenue-batch/`，Wind 明确为 0 的 11 行已回填，Wind 亦空的 32 行未动待裁）
 
 全市场 csmar 利润表季行中「有净利润键、无 `B001100000`」的还有 43 行 / 13 只票（修复前含 000820.SZ 为 45 行 / 14 只；2018-03-31 ~ 2025-03-31，
 修复前按月份 3 月 22 / 6 月 8 / 9 月 9 / 12 月 6 行），机制大概率相同（零收入省键）。这些票不触发 run blocker
