@@ -1,0 +1,178 @@
+diff -ruN orig/wind_gateway/config.yaml.example new/wind_gateway/config.yaml.example
+--- orig/wind_gateway/config.yaml.example	2026-09-02 18:47:10.301069224 +0800
++++ new/wind_gateway/config.yaml.example	2026-09-02 18:47:10.358964451 +0800
+@@ -22,6 +22,12 @@
+     wsd_fields: "<TODO>"
+     wsd_options: "<TODO>"
+ 
++  futures:
++    # 股指期货合约日线，独立于 price（price 是股票口径且被 stock_daily_price 写入链共用）。
++    # oi/settle 是 carry 主力合约判定的必需字段（style_timing_signal 的 futures_daily 补齐）。
++    wsd_fields: "open,high,low,close,volume,oi,amt,settle"
++    wsd_options: ""
++
+   indicator:
+     wsd_fields: "<TODO>"
+     wsd_options: ""
+diff -ruN orig/wind_gateway/endpoints.py new/wind_gateway/endpoints.py
+--- orig/wind_gateway/endpoints.py	2026-09-02 18:47:10.301129536 +0800
++++ new/wind_gateway/endpoints.py	2026-09-02 18:48:20.433842008 +0800
+@@ -276,6 +276,31 @@
+         )
+         return {"status": "ok", "columns": cols, "rows": rows, "wind_error_code": 0}
+ 
++    @r.get("/fetch/futures")
++    def fetch_futures(
++        request: Request,
++        codes: str = Query(..., min_length=1),
++        start: date = Query(...),
++        end: date = Query(...),
++    ) -> dict:
++        """股指期货合约日线（open/high/low/close/volume/oi/amt/settle）。
++
++        与 /fetch/price 同形但独立 fetcher：price 是 stock_daily_price 写入链的
++        共用端点，不能往它的 wsd_fields 里加 oi/settle。字段清单由
++        ``fetchers.futures.wsd_fields`` 决定（哑管道原则）。消费方：
++        style_timing_signal/tools/topup_futures_daily.py → public.futures_daily。
++        """
++        cfg = request.app.state.cfg["fetchers"].get("futures")
++        if cfg is None:
++            raise FetcherNotConfiguredError("futures")
++        cols, rows = call_wsd(
++            request.app.state.wind,
++            codes=codes, fields=cfg["wsd_fields"],
++            start=start, end=end, options=cfg.get("wsd_options", ""),
++            quota=request.app.state.quota,
++        )
++        return {"status": "ok", "columns": cols, "rows": rows, "wind_error_code": 0}
++
+     @r.get("/fetch/consensus")
+     def fetch_consensus(
+         request: Request,
+二进制文件 orig/wind_gateway/__pycache__/config.cpython-313.pyc 和 new/wind_gateway/__pycache__/config.cpython-313.pyc 不同
+二进制文件 orig/wind_gateway/__pycache__/endpoints.cpython-313.pyc 和 new/wind_gateway/__pycache__/endpoints.cpython-313.pyc 不同
+二进制文件 orig/wind_gateway/__pycache__/errors.cpython-313.pyc 和 new/wind_gateway/__pycache__/errors.cpython-313.pyc 不同
+二进制文件 orig/wind_gateway/__pycache__/__init__.cpython-313.pyc 和 new/wind_gateway/__pycache__/__init__.cpython-313.pyc 不同
+二进制文件 orig/wind_gateway/__pycache__/main.cpython-313.pyc 和 new/wind_gateway/__pycache__/main.cpython-313.pyc 不同
+二进制文件 orig/wind_gateway/__pycache__/quota.cpython-313.pyc 和 new/wind_gateway/__pycache__/quota.cpython-313.pyc 不同
+二进制文件 orig/wind_gateway/__pycache__/wind_client.cpython-313.pyc 和 new/wind_gateway/__pycache__/wind_client.cpython-313.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/conftest.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/conftest.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/__init__.cpython-313.pyc 和 new/wind_gateway/tests/__pycache__/__init__.cpython-313.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_admin_reload.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_admin_reload.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_auth_and_errors.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_auth_and_errors.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_config.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_config.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_compound.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_compound.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_daily_wss.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_daily_wss.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_dividend_events.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_dividend_events.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_edb.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_edb.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_etf_constituent.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_etf_constituent.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_etf_option.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_etf_option.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_financial.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_financial.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_financial_quarterly.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_financial_quarterly.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_financial_snapshot.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_financial_snapshot.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_fund_ann_date.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_fund_ann_date.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_fund_holdings.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_fund_holdings.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_fund_industry_weight.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_fund_industry_weight.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_fund_meta.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_fund_meta.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_fund_nav.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_fund_nav.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_fund_period_trading.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_fund_period_trading.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_futures.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_futures.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_industry.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_industry.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_institution_forecasts.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_institution_forecasts.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_preannounce.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_preannounce.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_price.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_price.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_report_appointment.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_report_appointment.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_research_report.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_research_report.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_endpoint_simple_wsd.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_endpoint_simple_wsd.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_merge_helpers.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_merge_helpers.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_merge_statements.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_merge_statements.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_quota_concurrency.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_quota_concurrency.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_quota.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_quota.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_quota_endpoint.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_quota_endpoint.cpython-313-pytest-9.0.3.pyc 不同
+二进制文件 orig/wind_gateway/tests/__pycache__/test_wind_client.cpython-313-pytest-9.0.3.pyc 和 new/wind_gateway/tests/__pycache__/test_wind_client.cpython-313-pytest-9.0.3.pyc 不同
+diff -ruN orig/wind_gateway/tests/test_endpoint_futures.py new/wind_gateway/tests/test_endpoint_futures.py
+--- orig/wind_gateway/tests/test_endpoint_futures.py	1970-01-01 08:00:00.000000000 +0800
++++ new/wind_gateway/tests/test_endpoint_futures.py	2026-09-02 18:47:10.359099996 +0800
+@@ -0,0 +1,82 @@
++from datetime import date
++import pytest
++from fastapi.testclient import TestClient
++from wind_gateway.main import create_app
++from wind_gateway.quota import DailyQuota
++
++FUTURES_FIELDS = "open,high,low,close,volume,oi,amt,settle"
++
++
++@pytest.fixture
++def app_and_client(fake_wind, tmp_path):
++    cfg = {
++        "server": {"port": 8080, "auth_token": "t"},
++        "quota": {"max_per_day": 1000, "persist_path": str(tmp_path / "q.json")},
++        "fetchers": {
++            "price": {"wsd_fields": "open,high,low,close,volume,amt,turn,adjfactor", "wsd_options": ""},
++            "futures": {"wsd_fields": FUTURES_FIELDS, "wsd_options": ""},
++        },
++    }
++    app = create_app(cfg)
++    app.state.wind = fake_wind
++    app.state.quota = DailyQuota(path=tmp_path / "q.json", max_per_day=1000)
++    return app, TestClient(app)
++
++
++def test_fetch_futures_ok_and_carries_oi_settle(app_and_client, fake_wind):
++    _app, client = app_and_client
++    fields = FUTURES_FIELDS.split(",")
++    fake_wind.queue_wsd(
++        codes=["IC2609.CFE"], fields=fields,
++        times=[date(2026, 8, 25)],
++        data=[[6000.0], [6050.0], [5980.0], [6020.0], [12345], [98765], [1.5e9], [6018.6]],
++    )
++    r = client.get(
++        "/fetch/futures",
++        params={"codes": "IC2609.CFE", "start": "2026-08-25", "end": "2026-08-25"},
++        headers={"Authorization": "Bearer t"},
++    )
++    assert r.status_code == 200
++    j = r.json()
++    assert j["columns"] == ["ts_code", "trade_date"] + fields
++    assert j["rows"][0][j["columns"].index("oi")] == 98765
++    assert j["rows"][0][j["columns"].index("settle")] == 6018.6
++    # YAML wiring: the futures fetcher, not price, decided the field list
++    assert fake_wind.wsd_calls[0]["fields"] == FUTURES_FIELDS
++    assert fake_wind.wsd_calls[0]["codes"] == "IC2609.CFE"
++
++
++def test_fetch_futures_does_not_touch_price_fetcher(app_and_client, fake_wind):
++    """price stays stock-calibre: adding futures must not widen /fetch/price."""
++    _app, client = app_and_client
++    fake_wind.queue_wsd(
++        codes=["600519.SH"], fields="open,high,low,close,volume,amt,turn,adjfactor".split(","),
++        times=[date(2026, 8, 25)], data=[[1], [1], [1], [1], [1], [1], [1], [1]],
++    )
++    r = client.get(
++        "/fetch/price",
++        params={"codes": "600519.SH", "start": "2026-08-25", "end": "2026-08-25"},
++        headers={"Authorization": "Bearer t"},
++    )
++    assert r.status_code == 200
++    assert "oi" not in r.json()["columns"]
++    assert fake_wind.wsd_calls[0]["fields"] == "open,high,low,close,volume,amt,turn,adjfactor"
++
++
++def test_fetch_futures_fetcher_missing_in_config(tmp_path, fake_wind):
++    cfg = {
++        "server": {"port": 8080, "auth_token": "t"},
++        "quota": {"max_per_day": 100, "persist_path": str(tmp_path / "q.json")},
++        "fetchers": {"price": {"wsd_fields": "open,close", "wsd_options": ""}},
++    }
++    app = create_app(cfg)
++    app.state.wind = fake_wind
++    app.state.quota = DailyQuota(path=tmp_path / "q.json", max_per_day=100)
++    c = TestClient(app)
++    r = c.get("/fetch/futures",
++              params={"codes": "IC2609.CFE", "start": "2026-08-25", "end": "2026-08-25"},
++              headers={"Authorization": "Bearer t"})
++    assert r.status_code == 500
++    body = r.json()
++    assert body["error"] == "fetcher_not_configured"
++    assert "futures" in body["detail"]

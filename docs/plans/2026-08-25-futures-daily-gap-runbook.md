@@ -137,3 +137,20 @@ python3 tools/topup_futures_daily.py \
 ⚠️ **2026-08-25 当日 Wind 日配额已耗尽**（`-40522017`，另一会话的 indicator 洞补撞的墙），
 真跑要等配额恢复。当日已冒烟验证：鉴权通过、绕代理成功、请求到达网关、
 配额错误被完整暴露（`gateway 429: {"error":"quota_exceeded",...}`）而非静默吞掉。
+
+### 2026-09-02 补充：网关补丁已备好，可直接套用
+
+`docs/plans/2026-09-02-gateway-futures-fetcher.patch`（对 `stock_selector` 仓根 `patch -p1`）：
+
+- `wind_gateway/endpoints.py`：新增 `/fetch/futures`（与 `/fetch/price` 同形、独立 fetcher `futures`）。
+- `wind_gateway/config.yaml.example`：新增 `fetchers.futures`（`open,high,low,close,volume,oi,amt,settle`）。
+- `wind_gateway/tests/test_endpoint_futures.py`：3 个测试（oi/settle 列穿透、不污染 `/fetch/price`、缺配置 → `fetcher_not_configured`）。
+
+验证：在网关代码的隔离副本上 `pytest wind_gateway/tests` **171 passed**（168 旧 + 3 新）；
+删掉端点后新测试 2 红（变异验证）。补丁未落入 `stock_selector` 工作树（当时另一会话在动该仓）。
+
+部署步骤（Windows 机，需 Wind 终端在线）：
+1. `stock_selector` 仓根 `patch -p1 < .../2026-09-02-gateway-futures-fetcher.patch`，跑 `pytest wind_gateway/tests`。
+2. 生产 `wind_gateway/config.yaml`（不在 git 内）加 `fetchers.futures` 段，值同 example。
+3. 重启网关或 `POST /admin/reload`；`GET /fetch/futures?codes=IC2609.CFE&start=...&end=...` 应返回含 `oi`、`settle` 的列。
+4. 回到本仓跑 `tools/topup_futures_daily.py`（合约名单见上文 16 行清单），`carry_readiness` 体检必须不再报 `⛔ 全空`。
