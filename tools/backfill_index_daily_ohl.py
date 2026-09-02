@@ -22,7 +22,7 @@ from signals.common.config import load_db_config
 from signals.style_basket.build import _connect
 
 GW_SETTINGS = Path("/home/elfbob/claude-code/stock_selector/config/settings.yaml")
-CHUNK_DAYS = 120  # 2 codes × 6 fields × ~85 trading days ≈ 1,000 cells per wsd call
+CHUNK_DAYS = 120  # default; override with --chunk-days (wsd single-call cap ≈ 2,300 cells)
 
 
 def gateway():
@@ -44,14 +44,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--codes", required=True); ap.add_argument("--start", type=date.fromisoformat, required=True)
     ap.add_argument("--end", type=date.fromisoformat, required=True); ap.add_argument("--receipt", required=True)
-    ap.add_argument("--dry-run", action="store_true"); a = ap.parse_args()
+    ap.add_argument("--dry-run", action="store_true"); ap.add_argument("--chunk-days", type=int, default=CHUNK_DAYS); a = ap.parse_args()
     url, s = gateway(); db = load_db_config(); S = db["schema"]; conn = _connect(db); cur = conn.cursor()
     q0 = s.get(f"{url}/quota", timeout=30).json()
     stats = {"fetched_rows": 0, "wind_open_null": 0, "updated": 0, "row_missing": 0, "already_filled": 0, "chunks": 0}
     per_code = {}
     t0 = time.time(); cur_start = a.start
     while cur_start <= a.end:
-        cur_end = min(cur_start + timedelta(days=CHUNK_DAYS - 1), a.end)
+        cur_end = min(cur_start + timedelta(days=a.chunk_days - 1), a.end)
         cols, rows = fetch(url, s, a.codes, cur_start, cur_end); stats["chunks"] += 1
         ix = {c: i for i, c in enumerate(cols)}
         for r in rows:

@@ -1,0 +1,70 @@
+{
+ "generated_at": "2026-09-02T11:14:03.443093+00:00",
+ "codes": "CI005917.WI,CI005918.WI,CI005919.WI,CI005920.WI,CI005921.WI",
+ "start": "2018-07-01",
+ "end": "2026-09-01",
+ "dry_run": false,
+ "db_host": "100.65.111.79",
+ "stats": {
+  "fetched_rows": 9920,
+  "wind_open_null": 0,
+  "updated": 9645,
+  "row_missing": 0,
+  "already_filled": 275,
+  "chunks": 50
+ },
+ "per_code": {
+  "CI005917.WI": {
+   "fetched": 1984,
+   "updated": 1929,
+   "wind_open_null": 0,
+   "row_missing": 0,
+   "first_open": "2018-07-02",
+   "last_open": "2026-09-01"
+  },
+  "CI005918.WI": {
+   "fetched": 1984,
+   "updated": 1929,
+   "wind_open_null": 0,
+   "row_missing": 0,
+   "first_open": "2018-07-02",
+   "last_open": "2026-09-01"
+  },
+  "CI005919.WI": {
+   "fetched": 1984,
+   "updated": 1929,
+   "wind_open_null": 0,
+   "row_missing": 0,
+   "first_open": "2018-07-02",
+   "last_open": "2026-09-01"
+  },
+  "CI005920.WI": {
+   "fetched": 1984,
+   "updated": 1929,
+   "wind_open_null": 0,
+   "row_missing": 0,
+   "first_open": "2018-07-02",
+   "last_open": "2026-09-01"
+  },
+  "CI005921.WI": {
+   "fetched": 1984,
+   "updated": 1929,
+   "wind_open_null": 0,
+   "row_missing": 0,
+   "first_open": "2018-07-02",
+   "last_open": "2026-09-01"
+  }
+ },
+ "gateway_quota_before": {
+  "used": 151230,
+  "max": 500000000,
+  "date": "2026-09-02"
+ },
+ "gateway_quota_after": {
+  "used": 240780,
+  "max": 500000000,
+  "date": "2026-09-02"
+ },
+ "gateway_cells_used": 89550,
+ "elapsed_s": 222.8
+}
