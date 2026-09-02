@@ -3,7 +3,8 @@ candidates:
   - B3_unified
   - B3_dual_target
 windows:
-  discovery: ["2014-01-01", "2020-12-31"]
+  # 2014-10：中证1000 于 2014-10-17 发布，此前 q1000 无所指。
+  discovery: ["2014-10-01", "2020-12-31"]
   confirmation: ["2021-01-01", "2023-12-31"]
   report_only: ["2024-01-01", "2026-12-31"]
 pit:
@@ -17,9 +18,10 @@ exposure:
 portfolio:
   weight_cap: 0.01
   min_leg_size: 100
-  q_bands:
-    q500: [301, 800]
-    q1000: [801, 1800]
+  # 目标坐标改为直接测量真实指数成份后，排名带不再存在。
+  # 成员须有这么大比例落在 size universe 内，中位数才算可信；取自稳健性
+  # 而非拟合（中位数对少量缺失不敏感）。
+  min_index_member_coverage: 0.95
 signal:
   raw_window: 20
   z_window: 40

@@ -1,0 +1,2271 @@
+{
+  "artifacts": {
+    "uncovered_model_rows": {
+      "path": "uncovered_model_rows.csv",
+      "sha256": "6f6a42c641c274730f5a5cbde4e1564021278d42e950b62ae63ac1e6e18e8932",
+      "size": 33
+    }
+  },
+  "by_formation_month": [
+    {
+      "denominator": 4262,
+      "formation_month": "2014-10",
+      "numerator": 4262,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4262,
+      "formation_month": "2014-11",
+      "numerator": 4262,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4262,
+      "formation_month": "2014-12",
+      "numerator": 4262,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4260,
+      "formation_month": "2015-01",
+      "numerator": 4260,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4260,
+      "formation_month": "2015-02",
+      "numerator": 4260,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4260,
+      "formation_month": "2015-03",
+      "numerator": 4260,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4422,
+      "formation_month": "2015-04",
+      "numerator": 4422,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4416,
+      "formation_month": "2015-05",
+      "numerator": 4416,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4416,
+      "formation_month": "2015-06",
+      "numerator": 4416,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4416,
+      "formation_month": "2015-07",
+      "numerator": 4416,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4520,
+      "formation_month": "2015-08",
+      "numerator": 4520,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4520,
+      "formation_month": "2015-09",
+      "numerator": 4520,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4704,
+      "formation_month": "2015-10",
+      "numerator": 4704,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4716,
+      "formation_month": "2015-11",
+      "numerator": 4716,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4714,
+      "formation_month": "2015-12",
+      "numerator": 4714,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4714,
+      "formation_month": "2016-01",
+      "numerator": 4714,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4714,
+      "formation_month": "2016-02",
+      "numerator": 4714,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4714,
+      "formation_month": "2016-03",
+      "numerator": 4714,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4826,
+      "formation_month": "2016-04",
+      "numerator": 4826,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4834,
+      "formation_month": "2016-05",
+      "numerator": 4834,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4834,
+      "formation_month": "2016-06",
+      "numerator": 4834,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4834,
+      "formation_month": "2016-07",
+      "numerator": 4834,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2016-08",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2016-09",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4912,
+      "formation_month": "2016-10",
+      "numerator": 4912,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4912,
+      "formation_month": "2016-11",
+      "numerator": 4912,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4912,
+      "formation_month": "2016-12",
+      "numerator": 4912,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4910,
+      "formation_month": "2017-01",
+      "numerator": 4910,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2017-02",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2017-03",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2017-04",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2017-05",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2017-06",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4906,
+      "formation_month": "2017-07",
+      "numerator": 4906,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2017-08",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 4908,
+      "formation_month": "2017-09",
+      "numerator": 4908,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5004,
+      "formation_month": "2017-10",
+      "numerator": 5004,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5004,
+      "formation_month": "2017-11",
+      "numerator": 5004,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5002,
+      "formation_month": "2017-12",
+      "numerator": 5002,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5002,
+      "formation_month": "2018-01",
+      "numerator": 5002,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5002,
+      "formation_month": "2018-02",
+      "numerator": 5002,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5002,
+      "formation_month": "2018-03",
+      "numerator": 5002,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5016,
+      "formation_month": "2018-04",
+      "numerator": 5016,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5018,
+      "formation_month": "2018-05",
+      "numerator": 5018,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5018,
+      "formation_month": "2018-06",
+      "numerator": 5018,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5018,
+      "formation_month": "2018-07",
+      "numerator": 5018,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5084,
+      "formation_month": "2018-08",
+      "numerator": 5084,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5084,
+      "formation_month": "2018-09",
+      "numerator": 5084,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5304,
+      "formation_month": "2018-10",
+      "numerator": 5304,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5304,
+      "formation_month": "2018-11",
+      "numerator": 5304,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5302,
+      "formation_month": "2018-12",
+      "numerator": 5302,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5300,
+      "formation_month": "2019-01",
+      "numerator": 5300,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5300,
+      "formation_month": "2019-02",
+      "numerator": 5300,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5300,
+      "formation_month": "2019-03",
+      "numerator": 5300,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5532,
+      "formation_month": "2019-04",
+      "numerator": 5532,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5530,
+      "formation_month": "2019-05",
+      "numerator": 5530,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5528,
+      "formation_month": "2019-06",
+      "numerator": 5528,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5522,
+      "formation_month": "2019-07",
+      "numerator": 5522,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5522,
+      "formation_month": "2019-08",
+      "numerator": 5522,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5522,
+      "formation_month": "2019-09",
+      "numerator": 5522,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5638,
+      "formation_month": "2019-10",
+      "numerator": 5638,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5632,
+      "formation_month": "2019-11",
+      "numerator": 5632,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5630,
+      "formation_month": "2019-12",
+      "numerator": 5630,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5628,
+      "formation_month": "2020-01",
+      "numerator": 5628,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5626,
+      "formation_month": "2020-02",
+      "numerator": 5626,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5626,
+      "formation_month": "2020-03",
+      "numerator": 5626,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5716,
+      "formation_month": "2020-04",
+      "numerator": 5716,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5714,
+      "formation_month": "2020-05",
+      "numerator": 5714,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5712,
+      "formation_month": "2020-06",
+      "numerator": 5712,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5706,
+      "formation_month": "2020-07",
+      "numerator": 5706,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5820,
+      "formation_month": "2020-08",
+      "numerator": 5820,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 5818,
+      "formation_month": "2020-09",
+      "numerator": 5818,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6262,
+      "formation_month": "2020-10",
+      "numerator": 6262,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6310,
+      "formation_month": "2020-11",
+      "numerator": 6310,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6308,
+      "formation_month": "2020-12",
+      "numerator": 6308,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6308,
+      "formation_month": "2021-01",
+      "numerator": 6308,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6306,
+      "formation_month": "2021-02",
+      "numerator": 6306,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6298,
+      "formation_month": "2021-03",
+      "numerator": 6298,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6552,
+      "formation_month": "2021-04",
+      "numerator": 6552,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6544,
+      "formation_month": "2021-05",
+      "numerator": 6544,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6542,
+      "formation_month": "2021-06",
+      "numerator": 6542,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6534,
+      "formation_month": "2021-07",
+      "numerator": 6534,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6686,
+      "formation_month": "2021-08",
+      "numerator": 6686,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6684,
+      "formation_month": "2021-09",
+      "numerator": 6684,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6874,
+      "formation_month": "2021-10",
+      "numerator": 6874,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6918,
+      "formation_month": "2021-11",
+      "numerator": 6918,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6918,
+      "formation_month": "2021-12",
+      "numerator": 6918,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6916,
+      "formation_month": "2022-01",
+      "numerator": 6916,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6916,
+      "formation_month": "2022-02",
+      "numerator": 6916,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6916,
+      "formation_month": "2022-03",
+      "numerator": 6916,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6956,
+      "formation_month": "2022-04",
+      "numerator": 6956,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6958,
+      "formation_month": "2022-05",
+      "numerator": 6958,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6904,
+      "formation_month": "2022-06",
+      "numerator": 6904,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6888,
+      "formation_month": "2022-07",
+      "numerator": 6888,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6922,
+      "formation_month": "2022-08",
+      "numerator": 6922,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 6922,
+      "formation_month": "2022-09",
+      "numerator": 6922,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7036,
+      "formation_month": "2022-10",
+      "numerator": 7036,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7038,
+      "formation_month": "2022-11",
+      "numerator": 7038,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7038,
+      "formation_month": "2022-12",
+      "numerator": 7038,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7038,
+      "formation_month": "2023-01",
+      "numerator": 7038,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7036,
+      "formation_month": "2023-02",
+      "numerator": 7036,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7030,
+      "formation_month": "2023-03",
+      "numerator": 7030,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7100,
+      "formation_month": "2023-04",
+      "numerator": 7100,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7116,
+      "formation_month": "2023-05",
+      "numerator": 7116,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7102,
+      "formation_month": "2023-06",
+      "numerator": 7102,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7066,
+      "formation_month": "2023-07",
+      "numerator": 7066,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7144,
+      "formation_month": "2023-08",
+      "numerator": 7144,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7144,
+      "formation_month": "2023-09",
+      "numerator": 7144,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7412,
+      "formation_month": "2023-10",
+      "numerator": 7412,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7412,
+      "formation_month": "2023-11",
+      "numerator": 7412,
+      "ratio": 1.0
+    },
+    {
+      "denominator": 7412,
+      "formation_month": "2023-12",
+      "numerator": 7412,
+      "ratio": 1.0
+    }
+  ],
+  "by_policy": [
+    {
+      "denominator": 314778,
+      "numerator": 314778,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 314778,
+      "numerator": 314778,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    }
+  ],
+  "by_policy_formation_month": [
+    {
+      "denominator": 2131,
+      "formation_month": "2014-10",
+      "numerator": 2131,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2131,
+      "formation_month": "2014-11",
+      "numerator": 2131,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2131,
+      "formation_month": "2014-12",
+      "numerator": 2131,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2130,
+      "formation_month": "2015-01",
+      "numerator": 2130,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2130,
+      "formation_month": "2015-02",
+      "numerator": 2130,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2130,
+      "formation_month": "2015-03",
+      "numerator": 2130,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2211,
+      "formation_month": "2015-04",
+      "numerator": 2211,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2208,
+      "formation_month": "2015-05",
+      "numerator": 2208,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2208,
+      "formation_month": "2015-06",
+      "numerator": 2208,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2208,
+      "formation_month": "2015-07",
+      "numerator": 2208,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2260,
+      "formation_month": "2015-08",
+      "numerator": 2260,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2260,
+      "formation_month": "2015-09",
+      "numerator": 2260,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2352,
+      "formation_month": "2015-10",
+      "numerator": 2352,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2358,
+      "formation_month": "2015-11",
+      "numerator": 2358,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2357,
+      "formation_month": "2015-12",
+      "numerator": 2357,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2357,
+      "formation_month": "2016-01",
+      "numerator": 2357,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2357,
+      "formation_month": "2016-02",
+      "numerator": 2357,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2357,
+      "formation_month": "2016-03",
+      "numerator": 2357,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2413,
+      "formation_month": "2016-04",
+      "numerator": 2413,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2417,
+      "formation_month": "2016-05",
+      "numerator": 2417,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2417,
+      "formation_month": "2016-06",
+      "numerator": 2417,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2417,
+      "formation_month": "2016-07",
+      "numerator": 2417,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2016-08",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2016-09",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2456,
+      "formation_month": "2016-10",
+      "numerator": 2456,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2456,
+      "formation_month": "2016-11",
+      "numerator": 2456,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2456,
+      "formation_month": "2016-12",
+      "numerator": 2456,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2455,
+      "formation_month": "2017-01",
+      "numerator": 2455,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-02",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-03",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-04",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-05",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-06",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2453,
+      "formation_month": "2017-07",
+      "numerator": 2453,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-08",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-09",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2502,
+      "formation_month": "2017-10",
+      "numerator": 2502,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2502,
+      "formation_month": "2017-11",
+      "numerator": 2502,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2501,
+      "formation_month": "2017-12",
+      "numerator": 2501,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2501,
+      "formation_month": "2018-01",
+      "numerator": 2501,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2501,
+      "formation_month": "2018-02",
+      "numerator": 2501,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2501,
+      "formation_month": "2018-03",
+      "numerator": 2501,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2508,
+      "formation_month": "2018-04",
+      "numerator": 2508,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2509,
+      "formation_month": "2018-05",
+      "numerator": 2509,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2509,
+      "formation_month": "2018-06",
+      "numerator": 2509,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2509,
+      "formation_month": "2018-07",
+      "numerator": 2509,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2542,
+      "formation_month": "2018-08",
+      "numerator": 2542,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2542,
+      "formation_month": "2018-09",
+      "numerator": 2542,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2652,
+      "formation_month": "2018-10",
+      "numerator": 2652,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2652,
+      "formation_month": "2018-11",
+      "numerator": 2652,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2651,
+      "formation_month": "2018-12",
+      "numerator": 2651,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2650,
+      "formation_month": "2019-01",
+      "numerator": 2650,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2650,
+      "formation_month": "2019-02",
+      "numerator": 2650,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2650,
+      "formation_month": "2019-03",
+      "numerator": 2650,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2766,
+      "formation_month": "2019-04",
+      "numerator": 2766,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2765,
+      "formation_month": "2019-05",
+      "numerator": 2765,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2764,
+      "formation_month": "2019-06",
+      "numerator": 2764,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2761,
+      "formation_month": "2019-07",
+      "numerator": 2761,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2761,
+      "formation_month": "2019-08",
+      "numerator": 2761,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2761,
+      "formation_month": "2019-09",
+      "numerator": 2761,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2819,
+      "formation_month": "2019-10",
+      "numerator": 2819,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2816,
+      "formation_month": "2019-11",
+      "numerator": 2816,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2815,
+      "formation_month": "2019-12",
+      "numerator": 2815,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2814,
+      "formation_month": "2020-01",
+      "numerator": 2814,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2813,
+      "formation_month": "2020-02",
+      "numerator": 2813,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2813,
+      "formation_month": "2020-03",
+      "numerator": 2813,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2858,
+      "formation_month": "2020-04",
+      "numerator": 2858,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2857,
+      "formation_month": "2020-05",
+      "numerator": 2857,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2856,
+      "formation_month": "2020-06",
+      "numerator": 2856,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2853,
+      "formation_month": "2020-07",
+      "numerator": 2853,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2910,
+      "formation_month": "2020-08",
+      "numerator": 2910,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2909,
+      "formation_month": "2020-09",
+      "numerator": 2909,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3131,
+      "formation_month": "2020-10",
+      "numerator": 3131,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3155,
+      "formation_month": "2020-11",
+      "numerator": 3155,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3154,
+      "formation_month": "2020-12",
+      "numerator": 3154,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3154,
+      "formation_month": "2021-01",
+      "numerator": 3154,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3153,
+      "formation_month": "2021-02",
+      "numerator": 3153,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3149,
+      "formation_month": "2021-03",
+      "numerator": 3149,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3276,
+      "formation_month": "2021-04",
+      "numerator": 3276,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3272,
+      "formation_month": "2021-05",
+      "numerator": 3272,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3271,
+      "formation_month": "2021-06",
+      "numerator": 3271,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3267,
+      "formation_month": "2021-07",
+      "numerator": 3267,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3343,
+      "formation_month": "2021-08",
+      "numerator": 3343,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3342,
+      "formation_month": "2021-09",
+      "numerator": 3342,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3437,
+      "formation_month": "2021-10",
+      "numerator": 3437,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3459,
+      "formation_month": "2021-11",
+      "numerator": 3459,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3459,
+      "formation_month": "2021-12",
+      "numerator": 3459,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3458,
+      "formation_month": "2022-01",
+      "numerator": 3458,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3458,
+      "formation_month": "2022-02",
+      "numerator": 3458,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3458,
+      "formation_month": "2022-03",
+      "numerator": 3458,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3478,
+      "formation_month": "2022-04",
+      "numerator": 3478,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3479,
+      "formation_month": "2022-05",
+      "numerator": 3479,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3452,
+      "formation_month": "2022-06",
+      "numerator": 3452,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3444,
+      "formation_month": "2022-07",
+      "numerator": 3444,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3461,
+      "formation_month": "2022-08",
+      "numerator": 3461,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3461,
+      "formation_month": "2022-09",
+      "numerator": 3461,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3518,
+      "formation_month": "2022-10",
+      "numerator": 3518,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3519,
+      "formation_month": "2022-11",
+      "numerator": 3519,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3519,
+      "formation_month": "2022-12",
+      "numerator": 3519,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3519,
+      "formation_month": "2023-01",
+      "numerator": 3519,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3518,
+      "formation_month": "2023-02",
+      "numerator": 3518,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3515,
+      "formation_month": "2023-03",
+      "numerator": 3515,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3550,
+      "formation_month": "2023-04",
+      "numerator": 3550,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3558,
+      "formation_month": "2023-05",
+      "numerator": 3558,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3551,
+      "formation_month": "2023-06",
+      "numerator": 3551,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3533,
+      "formation_month": "2023-07",
+      "numerator": 3533,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3572,
+      "formation_month": "2023-08",
+      "numerator": 3572,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3572,
+      "formation_month": "2023-09",
+      "numerator": 3572,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3706,
+      "formation_month": "2023-10",
+      "numerator": 3706,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3706,
+      "formation_month": "2023-11",
+      "numerator": 3706,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3706,
+      "formation_month": "2023-12",
+      "numerator": 3706,
+      "pit_policy": "legal_deadline",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2131,
+      "formation_month": "2014-10",
+      "numerator": 2131,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2131,
+      "formation_month": "2014-11",
+      "numerator": 2131,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2131,
+      "formation_month": "2014-12",
+      "numerator": 2131,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2130,
+      "formation_month": "2015-01",
+      "numerator": 2130,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2130,
+      "formation_month": "2015-02",
+      "numerator": 2130,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2130,
+      "formation_month": "2015-03",
+      "numerator": 2130,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2211,
+      "formation_month": "2015-04",
+      "numerator": 2211,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2208,
+      "formation_month": "2015-05",
+      "numerator": 2208,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2208,
+      "formation_month": "2015-06",
+      "numerator": 2208,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2208,
+      "formation_month": "2015-07",
+      "numerator": 2208,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2260,
+      "formation_month": "2015-08",
+      "numerator": 2260,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2260,
+      "formation_month": "2015-09",
+      "numerator": 2260,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2352,
+      "formation_month": "2015-10",
+      "numerator": 2352,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2358,
+      "formation_month": "2015-11",
+      "numerator": 2358,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2357,
+      "formation_month": "2015-12",
+      "numerator": 2357,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2357,
+      "formation_month": "2016-01",
+      "numerator": 2357,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2357,
+      "formation_month": "2016-02",
+      "numerator": 2357,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2357,
+      "formation_month": "2016-03",
+      "numerator": 2357,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2413,
+      "formation_month": "2016-04",
+      "numerator": 2413,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2417,
+      "formation_month": "2016-05",
+      "numerator": 2417,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2417,
+      "formation_month": "2016-06",
+      "numerator": 2417,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2417,
+      "formation_month": "2016-07",
+      "numerator": 2417,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2016-08",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2016-09",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2456,
+      "formation_month": "2016-10",
+      "numerator": 2456,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2456,
+      "formation_month": "2016-11",
+      "numerator": 2456,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2456,
+      "formation_month": "2016-12",
+      "numerator": 2456,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2455,
+      "formation_month": "2017-01",
+      "numerator": 2455,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-02",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-03",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-04",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-05",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-06",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2453,
+      "formation_month": "2017-07",
+      "numerator": 2453,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-08",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2454,
+      "formation_month": "2017-09",
+      "numerator": 2454,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2502,
+      "formation_month": "2017-10",
+      "numerator": 2502,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2502,
+      "formation_month": "2017-11",
+      "numerator": 2502,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2501,
+      "formation_month": "2017-12",
+      "numerator": 2501,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2501,
+      "formation_month": "2018-01",
+      "numerator": 2501,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2501,
+      "formation_month": "2018-02",
+      "numerator": 2501,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2501,
+      "formation_month": "2018-03",
+      "numerator": 2501,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2508,
+      "formation_month": "2018-04",
+      "numerator": 2508,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2509,
+      "formation_month": "2018-05",
+      "numerator": 2509,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2509,
+      "formation_month": "2018-06",
+      "numerator": 2509,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2509,
+      "formation_month": "2018-07",
+      "numerator": 2509,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2542,
+      "formation_month": "2018-08",
+      "numerator": 2542,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2542,
+      "formation_month": "2018-09",
+      "numerator": 2542,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2652,
+      "formation_month": "2018-10",
+      "numerator": 2652,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2652,
+      "formation_month": "2018-11",
+      "numerator": 2652,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2651,
+      "formation_month": "2018-12",
+      "numerator": 2651,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2650,
+      "formation_month": "2019-01",
+      "numerator": 2650,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2650,
+      "formation_month": "2019-02",
+      "numerator": 2650,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2650,
+      "formation_month": "2019-03",
+      "numerator": 2650,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2766,
+      "formation_month": "2019-04",
+      "numerator": 2766,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2765,
+      "formation_month": "2019-05",
+      "numerator": 2765,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2764,
+      "formation_month": "2019-06",
+      "numerator": 2764,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2761,
+      "formation_month": "2019-07",
+      "numerator": 2761,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2761,
+      "formation_month": "2019-08",
+      "numerator": 2761,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2761,
+      "formation_month": "2019-09",
+      "numerator": 2761,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2819,
+      "formation_month": "2019-10",
+      "numerator": 2819,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2816,
+      "formation_month": "2019-11",
+      "numerator": 2816,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2815,
+      "formation_month": "2019-12",
+      "numerator": 2815,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2814,
+      "formation_month": "2020-01",
+      "numerator": 2814,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2813,
+      "formation_month": "2020-02",
+      "numerator": 2813,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2813,
+      "formation_month": "2020-03",
+      "numerator": 2813,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2858,
+      "formation_month": "2020-04",
+      "numerator": 2858,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2857,
+      "formation_month": "2020-05",
+      "numerator": 2857,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2856,
+      "formation_month": "2020-06",
+      "numerator": 2856,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2853,
+      "formation_month": "2020-07",
+      "numerator": 2853,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2910,
+      "formation_month": "2020-08",
+      "numerator": 2910,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 2909,
+      "formation_month": "2020-09",
+      "numerator": 2909,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3131,
+      "formation_month": "2020-10",
+      "numerator": 3131,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3155,
+      "formation_month": "2020-11",
+      "numerator": 3155,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3154,
+      "formation_month": "2020-12",
+      "numerator": 3154,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3154,
+      "formation_month": "2021-01",
+      "numerator": 3154,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3153,
+      "formation_month": "2021-02",
+      "numerator": 3153,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3149,
+      "formation_month": "2021-03",
+      "numerator": 3149,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3276,
+      "formation_month": "2021-04",
+      "numerator": 3276,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3272,
+      "formation_month": "2021-05",
+      "numerator": 3272,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3271,
+      "formation_month": "2021-06",
+      "numerator": 3271,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3267,
+      "formation_month": "2021-07",
+      "numerator": 3267,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3343,
+      "formation_month": "2021-08",
+      "numerator": 3343,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3342,
+      "formation_month": "2021-09",
+      "numerator": 3342,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3437,
+      "formation_month": "2021-10",
+      "numerator": 3437,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3459,
+      "formation_month": "2021-11",
+      "numerator": 3459,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3459,
+      "formation_month": "2021-12",
+      "numerator": 3459,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3458,
+      "formation_month": "2022-01",
+      "numerator": 3458,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3458,
+      "formation_month": "2022-02",
+      "numerator": 3458,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3458,
+      "formation_month": "2022-03",
+      "numerator": 3458,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3478,
+      "formation_month": "2022-04",
+      "numerator": 3478,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3479,
+      "formation_month": "2022-05",
+      "numerator": 3479,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3452,
+      "formation_month": "2022-06",
+      "numerator": 3452,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3444,
+      "formation_month": "2022-07",
+      "numerator": 3444,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3461,
+      "formation_month": "2022-08",
+      "numerator": 3461,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3461,
+      "formation_month": "2022-09",
+      "numerator": 3461,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3518,
+      "formation_month": "2022-10",
+      "numerator": 3518,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3519,
+      "formation_month": "2022-11",
+      "numerator": 3519,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3519,
+      "formation_month": "2022-12",
+      "numerator": 3519,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3519,
+      "formation_month": "2023-01",
+      "numerator": 3519,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3518,
+      "formation_month": "2023-02",
+      "numerator": 3518,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3515,
+      "formation_month": "2023-03",
+      "numerator": 3515,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3550,
+      "formation_month": "2023-04",
+      "numerator": 3550,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3558,
+      "formation_month": "2023-05",
+      "numerator": 3558,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3551,
+      "formation_month": "2023-06",
+      "numerator": 3551,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3533,
+      "formation_month": "2023-07",
+      "numerator": 3533,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3572,
+      "formation_month": "2023-08",
+      "numerator": 3572,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3572,
+      "formation_month": "2023-09",
+      "numerator": 3572,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3706,
+      "formation_month": "2023-10",
+      "numerator": 3706,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3706,
+      "formation_month": "2023-11",
+      "numerator": 3706,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    },
+    {
+      "denominator": 3706,
+      "formation_month": "2023-12",
+      "numerator": 3706,
+      "pit_policy": "legal_deadline_plus_one_month_end",
+      "ratio": 1.0
+    }
+  ],
+  "coverage": {
+    "coverage_basis": "explicit true_first_disclosure_verified on model rows for every frozen PIT policy and formation month from 2014-10 through 2023-12",
+    "ratio": 1.0,
+    "required_denominator": 629556,
+    "verified_numerator": 629556
+  },
+  "coverage_ready": true,
+  "generated_at": "2026-09-02T03:02:42.956036+00:00",
+  "provenance": {
+    "config_path": "/tmp/b3-jan1-pit-fix/signals/style_basket/b3_config.yaml",
+    "config_sha256": "33e7f69ff47e84e9ac92cabee2aa4f2fd1c19850e3d1a27d42a375a63c6b2c61",
+    "git": {
+      "commit": "8899775606426a0c9e61fb247c51e498f60bc580",
+      "dirty": false,
+      "porcelain": [],
+      "tracked_dirty": false
+    },
+    "input_artifact": {
+      "path": "monthly_exposures.csv.gz",
+      "sha256": "0e7fbc4c1e6c288cf456aad48cdb04d2c2e0c5c3ea56390b3ef4a0514136d109",
+      "size": 107624727
+    }
+  },
+  "schema_version": 1
+}

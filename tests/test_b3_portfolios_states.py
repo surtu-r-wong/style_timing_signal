@@ -24,6 +24,7 @@ from signals.style_basket.b3_portfolios import (
     stock_period_returns,
 )
 from signals.style_basket.b3_states import (
+    _causal_transform,
     build_state_features,
     decompose_states,
 )
@@ -325,6 +326,15 @@ def _patch_stock_loader_sql(monkeypatch, frames):
     def fake_read_sql(db, sql, params=None):
         if "stock_daily_price_qfq" in sql:
             return prices.copy()
+        if "stock_suspension" in sql:
+            # 这些用例只考察价格与 status 两个源，Wind 证据留空。
+            return pd.DataFrame(
+                {"ticker": [], "trade_date": pd.to_datetime([])}
+            ).astype({"ticker": object})
+        if "stock_meta" in sql:
+            return pd.DataFrame(
+                {"ticker": [], "delist_date": pd.to_datetime([])}
+            ).astype({"ticker": object})
         if "stock_status" in sql:
             return status.copy()
         if "index_daily" in sql:
@@ -943,6 +953,42 @@ def test_state_transform_uses_full_past_windows_and_never_future_data():
     assert original[features].iloc[:62].isna().all().all()
 
 
+def test_causal_transform_maps_only_complete_zero_variance_windows_to_zero():
+    index = pd.bdate_range("2019-01-01", periods=85)
+    component = pd.Series(0.0, index=index)
+    component.iloc[80:] = 0.01
+
+    raw, feature = _causal_transform(
+        component,
+        raw_window=20,
+        z_window=40,
+        tanh_scale=2.0,
+        smoothing_window=5,
+    )
+
+    assert raw.iloc[:19].isna().all()
+    assert feature.iloc[:62].isna().all()
+    assert feature.iloc[62:80].eq(0.0).all()
+    assert np.isfinite(feature.iloc[80:]).all()
+
+
+def test_causal_transform_does_not_turn_a_real_gap_into_zero():
+    index = pd.bdate_range("2019-01-01", periods=150)
+    component = pd.Series(np.sin(np.arange(150) / 11.0), index=index)
+    component.iloc[90] = np.nan
+
+    _, feature = _causal_transform(
+        component,
+        raw_window=20,
+        z_window=40,
+        tanh_scale=2.0,
+        smoothing_window=5,
+    )
+
+    assert feature.iloc[89] == pytest.approx(float(feature.iloc[89]))
+    assert feature.iloc[90:149].isna().all()
+
+
 def _state_leg_rows(cfg):
     dates = pd.bdate_range("2019-01-01", periods=120)
     rows = []
@@ -1428,3 +1474,113 @@ def test_states_stage_is_byte_deterministic(tmp_path):
     assert (
         tmp_path / "manifests" / "states.json"
     ).read_bytes() == first_manifest
+
+
+def test_stock_return_status_loader_honours_wind_suspension_evidence(monkeypatch):
+    """行情整段缺行、stock_status 又无记录时，Wind 停牌证据必须能解释它。
+
+    stock_status 是稀疏快照——2020-05..2023-12 的 891 个交易日里只有 42 天有行，
+    而且 2020-04-30 之前一行没有；它承担不了"这天这只票停牌了吗"这个日频问题。
+    stock_suspension 是日频事件表（同期 888 天）且与 stock_status 零矛盾，
+    B3 暴露侧本来就在用它。2026-08-10 build 首次运行即因此阻断
+    （000020.SZ 2014-11-03 长期停牌，行情无行、status 无行）。
+    """
+    dates = pd.to_datetime(["2021-01-29", "2021-02-01", "2021-02-02"])
+    prices = pd.DataFrame(
+        {
+            "ticker": ["A", "B", "A", "A"],
+            "trade_date": [dates[0], dates[0], dates[1], dates[2]],
+            "close": [10.0, 20.0, 11.0, 12.0],
+            "pre_close": [10.0, 20.0, 10.0, 11.0],
+            "volume": [100.0, 100.0, 100.0, 100.0],
+        }
+    )
+    status = pd.DataFrame(
+        {"ticker": [], "trade_date": pd.to_datetime([]), "is_suspended": []}
+    ).astype({"ticker": object, "is_suspended": bool})
+    suspension = pd.DataFrame({"ticker": ["B"], "trade_date": [dates[1]]})
+    calendar = pd.DataFrame({"trade_date": dates})
+
+    def fake_read_sql(db, sql, params=None):
+        if "stock_daily_price_qfq" in sql:
+            return prices.copy()
+        if "stock_suspension" in sql:
+            return suspension.copy()
+        if "stock_meta" in sql:
+            return pd.DataFrame(
+                {"ticker": [], "delist_date": pd.to_datetime([])}
+            ).astype({"ticker": object})
+        if "stock_status" in sql:
+            return status.copy()
+        if "index_daily" in sql:
+            return calendar.copy()
+        raise AssertionError(f"unexpected SQL: {sql}")
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql", fake_read_sql
+    )
+
+    returns, suspended = _fetch_stock_return_status(
+        {"schema": "public"}, pd.Timestamp("2021-02-02")
+    )
+
+    assert bool(suspended.loc[dates[1], "B"])
+    assert pd.isna(returns.loc[dates[1], "B"])
+
+
+def test_stock_return_status_loader_explains_days_from_delisting(monkeypatch):
+    """摘牌日起不再是定价日——持仓在那天已被处置，不该要求它有价格。
+
+    实证（stock_selector 全库扫描，2026-08-10）：窗口内每一只退市 A 股在自己
+    摘牌日都无价格行、无一例外；Wind trade_status 当日返回 null 而非"退市"，
+    所以补数据也补不出 is_suspended=True。摘牌日对该券根本不是交易日。
+
+    formation 侧的活跃判定改右端只管住"formation 日恰好是摘牌日"；真正会撞闸
+    的是持有期中途摘牌——第十三跑即如此（000562.SZ 最后成交 2014-12-09、
+    2015-01-26 摘牌，在 2014-12-31 的 formation 被选中，摘牌日落在持有期内）。
+    """
+    dates = pd.to_datetime(["2021-01-29", "2021-02-01", "2021-02-02"])
+    prices = pd.DataFrame(
+        {
+            "ticker": ["A", "B", "A", "A"],
+            "trade_date": [dates[0], dates[0], dates[1], dates[2]],
+            "close": [10.0, 20.0, 11.0, 12.0],
+            "pre_close": [10.0, 20.0, 10.0, 11.0],
+            "volume": [100.0, 100.0, 100.0, 100.0],
+        }
+    )
+    empty_status = pd.DataFrame(
+        {"ticker": [], "trade_date": pd.to_datetime([]), "is_suspended": []}
+    ).astype({"ticker": object, "is_suspended": bool})
+    empty_susp = pd.DataFrame(
+        {"ticker": [], "trade_date": pd.to_datetime([])}
+    ).astype({"ticker": object})
+    meta = pd.DataFrame({"ticker": ["B"], "delist_date": [dates[1]]})
+    calendar = pd.DataFrame({"trade_date": dates})
+
+    def fake_read_sql(db, sql, params=None):
+        if "stock_daily_price_qfq" in sql:
+            return prices.copy()
+        if "stock_suspension" in sql:
+            return empty_susp.copy()
+        if "stock_status" in sql:
+            return empty_status.copy()
+        if "stock_meta" in sql:
+            return meta.copy()
+        if "index_daily" in sql:
+            return calendar.copy()
+        raise AssertionError(f"unexpected SQL: {sql}")
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql", fake_read_sql
+    )
+
+    returns, suspended = _fetch_stock_return_status(
+        {"schema": "public"}, pd.Timestamp("2021-02-02")
+    )
+
+    # 摘牌当日与其后，缺价都算已解释
+    assert bool(suspended.loc[dates[1], "B"])
+    assert bool(suspended.loc[dates[2], "B"])
+    # 摘牌之前不受影响
+    assert not bool(suspended.loc[dates[0], "B"])

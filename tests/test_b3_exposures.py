@@ -1,5 +1,6 @@
 from copy import deepcopy
 from dataclasses import replace
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -11,6 +12,7 @@ import pytest
 import yaml
 
 from signals.style_basket import b3_build as b3_build_module
+from signals.style_basket import b3_exposures as b3_exposures_module
 from signals.style_basket.b3_config import config_hash, load_b3_config
 from signals.style_basket.b3_build import (
     B3Sources,
@@ -24,7 +26,6 @@ from signals.style_basket.b3_build import (
     _write_stage_manifest,
     apply_pit_policy,
     build_policy_snapshots,
-    calibrate_target_coordinates,
     flatten_exposures,
     main,
     require_parent_manifest,
@@ -32,6 +33,7 @@ from signals.style_basket.b3_build import (
     run_exposures_stage,
 )
 from signals.style_basket.b3_exposures import (
+    DEFAULT_DATA_MATERIALITY_THRESHOLD,
     CoverageBlocked,
     DataBlocked,
     ExposureResult,
@@ -39,7 +41,8 @@ from signals.style_basket.b3_exposures import (
     _capped_weights,
     _industry_design,
     _residualize,
-    compute_month_exposures,
+    compute_month_exposures as _compute_month_exposures,
+    resolve_data_materiality_threshold,
 )
 from signals.style_basket.b3_suspension import (
     CORE_EVIDENCE_COLUMNS,
@@ -56,7 +59,8 @@ def test_b3_config_freezes_candidates_windows_and_execution():
 
     assert cfg["candidates"] == ["B3_unified", "B3_dual_target"]
     assert cfg["windows"] == {
-        "discovery": ["2014-01-01", "2020-12-31"],
+        # 2014-10：中证1000 于 2014-10-17 发布，此前 q1000 无所指。
+        "discovery": ["2014-10-01", "2020-12-31"],
         "confirmation": ["2021-01-01", "2023-12-31"],
         "report_only": ["2024-01-01", "2026-12-31"],
     }
@@ -90,6 +94,25 @@ def test_b3_config_rejects_candidate_expansion(tmp_path):
 
     with pytest.raises(ValueError, match="exactly"):
         load_b3_config(path)
+
+
+def _band_members(snapshot):
+    """测试用成员集合，沿用旧排名带的形状，使既有断言的语义保持不变。"""
+    ordered = snapshot.sort_values(
+        ["total_market_value", "ticker"], ascending=[False, True]
+    )["ticker"].tolist()
+    return {"q500": set(ordered[300:800]), "q1000": set(ordered[800:1800])}
+
+
+def compute_month_exposures(snapshot, cfg, *, index_members=None):
+    """测试包装器：不关心 q 语义的用例无需自带成员集合。
+
+    真正检验 q 定义的用例显式传 index_members；其余用例沿用旧排名带形状，
+    这样这次重构不会把 orthogonality、权重上限等无关断言一并搅动。
+    """
+    if index_members is None:
+        index_members = _band_members(snapshot)
+    return _compute_month_exposures(snapshot, cfg, index_members=index_members)
 
 
 def _synthetic_snapshot(n=2200):
@@ -161,19 +184,77 @@ def test_thin_legal_cross_section_raises_coverage_blocked():
         compute_month_exposures(_synthetic_snapshot(n=180), load_b3_config())
 
 
-def test_missing_source_field_is_data_blocked_not_coverage_blocked():
+def _snapshot_with_data_holes(count: int) -> pd.DataFrame:
     snapshot = _synthetic_snapshot()
     snapshot["size_eligible"] = True
     snapshot["model_eligible"] = True
     snapshot["size_exclusion_reason"] = ""
     snapshot["model_exclusion_reason"] = ""
-    snapshot.loc[0, ["size_eligible", "model_eligible"]] = False
+    holes = list(range(count))
+    snapshot.loc[holes, ["size_eligible", "model_eligible"]] = False
     snapshot.loc[
-        0, ["size_exclusion_reason", "model_exclusion_reason"]
+        holes, ["size_exclusion_reason", "model_exclusion_reason"]
     ] = "DATA_MISSING_CLOSE"
+    return snapshot
+
+
+def test_material_missing_source_field_is_data_blocked_not_coverage_blocked():
+    # 20 / 2200 = 0.91%, comfortably over the 0.25% materiality threshold.
+    with pytest.raises(DataBlocked, match="DATA_MISSING_CLOSE"):
+        compute_month_exposures(_snapshot_with_data_holes(20), load_b3_config())
+
+
+def test_immaterial_data_hole_is_measured_with_a_recorded_exemption():
+    # 4 / 2200 = 0.18%, under the threshold: the month is measured anyway.
+    result = compute_month_exposures(
+        _snapshot_with_data_holes(4), load_b3_config()
+    )
+
+    assert result.exemption is not None
+    assert result.exemption["excluded_names"] == 4
+    assert result.exemption["measurable_names"] == 2200
+    assert result.exemption["reason_codes"] == ["DATA_MISSING_CLOSE"]
+    assert result.exemption["share"] == pytest.approx(4 / 2200)
+    assert result.exemption["threshold"] == pytest.approx(0.0025)
+    assert result.diagnostics["data_exempt_names"] == 4
+    assert result.diagnostics["data_exempt_share"] == pytest.approx(4 / 2200)
+
+
+def test_the_materiality_threshold_boundary_is_inclusive():
+    cfg = dict(load_b3_config())
+    cfg["data_materiality_threshold"] = 4 / 2200
+
+    assert compute_month_exposures(
+        _snapshot_with_data_holes(4), cfg
+    ).exemption is not None
+
+    cfg["data_materiality_threshold"] = 4 / 2200 - 1e-9
+    with pytest.raises(DataBlocked, match="materiality threshold"):
+        compute_month_exposures(_snapshot_with_data_holes(4), cfg)
+
+
+def test_a_zero_threshold_restores_the_all_or_nothing_gate():
+    cfg = dict(load_b3_config())
+    cfg["data_materiality_threshold"] = 0.0
 
     with pytest.raises(DataBlocked, match="DATA_MISSING_CLOSE"):
-        compute_month_exposures(snapshot, load_b3_config())
+        compute_month_exposures(_snapshot_with_data_holes(1), cfg)
+
+
+def test_the_shipped_materiality_threshold_is_a_quarter_percent():
+    """A silent widening of this default has to break a test."""
+
+    assert DEFAULT_DATA_MATERIALITY_THRESHOLD == 0.0025
+    assert resolve_data_materiality_threshold(load_b3_config()) == 0.0025
+
+
+@pytest.mark.parametrize("value", ["0.01", True, float("nan"), -0.1, 1.0])
+def test_an_invalid_materiality_threshold_fails_closed(value):
+    cfg = dict(load_b3_config())
+    cfg["data_materiality_threshold"] = value
+
+    with pytest.raises(DataBlocked, match="data_materiality_threshold"):
+        resolve_data_materiality_threshold(cfg)
 
 
 def test_explained_legal_exclusions_can_end_as_coverage_blocked():
@@ -198,6 +279,349 @@ def _explicit_snapshot():
     snapshot["size_exclusion_reason"] = ""
     snapshot["model_exclusion_reason"] = ""
     return snapshot
+
+
+def test_style_dependency_aggregation_ignores_unused_factor_dependencies():
+    factors = pd.DataFrame(
+        {
+            "sal_g": [0.1],
+            "pro_g": [0.2],
+            "ep": [0.3],
+            "bp": [np.nan],
+            "cfp": [np.nan],
+            "dp": [0.4],
+        },
+        index=["A"],
+    )
+    dependencies = pd.DataFrame(
+        {
+            "sal_g": [()],
+            "pro_g": [()],
+            "ep": [()],
+            "bp": [("OLD",)],
+            "cfp": [("BANK_CFP",)],
+            "dp": [()],
+        },
+        index=factors.index,
+    )
+
+    verified, keys = (
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            pd.Series([0.5], index=factors.index),
+        )
+    )
+
+    assert verified.to_dict() == {"A": True}
+    assert keys.to_dict() == {"A": ()}
+
+
+def test_style_dependency_aggregation_reports_used_dependencies_stably():
+    columns = ["sal_g", "pro_g", "ep", "bp", "cfp", "dp"]
+    factors = pd.DataFrame([[0.1] * len(columns)], columns=columns, index=["A"])
+    dependencies = pd.DataFrame(
+        [[(), (), ("Z", "X", "X"), (), (), ()]],
+        columns=columns,
+        index=factors.index,
+    )
+
+    verified, keys = (
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            pd.Series([0.5], index=factors.index),
+        )
+    )
+
+    assert verified.to_dict() == {"A": False}
+    assert keys.to_dict() == {"A": ("X", "Z")}
+
+
+@pytest.mark.parametrize("coordinate", ["index", "columns", "score_index"])
+def test_style_dependency_aggregation_requires_exact_coordinates(coordinate):
+    factors = pd.DataFrame({"ep": [0.1]}, index=["A"])
+    dependencies = pd.DataFrame({"ep": [()]}, index=["A"])
+    style_score = pd.Series([0.5], index=["A"])
+    if coordinate == "index":
+        dependencies.index = ["B"]
+    elif coordinate == "columns":
+        dependencies.columns = ["bp"]
+    else:
+        style_score.index = ["B"]
+
+    with pytest.raises(DataBlocked, match="coordinate"):
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            style_score,
+        )
+
+
+@pytest.mark.parametrize("bad_dependencies", [None, ["X"], ("X", 1), ("")])
+def test_style_dependency_aggregation_rejects_invalid_used_dependencies(
+    bad_dependencies,
+):
+    factors = pd.DataFrame({"ep": [0.1]}, index=["A"])
+    dependencies = pd.DataFrame({"ep": [bad_dependencies]}, index=["A"])
+
+    with pytest.raises(DataBlocked, match=r"tuple\[str"):
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            pd.Series([0.5], index=factors.index),
+        )
+
+
+def test_style_dependency_aggregation_does_not_validate_unscored_rows():
+    factors = pd.DataFrame({"ep": [0.1]}, index=["A"])
+    dependencies = pd.DataFrame({"ep": [None]}, index=["A"])
+
+    verified, keys = (
+        b3_exposures_module._aggregate_style_dependency_provenance(
+            factors,
+            dependencies,
+            pd.Series([np.nan], index=factors.index),
+        )
+    )
+
+    assert verified.to_dict() == {"A": False}
+    assert keys.to_dict() == {"A": ()}
+
+
+def test_month_exposures_reports_and_strips_unverified_dependencies():
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    snapshot.at[0, "true_first_disclosure_verified"] = False
+    snapshot.at[0, "_unverified_dependency_keys"] = ("Z", "X", "X")
+
+    result = compute_month_exposures(snapshot, load_b3_config())
+
+    assert result.diagnostics["unverified_first_disclosure_model_rows"] == 1
+    assert result.diagnostics[
+        "unverified_first_disclosure_dependencies_json"
+    ] == '[{"dependencies":["X","Z"],"ticker":"S0000"}]'
+    for frame in (result.size, result.model):
+        assert "_unverified_dependency_keys" not in frame.columns
+        assert "true_first_disclosure_verified" in frame.columns
+    flattened = flatten_exposures(
+        {POLICY_MAIN: {pd.Timestamp("2021-01-29"): result}}
+    )
+    assert "_unverified_dependency_keys" not in flattened.columns
+
+
+def test_month_exposures_serializes_timestamp_ticker_diagnostics():
+    snapshot = _explicit_snapshot()
+    tickers = pd.date_range(
+        "2000-01-01",
+        periods=len(snapshot),
+        freq="D",
+    )
+    snapshot["ticker"] = tickers
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    snapshot.at[0, "true_first_disclosure_verified"] = False
+    snapshot.at[0, "_unverified_dependency_keys"] = ("X",)
+
+    result = compute_month_exposures(snapshot, load_b3_config())
+
+    details = json.loads(
+        result.diagnostics[
+            "unverified_first_disclosure_dependencies_json"
+        ]
+    )
+    assert details == [
+        {
+            "ticker": str(tickers[0]),
+            "dependencies": ["X"],
+        }
+    ]
+    json.dumps(
+        result.diagnostics,
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+
+
+def test_month_exposures_empty_provenance_preserves_legacy_numbers():
+    snapshot = _explicit_snapshot()
+    legacy = compute_month_exposures(snapshot, load_b3_config())
+    enriched_snapshot = snapshot.copy()
+    enriched_snapshot["true_first_disclosure_verified"] = True
+    enriched_snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+
+    enriched = compute_month_exposures(enriched_snapshot, load_b3_config())
+
+    pd.testing.assert_frame_equal(
+        legacy.size,
+        enriched.size.drop(columns="true_first_disclosure_verified"),
+    )
+    pd.testing.assert_frame_equal(
+        legacy.model,
+        enriched.model.drop(columns="true_first_disclosure_verified"),
+    )
+    assert legacy.q == enriched.q
+
+
+@pytest.mark.parametrize("bad_flag", [None, "True", 1, np.nan])
+def test_month_exposures_disclosure_verification_flag_requires_bool(bad_flag):
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["true_first_disclosure_verified"] = snapshot[
+        "true_first_disclosure_verified"
+    ].astype(object)
+    snapshot.loc[0, "true_first_disclosure_verified"] = bad_flag
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+
+    with pytest.raises(DataBlocked, match="bool"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_false_model_flag_without_private_dependencies_blocks():
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot.loc[0, "true_first_disclosure_verified"] = False
+
+    with pytest.raises(DataBlocked, match="dependencies"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_private_dependencies_without_public_flag_blocks():
+    snapshot = _explicit_snapshot()
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+
+    with pytest.raises(DataBlocked, match="public"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+@pytest.mark.parametrize(
+    "duplicated_columns",
+    [
+        pytest.param(
+            ["true_first_disclosure_verified"],
+            id="duplicate-public",
+        ),
+        pytest.param(
+            ["_unverified_dependency_keys"],
+            id="duplicate-private",
+        ),
+        pytest.param(
+            [
+                "true_first_disclosure_verified",
+                "_unverified_dependency_keys",
+            ],
+            id="duplicate-both",
+        ),
+    ],
+)
+def test_month_exposures_rejects_duplicate_provenance_columns(
+    duplicated_columns,
+):
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    for column in duplicated_columns:
+        snapshot.insert(
+            len(snapshot.columns),
+            column,
+            snapshot[column],
+            allow_duplicates=True,
+        )
+
+    with pytest.raises(
+        DataBlocked,
+        match=r"(?=.*duplicate)(?=.*provenance)",
+    ):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_all_true_public_flag_synthesizes_empty_provenance():
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+
+    result = compute_month_exposures(snapshot, load_b3_config())
+
+    assert result.diagnostics["unverified_first_disclosure_model_rows"] == 0
+    assert result.diagnostics[
+        "unverified_first_disclosure_dependencies_json"
+    ] == "[]"
+    assert "_unverified_dependency_keys" not in result.size.columns
+    assert "_unverified_dependency_keys" not in result.model.columns
+
+
+def test_month_exposures_size_only_false_flag_is_not_a_model_dependency():
+    snapshot = _explicit_snapshot()
+    snapshot.loc[0, "style_score"] = np.nan
+    snapshot.loc[0, "model_eligible"] = False
+    snapshot.loc[0, "model_exclusion_reason"] = "MISSING_STYLE_SCORE"
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot.loc[0, "true_first_disclosure_verified"] = False
+
+    result = compute_month_exposures(snapshot, load_b3_config())
+
+    assert result.diagnostics["unverified_first_disclosure_model_rows"] == 0
+    assert result.diagnostics[
+        "unverified_first_disclosure_dependencies_json"
+    ] == "[]"
+    assert not bool(
+        result.size.set_index("ticker").loc[
+            "S0000", "true_first_disclosure_verified"
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    "bad_dependencies",
+    [None, ["X"], ("X", 1), ("",)],
+)
+def test_month_exposures_model_dependencies_require_tuple_of_strings(
+    bad_dependencies,
+):
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    snapshot.loc[0, "true_first_disclosure_verified"] = False
+    snapshot.at[0, "_unverified_dependency_keys"] = bad_dependencies
+
+    with pytest.raises(DataBlocked, match=r"tuple\[str"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_model_flag_must_agree_with_dependencies():
+    snapshot = _explicit_snapshot()
+    snapshot["true_first_disclosure_verified"] = True
+    snapshot["_unverified_dependency_keys"] = pd.Series(
+        [()] * len(snapshot), dtype=object
+    )
+    snapshot.at[0, "_unverified_dependency_keys"] = ("X",)
+
+    with pytest.raises(DataBlocked, match="disagrees"):
+        compute_month_exposures(snapshot, load_b3_config())
+
+
+def test_month_exposures_legacy_schema_has_no_provenance_diagnostics():
+    result = compute_month_exposures(_explicit_snapshot(), load_b3_config())
+
+    assert "unverified_first_disclosure_model_rows" not in result.diagnostics
+    assert (
+        "unverified_first_disclosure_dependencies_json"
+        not in result.diagnostics
+    )
 
 
 def test_single_industry_snapshot_has_standardized_exposures_and_valid_legs():
@@ -372,6 +796,8 @@ def test_csmar_pit_policies_use_legal_deadlines_and_flag_approximation():
             "statement_type": ["income", "income"],
             "data": [{"revenue": 1.0}, {"revenue": 2.0}],
             "data_source": ["csmar", "csmar"],
+            "first_disclosure_date": [None, None],
+            "disclosure_quality": ["sentinel", "sentinel"],
         }
     )
 
@@ -386,10 +812,12 @@ def test_csmar_pit_policies_use_legal_deadlines_and_flag_approximation():
         pd.Timestamp("2020-05-31"),
         pd.Timestamp("2020-09-30"),
     ]
-    assert main["known_date_source"].eq(POLICY_MAIN).all()
-    assert lag["known_date_source"].eq(POLICY_LAG).all()
+    assert main["known_date_source"].eq(f"{POLICY_MAIN}_fallback").all()
+    assert lag["known_date_source"].eq(f"{POLICY_LAG}_fallback").all()
     assert not main["true_first_disclosure_verified"].any()
     assert not lag["true_first_disclosure_verified"].any()
+    assert main["unverified_dependency_keys"].map(len).eq(1).all()
+    assert lag["unverified_dependency_keys"].map(len).eq(1).all()
 
 
 def test_wind_pit_date_is_preserved_and_verified_under_both_policies():
@@ -401,6 +829,8 @@ def test_wind_pit_date_is_preserved_and_verified_under_both_policies():
             "statement_type": ["income"],
             "data": [{"revenue": 1.0}],
             "data_source": ["wind"],
+            "first_disclosure_date": [None],
+            "disclosure_quality": [None],
         }
     )
 
@@ -410,6 +840,7 @@ def test_wind_pit_date_is_preserved_and_verified_under_both_policies():
         assert got.loc[0, "ann_date"] == pd.Timestamp("2025-08-20")
         assert got.loc[0, "known_date_source"] == "wind_first_disclosure"
         assert bool(got.loc[0, "true_first_disclosure_verified"])
+        assert got.loc[0, "unverified_dependency_keys"] == ()
 
 
 def test_industry_snapshot_extends_earliest_label_and_applies_later_update():
@@ -448,6 +879,8 @@ def test_build_policy_snapshots_assembles_eligibility_and_provenance(
             "statement_type": ["income"] * 4,
             "data": [{"revenue": float(i)} for i in range(1, 5)],
             "data_source": ["csmar"] * 4,
+            "first_disclosure_date": [None] * 4,
+            "disclosure_quality": ["sentinel"] * 4,
         }
     )
     closes = pd.DataFrame(
@@ -486,10 +919,21 @@ def test_build_policy_snapshots_assembles_eligibility_and_provenance(
     def fake_ticker_financial_rows(facts):
         ticker = facts["ts_code"].iloc[0]
         known_date = facts["ann_date"].max()
+        dependencies = tuple(
+            sorted(
+                {
+                    key
+                    for keys in facts["unverified_dependency_keys"]
+                    for key in keys
+                }
+            )
+        )
         common = {
             "ts_code": [ticker, ticker],
             "end_date": [pd.Timestamp("2020-12-31")] * 2,
             "known_date": [known_date] * 2,
+            "true_first_disclosure_verified": [not dependencies] * 2,
+            "unverified_dependency_keys": [dependencies] * 2,
         }
         return {
             "ttm": pd.DataFrame(
@@ -615,6 +1059,9 @@ def test_build_policy_snapshots_assembles_eligibility_and_provenance(
         "A", "salg_source_end_date"
     ] == pd.Timestamp("2020-12-31")
     assert not got["true_first_disclosure_verified"].any()
+    assert got.set_index("ticker").loc[
+        "A", "_unverified_dependency_keys"
+    ] == ("A|2020-12-31|income|csmar",)
 
 
 def _single_pit_fact(**overrides):
@@ -625,6 +1072,8 @@ def _single_pit_fact(**overrides):
         "statement_type": "income",
         "data": {"revenue": 1.0},
         "data_source": "csmar",
+        "first_disclosure_date": None,
+        "disclosure_quality": "sentinel",
     }
     row.update(overrides)
     return pd.DataFrame([row])
@@ -639,6 +1088,8 @@ def _single_pit_fact(**overrides):
         "statement_type",
         "data",
         "data_source",
+        "first_disclosure_date",
+        "disclosure_quality",
     ],
 )
 def test_pit_policy_requires_complete_raw_schema(missing_column):
@@ -667,6 +1118,140 @@ def test_pit_policy_rejects_unparsable_stored_announcement_date():
 
     with pytest.raises(DataBlocked):
         apply_pit_policy(raw, POLICY_MAIN)
+
+
+def test_pit_policy_rejects_unparsable_first_disclosure_date():
+    raw = _single_pit_fact(first_disclosure_date="not-a-date")
+
+    with pytest.raises(DataBlocked):
+        apply_pit_policy(raw, POLICY_MAIN)
+
+
+@pytest.mark.parametrize("policy", [POLICY_MAIN, POLICY_LAG])
+@pytest.mark.parametrize(
+    "statement_type",
+    ["income", "balance", "cashflow_direct", "dividend"],
+)
+def test_csmar_uses_verified_stock_first_disclosure(
+    policy,
+    statement_type,
+):
+    got = apply_pit_policy(
+        _single_pit_fact(
+            statement_type=statement_type,
+            first_disclosure_date="2020-04-17",
+            disclosure_quality="ok",
+        ),
+        policy,
+    )
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp("2020-04-17")
+    assert got.loc[0, "known_date_source"] == "stock_first_disclosure"
+    assert bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == ()
+
+
+@pytest.mark.parametrize(
+    ("policy", "expected_date"),
+    [
+        pytest.param(POLICY_MAIN, "2020-04-15", id="main"),
+        pytest.param(POLICY_LAG, "2020-05-31", id="lag"),
+    ],
+)
+def test_csmar_sentinel_falls_back_with_dependency_key(
+    policy,
+    expected_date,
+):
+    got = apply_pit_policy(_single_pit_fact(), policy)
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp(expected_date)
+    assert got.loc[0, "known_date_source"] == f"{policy}_fallback"
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == (
+        "X|2020-03-31|income|csmar",
+    )
+
+
+def test_csmar_first_disclosure_before_period_end_falls_back():
+    got = apply_pit_policy(
+        _single_pit_fact(
+            first_disclosure_date="2020-03-30",
+            disclosure_quality="ok",
+        ),
+        POLICY_MAIN,
+    )
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp("2020-04-15")
+    assert got.loc[0, "known_date_source"] == f"{POLICY_MAIN}_fallback"
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+
+
+def test_pit_policy_rejects_unknown_disclosure_quality():
+    with pytest.raises(DataBlocked, match="disclosure_quality"):
+        apply_pit_policy(
+            _single_pit_fact(disclosure_quality="guessed"),
+            POLICY_MAIN,
+        )
+
+
+@pytest.mark.parametrize(
+    ("first_disclosure_date", "disclosure_quality"),
+    [
+        pytest.param("2020-04-17", None, id="date-with-null-quality"),
+        pytest.param(None, "ok", id="ok-with-null-date"),
+        pytest.param("2020-04-17", "sentinel", id="sentinel-with-date"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("policy", "expected_date"),
+    [
+        pytest.param(POLICY_MAIN, "2020-04-15", id="main"),
+        pytest.param(POLICY_LAG, "2020-05-31", id="lag"),
+    ],
+)
+def test_pit_policy_falls_back_on_incomplete_disclosure_evidence(
+    first_disclosure_date,
+    disclosure_quality,
+    policy,
+    expected_date,
+):
+    got = apply_pit_policy(
+        _single_pit_fact(
+            first_disclosure_date=first_disclosure_date,
+            disclosure_quality=disclosure_quality,
+        ),
+        policy,
+    )
+
+    assert got.loc[0, "ann_date"] == pd.Timestamp(expected_date)
+    assert got.loc[0, "known_date_source"] == f"{policy}_fallback"
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == (
+        "X|2020-03-31|income|csmar",
+    )
+
+
+def test_pit_policy_blocks_conflicting_first_disclosure_metadata():
+    first = _single_pit_fact(
+        first_disclosure_date="2020-04-17",
+        disclosure_quality="ok",
+    ).iloc[0].to_dict()
+    second = {**first, "first_disclosure_date": "2020-04-18"}
+
+    with pytest.raises(DataBlocked, match="conflicting"):
+        apply_pit_policy(pd.DataFrame([first, second]), POLICY_MAIN)
+
+
+def test_pit_policy_treats_nan_disclosure_quality_as_unverified():
+    got = apply_pit_policy(
+        _single_pit_fact(disclosure_quality=np.nan),
+        POLICY_MAIN,
+    )
+
+    assert not bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == (
+        "X|2020-03-31|income|csmar",
+    )
 
 
 @pytest.mark.parametrize("policy", [POLICY_MAIN, POLICY_LAG])
@@ -722,8 +1307,11 @@ def test_csmar_missing_stored_announcement_falls_back_to_legal_deadline():
     )
 
     assert got.loc[0, "ann_date"] == pd.Timestamp("2020-04-30")
-    assert got.loc[0, "known_date_source"] == POLICY_MAIN
+    assert got.loc[0, "known_date_source"] == f"{POLICY_MAIN}_fallback"
     assert not bool(got.loc[0, "true_first_disclosure_verified"])
+    assert got.loc[0, "unverified_dependency_keys"] == (
+        "X|2020-03-31|income|csmar",
+    )
 
 
 def test_pit_policy_rejects_unknown_policy_with_value_error():
@@ -812,6 +1400,8 @@ def _minimal_assembly_inputs():
                 "statement_type": ["income", "income"],
                 "data": [{"revenue": 1.0}, {"revenue": 2.0}],
                 "data_source": ["csmar", "csmar"],
+                "first_disclosure_date": [None, None],
+                "disclosure_quality": ["sentinel", "sentinel"],
             }
         ),
         "month_ends": [formation],
@@ -849,10 +1439,21 @@ def _minimal_assembly_inputs():
 def _minimal_derived_rows(facts):
     ticker = facts["ts_code"].iloc[0]
     known_date = facts["ann_date"].max()
+    dependencies = tuple(
+        sorted(
+            {
+                key
+                for keys in facts["unverified_dependency_keys"]
+                for key in keys
+            }
+        )
+    )
     common = {
         "ts_code": [ticker, ticker],
         "end_date": [pd.Timestamp("2020-12-31")] * 2,
         "known_date": [known_date] * 2,
+        "true_first_disclosure_verified": [not dependencies] * 2,
+        "unverified_dependency_keys": [dependencies] * 2,
     }
     return {
         "ttm": pd.DataFrame(
@@ -896,6 +1497,313 @@ def _patch_minimal_assembly_dependencies(
         "signals.style_basket.scoring.style_scores",
         fake_style_scores,
     )
+
+
+def _jan_01_balance_event_inputs(equity_on_jan_01):
+    inputs = _minimal_assembly_inputs()
+    inputs["raw_facts"] = pd.DataFrame(
+        [
+            {
+                "ts_code": "A",
+                "end_date": "2020-12-31",
+                "stored_ann_date": "2021-04-30",
+                "statement_type": "balance",
+                "data": {"equity_parent": 500.0},
+                "data_source": "csmar",
+                "first_disclosure_date": "2021-04-30",
+                "disclosure_quality": "ok",
+            },
+            {
+                "ts_code": "A",
+                "end_date": "2021-01-01",
+                "stored_ann_date": "2021-07-29",
+                "statement_type": "balance",
+                "data": {"equity_parent": equity_on_jan_01},
+                "data_source": "csmar",
+                "first_disclosure_date": None,
+                "disclosure_quality": "sentinel",
+            },
+        ]
+    )
+    return inputs
+
+
+@pytest.mark.parametrize("policy", [POLICY_MAIN, POLICY_LAG])
+@pytest.mark.parametrize(
+    "equity_on_jan_01",
+    [
+        pytest.param(500.0, id="same-equity"),
+        pytest.param(900.0, id="different-equity"),
+    ],
+)
+def test_snapshot_bp_excludes_csmar_jan_01_balance_event(
+    monkeypatch,
+    policy,
+    equity_on_jan_01,
+):
+    inputs = _jan_01_balance_event_inputs(equity_on_jan_01)
+    inputs["policy"] = policy
+    formation = inputs["month_ends"][0]
+
+    def bp_as_style_score(factors):
+        out = factors.copy()
+        out["style_score"] = factors["bp"]
+        return out
+
+    monkeypatch.setattr(
+        "signals.style_basket.scoring.style_scores",
+        bp_as_style_score,
+    )
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert snapshot.loc["A", "style_score"] == pytest.approx(0.5)
+    assert bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == ()
+
+
+def test_snapshot_jan_01_filter_is_balance_event_scoped(monkeypatch):
+    inputs = _jan_01_balance_event_inputs(900.0)
+    inputs["raw_facts"] = pd.concat(
+        [
+            inputs["raw_facts"],
+            pd.DataFrame(
+                [
+                    {
+                        "ts_code": "A",
+                        "end_date": "2021-01-01",
+                        "stored_ann_date": "2021-07-29",
+                        "statement_type": statement_type,
+                        "data": data,
+                        "data_source": "csmar",
+                        "first_disclosure_date": None,
+                        "disclosure_quality": "sentinel",
+                    }
+                    for statement_type, data in [
+                        ("income", {"revenue": 700.0}),
+                        ("cashflow_direct", {"cfo_net": 300.0}),
+                    ]
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+    seen_jan_01_statements = set()
+
+    def recording_rows(facts):
+        jan_01 = facts["end_date"].eq(pd.Timestamp("2021-01-01"))
+        seen_jan_01_statements.update(facts.loc[jan_01, "statement_type"])
+        return _minimal_derived_rows(facts)
+
+    _patch_minimal_assembly_dependencies(monkeypatch, recording_rows)
+
+    build_policy_snapshots(**inputs)
+
+    assert seen_jan_01_statements == {"income", "cashflow_direct"}
+
+
+def _derived_rows_with_factor_dependencies(facts, dependencies_by_factor):
+    ticker = facts["ts_code"].iloc[0]
+    known_date = facts["ann_date"].max()
+
+    def provenance(factor):
+        keys = dependencies_by_factor.get((ticker, factor), ())
+        return {
+            "true_first_disclosure_verified": not keys,
+            "unverified_dependency_keys": keys,
+        }
+
+    def rows(pool, fields, values, factors):
+        return pd.DataFrame(
+            [
+                {
+                    "ts_code": ticker,
+                    "field": field,
+                    "end_date": pd.Timestamp("2020-12-31"),
+                    "known_date": known_date,
+                    pool: value,
+                    **provenance(factor),
+                }
+                for field, value, factor in zip(fields, values, factors)
+            ]
+        )
+
+    return {
+        "ttm": rows("ttm", ["np", "cfo"], [100.0, 80.0], ["ep", "cfp"]),
+        "slope": rows(
+            "slope", ["rev", "np"], [0.2, 0.1], ["sal_g", "pro_g"]
+        ),
+        "event": rows(
+            "value", ["equity", "dps"], [500.0, 0.5], ["bp", "dp"]
+        ),
+    }
+
+
+def test_snapshot_selected_dependency_mapping_covers_all_six_factors(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    dependencies = {
+        ("A", "sal_g"): ("REV",),
+        ("A", "pro_g"): ("NP_SLOPE",),
+        ("A", "ep"): ("NP_TTM",),
+        ("A", "bp"): ("EQUITY",),
+        ("A", "cfp"): ("CFO_TTM",),
+        ("A", "dp"): ("DPS",),
+    }
+    _patch_minimal_assembly_dependencies(
+        monkeypatch,
+        lambda facts: _derived_rows_with_factor_dependencies(
+            facts, dependencies
+        ),
+    )
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert not bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == (
+        "CFO_TTM",
+        "DPS",
+        "EQUITY",
+        "NP_SLOPE",
+        "NP_TTM",
+        "REV",
+    )
+
+
+def test_snapshot_verified_csmar_facts_produce_verified_model_rows(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    inputs["raw_facts"]["first_disclosure_date"] = "2021-04-30"
+    inputs["raw_facts"]["disclosure_quality"] = "ok"
+    formation = inputs["month_ends"][0]
+    _patch_minimal_assembly_dependencies(monkeypatch)
+
+    snapshot = build_policy_snapshots(**inputs)[formation]
+
+    model = snapshot.loc[snapshot["model_eligible"]]
+    assert len(model) == 2
+    assert model["true_first_disclosure_verified"].all()
+    assert model["_unverified_dependency_keys"].map(len).eq(0).all()
+
+
+def test_snapshot_unused_history_does_not_block_selected_verified_factor(
+    monkeypatch,
+):
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+
+    def rows_builder(facts):
+        rows = _derived_rows_with_factor_dependencies(facts, {})
+        if facts["ts_code"].iloc[0] == "A":
+            selected = rows["slope"].loc[
+                rows["slope"]["field"].eq("rev")
+            ].iloc[0].to_dict()
+            old = {
+                **selected,
+                "end_date": pd.Timestamp("2019-12-31"),
+                "true_first_disclosure_verified": False,
+                "unverified_dependency_keys": ("OLD",),
+            }
+            rows["slope"] = pd.concat(
+                [pd.DataFrame([old]), rows["slope"]], ignore_index=True
+            )
+        return rows
+
+    _patch_minimal_assembly_dependencies(monkeypatch, rows_builder)
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == ()
+
+
+def test_snapshot_financial_cfp_dependency_is_unused(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    inputs["industry_pool"].loc[
+        inputs["industry_pool"]["ticker"].eq("A"), "industry"
+    ] = "银行"
+    formation = inputs["month_ends"][0]
+    dependencies = {("A", "cfp"): ("BANK_CFP",)}
+    _patch_minimal_assembly_dependencies(
+        monkeypatch,
+        lambda facts: _derived_rows_with_factor_dependencies(
+            facts, dependencies
+        ),
+    )
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == ()
+
+
+def test_snapshot_missing_unused_factor_dependency_does_not_block(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    formation = inputs["month_ends"][0]
+    dependencies = {("A", "dp"): ("MISSING_DPS",)}
+
+    def rows_builder(facts):
+        rows = _derived_rows_with_factor_dependencies(facts, dependencies)
+        if facts["ts_code"].iloc[0] == "A":
+            rows["event"].loc[
+                rows["event"]["field"].eq("dps"), "value"
+            ] = np.nan
+        return rows
+
+    _patch_minimal_assembly_dependencies(monkeypatch, rows_builder)
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == ()
+
+
+def test_snapshot_empty_provenance_pools_are_supported(monkeypatch):
+    inputs = _minimal_assembly_inputs()
+    inputs["raw_facts"] = inputs["raw_facts"].iloc[:0]
+    formation = inputs["month_ends"][0]
+    monkeypatch.setattr(
+        "signals.style_basket.build.ticker_financial_rows",
+        _minimal_derived_rows,
+    )
+
+    def fake_style_scores(factors):
+        out = factors.copy()
+        out["style_score"] = np.nan
+        return out
+
+    monkeypatch.setattr(
+        "signals.style_basket.scoring.style_scores",
+        fake_style_scores,
+    )
+
+    snapshot = build_policy_snapshots(**inputs)[formation]
+
+    assert not snapshot["true_first_disclosure_verified"].any()
+    assert snapshot["_unverified_dependency_keys"].map(len).eq(0).all()
+
+
+@pytest.mark.parametrize("bad_case", ["missing", "invalid_flag", "disagree"])
+def test_snapshot_disclosure_verification_flag_validates_derived_provenance(
+    monkeypatch,
+    bad_case,
+):
+    inputs = _minimal_assembly_inputs()
+
+    def rows_builder(facts):
+        rows = _minimal_derived_rows(facts)
+        pool = rows["ttm"]
+        if bad_case == "missing":
+            rows["ttm"] = pool.drop(columns="unverified_dependency_keys")
+        elif bad_case == "invalid_flag":
+            pool["true_first_disclosure_verified"] = "False"
+        else:
+            pool["true_first_disclosure_verified"] = True
+        return rows
+
+    _patch_minimal_assembly_dependencies(monkeypatch, rows_builder)
+
+    with pytest.raises(DataBlocked, match="provenance"):
+        build_policy_snapshots(**inputs)
 
 
 @pytest.mark.parametrize(
@@ -1209,6 +2117,9 @@ _RAW_FINANCIAL_COLUMNS = [
     "statement_type",
     "data",
     "data_source",
+    "first_disclosure_date",
+    "disclosure_quality",
+    "first_disclosure_evidence_end_date",
 ]
 
 
@@ -1216,6 +2127,7 @@ class _RawFinancialCursor:
     def __init__(self, rows, execute_error=None):
         self._rows = rows
         self._execute_error = execute_error
+        self.executed_sql = []
         self.description = [
             (column, None, None, None, None, None, None)
             for column in _RAW_FINANCIAL_COLUMNS
@@ -1228,6 +2140,7 @@ class _RawFinancialCursor:
         return False
 
     def execute(self, sql, params):
+        self.executed_sql.append(sql)
         if self._execute_error is not None:
             raise self._execute_error
 
@@ -1255,6 +2168,9 @@ def _raw_db_row(**overrides):
         "statement_type": "income",
         "data": {"B001100000": 1.0},
         "data_source": "csmar",
+        "first_disclosure_date": None,
+        "disclosure_quality": "sentinel",
+        "first_disclosure_evidence_end_date": None,
     }
     row.update(overrides)
     return tuple(row[column] for column in _RAW_FINANCIAL_COLUMNS)
@@ -1275,6 +2191,19 @@ def _patch_raw_financial_connection(
     return connection
 
 
+def _raw_financial_recorder():
+    from signals.style_basket.b3_build import DatabaseEvidenceRecorder
+
+    recorder = DatabaseEvidenceRecorder()
+    recorder.record(
+        "public.trading_calendar",
+        "SELECT calendar_date FROM public.trading_calendar",
+        pd.DataFrame({"calendar_date": [pd.Timestamp("2020-04-17")]}),
+        "calendar_date",
+    )
+    return recorder
+
+
 @pytest.mark.parametrize(
     ("date_column", "bad_date"),
     [
@@ -1283,6 +2212,11 @@ def _patch_raw_financial_connection(
             "stored_ann_date",
             "not-a-date",
             id="stored-announcement-date",
+        ),
+        pytest.param(
+            "first_disclosure_date",
+            "not-a-date",
+            id="first-disclosure-date",
         ),
     ],
 )
@@ -1370,6 +2304,7 @@ class _BatchAwareRawFinancialCursor:
     def __init__(self, rows):
         self._rows = list(rows)
         self.executed_ticker_chunks = []
+        self.executed_sql = []
         self._current = []
         self.description = [
             (column, None, None, None, None, None, None)
@@ -1383,6 +2318,7 @@ class _BatchAwareRawFinancialCursor:
         return False
 
     def execute(self, sql, params):
+        self.executed_sql.append(sql)
         chunk = list(params[0])
         self.executed_ticker_chunks.append(chunk)
         requested = set(chunk)
@@ -1395,7 +2331,14 @@ class _BatchAwareRawFinancialCursor:
         return self._current
 
 
-def _run_batch_aware_fetch(monkeypatch, rows, tickers, batch_size):
+def _run_batch_aware_fetch(
+    monkeypatch,
+    rows,
+    tickers,
+    batch_size,
+    *,
+    recorder=None,
+):
     cursor = _BatchAwareRawFinancialCursor(rows)
     connection = _RawFinancialConnection(cursor)
     monkeypatch.setattr(
@@ -1412,8 +2355,159 @@ def _run_batch_aware_fetch(monkeypatch, rows, tickers, batch_size):
         "2020-01-01",
         "2020-12-31",
         {"schema": "public"},
+        recorder=recorder,
     )
     return frame, cursor
+
+
+def test_fetch_raw_financial_joins_and_records_first_disclosure(monkeypatch):
+    connection = _patch_raw_financial_connection(
+        monkeypatch,
+        [
+            _raw_db_row(
+                first_disclosure_date="2020-04-17",
+                disclosure_quality="ok",
+                first_disclosure_evidence_end_date="2020-03-31",
+            )
+        ],
+    )
+    recorder = _raw_financial_recorder()
+
+    frame = _fetch_raw_financial(
+        ["X"],
+        "2020-01-01",
+        "2020-12-31",
+        {"schema": "public"},
+        recorder=recorder,
+    )
+
+    assert len(frame) == 1
+    assert frame.loc[0, "first_disclosure_date"] == pd.Timestamp(
+        "2020-04-17"
+    )
+    assert list(frame.columns) == _RAW_FINANCIAL_COLUMNS[:-1]
+    assert (
+        "LEFT JOIN public.stock_first_disclosure"
+        in connection._cursor.executed_sql[0]
+    )
+    assert (
+        "fd.end_date AS first_disclosure_evidence_end_date"
+        in connection._cursor.executed_sql[0]
+    )
+    payload = recorder.payload()
+    assert payload is not None
+    assert "public.stock_financial" in payload["consumed_sources"]
+    assert "public.stock_first_disclosure" in payload["consumed_sources"]
+
+
+def test_fetch_raw_financial_records_only_matched_disclosure_evidence(
+    monkeypatch,
+):
+    _patch_raw_financial_connection(
+        monkeypatch,
+        [
+            _raw_db_row(
+                disclosure_quality=None,
+                first_disclosure_evidence_end_date=None,
+            )
+        ],
+    )
+    recorder = _raw_financial_recorder()
+
+    frame = _fetch_raw_financial(
+        ["X"],
+        "2020-01-01",
+        "2020-12-31",
+        {"schema": "public"},
+        recorder=recorder,
+    )
+
+    payload = recorder.payload()
+    assert payload is not None
+    assert payload["sources"]["public.stock_financial"]["row_count"] == 1
+    disclosure = payload["sources"]["public.stock_first_disclosure"]
+    assert disclosure["row_count"] == 0
+    assert disclosure["min_date"] is None
+    assert disclosure["max_date"] is None
+    assert list(frame.columns) == _RAW_FINANCIAL_COLUMNS[:-1]
+
+
+def test_fetch_raw_financial_deduplicates_matched_disclosure_evidence(
+    monkeypatch,
+):
+    marker = "2020-03-31"
+    rows = [
+        _raw_db_row(
+            statement_type="income",
+            disclosure_quality=None,
+            first_disclosure_evidence_end_date=marker,
+        ),
+        _raw_db_row(
+            statement_type="balance",
+            disclosure_quality=None,
+            first_disclosure_evidence_end_date=marker,
+        ),
+    ]
+    _patch_raw_financial_connection(monkeypatch, rows)
+    recorder = _raw_financial_recorder()
+
+    frame = _fetch_raw_financial(
+        ["X"],
+        "2020-01-01",
+        "2020-12-31",
+        {"schema": "public"},
+        recorder=recorder,
+    )
+
+    assert len(frame) == 2
+    payload = recorder.payload()
+    assert payload is not None
+    financial = payload["sources"]["public.stock_financial"]
+    disclosure = payload["sources"]["public.stock_first_disclosure"]
+    assert financial["row_count"] == 2
+    assert disclosure["row_count"] == 1
+    assert disclosure["min_date"] == "2020-03-31"
+    assert disclosure["max_date"] == "2020-03-31"
+    assert (
+        financial["query_template_hash"]
+        == disclosure["query_template_hash"]
+    )
+
+
+def test_fetch_raw_financial_aggregates_disclosure_evidence_across_batches(
+    monkeypatch,
+):
+    rows = [
+        _raw_db_row(
+            ts_code="X",
+            first_disclosure_evidence_end_date="2020-03-31",
+        ),
+        _raw_db_row(
+            ts_code="Y",
+            end_date="2020-06-30",
+            stored_ann_date="2020-07-15",
+            first_disclosure_evidence_end_date="2020-06-30",
+        ),
+    ]
+    recorder = _raw_financial_recorder()
+
+    frame, cursor = _run_batch_aware_fetch(
+        monkeypatch,
+        rows,
+        ["Y", "X"],
+        1,
+        recorder=recorder,
+    )
+
+    assert len(frame) == 2
+    assert cursor.executed_ticker_chunks == [["X"], ["Y"]]
+    payload = recorder.payload()
+    assert payload is not None
+    assert payload["sources"]["public.stock_financial"]["row_count"] == 2
+    disclosure = payload["sources"]["public.stock_first_disclosure"]
+    assert disclosure["row_count"] == 2
+    assert disclosure["min_date"] == "2020-03-31"
+    assert disclosure["max_date"] == "2020-06-30"
 
 
 def test_fetch_raw_financial_batches_tickers_and_matches_single_query(
@@ -1536,38 +2630,27 @@ def _constituents_for_snapshot(snapshot):
     return pd.concat([q500, q1000], ignore_index=True)
 
 
-def test_target_coordinate_calibration_matches_synthetic_constituents():
-    cfg = load_b3_config()
-    formation = pd.Timestamp("2021-01-29")
-    snapshot = _synthetic_snapshot()
-    exposures = {
-        formation: compute_month_exposures(snapshot, cfg),
-    }
+def test_index_members_are_taken_at_the_exact_formation_date():
+    """精确取当日成份；缺当日快照就是缺，绝不回落到上一期。
 
-    got = calibrate_target_coordinates(
-        exposures,
-        _constituents_for_snapshot(snapshot),
+    代理时代 as-of 降级只影响一道校验；改为直接测量之后，悄悄用上一期成份
+    冒充本期会静默改变 q 的含义，所以这里必须是精确匹配。
+    """
+    formation = pd.Timestamp("2021-01-29")
+    constituents = pd.DataFrame(
+        {
+            "index_code": ["000905.SH", "000852.SH", "000905.SH"],
+            "ticker": ["A", "B", "C"],
+            "effective_date": [formation, formation, pd.Timestamp("2020-12-31")],
+        }
     )
 
-    assert got["q500_mean_abs_error"] <= 0.25
-    assert got["q1000_mean_abs_error"] <= 0.25
-    assert got["q_order_share"] >= 0.90
+    got = b3_build_module.index_members_by_formation(
+        constituents, [formation, pd.Timestamp("2021-02-26")]
+    )
 
-
-def test_target_coordinate_calibration_blocks_missing_q1000_constituents():
-    cfg = load_b3_config()
-    formation = pd.Timestamp("2021-01-29")
-    snapshot = _synthetic_snapshot()
-    exposures = {
-        formation: compute_month_exposures(snapshot, cfg),
-    }
-    constituents = _constituents_for_snapshot(snapshot)
-    constituents = constituents[
-        constituents["index_code"].ne("000852.SH")
-    ]
-
-    with pytest.raises(DataBlocked, match="000852.SH"):
-        calibrate_target_coordinates(exposures, constituents)
+    assert got[formation] == {"q500": {"A"}, "q1000": {"B"}}
+    assert got[pd.Timestamp("2021-02-26")] == {}
 
 
 def _preflight_sources(
@@ -2838,13 +3921,11 @@ def test_cli_preflight_stage_does_not_run_exposures(
 
 
 def _required_formation_grid():
-    return list(
-        pd.period_range(
-            "2014-01",
-            "2023-12",
-            freq="M",
-        ).to_timestamp("M")
-    )
+    """从 config 推导，别写死——窗口起点已经因中证1000 的发布日改过一次。"""
+    windows = load_b3_config()["windows"]
+    start = windows["discovery"][0][:7]
+    end = windows["confirmation"][1][:7]
+    return list(pd.period_range(start, end, freq="M").to_timestamp("M"))
 
 
 def _lightweight_exposure_result():
@@ -2933,7 +4014,7 @@ def _snapshot_map(dates):
 def _patch_lightweight_exposures(monkeypatch):
     monkeypatch.setattr(
         "signals.style_basket.b3_build.compute_month_exposures",
-        lambda snapshot, cfg: _lightweight_exposure_result(),
+        lambda snapshot, cfg, **kwargs: _lightweight_exposure_result(),
     )
 
 
@@ -3230,10 +4311,16 @@ def test_parent_manifest_rejects_invalid_output_hashes(
         )
 
 
+#: 「绝对」是平台相关的：Windows 上 "/tmp/x" 没有盘符，并不绝对，于是这一格
+#: 走不到 unsafe 分支（闸门仍然拒绝它，只是换了个理由码）。用当前卷的 anchor
+#: 拼出真正的绝对路径；在 POSIX 上取值仍是 "/tmp/coverage_audit.csv"。
+_ABSOLUTE_OUTPUT_PATH = str(Path(Path.cwd().anchor) / "tmp" / "coverage_audit.csv")
+
+
 @pytest.mark.parametrize(
     "unsafe_path",
     [
-        pytest.param("/tmp/coverage_audit.csv", id="absolute"),
+        pytest.param(_ABSOLUTE_OUTPUT_PATH, id="absolute"),
         pytest.param("../coverage_audit.csv", id="parent-traversal"),
     ],
 )
@@ -3562,6 +4649,170 @@ def _valid_formation_sql_frames(
     }
 
 
+def _interval_batch_world(n_tickers=6):
+    """Candidates plus the three history tables a batch load reads."""
+
+    formations = [pd.Timestamp("2021-01-29"), pd.Timestamp("2021-02-26")]
+    tickers = [f"T{i:02d}.SZ" for i in range(n_tickers)]
+    candidates = pd.DataFrame(
+        [
+            {
+                "ts_code": ticker,
+                "formation_date": formation,
+                "list_date": pd.Timestamp("2015-01-05"),
+                "delist_date": pd.NaT,
+            }
+            for ticker in tickers
+            for formation in formations
+        ]
+    )
+    prices = pd.DataFrame(
+        [
+            {
+                "ts_code": ticker,
+                "trade_date": day,
+                "close": 10.0 + index,
+            }
+            for index, ticker in enumerate(tickers)
+            for day in pd.date_range("2020-12-01", "2021-03-31", freq="B")
+        ]
+    )
+    events = pd.DataFrame(
+        [
+            {
+                "ts_code": ticker,
+                "trade_date": pd.Timestamp("2021-01-04"),
+                "suspend_type": "今起停牌",
+                "suspend_reason": "重大事项",
+            }
+            for ticker in tickers
+        ]
+    )
+    status = pd.DataFrame(
+        [
+            {"ts_code": ticker, "trade_date": formation, "is_suspended": True}
+            for ticker in tickers
+            for formation in formations
+        ]
+    )
+    return candidates, prices, events, status
+
+
+def _interval_batch_read_sql(prices, events, status, seen_params=None):
+    """Honour the ts_code/start/end filters so batching is really exercised."""
+
+    def fake_read_sql(db, sql, params=None):
+        if seen_params is not None and params:
+            seen_params.append(dict(params))
+        if "MIN(trade_date)" in sql:
+            return pd.DataFrame({"source_start": [pd.Timestamp("2014-01-02")]})
+        table = (
+            prices
+            if "stock_daily_price" in sql
+            else events
+            if "stock_suspension" in sql
+            else status
+        )
+        result = table.copy()
+        if params and "tickers" in params:
+            result = result[result["ts_code"].isin(set(params["tickers"]))]
+        if params and "start" in params:
+            result = result[
+                result["trade_date"] >= pd.Timestamp(params["start"])
+            ]
+        if params and "end" in params:
+            result = result[result["trade_date"] <= pd.Timestamp(params["end"])]
+        if params and "dates" in params:
+            wanted = {pd.Timestamp(value) for value in params["dates"]}
+            result = result[result["trade_date"].isin(wanted)]
+        return result.reset_index(drop=True)
+
+    return fake_read_sql
+
+
+def test_interval_evidence_batching_is_exactly_equivalent(monkeypatch):
+    candidates, prices, events, status = _interval_batch_world()
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _interval_batch_read_sql(prices, events, status),
+    )
+    calendar = _authoritative_calendar(pd.Timestamp("2021-03-31"))
+
+    def build(batch_tickers):
+        return b3_build_module.build_interval_evidence_in_batches(
+            {"schema": "market"},
+            candidates,
+            pd.Timestamp("2021-03-31"),
+            None,
+            calendar,
+            batch_tickers=batch_tickers,
+        )
+
+    single_shot = build(999)
+    fully_batched = build(1)
+    paired = build(2)
+
+    assert not single_shot.empty
+    pd.testing.assert_frame_equal(single_shot, fully_batched)
+    pd.testing.assert_frame_equal(single_shot, paired)
+
+
+def test_interval_evidence_batching_bounds_each_query(monkeypatch):
+    candidates, prices, events, status = _interval_batch_world(n_tickers=6)
+    seen: list[dict] = []
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _interval_batch_read_sql(prices, events, status, seen),
+    )
+
+    b3_build_module.build_interval_evidence_in_batches(
+        {"schema": "market"},
+        candidates,
+        pd.Timestamp("2021-03-31"),
+        None,
+        _authoritative_calendar(pd.Timestamp("2021-03-31")),
+        batch_tickers=2,
+    )
+
+    ticker_batches = [
+        params["tickers"] for params in seen if "tickers" in params
+    ]
+    assert ticker_batches, "no ticker-filtered query was issued"
+    assert max(len(batch) for batch in ticker_batches) == 2
+
+
+def test_interval_history_lower_bound_covers_the_longest_suspension():
+    # The longest observed break between consecutive trading days is 2,478
+    # days; the bound must sit well before that so it can never decide which
+    # price the carry-forward sees.
+    assert b3_build_module.INTERVAL_HISTORY_LOOKBACK_YEARS * 365 > 2_478
+
+    start = b3_build_module._interval_history_start(
+        [date(2013, 5, 31), date(2020, 6, 30)]
+    )
+    assert start == date(2003, 5, 31)
+
+
+def test_interval_history_query_carries_the_lower_bound(monkeypatch):
+    candidates, prices, events, status = _interval_batch_world(n_tickers=2)
+    seen: list[dict] = []
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        _interval_batch_read_sql(prices, events, status, seen),
+    )
+
+    b3_build_module._fetch_suspension_interval_history(
+        {"schema": "market"},
+        candidates,
+        pd.Timestamp("2021-03-31"),
+        recorder=None,
+    )
+
+    bounded = [params for params in seen if "start" in params]
+    assert bounded, "history queries must carry a lower bound"
+    assert all(params["start"] == date(2011, 1, 29) for params in bounded)
+
+
 def test_suspension_interval_history_empty_candidates_is_query_free_and_typed(
     monkeypatch,
 ):
@@ -3683,6 +4934,9 @@ def test_suspension_interval_history_queries_only_candidate_coordinates(
     assert "ORDER BY ts_code, trade_date" in status_sql
     expected_history_params = {
         "tickers": ["A.SZ", "B.SZ"],
+        # Ten years before the earliest candidate formation date: far enough
+        # back that the bound can never decide which carry-forward price wins.
+        "start": pd.Timestamp("2011-01-29").date(),
         "end": pd.Timestamp("2021-03-31").date(),
     }
     assert price_params == expected_history_params
@@ -4787,6 +6041,17 @@ def test_preflight_manifest_database_evidence_contract_roundtrip(tmp_path):
         ),
         "calendar_date",
     )
+    recorder.record(
+        "public.stock_first_disclosure",
+        "SELECT ts_code, end_date FROM public.stock_first_disclosure",
+        pd.DataFrame(
+            {
+                "ts_code": ["000001.SZ"],
+                "end_date": [pd.Timestamp("2020-03-31")],
+            }
+        ),
+        "end_date",
+    )
     sources = replace(
         _preflight_sources(
             snapshot,
@@ -4809,6 +6074,13 @@ def test_preflight_manifest_database_evidence_contract_roundtrip(tmp_path):
     assert "database_source_evidence" in manifest
     contract = verify_preflight_manifest(tmp_path, config_hash(cfg))
     assert contract.database_source_evidence is not None
+    assert (
+        "public.stock_first_disclosure"
+        in contract.database_source_evidence["consumed_sources"]
+    )
+    assert contract.database_source_evidence["sources"][
+        "public.stock_first_disclosure"
+    ]["row_count"] == 1
     assert database_source_evidence_blocker(contract) is None
 
 
@@ -4870,3 +6142,150 @@ def test_preflight_classifies_invalid_constituent_dates_and_writes_manifest(
 
     assert got.final_status == "DATA_BLOCKED"
     assert (tmp_path / "manifests" / "preflight.json").is_file()
+
+
+def test_same_day_carried_close_is_rejected(tmp_path):
+    """带旧价只能带更早的价：同日收盘价不是 carry。
+
+    这条 fail-closed 分支此前没有任何测试覆盖。
+    """
+    formation = pd.Timestamp("2021-01-29")
+    same_day = pd.DataFrame(
+        {
+            "formation_date": [formation],
+            "ts_code": ["A"],
+            "close_date": [formation],
+            "close": [10.0],
+        }
+    )
+
+    with pytest.raises(DataBlocked, match="must precede formation_date"):
+        b3_build_module._validated_carried_closes(
+            same_day,
+            label="exact carried closes",
+            method=b3_build_module.EXACT_CARRY_METHOD,
+        )
+
+
+def test_exact_carry_query_never_asks_for_a_close_dated_on_the_formation_day(
+    monkeypatch,
+):
+    """查询本身必须与它的契约一致，否则真库一定会把契约撞红。
+
+    触发形状取自真实数据：某票在 formation 当日被标停牌，但当日仍有行情
+    （盘中/半日停牌，交易所照发日线）。假的 _read_sql 照查询自己的比较符
+    决定给不给同日那一行——真库就是这么做的，不这样模拟，这个不变量在不接
+    库的测试里根本无法被证伪。
+    """
+    formation = pd.Timestamp("2021-01-29")
+    frames = _valid_formation_sql_frames(calendar_end="2021-03-31")
+    frames["stock_suspension"] = pd.DataFrame(
+        {"trade_date": [formation], "ts_code": ["A"]}
+    )
+    base = _formation_sql_source(list(frames.items()))
+
+    def fake_read_sql(db, sql, params=None):
+        if "JOIN LATERAL" in sql:
+            carried_same_day = "q.trade_date <= s.trade_date" in sql
+            return pd.DataFrame(
+                {
+                    "formation_date": [formation],
+                    "ts_code": ["A"],
+                    "close_date": [
+                        formation
+                        if carried_same_day
+                        else formation - pd.Timedelta(days=1)
+                    ],
+                    "close": [10.0 if carried_same_day else 9.5],
+                }
+            )
+        return base(db, sql, params)
+
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._read_sql",
+        fake_read_sql,
+    )
+    monkeypatch.setattr(
+        "signals.style_basket.b3_build._fetch_raw_financial",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    got = _formation_inputs({"schema": "public"}, pd.Timestamp("2021-03-31"))
+
+    carried = got["carried_closes"]
+    assert not carried.empty
+    assert (
+        pd.to_datetime(carried["close_date"])
+        < pd.to_datetime(carried["formation_date"])
+    ).all()
+
+
+# ------------------------------------------- 目标坐标改为直接测量真实成份
+
+
+def _members_avoiding_the_old_bands(snapshot):
+    """刻意避开 301-800 / 801-1800：若还在用排名带，断言必红。"""
+    tickers = list(snapshot["ticker"])
+    return {
+        "q500": set(tickers[1200:1700]),
+        "q1000": set(tickers[1700:2200]),
+    }
+
+
+def test_target_coordinates_are_the_median_m_perp_of_the_real_index_members():
+    snapshot = _synthetic_snapshot()
+    members = _members_avoiding_the_old_bands(snapshot)
+
+    got = compute_month_exposures(
+        snapshot, load_b3_config(), index_members=members
+    )
+
+    m_perp = got.size.set_index("ticker")["m_perp"]
+    for name in ("q500", "q1000"):
+        expected = float(m_perp.reindex(sorted(members[name])).median())
+        assert got.q[name] == pytest.approx(expected)
+    assert got.q["qblend"] == pytest.approx(
+        (got.q["q500"] + got.q["q1000"]) / 2.0
+    )
+
+
+def test_index_members_missing_from_the_size_universe_block_below_coverage():
+    """成员大量掉出 size universe 时中位数是在子集上算的，必须阻断。"""
+    snapshot = _synthetic_snapshot()
+    members = _members_avoiding_the_old_bands(snapshot)
+    members["q500"] = set(members["q500"]) | {f"GHOST{i:04d}" for i in range(60)}
+
+    with pytest.raises(DataBlocked, match="size universe"):
+        compute_month_exposures(
+            snapshot, load_b3_config(), index_members=members
+        )
+
+
+def test_target_coordinates_require_q1000_above_q500():
+    """m_perp 越大越小盘，所以 q1000 必须高于 q500；反了就是数据错了。"""
+    snapshot = _synthetic_snapshot()
+    tickers = list(snapshot["ticker"])
+    reversed_members = {
+        "q500": set(tickers[1700:2200]),
+        "q1000": set(tickers[1200:1700]),
+    }
+
+    with pytest.raises(DataBlocked, match="q1000"):
+        compute_month_exposures(
+            snapshot, load_b3_config(), index_members=reversed_members
+        )
+
+
+def test_weights_still_span_the_full_model_universe_after_direct_measurement():
+    """原不变量必须存活：成员集合之外的股票在暴露非零时仍能进组合。"""
+    snapshot = _synthetic_snapshot()
+    members = _members_avoiding_the_old_bands(snapshot)
+
+    got = compute_month_exposures(
+        snapshot, load_b3_config(), index_members=members
+    )
+
+    outside = got.model.iloc[:300]
+    assert (
+        (outside["w_q500_plus"] > 0.0) | (outside["w_q500_minus"] > 0.0)
+    ).any()

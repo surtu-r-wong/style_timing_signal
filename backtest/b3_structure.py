@@ -15,6 +15,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from backtest.b3_windows import (
+    MODEL_DISCOVERY_END,
+    MODEL_DISCOVERY_START,
+    MODEL_PERIOD_WINDOWS,
+    MODEL_STATE_COVERAGE_WINDOWS,
+    STRUCTURAL_DISCOVERY_START,
+)
 from backtest.rotation_probe import partial_rank_ic
 from signals.style_basket.b3_build import require_parent_manifest
 from signals.style_basket.b3_config import config_hash, load_b3_config
@@ -94,32 +101,19 @@ CELLS_5X5 = [
     for size in range(1, 6)
     for style in range(1, 6)
 ]
-WINDOW_SPECS = [
-    (
-        "2014-2017",
-        pd.Timestamp("2014-01-01"),
-        pd.Timestamp("2017-12-31"),
-        True,
-    ),
-    (
-        "2018-2020",
-        pd.Timestamp("2018-01-01"),
-        pd.Timestamp("2020-12-31"),
-        True,
-    ),
-    (
-        "2021-2023",
-        pd.Timestamp("2021-01-01"),
-        pd.Timestamp("2023-12-31"),
-        True,
-    ),
-    (
-        "2024-2026-report-only",
-        pd.Timestamp("2024-01-01"),
-        pd.Timestamp("2026-12-31"),
-        False,
-    ),
-]
+#: 兼容既有 structure coefficient 调用方；冻结定义集中于 b3_windows。
+WINDOW_SPECS = list(MODEL_PERIOD_WINDOWS)
+_FROZEN_EVIDENCE_END = max(
+    end
+    for _, _, end, affects_verdict in MODEL_PERIOD_WINDOWS
+    if affects_verdict
+)
+_FROZEN_EVIDENCE_END_MONTH = _FROZEN_EVIDENCE_END.to_period("M")
+_REPORT_WINDOW_NAME = next(
+    name
+    for name, _, _, affects_verdict in MODEL_PERIOD_WINDOWS
+    if not affects_verdict
+)
 
 
 def _require_frame(
@@ -400,15 +394,9 @@ def state_coverage_gate(
         or not 0.0 <= float(minimum) <= 1.0
     ):
         raise DataBlocked("state coverage minimum is invalid")
-    windows = {
-        "2014-2017": ("2014-01-01", "2017-12-31", True),
-        "2018-2020": ("2018-01-01", "2020-12-31", True),
-        "2021-2023": ("2021-01-01", "2023-12-31", True),
-        "2014-2020": ("2014-01-01", "2020-12-31", False),
-    }
     result: dict[str, float | bool] = {}
     passed = True
-    for window, (start, end, affects_gate) in windows.items():
+    for window, start, end, affects_gate in MODEL_STATE_COVERAGE_WINDOWS:
         sample = state.loc[start:end].dropna()
         for label in ("UU", "DD", "DIV"):
             share = float(sample.eq(label).mean()) if len(sample) else 0.0
@@ -1136,7 +1124,9 @@ def _window_for_date(
 
 def _validate_structure_config(cfg: dict) -> None:
     expected_windows = {
-        "discovery": ["2014-01-01", "2020-12-31"],
+        # 2026-08-06 明示改动，与 b3_eval 的预注册同步；理由见
+        # docs/plans/2026-08-06-q500-direct-measurement-design.md。
+        "discovery": ["2014-10-01", "2020-12-31"],
         "confirmation": ["2021-01-01", "2023-12-31"],
         "report_only": ["2024-01-01", "2026-12-31"],
     }
@@ -1333,26 +1323,47 @@ def _validated_model_comparison_inputs(
     dict[str, pd.Series],
     pd.Series,
     pd.DatetimeIndex,
+    pd.DatetimeIndex,
 ]:
     _validate_structure_config(cfg)
     if not isinstance(formation_dates, pd.DatetimeIndex):
-        raise DataBlocked("model formation dates must be a DatetimeIndex")
-    formations = formation_dates.copy()
+        raise DataBlocked("structural formation dates must be a DatetimeIndex")
+    structural_formations = formation_dates.copy()
     if (
-        len(formations) < 2
-        or formations.tz is not None
-        or not formations.equals(formations.normalize())
-        or formations.has_duplicates
-        or not formations.is_monotonic_increasing
+        len(structural_formations) < 2
+        or structural_formations.tz is not None
+        or not structural_formations.equals(structural_formations.normalize())
+        or structural_formations.has_duplicates
+        or not structural_formations.is_monotonic_increasing
     ):
         raise DataBlocked(
-            "model formation dates must be unique increasing naive dates"
+            "structural formation dates must be unique increasing naive dates"
         )
-    periods = formations.to_period("M")
+    periods = structural_formations.to_period("M")
     if periods.has_duplicates or not periods.equals(
         pd.period_range(periods[0], periods[-1], freq="M")
     ):
-        raise DataBlocked("model formation dates must be monthly continuous")
+        raise DataBlocked(
+            "structural formation dates must be monthly continuous"
+        )
+    if periods[0] != STRUCTURAL_DISCOVERY_START.to_period("M"):
+        raise DataBlocked("structural formation dates must start in 2014-10")
+    if periods[-1] < _FROZEN_EVIDENCE_END_MONTH:
+        raise DataBlocked(
+            "structural formation dates must extend through "
+            f"{_FROZEN_EVIDENCE_END_MONTH} for frozen evidence"
+        )
+    model_formations = structural_formations[
+        structural_formations >= MODEL_DISCOVERY_START
+    ]
+    if (
+        len(model_formations) < 2
+        or model_formations[0].to_period("M")
+        != MODEL_DISCOVERY_START.to_period("M")
+    ):
+        raise DataBlocked(
+            "model formation dates must start in 2015-01 and contain two months"
+        )
 
     state_required = {
         "date",
@@ -1374,7 +1385,9 @@ def _validated_model_comparison_inputs(
         "model state components.date",
     )
     states = states[
-        states["date"].between(formations.min(), formations.max())
+        states["date"].between(
+            model_formations.min(), model_formations.max()
+        )
     ].copy()
     if states.empty:
         raise DataBlocked("model state components miss the formation window")
@@ -1409,7 +1422,7 @@ def _validated_model_comparison_inputs(
                     "date",
                 ].sort_values(kind="mergesort")
             )
-            if not formations.isin(group_dates).all():
+            if not model_formations.isin(group_dates).all():
                 raise DataBlocked(
                     "model state components miss formation-date features"
                 )
@@ -1425,7 +1438,9 @@ def _validated_model_comparison_inputs(
     )
     axis["date"] = _strict_dates(axis["date"], "model axis returns.date")
     axis = axis[
-        axis["date"].between(formations.min(), formations.max())
+        axis["date"].between(
+            model_formations.min(), model_formations.max()
+        )
     ].copy()
     _validate_strings(axis["pit_policy"], "model axis returns.pit_policy")
     if sorted(axis["pit_policy"].unique()) != sorted(
@@ -1513,7 +1528,7 @@ def _validated_model_comparison_inputs(
         target: _validated_daily_model_series(
             target_returns[target],
             f"model target returns.{target}",
-            formations,
+            model_formations,
             is_return=True,
         )
         for target in ("blend", "500", "1000")
@@ -1526,7 +1541,7 @@ def _validated_model_comparison_inputs(
     control = _validated_daily_model_series(
         equal_weight_signal,
         "equal_weight control",
-        formations,
+        model_formations,
         is_return=False,
     )
     return (
@@ -1536,7 +1551,8 @@ def _validated_model_comparison_inputs(
         surface,
         targets,
         control,
-        formations,
+        structural_formations,
+        model_formations,
     )
 
 
@@ -1592,8 +1608,8 @@ def _increment_direction(value: float) -> int | str:
 def _closed_formation_window(
     frame: pd.DataFrame,
     formations: pd.DatetimeIndex,
-    start: str,
-    end: str,
+    start: str | pd.Timestamp,
+    end: str | pd.Timestamp,
 ) -> pd.DataFrame:
     period_end = pd.Series(
         formations[1:],
@@ -1615,8 +1631,8 @@ def _hard_sort_gate_passes(
     formations: pd.DatetimeIndex,
 ) -> bool:
     required_dates = formations[
-        (formations >= pd.Timestamp("2014-01-01"))
-        & (formations <= pd.Timestamp("2023-12-31"))
+        (formations >= STRUCTURAL_DISCOVERY_START)
+        & (formations <= _FROZEN_EVIDENCE_END)
     ]
     cells = surface[
         surface["pit_policy"].eq(policy)
@@ -1663,7 +1679,8 @@ def build_model_comparison(
         surface,
         targets,
         control,
-        formations,
+        structural_formations,
+        model_formations,
     ) = _validated_model_comparison_inputs(
         state_components,
         axis_returns,
@@ -1686,7 +1703,26 @@ def build_model_comparison(
     maximum_axis_corr = float(
         cfg["model"]["interaction_axis_corr_max"]
     )
-    realized_formations = formations[:-1]
+    (
+        (_early_name, early_start, early_end, _early_affects),
+        (_late_name, late_start, late_end, _late_affects),
+        (
+            confirmation_name,
+            confirmation_start,
+            confirmation_end,
+            _confirmation_affects,
+        ),
+        (report_name, report_start, report_end, _report_affects),
+    ) = MODEL_PERIOD_WINDOWS
+    confirmation_years = tuple(
+        str(year)
+        for year in range(
+            confirmation_start.year,
+            confirmation_end.year + 1,
+        )
+    )
+    structural_realized_formations = structural_formations[:-1]
+    realized_formations = model_formations[:-1]
 
     for policy in cfg["pit"]["policies"]:
         policy_coefficients = coefficients[
@@ -1699,14 +1735,10 @@ def build_model_comparison(
             "formation_date"
         ).sort_index()
         beta_values_list: list[float] = []
-        for start, end in (
-            ("2014-01-01", "2017-12-31"),
-            ("2018-01-01", "2020-12-31"),
-            ("2021-01-01", "2023-12-31"),
-        ):
+        for _, start, end, _ in MODEL_PERIOD_WINDOWS[:3]:
             expected = _closed_formation_window(
                 pd.DataFrame(index=realized_formations),
-                formations,
+                model_formations,
                 start,
                 end,
             ).index
@@ -1747,10 +1779,10 @@ def build_model_comparison(
             .set_index("date")
         )
         style_monthly = next_formation_targets(
-            policy_axis["style"], formations
+            policy_axis["style"], model_formations
         )
         interaction_monthly = next_formation_targets(
-            policy_axis["interaction"], formations
+            policy_axis["interaction"], model_formations
         )
         axis_joint = pd.concat(
             [
@@ -1762,9 +1794,9 @@ def build_model_comparison(
         )
         axis_joint = _closed_formation_window(
             axis_joint,
-            formations,
-            "2021-01-01",
-            "2023-12-31",
+            model_formations,
+            confirmation_start,
+            confirmation_end,
         )
         axis_corr = axis_joint["style"].corr(
             axis_joint["interaction"],
@@ -1777,7 +1809,7 @@ def build_model_comparison(
             _model_comparison_row(
                 pit_policy=policy,
                 candidate="PUBLIC",
-                window="2021-2023",
+                window=confirmation_name,
                 n=int(len(axis_joint)),
                 gate_name="interaction_axis_corr",
                 gate_pass=axis_pass,
@@ -1791,11 +1823,14 @@ def build_model_comparison(
                 window="structure",
                 n=int(
                     len(
-                        realized_formations[
-                            (realized_formations >= pd.Timestamp("2014-01-01"))
+                        structural_realized_formations[
+                            (
+                                structural_realized_formations
+                                >= STRUCTURAL_DISCOVERY_START
+                            )
                             & (
-                                realized_formations
-                                <= pd.Timestamp("2023-12-31")
+                                structural_realized_formations
+                                <= _FROZEN_EVIDENCE_END
                             )
                         ]
                     )
@@ -1804,7 +1839,7 @@ def build_model_comparison(
                 gate_pass=_hard_sort_gate_passes(
                     surface,
                     policy,
-                    realized_formations,
+                    structural_realized_formations,
                 ),
                 affects_verdict=True,
             )
@@ -1821,7 +1856,7 @@ def build_model_comparison(
             )
             target = next_formation_targets(
                 targets[target_name],
-                formations,
+                model_formations,
             )
             monthly = q_state.reindex(target.index)[
                 [*MODEL_FEATURES, "F_T"]
@@ -1838,33 +1873,33 @@ def build_model_comparison(
                 )
             discovery = _closed_formation_window(
                 monthly,
-                formations,
-                "2014-01-01",
-                "2020-12-31",
+                model_formations,
+                MODEL_DISCOVERY_START,
+                MODEL_DISCOVERY_END,
             )
             early = _closed_formation_window(
                 monthly,
-                formations,
-                "2014-01-01",
-                "2017-12-31",
+                model_formations,
+                early_start,
+                early_end,
             )
             late = _closed_formation_window(
                 monthly,
-                formations,
-                "2018-01-01",
-                "2020-12-31",
+                model_formations,
+                late_start,
+                late_end,
             )
             confirmation = _closed_formation_window(
                 monthly,
-                formations,
-                "2021-01-01",
-                "2023-12-31",
+                model_formations,
+                confirmation_start,
+                confirmation_end,
             )
             report = _closed_formation_window(
                 monthly,
-                formations,
-                "2024-01-01",
-                "2026-12-31",
+                model_formations,
+                report_start,
+                report_end,
             )
             m0 = fit_model(discovery, ["F_T"], "target")
             m1 = fit_model(discovery, MODEL_FEATURES, "target")
@@ -1887,7 +1922,7 @@ def build_model_comparison(
                     candidate=candidate,
                     q=q,
                     target=target_name,
-                    window="2014-2020",
+                    window="2015-2020",
                     model="M1",
                     n=int(len(discovery)),
                     spearman_ic=float(
@@ -1923,7 +1958,7 @@ def build_model_comparison(
                         candidate=candidate,
                         q=q,
                         target=target_name,
-                        window="2021-2023",
+                        window=confirmation_name,
                         model="M0",
                         n=int(len(confirmation)),
                         oos_r2=m0_oos,
@@ -1935,7 +1970,7 @@ def build_model_comparison(
                         candidate=candidate,
                         q=q,
                         target=target_name,
-                        window="2021-2023",
+                        window=confirmation_name,
                         model="M1",
                         n=int(len(confirmation)),
                         oos_r2=m1_oos,
@@ -1947,10 +1982,10 @@ def build_model_comparison(
             )
 
             yearly_partial: dict[str, float] = {}
-            for year in ("2021", "2022", "2023"):
+            for year in confirmation_years:
                 year_sample = _closed_formation_window(
                     monthly,
-                    formations,
+                    model_formations,
                     f"{year}-01-01",
                     f"{year}-12-31",
                 )
@@ -1990,7 +2025,7 @@ def build_model_comparison(
                             candidate=candidate,
                             q=q,
                             target=target_name,
-                            window="2024-2026-report-only",
+                            window=report_name,
                             model="M0",
                             n=int(len(report)),
                             oos_r2=m0_report_oos,
@@ -2001,7 +2036,7 @@ def build_model_comparison(
                             candidate=candidate,
                             q=q,
                             target=target_name,
-                            window="2024-2026-report-only",
+                            window=report_name,
                             model="M1",
                             n=int(len(report)),
                             oos_r2=m1_report_oos,
@@ -2026,7 +2061,7 @@ def build_model_comparison(
                     candidate=candidate,
                     q=q,
                     target=target_name,
-                    window="2021-2023",
+                    window=confirmation_name,
                     model="M1",
                     gate_name="m1_increment",
                     gate_pass=increment_pass,
@@ -2050,7 +2085,7 @@ def build_model_comparison(
                     candidate=candidate,
                     q=q,
                     target=target_name,
-                    window="2021-2023",
+                    window=confirmation_name,
                     model="M1",
                     partial_ic=float(confirmation_partial),
                     gate_name="partial_ic",
@@ -2060,7 +2095,8 @@ def build_model_comparison(
             )
 
             confirmation_daily = q_state.loc[
-                "2021-01-01":"2023-12-31", MODEL_FEATURES
+                confirmation_start:confirmation_end,
+                MODEL_FEATURES,
             ]
             stability = stability_gate(
                 np.asarray(early_m1.slopes),
@@ -2076,7 +2112,7 @@ def build_model_comparison(
                     candidate=candidate,
                     q=q,
                     target=target_name,
-                    window="2021-2023",
+                    window=confirmation_name,
                     model="M1",
                     cosine_early_late=float(stability["cosine"]),
                     confirmation_score_spearman=float(
@@ -2092,15 +2128,12 @@ def build_model_comparison(
                 q_state["state"],
                 minimum_coverage,
             )
-            coverage_windows = {
-                "2014-2017": ("2014-01-01", "2017-12-31", True),
-                "2018-2020": ("2018-01-01", "2020-12-31", True),
-                "2021-2023": ("2021-01-01", "2023-12-31", True),
-                "2014-2020": ("2014-01-01", "2020-12-31", False),
-            }
-            for window, (start, end, affects_verdict) in (
-                coverage_windows.items()
-            ):
+            for (
+                window,
+                start,
+                end,
+                affects_verdict,
+            ) in MODEL_STATE_COVERAGE_WINDOWS:
                 shares = {
                     label: float(coverage[f"{window}_{label}"])
                     for label in ("UU", "DD", "DIV")
@@ -2148,7 +2181,7 @@ def build_model_comparison(
                     _model_comparison_row(
                         pit_policy=policy,
                         candidate=candidate,
-                        window="2021-2023",
+                        window=confirmation_name,
                         gate_name=gate_name,
                         gate_pass=bool(passed),
                         affects_verdict=True,
@@ -2288,7 +2321,7 @@ def _validated_model_comparison_output(
         metric & output["model"].eq("M0"), "partial_ic"
     ].notna().any():
         raise DataBlocked("M0 cannot carry partial IC")
-    report = output["window"].eq("2024-2026-report-only")
+    report = output["window"].eq(_REPORT_WINDOW_NAME)
     if output.loc[report, "affects_verdict"].any():
         raise DataBlocked("report-only model rows cannot affect verdict")
     pit = output["gate_name"].eq("PIT_POLICY_FLIP")
@@ -2809,7 +2842,7 @@ def run_structure(
         raise DataBlocked(
             "stock period returns contain dates after data_end"
         )
-    start = WINDOW_SPECS[0][1]
+    start = STRUCTURAL_DISCOVERY_START
     end = min(cutoff, WINDOW_SPECS[-1][2])
     exposures = exposures.loc[
         exposure_dates.between(start, end)

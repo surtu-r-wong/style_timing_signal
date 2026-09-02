@@ -1,0 +1,18 @@
+{
+  "generated_utc": "2026-08-05T10:51:17.425909+00:00",
+  "proposal_manifest": "/home/elfbob/claude-code/.worktrees/style_timing_signal/b3-wind-share-capital/data_fixes/2026-08-01-b3-wind-share-capital/proposal_manifest.json",
+  "proposal_manifest_sha256": "b68c7a200f505c43e84fb516d6e7ba0d7b6a434b8c6ed8c395e4f0c53e9fae84",
+  "readback_mismatches": 0,
+  "readback_rows": 5781,
+  "receipt": {
+    "inserted": 347,
+    "kept_identical": 0,
+    "lock_key": "b3-wind-share-capital-2026-08-01",
+    "planned_inserts": 347,
+    "planned_upgrades": 149,
+    "proposal_nodes": 496,
+    "upgraded": 149
+  },
+  "stock_selector_code_commit": "f8a41157d828bae3f53a36f1d68fd1b85d6263f4",
+  "target": "production"
+}

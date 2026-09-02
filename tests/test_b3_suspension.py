@@ -478,3 +478,4 @@ def test_rejects_bool_integer_equivalent_rows_before_deduplication(first, second
         frames[source] = pd.DataFrame({"ts_code": ["A.SZ", "A.SZ"], "trade_date": ["2021-09-30", "2021-09-30"], column: pd.Series([first, second], dtype=object)})
     with pytest.raises(SuspensionEvidenceError, match=label):
         build_continuous_suspension_evidence(**frames, suspension_source_start="2021-01-01")
+

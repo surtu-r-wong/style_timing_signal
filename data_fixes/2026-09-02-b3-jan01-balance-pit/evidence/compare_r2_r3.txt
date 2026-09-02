@@ -1,0 +1,24 @@
+rows r2=804,024 r3=804,024
+row-set: {'both': 804024, 'left_only': 0, 'right_only': 0}
+style_score changed: 152,475 rows, 3664 tickers, 28 formation dates
+model_eligible changed: 0
+size_eligible changed: 0
+true_first_disclosure_verified changed: 90
+r2 uncovered rows=90; in r3: model_eligible=90, verified=90, missing=0
+unverified model rows: r2 = 90 r3 = 0
+model_n total: r2 = 629556 r3 = 629556
+pit_policy                         year
+legal_deadline                     2017    19774
+                                   2018    17538
+                                   2019     2765
+                                   2020    11424
+                                   2021     6543
+                                   2022    10409
+                                   2023    10642
+legal_deadline_plus_one_month_end  2017    19774
+                                   2018    17538
+                                   2019     2765
+                                   2020     5709
+                                   2021     6543
+                                   2022    10409
+                                   2023    10642

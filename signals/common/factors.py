@@ -104,7 +104,13 @@ def growth_slope(ttm: pd.Series, n: int = 12) -> float:
     return float(slope / mean)
 
 
-def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.DataFrame:
+def rolling_growth_slope(
+    ttm: pd.Series,
+    known: pd.Series,
+    n: int = 12,
+    *,
+    unverified_dependencies: pd.Series | None = None,
+) -> pd.DataFrame:
     """整段 TTM 网格 → 每季末的成长斜率 + 可知日（growth_slope 的批量预计算形态）。
 
     slope(q) = growth_slope(ttm[q−n+1..q])，但窗口内**任一季缺失即 NaN**（严于
@@ -116,6 +122,15 @@ def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.Da
     out = pd.DataFrame(
         {"slope": np.nan, "known_date": pd.NaT}, index=idx
     )
+    dependencies = None
+    if unverified_dependencies is not None:
+        dependencies = unverified_dependencies.reindex(idx)
+        out["unverified_dependency_keys"] = pd.Series(
+            [None] * len(idx), index=idx, dtype=object
+        )
+        out["true_first_disclosure_verified"] = pd.Series(
+            [False] * len(idx), index=idx, dtype=object
+        )
     y = ttm.to_numpy(dtype=float)
     if len(y) < n:
         return out
@@ -126,16 +141,54 @@ def rolling_growth_slope(ttm: pd.Series, known: pd.Series, n: int = 12) -> pd.Da
     w = (x - x.mean()) / ((x - x.mean()) ** 2).sum()
     slopes = windows @ w
     means = np.abs(windows.mean(axis=1))
-    rel = np.where(means < 1e-12, np.nan, slopes / means)
+    # 用 where= 而不是 np.where：后者会**先把整个除法算完再选**，于是 means≈0
+    # 的条目照样执行除法、产生 inf 并置上浮点错误标志。默认 errstate 下那只是
+    # RuntimeWarning，但 pandas 的 cast_from_unit_vectorized 工作在
+    # errstate(over="raise") 里，那个待决标志会在随后一次完全无辜的 to_datetime
+    # 上炸成 FloatingPointError。2026-08-07 回填退市股票后由真实数据触发
+    # （TTM 序列跨零、量级 1e9，12 期窗口均值可能恰好≈0）。
+    rel = np.divide(
+        slopes,
+        means,
+        out=np.full_like(slopes, np.nan),
+        where=means >= 1e-12,
+    )
 
+    # NaT 必须先变成 NaN 再进 rolling：datetime64 的 NaT 直接 astype(float)
+    # 得到的是哨兵 −9.22e18，而它是个合法浮点数，于是 min_periods 把它算作
+    # 有效观测、max() 又把它忽略——结果是"少了一期披露日却照样宣布斜率可知"，
+    # PIT 语义被破坏；该值送进 pd.to_datetime(unit="D") 还会在乘算中溢出。
+    # 2026-08-07 回填退市股票、universe 变宽后由真实数据触发。
+    known_raw = known.to_numpy(dtype="datetime64[D]")
     known_days = pd.Series(
-        known.to_numpy(dtype="datetime64[D]").astype(float), index=idx
+        np.where(np.isnat(known_raw), np.nan, known_raw.astype(float)),
+        index=idx,
     )
     known_max = known_days.rolling(n, min_periods=n).max().to_numpy()
 
     out.iloc[n - 1 :, out.columns.get_loc("slope")] = rel
     out["known_date"] = _days_since_epoch_to_datetime64(known_max)
     out["slope"] = out["slope"].where(out["known_date"].notna())
+    if dependencies is not None:
+        for offset in np.flatnonzero(out["slope"].notna().to_numpy()):
+            window = dependencies.iloc[offset - n + 1 : offset + 1]
+            values = window.tolist()
+            if any(
+                not isinstance(value, tuple)
+                or any(not isinstance(key, str) or not key for key in value)
+                for value in values
+            ):
+                raise ValueError(
+                    "invalid provenance dependency: slope window requires "
+                    "tuple[str, ...] for every TTM row"
+                )
+            keys = _dependency_union(values)
+            out.iat[
+                offset, out.columns.get_loc("unverified_dependency_keys")
+            ] = keys
+            out.iat[
+                offset, out.columns.get_loc("true_first_disclosure_verified")
+            ] = bool(not keys)
     return out
 
 
@@ -198,6 +251,79 @@ def composite_score(z_frame: pd.DataFrame, min_factors: int = 1) -> pd.Series:
     return composite.where(count >= min_factors)
 
 
+_PROVENANCE_COLUMNS = (
+    "true_first_disclosure_verified",
+    "unverified_dependency_keys",
+)
+
+
+def _has_provenance_columns(frame: pd.DataFrame) -> bool:
+    """返回 provenance 是否启用；成对列只出现一列时拒绝降级。"""
+    present = [column in frame.columns for column in _PROVENANCE_COLUMNS]
+    if any(present) and not all(present):
+        raise ValueError("provenance columns must be provided together")
+    return all(present)
+
+
+def _dependency_union(values) -> tuple[str, ...]:
+    """依赖 key 的稳定排序去重并集。"""
+    return tuple(sorted({key for value in values for key in value}))
+
+
+def _validated_dependency_tuple(flag, value) -> tuple[str, ...]:
+    """校验 raw fact 的 strict provenance 合同并返回依赖 tuple。"""
+    if not isinstance(flag, (bool, np.bool_)):
+        raise ValueError("invalid provenance: verified flag must be bool")
+    if not isinstance(value, tuple):
+        raise ValueError("invalid provenance: dependency keys must be a tuple")
+    if any(not isinstance(key, str) or not key for key in value):
+        raise ValueError("invalid provenance: dependency keys must be non-empty strings")
+    if bool(flag) != (len(value) == 0):
+        raise ValueError("invalid provenance: verified flag disagrees with dependency keys")
+    return value
+
+
+def _ttm_unverified_dependencies(
+    selected: pd.DataFrame,
+    full: pd.PeriodIndex,
+    ttm: pd.Series,
+) -> list[tuple[str, ...] | None]:
+    """在既有数值网格旁传播 YTD→单季→四季 TTM 的符号依赖。"""
+    periods = pd.PeriodIndex(selected["end_date"], freq="Q")
+    raw_dependencies = {
+        period: _validated_dependency_tuple(flag, value)
+        for period, flag, value in zip(
+            periods,
+            selected["true_first_disclosure_verified"],
+            selected["unverified_dependency_keys"],
+        )
+    }
+
+    single_dependencies: list[tuple[str, ...] | None] = []
+    for period in full:
+        current = raw_dependencies.get(period)
+        if current is None:
+            single_dependencies.append(None)
+        elif period.quarter == 1:
+            single_dependencies.append(current)
+        else:
+            previous = raw_dependencies.get(period - 1)
+            single_dependencies.append(
+                None
+                if previous is None
+                else _dependency_union((current, previous))
+            )
+
+    dependencies: list[tuple[str, ...] | None] = []
+    for offset, value in enumerate(ttm):
+        window = single_dependencies[offset - 3 : offset + 1]
+        if offset < 3 or pd.isna(value) or any(item is None for item in window):
+            dependencies.append(None)
+        else:
+            dependencies.append(_dependency_union(window))
+    return dependencies
+
+
 def pit_ttm_with_known(df: pd.DataFrame) -> pd.DataFrame:
     """单只股票某 YTD 科目明细 → 完整季度网格上的 TTM + 每期可知日 known_date。
 
@@ -209,18 +335,45 @@ def pit_ttm_with_known(df: pd.DataFrame) -> pd.DataFrame:
       依赖到上年同季/上年年报（TTM(Q1)=Q1ytd+年报−上年Q1ytd），任一依赖行未披露
       则整期不可知。年报晚于 Q1 披露的乱序场景由此挡住前视。
     返回 index=季末（min..max 完整网格）、columns=[ttm, known_date]；不足依赖处均 NaN。
+    输入若携带成对 provenance 列，则在同一首披选择与数值网格上追加精确依赖；
+    legacy 输入仍严格返回原两列。
     """
+    has_provenance = _has_provenance_columns(df)
     df = df.copy()
     df["end_date"] = pd.to_datetime(df["end_date"])
     df["ann_date"] = pd.to_datetime(df["ann_date"])
     df = df[df["end_date"].dt.is_quarter_end]
     if df.empty:
-        return pd.DataFrame(columns=["ttm", "known_date"])
-    df = (
-        df.sort_values(["end_date", "ann_date"])
-        .groupby("end_date", as_index=False)
-        .first()
-    )
+        columns = ["ttm", "known_date"]
+        if has_provenance:
+            columns.extend(
+                ["unverified_dependency_keys", "true_first_disclosure_verified"]
+            )
+        return pd.DataFrame(columns=columns)
+    df = df.sort_values(["end_date", "ann_date"])
+    provenance_rows = None
+    if has_provenance:
+        first_rows = df.drop_duplicates("end_date", keep="first").set_index("end_date")
+        value_rows = (
+            df[df["value"].notna()]
+            .drop_duplicates("end_date", keep="first")
+            .set_index("end_date")
+        )
+        provenance_rows = pd.concat(
+            [value_rows, first_rows.loc[~first_rows.index.isin(value_rows.index)]]
+        )
+    df = df.groupby("end_date", as_index=False).first()
+    if provenance_rows is not None:
+        provenance_rows = provenance_rows.reindex(df["end_date"])
+        frozen_ann = df["ann_date"].reset_index(drop=True)
+        value_ann = provenance_rows["ann_date"].reset_index(drop=True)
+        same_ann = frozen_ann.eq(value_ann) | (frozen_ann.isna() & value_ann.isna())
+        if not same_ann.all():
+            raise ValueError(
+                "invalid provenance: value row announcement differs from known_date row"
+            )
+        for column in _PROVENANCE_COLUMNS:
+            df[column] = provenance_rows[column].to_numpy(copy=True)
     ytd = pd.Series(df["value"].to_numpy(dtype=float), index=pd.DatetimeIndex(df["end_date"]))
     single = quarterize_ytd(ytd)
     periods = pd.PeriodIndex(single.index, freq="Q")
@@ -235,13 +388,24 @@ def pit_ttm_with_known(df: pd.DataFrame) -> pd.DataFrame:
     known_days = ann_grid.rolling(5, min_periods=4).max()
     ttm = ttm.where(known_days.notna())
     idx = full.to_timestamp(how="end").normalize()
-    return pd.DataFrame(
+    result = pd.DataFrame(
         {
             "ttm": ttm.to_numpy(),
             "known_date": _days_since_epoch_to_datetime64(known_days.to_numpy()),
         },
         index=idx,
     )
+    if has_provenance:
+        dependencies = _ttm_unverified_dependencies(df, full, ttm)
+        result["unverified_dependency_keys"] = pd.Series(
+            dependencies, index=idx, dtype=object
+        )
+        result["true_first_disclosure_verified"] = pd.Series(
+            [bool(value is not None and not value) for value in dependencies],
+            index=idx,
+            dtype=object,
+        )
+    return result
 
 
 def pit_ttm_series(df: pd.DataFrame, as_of: pd.Timestamp) -> pd.Series:
@@ -262,19 +426,29 @@ def extract_statement_field(
     """从 fetch_financial_facts 输出按 statement_type 抽单字段 → end_date/ann_date/value。
 
     facts.data 是 friendly-name JSONB dict；缺该键的行 value=NaN（保留季度结构，
-    让 quarterize/TTM 自行在缺口处产生 NaN）。
+    让 quarterize/TTM 自行在缺口处产生 NaN）。成对 provenance 列若存在则按
+    原 statement 子集行序、不做类型强转地透传；只出现一列时拒绝。
     """
+    has_provenance = _has_provenance_columns(facts)
     sub = facts[facts["statement_type"] == statement_type]
     value = sub["data"].apply(
         lambda d: d.get(field) if isinstance(d, dict) else None
     )
-    return pd.DataFrame(
+    result = pd.DataFrame(
         {
             "end_date": pd.to_datetime(sub["end_date"].to_numpy()),
             "ann_date": pd.to_datetime(sub["ann_date"].to_numpy()),
             "value": pd.to_numeric(value.to_numpy(), errors="coerce"),
         }
     )
+    if has_provenance:
+        result["true_first_disclosure_verified"] = sub[
+            "true_first_disclosure_verified"
+        ].to_numpy(copy=True)
+        result["unverified_dependency_keys"] = sub[
+            "unverified_dependency_keys"
+        ].to_numpy(copy=True)
+    return result
 
 
 def _latest(series: pd.Series) -> float:

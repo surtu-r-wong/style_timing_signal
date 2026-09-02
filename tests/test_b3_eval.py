@@ -25,6 +25,7 @@ from backtest.b3_eval import (
     _evaluation_config,
     _validate_bootstrap_output,
     _validate_production_output,
+    _validate_score_inputs,
     _validate_yearly_output,
     assemble_verdicts,
     blocked_verdict_rows,
@@ -59,6 +60,7 @@ from backtest.b3_structure import (
     fit_model,
     next_formation_targets,
 )
+from backtest.b3_windows import MODEL_DISCOVERY_END, MODEL_DISCOVERY_START
 from backtest.engine import run_strategy
 from backtest.metrics import ann_return, max_drawdown, sharpe, turnover
 from backtest.positions import production_position
@@ -499,9 +501,13 @@ def test_passes_tail_gate_rejects_invalid_inputs(adjusted_tail, threshold):
         passes_tail_gate(adjusted_tail, threshold)
 
 
+_DEFAULT_EVALUATION_DATA_END = pd.Timestamp("2024-12-31")
+_MIDMONTH_EVALUATION_DATA_END = pd.Timestamp("2024-07-10")
+
+
 def _evaluation_inputs(end="2024-12-31"):
     cfg = deepcopy(load_b3_config())
-    calendar = pd.bdate_range("2014-01-01", end)
+    calendar = pd.bdate_range("2014-10-01", end)
     formations = pd.DatetimeIndex(
         pd.Series(calendar, index=calendar)
         .groupby(calendar.to_period("M"))
@@ -536,6 +542,8 @@ def _evaluation_inputs(end="2024-12-31"):
                 for offset, date in enumerate(calendar)
             )
     states = pd.DataFrame(rows)
+    structural_warmup = states["date"].lt(MODEL_DISCOVERY_START)
+    states.loc[structural_warmup, ["F_U", "F_D", "F_X"]] = np.nan
 
     targets = {}
     for target, q in {
@@ -578,6 +586,236 @@ def _evaluation_inputs(end="2024-12-31"):
     return cfg, calendar, formations, states, targets, equal_weight, carry
 
 
+def test_eval_accepts_structural_warmup_but_trims_only_before_model_calendar():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs()
+    )
+
+    (
+        validated_states,
+        validated_targets,
+        validated_control,
+        model_formations,
+        _,
+        discovery,
+    ) = _validate_score_inputs(
+        states,
+        targets,
+        equal_weight,
+        formations,
+        cfg,
+        _DEFAULT_EVALUATION_DATA_END,
+    )
+
+    assert model_formations[0].to_period("M") == MODEL_DISCOVERY_START.to_period(
+        "M"
+    )
+    model_calendar = calendar[calendar >= model_formations.min()]
+    assert validated_states["date"].min() == model_formations[0]
+    assert validated_targets["500"].index.min() == model_formations[0]
+    assert validated_states["date"].max() == calendar.max()
+    assert validated_targets["500"].index.max() == calendar.max()
+    assert discovery == (MODEL_DISCOVERY_START, MODEL_DISCOVERY_END)
+    assert validated_control.index.equals(model_calendar)
+    assert all(
+        target.index.equals(model_calendar)
+        and target.index.min() >= MODEL_DISCOVERY_START
+        for target in validated_targets.values()
+    )
+    for policy in cfg["pit"]["policies"]:
+        for q in ("qblend", "q500", "q1000"):
+            state_grid = pd.DatetimeIndex(
+                validated_states.loc[
+                    validated_states["pit_policy"].eq(policy)
+                    & validated_states["q"].eq(q),
+                    "date",
+                ].sort_values(kind="mergesort")
+            )
+            assert state_grid.equals(model_calendar)
+            assert state_grid.min() >= MODEL_DISCOVERY_START
+
+
+def test_eval_accepts_control_missing_only_pre_model_benchmark_prefix():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs()
+    )
+    first_model_formation = formations[
+        formations >= MODEL_DISCOVERY_START
+    ][0]
+    control = equal_weight.loc[first_model_formation:].copy()
+    assert targets["500"].index.min() < control.index.min()
+
+    validated = _validate_score_inputs(
+        states,
+        targets,
+        control,
+        formations,
+        cfg,
+        _DEFAULT_EVALUATION_DATA_END,
+    )
+
+    model_calendar = calendar[calendar >= first_model_formation]
+    assert validated[2].index.equals(model_calendar)
+
+
+def test_eval_rejects_control_missing_first_model_calendar_date():
+    cfg, _, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs()
+    )
+    first_model_formation = formations[
+        formations >= MODEL_DISCOVERY_START
+    ][0]
+    control = equal_weight.drop(index=first_model_formation)
+
+    with pytest.raises(DataBlocked, match="missing required model calendar dates"):
+        _validate_score_inputs(
+            states,
+            targets,
+            control,
+            formations,
+            cfg,
+            _DEFAULT_EVALUATION_DATA_END,
+        )
+
+
+def test_eval_rejects_control_date_outside_benchmark_calendar():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs()
+    )
+    extra_date = pd.Timestamp("2015-01-31")
+    assert extra_date not in calendar
+    extra = pd.Series(
+        [0.0],
+        index=pd.DatetimeIndex([extra_date]),
+        name=equal_weight.name,
+    )
+    control = pd.concat([equal_weight, extra]).sort_index()
+
+    with pytest.raises(DataBlocked, match="dates outside the benchmark calendar"):
+        _validate_score_inputs(
+            states,
+            targets,
+            control,
+            formations,
+            cfg,
+            _DEFAULT_EVALUATION_DATA_END,
+        )
+
+
+def test_eval_preserves_midmonth_report_tail_after_last_formation():
+    cfg, calendar, formations, states, targets, equal_weight, carry = (
+        _evaluation_inputs("2024-07-10")
+    )
+    partial_period = calendar.max().to_period("M")
+    formations = formations[formations.to_period("M") < partial_period]
+    assert formations.max() == pd.Timestamp("2024-06-28")
+
+    validated = _validate_score_inputs(
+        states,
+        targets,
+        equal_weight,
+        formations,
+        cfg,
+        _MIDMONTH_EVALUATION_DATA_END,
+    )
+    validated_states, validated_targets, validated_control = validated[:3]
+    expected_model_calendar = calendar[calendar >= validated[3].min()]
+    assert all(
+        target.index.equals(expected_model_calendar)
+        for target in validated_targets.values()
+    )
+    assert validated_control.index.equals(expected_model_calendar)
+    for policy in cfg["pit"]["policies"]:
+        for q in ("qblend", "q500", "q1000"):
+            state_grid = pd.DatetimeIndex(
+                validated_states.loc[
+                    validated_states["pit_policy"].eq(policy)
+                    & validated_states["q"].eq(q),
+                    "date",
+                ].sort_values(kind="mergesort")
+            )
+            assert state_grid.equals(expected_model_calendar)
+
+    got = build_evaluation(
+        states,
+        _model_comparison(cfg),
+        targets,
+        carry,
+        equal_weight,
+        formations,
+        cfg,
+        _MIDMONTH_EVALUATION_DATA_END,
+    )
+
+    report_calendar = calendar[calendar >= pd.Timestamp("2024-01-01")]
+    report_metrics = got.production_metrics[
+        got.production_metrics["window"].eq("2024-2026-report-only")
+        & got.production_metrics["gate_name"].eq("")
+    ]
+    assert report_metrics["n_obs"].eq(len(report_calendar)).all()
+    report_years = got.yearly[
+        got.yearly["window"].eq("2024-2026-report-only")
+        & got.yearly["row_type"].eq("year")
+    ]
+    assert report_years["n_obs"].eq(len(report_calendar)).all()
+
+
+def test_eval_rejects_incomplete_cutoff_month_formation():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs("2024-07-10")
+    )
+    assert formations[-1] == pd.Timestamp("2024-07-10")
+    assert formations[-1].to_period("M") == calendar.max().to_period("M")
+
+    with pytest.raises(DataBlocked, match="incomplete cutoff-month formation"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            _MIDMONTH_EVALUATION_DATA_END,
+        )
+
+
+def test_eval_still_blocks_nonfinite_feature_on_model_calendar():
+    cfg, _, formations, states, targets, equal_weight, _ = _evaluation_inputs()
+    first_model_formation = formations[
+        formations >= MODEL_DISCOVERY_START
+    ][0]
+    states.loc[states["date"].eq(first_model_formation), "F_X"] = np.nan
+
+    with pytest.raises(DataBlocked, match=r"F_X.*finite"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            _DEFAULT_EVALUATION_DATA_END,
+        )
+
+
+def test_eval_still_blocks_nonfinite_feature_on_midmonth_report_tail():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs("2024-07-10")
+    )
+    formations = formations[
+        formations.to_period("M") < calendar.max().to_period("M")
+    ]
+    states.loc[states["date"].eq(calendar.max()), "F_X"] = np.nan
+
+    with pytest.raises(DataBlocked, match=r"F_X.*finite"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            _MIDMONTH_EVALUATION_DATA_END,
+        )
+
+
 @pytest.mark.parametrize(
     "mutation",
     [
@@ -610,7 +848,7 @@ def test_evaluation_config_is_exactly_frozen(mutation):
     if mutation == "extra-window":
         cfg["windows"]["extra"] = ["2020-01-01", "2020-12-31"]
     elif mutation == "discovery":
-        cfg["windows"]["discovery"][0] = "2014-01-02"
+        cfg["windows"]["discovery"][0] = "2014-10-02"
     elif mutation == "confirmation":
         cfg["windows"]["confirmation"][1] = "2023-12-30"
     elif mutation == "report":
@@ -668,6 +906,7 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
 
     assert set(got) == {
@@ -676,6 +915,8 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
         for q in ("qblend", "q500", "q1000")
     }
     q_target = {"qblend": "blend", "q500": "500", "q1000": "1000"}
+    model_formations = formations[formations >= MODEL_DISCOVERY_START]
+    model_calendar = calendar[calendar >= model_formations.min()]
     for policy in cfg["pit"]["policies"]:
         for q, target in q_target.items():
             features = (
@@ -685,25 +926,32 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
                 .set_index("date")[["F_U", "F_D", "F_X"]]
                 .sort_index()
             )
-            monthly_target = next_formation_targets(targets[target], formations)
+            monthly_target = next_formation_targets(
+                targets[target],
+                model_formations,
+            )
             training = features.reindex(monthly_target.index).copy()
             training["target"] = monthly_target
             period_end = pd.Series(
-                formations[1:],
-                index=formations[:-1],
+                model_formations[1:],
+                index=model_formations[:-1],
             ).reindex(training.index)
             training = training.loc[
-                training.index.to_series().ge(pd.Timestamp("2014-01-01"))
-                & period_end.le(pd.Timestamp("2020-12-31"))
+                training.index.to_series().ge(MODEL_DISCOVERY_START)
+                & period_end.le(MODEL_DISCOVERY_END)
             ]
             model = fit_model(
                 training,
                 ["F_U", "F_D", "F_X"],
                 "target",
             )
-            expected = apply_model(features, model, include_intercept=False)
+            expected = apply_model(
+                features.loc[model_calendar.min() : model_calendar.max()],
+                model,
+                include_intercept=False,
+            )
             pd.testing.assert_series_equal(got[(policy, q)], expected, check_exact=True)
-            assert got[(policy, q)].index.equals(calendar)
+            assert got[(policy, q)].index.equals(model_calendar)
 
     future_targets = {name: values.copy() for name, values in targets.items()}
     for values in future_targets.values():
@@ -714,6 +962,7 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     for key in got:
         pd.testing.assert_series_equal(got[key], target_mutation[key], check_exact=True)
@@ -727,6 +976,7 @@ def test_fit_frozen_m1_scores_uses_only_discovery_and_no_intercept():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     for key in got:
         pd.testing.assert_series_equal(
@@ -753,6 +1003,7 @@ def test_fit_frozen_m1_scores_rejects_nonexact_daily_inputs():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -776,6 +1027,7 @@ def test_fit_frozen_m1_scores_requires_exact_50_50_blend():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -783,7 +1035,7 @@ def test_fit_frozen_m1_scores_requires_exact_50_50_blend():
 def test_fit_frozen_m1_scores_rejects_evaluation_config_mutations(mutation):
     cfg, _, formations, states, targets, equal_weight, _ = _evaluation_inputs()
     if mutation == "discovery":
-        cfg["windows"]["discovery"][0] = "2014-01-02"
+        cfg["windows"]["discovery"][0] = "2014-10-02"
     elif mutation == "cost":
         cfg["execution"]["cost_bps"] = 2.9
     elif mutation == "bootstrap":
@@ -798,6 +1050,7 @@ def test_fit_frozen_m1_scores_rejects_evaluation_config_mutations(mutation):
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -831,6 +1084,7 @@ def test_eval_entrypoints_require_authoritative_fixed_window_formations(
                 equal_weight,
                 broken,
                 cfg,
+                _DEFAULT_EVALUATION_DATA_END,
             )
         elif entrypoint == "build":
             build_evaluation(
@@ -841,9 +1095,115 @@ def test_eval_entrypoints_require_authoritative_fixed_window_formations(
                 equal_weight,
                 broken,
                 cfg,
+                _DEFAULT_EVALUATION_DATA_END,
             )
         else:
             raise AssertionError(f"unsupported entrypoint: {entrypoint}")
+
+
+def test_eval_requires_december_2023_frozen_evidence_boundary():
+    cfg, _, formations, states, targets, equal_weight, _ = _evaluation_inputs()
+    through_november = formations[
+        formations.to_period("M") <= pd.Period("2023-11", freq="M")
+    ]
+
+    with pytest.raises(DataBlocked, match=r"through 2023-12.*frozen evidence"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            through_november,
+            cfg,
+            _DEFAULT_EVALUATION_DATA_END,
+        )
+
+
+@pytest.mark.parametrize("period", ["2024-01", "2024-06"])
+def test_eval_rejects_non_month_end_formation_after_frozen_evidence(period):
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs()
+    )
+    target_period = pd.Period(period, freq="M")
+    supplied = formations[formations.to_period("M") <= target_period].copy()
+    index = np.flatnonzero(supplied.to_period("M") == target_period)[0]
+    period_days = calendar[calendar.to_period("M") == target_period]
+    values = supplied.to_numpy(copy=True)
+    values[index] = period_days[-2].to_datetime64()
+    supplied = pd.DatetimeIndex(values)
+
+    with pytest.raises(DataBlocked, match="last trading day"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            supplied,
+            cfg,
+            _DEFAULT_EVALUATION_DATA_END,
+        )
+
+
+def test_eval_accepts_exact_december_boundary_at_formal_cutoff():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs("2023-12-31")
+    )
+
+    _, validated_targets, _, model_formations, _, _ = _validate_score_inputs(
+        states,
+        targets,
+        equal_weight,
+        formations,
+        cfg,
+        pd.Timestamp("2023-12-31"),
+    )
+
+    assert model_formations[-1] == pd.Timestamp("2023-12-29")
+    assert validated_targets["500"].index.max() == calendar.max()
+
+
+@pytest.mark.parametrize(
+    "data_end",
+    [
+        True,
+        pd.Timestamp("2024-07-10 01:00:00"),
+        pd.Timestamp("2024-07-10", tz="Asia/Shanghai"),
+    ],
+)
+def test_eval_rejects_invalid_explicit_data_end(data_end):
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs("2024-07-10")
+    )
+    formations = formations[
+        formations.to_period("M") < calendar.max().to_period("M")
+    ]
+
+    with pytest.raises(DataBlocked, match="data_end.*normalized"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            data_end,
+        )
+
+
+def test_eval_rejects_source_calendar_after_explicit_data_end():
+    cfg, calendar, formations, states, targets, equal_weight, _ = (
+        _evaluation_inputs("2024-07-10")
+    )
+    formations = formations[
+        formations.to_period("M") < calendar.max().to_period("M")
+    ]
+
+    with pytest.raises(DataBlocked, match="calendar.*after data_end"):
+        _validate_score_inputs(
+            states,
+            targets,
+            equal_weight,
+            formations,
+            cfg,
+            pd.Timestamp("2024-07-09"),
+        )
 
 
 def test_yearly_contributions_has_exact_schema_and_strongest_exclusion():
@@ -1028,9 +1388,9 @@ def _model_comparison(cfg):
                     candidate=candidate,
                     q=q,
                     target=target,
-                    window="2014-2020",
+                    window="2015-2020",
                     model="M1",
-                    n=84,
+                    n=71,
                     partial_ic=partial,
                     is_in_sample=True,
                     affects_verdict=False,
@@ -1077,10 +1437,10 @@ def _model_comparison(cfg):
                     )
                 )
             for window, affects_verdict in (
-                ("2014-2017", True),
+                ("2015-2017", True),
                 ("2018-2020", True),
                 ("2021-2023", True),
-                ("2014-2020", False),
+                ("2015-2020", False),
             ):
                 rows.append(
                     row(
@@ -1134,6 +1494,7 @@ def _build_fixture():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     return (
         cfg,
@@ -1188,6 +1549,48 @@ def _force_full_production_pass(frames, policy, candidate):
     production.loc[metric | aggregate, "sharpe"] = target_sharpe
     production.loc[metric | aggregate, "sharpe_difference"] = 0.11
     production.loc[sharpe_gate, "gate_pass"] = True
+    return changed
+
+
+def _force_production_failure(frames, policy, candidate):
+    changed = _copy_evaluation_frames(frames)
+    production = changed.production_metrics
+    baseline = (
+        production["pit_policy"].eq(policy)
+        & production["candidate"].eq("equal_weight")
+        & production["component"].eq("blend")
+        & production["window"].eq("2021-2023")
+        & production["gate_name"].eq("")
+    )
+    metric = (
+        production["pit_policy"].eq(policy)
+        & production["candidate"].eq(candidate)
+        & production["component"].eq("blend")
+        & production["window"].eq("2021-2023")
+        & production["gate_name"].eq("")
+    )
+    aggregate = (
+        production["pit_policy"].eq(policy)
+        & production["candidate"].eq(candidate)
+        & production["component"].eq("aggregate")
+        & production["window"].eq("2021-2023")
+    )
+    sharpe_gate = aggregate & production["gate_name"].eq(
+        "sharpe_improvement"
+    )
+    assert baseline.sum() == metric.sum() == sharpe_gate.sum() == 1
+    target_sharpe = float(production.loc[baseline, "sharpe"].iloc[0]) + 0.09
+    production.loc[metric | aggregate, "sharpe"] = target_sharpe
+    production.loc[metric | aggregate, "sharpe_difference"] = 0.09
+    production.loc[sharpe_gate, "gate_pass"] = False
+    return changed
+
+
+def _force_all_production_failures(frames, cfg):
+    changed = frames
+    for policy in cfg["pit"]["policies"]:
+        for candidate in cfg["candidates"]:
+            changed = _force_production_failure(changed, policy, candidate)
     return changed
 
 
@@ -1321,6 +1724,7 @@ def test_verdict_assembler_has_exact_schema_and_policy_candidate_aggregates():
 
 def test_verdict_assembler_labels_pass_measure_stop_and_family_best_wins():
     cfg, _, _, comparison, _, _, _, frames = _build_fixture()
+    frames = _force_all_production_failures(frames, cfg)
     headline = "legal_deadline"
     changed_frames = _force_full_production_pass(
         frames,
@@ -1384,6 +1788,7 @@ def test_verdict_assembler_labels_pass_measure_stop_and_family_best_wins():
 
 def test_headline_family_reason_audit_follows_candidate_order_and_clears_on_pass():
     cfg, _, _, comparison, _, _, _, frames = _build_fixture()
+    frames = _force_all_production_failures(frames, cfg)
     headline = "legal_deadline"
 
     failed = assemble_verdicts(comparison, frames, cfg)
@@ -1611,6 +2016,7 @@ def test_pit_flip_preserves_statistics_but_blocks_final_and_shadow_start():
 
 def test_extra_run_blockers_are_deterministic_and_data_dominates_coverage():
     cfg, _, _, comparison, _, _, _, frames = _build_fixture()
+    frames = _force_all_production_failures(frames, cfg)
     coverage = {
         "reason_code": "LEGAL_CROSS_SECTION_INFEASIBLE",
         "status": "COVERAGE_BLOCKED",
@@ -2119,6 +2525,12 @@ def test_build_evaluation_returns_exact_schemas_unique_ids_and_fixed_family():
     assert set(components["component"]) == {"B3_500", "B3_1000"}
     assert components["is_candidate"].eq(False).all()
     assert got.yearly["affects_verdict"].eq(False).all()
+    model_history = got.yearly[got.yearly["window"].eq("2015-2023")]
+    assert not model_history.empty
+    assert model_history["is_in_sample"].eq(True).all()
+    assert set(
+        model_history.loc[model_history["row_type"].eq("year"), "year"]
+    ) == set(range(2015, 2024))
     report = got.production_metrics["window"].eq("2024-2026-report-only")
     assert report.any()
     assert got.production_metrics.loc[report, "affects_verdict"].eq(False).all()
@@ -2427,6 +2839,7 @@ def test_structure_pass_is_exact_public_and_candidate_and_failed_tail_is_one():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     policy_rows = got.bootstrap[got.bootstrap["pit_policy"].eq(first_policy)]
     dual = policy_rows[
@@ -2460,6 +2873,7 @@ def test_structure_pass_is_exact_public_and_candidate_and_failed_tail_is_one():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -2530,6 +2944,7 @@ def test_model_evidence_validator_freezes_required_row_semantics(mutation):
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -2595,6 +3010,7 @@ def test_model_evidence_rejects_in_sample_gates_and_invalid_partial_bounds(
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -2786,6 +3202,7 @@ def test_report_and_yearly_mutations_cannot_change_verdict_inputs():
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
 
     baseline_verdict = baseline.production_metrics[
@@ -2863,6 +3280,7 @@ def test_common_carry_tail_must_cover_every_original_confirmation_date():
             equal_weight,
             formations,
             cfg,
+            _DEFAULT_EVALUATION_DATA_END,
         )
 
 
@@ -2884,6 +3302,7 @@ def test_common_carry_tail_after_confirmation_only_crops_report_window():
         equal_weight,
         formations,
         cfg,
+        pd.Timestamp("2026-12-31"),
     )
 
     expected_report_days = int(
@@ -2931,6 +3350,7 @@ def test_fixed_window_metrics_reset_engine_before_confirmation_and_post_im(
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     index = calendar[
         (calendar >= pd.Timestamp(start)) & (calendar <= pd.Timestamp(end))
@@ -2951,6 +3371,7 @@ def test_fixed_window_metrics_reset_engine_before_confirmation_and_post_im(
         equal_weight,
         formations,
         cfg,
+        _DEFAULT_EVALUATION_DATA_END,
     )
     baseline_position = production_position(equal_weight.loc[index])
     p500 = production_position(
@@ -3026,6 +3447,7 @@ def test_report_yearly_is_emitted_for_two_plus_years_and_is_firewalled():
         equal_weight,
         formations,
         cfg,
+        pd.Timestamp("2026-12-31"),
     )
     report = baseline.yearly[
         baseline.yearly["window"].eq("2024-2026-report-only")
@@ -3055,6 +3477,7 @@ def test_report_yearly_is_emitted_for_two_plus_years_and_is_firewalled():
         equal_weight,
         formations,
         cfg,
+        pd.Timestamp("2026-12-31"),
     )
     pd.testing.assert_frame_equal(
         baseline.production_metrics[
@@ -3098,6 +3521,7 @@ def test_report_yearly_accepts_exactly_two_available_natural_years():
         equal_weight,
         formations,
         cfg,
+        pd.Timestamp("2025-12-31"),
     )
     report_years = got.yearly[
         got.yearly["window"].eq("2024-2026-report-only")
@@ -3395,6 +3819,7 @@ def test_yearly_output_validator_allows_all_na_shares_for_zero_denominator():
 
 def test_verdict_assembler_detects_observable_structure_policy_flip():
     cfg, _, _, comparison, _, _, _, frames = _build_fixture()
+    frames = _force_all_production_failures(frames, cfg)
     changed_comparison, changed_frames = _force_structure_failure(
         comparison,
         frames,
@@ -3433,6 +3858,7 @@ def test_verdict_assembler_detects_observable_structure_policy_flip():
 
 def test_verdict_assembler_recomputes_increment_direction_policy_flip():
     cfg, _, _, comparison, _, _, _, frames = _build_fixture()
+    frames = _force_all_production_failures(frames, cfg)
     baseline = assemble_verdicts(comparison, frames, cfg)
     changed = comparison.copy(deep=True)
     policies = cfg["pit"]["policies"]
@@ -4158,7 +4584,7 @@ _PIT_POLICIES = [
 def _required_disclosure_rows(verified=True):
     rows = []
     for policy in _PIT_POLICIES:
-        for period in pd.period_range("2014-01", "2023-12", freq="M"):
+        for period in pd.period_range("2014-10", "2023-12", freq="M"):
             for ticker in ("000001.SZ", "600000.SH"):
                 rows.append(
                     {
@@ -4183,7 +4609,7 @@ def test_true_disclosure_coverage_counts_explicit_mixed_booleans_only():
                     {
                         "universe_role": "size_only",
                         "pit_policy": _PIT_POLICIES[0],
-                        "formation_date": "2014-01-31",
+                        "formation_date": "2014-10-31",
                         "ticker": "000002.SZ",
                         "true_first_disclosure_verified": False,
                     },
@@ -4203,9 +4629,9 @@ def test_true_disclosure_coverage_counts_explicit_mixed_booleans_only():
     got = compute_true_disclosure_coverage(frame, _PIT_POLICIES)
 
     assert got == {
-        "verified_numerator": 479,
-        "required_denominator": 480,
-        "ratio": 479 / 480,
+        "verified_numerator": 443,
+        "required_denominator": 444,
+        "ratio": 443 / 444,
         "coverage_basis": TRUE_DISCLOSURE_COVERAGE_BASIS,
     }
     json.dumps(got, sort_keys=True, allow_nan=False)
@@ -4222,15 +4648,15 @@ def test_true_disclosure_coverage_handles_conservative_and_verified_extremes(
     )
 
     assert got["ratio"] == ratio
-    assert got["verified_numerator"] == (480 if verified else 0)
-    assert got["required_denominator"] == 480
+    assert got["verified_numerator"] == (444 if verified else 0)
+    assert got["required_denominator"] == 444
 
 
 def test_true_disclosure_coverage_blocks_missing_required_month_or_policy():
     frame = _required_disclosure_rows()
     missing_month = ~(
         frame["pit_policy"].eq(_PIT_POLICIES[1])
-        & frame["formation_date"].eq("2014-01-31")
+        & frame["formation_date"].eq("2014-10-31")
     )
     with pytest.raises(DataBlocked, match="required month"):
         compute_true_disclosure_coverage(frame.loc[missing_month], _PIT_POLICIES)
@@ -4324,8 +4750,41 @@ def test_salg_valid_through_takes_earliest_latest_formation_dependency():
     assert salg_valid_through(frame) == "2026-04-30"
 
 
-@pytest.mark.parametrize("source_end", [None, "2025-06-29", True])
-def test_salg_valid_through_rejects_missing_or_nonquarter_latest_dependency(
+@pytest.mark.parametrize(
+    "missing",
+    [None, np.nan, pd.NA, pd.NaT],
+    ids=["none", "nan", "pd-na", "nat"],
+)
+def test_salg_valid_through_skips_missing_latest_non_dependencies(missing):
+    frame = _salg_rows(
+        "2023-09-30",
+        "2019-12-31",
+        missing,
+        formation_date="2023-12-29",
+    )
+
+    assert salg_valid_through(frame) == "2020-04-30"
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [None, np.nan, pd.NA, pd.NaT],
+    ids=["none", "nan", "pd-na", "nat"],
+)
+def test_salg_valid_through_requires_a_latest_model_dependency(missing):
+    with pytest.raises(DataBlocked, match=r"SalG.*dependenc|salg_source"):
+        salg_valid_through(_salg_rows(missing))
+
+
+@pytest.mark.parametrize(
+    "source_end",
+    [
+        "2025-06-29",
+        True,
+        pd.Timestamp("2025-06-30 01:00:00"),
+    ],
+)
+def test_salg_valid_through_rejects_malformed_nonmissing_dependency(
     source_end,
 ):
     with pytest.raises(DataBlocked, match="salg_source_end_date|quarter-end"):
@@ -4428,8 +4887,8 @@ def test_raw_carry_freshness_rejects_invalid_raw_contracts(raw, expected, match)
 
 def _full_disclosure_coverage():
     return {
-        "verified_numerator": 480,
-        "required_denominator": 480,
+        "verified_numerator": 444,
+        "required_denominator": 444,
         "ratio": 1.0,
         "coverage_basis": TRUE_DISCLOSURE_COVERAGE_BASIS,
     }
@@ -4459,8 +4918,8 @@ def test_freshness_blockers_have_exact_schema_unique_deterministic_order():
     coverage = _full_disclosure_coverage()
     coverage.update(
         {
-            "verified_numerator": 479,
-            "ratio": 479 / 480,
+            "verified_numerator": 443,
+            "ratio": 443 / 444,
         }
     )
     carry = _fresh_carry_evidence()
@@ -5332,7 +5791,7 @@ def test_true_disclosure_coverage_accepts_producer_size_only_rows():
             {
                 "universe_role": "size_only",
                 "pit_policy": _PIT_POLICIES[0],
-                "formation_date": "2014-01-31",
+                "formation_date": "2014-10-31",
                 "ticker": "000002.SZ",
                 "true_first_disclosure_verified": False,
             }
@@ -5382,7 +5841,17 @@ def test_flatten_exposures_output_passes_eval_disclosure_validators(tmp_path):
     ]
     size_only_ticker = snapshot.iloc[-1]["ticker"]
     snapshot.loc[snapshot["ticker"].eq(size_only_ticker), "style_score"] = np.nan
-    result = compute_month_exposures(snapshot, cfg)
+    ordered = snapshot.sort_values(
+        ["total_market_value", "ticker"], ascending=[False, True]
+    )["ticker"].tolist()
+    result = compute_month_exposures(
+        snapshot,
+        cfg,
+        index_members={
+            "q500": set(ordered[300:800]),
+            "q1000": set(ordered[800:1800]),
+        },
+    )
     policies = tuple(cfg["pit"]["policies"])
     # The frozen config needs the full 2,200-name snapshot to compute, but
     # the schema contract survives row selection; a small slice keeps the
@@ -5394,10 +5863,10 @@ def test_flatten_exposures_output_passes_eval_disclosure_validators(tmp_path):
         q=result.q,
         diagnostics=result.diagnostics,
     )
-    # Coverage demands the complete 2014-2023 formation grid; stamping the
+    # Coverage demands the complete 2014-10..2023-12 formation grid; stamping the
     # same exposure result on every month keeps the producer path authentic
     # while staying cheap (flatten assigns formation_date per key).
-    grid_calendar = pd.bdate_range("2014-01-01", "2023-12-31")
+    grid_calendar = pd.bdate_range("2014-10-01", "2023-12-31")
     formations = pd.DatetimeIndex(
         pd.Series(grid_calendar, index=grid_calendar)
         .groupby(grid_calendar.to_period("M"))

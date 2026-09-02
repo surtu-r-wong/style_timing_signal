@@ -27,6 +27,7 @@ from signals.style_basket.b3_exposures import (
     CoverageBlocked,
     DataBlocked,
     ExposureResult,
+    _aggregate_style_dependency_provenance,
     compute_month_exposures,
 )
 from signals.style_basket.b3_portfolios import build_portfolio_panels
@@ -188,6 +189,7 @@ def _write_stage_manifest(
     status: str,
     blockers: list[dict],
     database_source_evidence: dict | None = None,
+    exemptions: list[dict] | None = None,
 ) -> Path:
     root = Path(output_dir)
     manifest_dir = root / "manifests"
@@ -230,6 +232,8 @@ def _write_stage_manifest(
     }
     if database_source_evidence is not None:
         payload["database_source_evidence"] = database_source_evidence
+    if exemptions is not None:
+        payload["exemptions"] = list(exemptions)
     manifest_path = manifest_dir / f"{stage}.json"
     temp_path = manifest_dir / f".{stage}.json.tmp"
     rendered = json.dumps(
@@ -1121,6 +1125,8 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         "statement_type",
         "data",
         "data_source",
+        "first_disclosure_date",
+        "disclosure_quality",
     }
     _require_columns(raw, required, "raw financial facts")
 
@@ -1145,6 +1151,17 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         "raw financial facts.stored_ann_date",
         nullable=True,
     )
+    out["first_disclosure_date"] = _strict_datetime_series(
+        out["first_disclosure_date"],
+        "raw financial facts.first_disclosure_date",
+        nullable=True,
+    )
+    missing_quality = out["disclosure_quality"].isna()
+    _validate_allowed_values(
+        out.loc[~missing_quality, "disclosure_quality"],
+        {"ok", "sentinel"},
+        "raw financial disclosure_quality",
+    )
 
     canonical_payloads = pd.Series(
         [
@@ -1163,10 +1180,11 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         "statement_type",
         "data_source",
     ]
-    identity = out[semantic_key].copy()
+    provenance_key = ["first_disclosure_date", "disclosure_quality"]
+    identity = out[semantic_key + provenance_key].copy()
     identity["_canonical_payload"] = canonical_payloads
     unique_identities = identity.drop_duplicates(
-        subset=semantic_key + ["_canonical_payload"]
+        subset=semantic_key + provenance_key + ["_canonical_payload"]
     )
     if unique_identities.duplicated(
         subset=semantic_key,
@@ -1178,7 +1196,7 @@ def _validate_raw_financial_facts(raw: pd.DataFrame) -> pd.DataFrame:
         )
 
     keep = ~identity.duplicated(
-        subset=semantic_key + ["_canonical_payload"],
+        subset=semantic_key + provenance_key + ["_canonical_payload"],
         keep="first",
     )
     out = out.loc[keep].reset_index(drop=True)
@@ -1219,95 +1237,37 @@ def _validated_constituents(
     return pool
 
 
-def calibrate_target_coordinates(
-    exposures: dict[pd.Timestamp, ExposureResult],
+#: 目标坐标 -> 指数代码。q500 控 IC、q1000 控 IM（spec §10.1）。
+TARGET_INDEX_CODES = {"q500": "000905.SH", "q1000": "000852.SH"}
+
+
+def index_members_by_formation(
     constituents: pd.DataFrame,
-) -> dict[str, float]:
+    formation_dates,
+) -> dict[pd.Timestamp, dict[str, set[str]]]:
+    """按 formation 日**精确**取成份成员，不做 as-of 降级。
+
+    as-of 会在快照缺失时悄悄用上一期成份冒充本期。代理时代那只影响一道校验，
+    改为直接测量之后它会静默改变 q 的含义——所以这里要求 effective_date 恰好
+    落在 formation 日；缺就是缺，由 compute_month_exposures 抛 DataBlocked，
+    进而在该月留下 monthly_exposure 的阻断记录。
+    """
     pool = _validated_constituents(constituents)
-
-    targets = {
-        "q500": "000905.SH",
-        "q1000": "000852.SH",
+    grouped = {
+        date: frame for date, frame in pool.groupby("effective_date", sort=False)
     }
-    available_codes = set(pool["index_code"])
-    for index_code in targets.values():
-        if index_code not in available_codes:
-            raise DataBlocked(f"missing constituents for {index_code}")
-
-    q500_errors: list[float] = []
-    q1000_errors: list[float] = []
-    ordered_months = 0
-    calibrated_months = 0
-    for formation_date, result in sorted(exposures.items()):
-        formation = pd.Timestamp(formation_date)
-        if formation < pd.Timestamp("2021-01-01"):
-            continue
-        if not {"ticker", "m_perp"}.issubset(result.size.columns):
-            raise DataBlocked("size exposure columns are missing")
-        size = pd.to_numeric(
-            result.size.set_index("ticker")["m_perp"],
-            errors="coerce",
-        )
-
-        actual: dict[str, float] = {}
-        for coordinate, index_code in targets.items():
-            history = pool[
-                pool["index_code"].eq(index_code)
-                & pool["effective_date"].le(formation)
-            ]
-            if history.empty:
-                raise DataBlocked(
-                    f"missing constituents for {index_code} "
-                    f"at {formation.date()}"
-                )
-            effective = history["effective_date"].max()
-            members = history.loc[
-                history["effective_date"].eq(effective),
-                "ticker",
-            ].drop_duplicates()
-            member_exposure = size.reindex(members).dropna()
-            if member_exposure.empty:
-                raise DataBlocked(
-                    f"missing constituent exposures for {index_code} "
-                    f"at {formation.date()}"
-                )
-            value = float(member_exposure.median())
-            if not np.isfinite(value):
-                raise DataBlocked(
-                    f"invalid constituent exposure for {index_code} "
-                    f"at {formation.date()}"
-                )
-            actual[coordinate] = value
-
-        q500_errors.append(
-            abs(actual["q500"] - float(result.q["q500"]))
-        )
-        q1000_errors.append(
-            abs(actual["q1000"] - float(result.q["q1000"]))
-        )
-        ordered_months += int(
-            float(result.q["q1000"]) > float(result.q["q500"])
-        )
-        calibrated_months += 1
-
-    if calibrated_months == 0:
-        raise DataBlocked("no 2021+ calibration months")
-
-    diagnostics = {
-        "q500_mean_abs_error": float(np.mean(q500_errors)),
-        "q1000_mean_abs_error": float(np.mean(q1000_errors)),
-        "q_order_share": float(ordered_months / calibrated_months),
-    }
-    if (
-        diagnostics["q500_mean_abs_error"] > 0.25
-        or diagnostics["q1000_mean_abs_error"] > 0.25
-        or diagnostics["q_order_share"] < 0.90
-    ):
-        raise DataBlocked(
-            "target-coordinate calibration thresholds failed: "
-            + json.dumps(diagnostics, sort_keys=True)
-        )
-    return diagnostics
+    out: dict[pd.Timestamp, dict[str, set[str]]] = {}
+    for raw_date in formation_dates:
+        date = pd.Timestamp(raw_date)
+        day = grouped.get(date)
+        members: dict[str, set[str]] = {}
+        if day is not None:
+            for name, code in TARGET_INDEX_CODES.items():
+                tickers = set(day.loc[day["index_code"].eq(code), "ticker"])
+                if tickers:
+                    members[name] = tickers
+        out[date] = members
+    return out
 
 
 def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
@@ -1330,6 +1290,12 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
     )
     csmar = out["data_source"].eq("csmar")
     wind = out["data_source"].eq("wind")
+    valid_first = (
+        csmar
+        & out["disclosure_quality"].eq("ok")
+        & out["first_disclosure_date"].notna()
+        & out["first_disclosure_date"].ge(out["end_date"])
+    )
 
     out["ann_date"] = pd.Series(
         pd.NaT, index=out.index, dtype="datetime64[ns]"
@@ -1343,20 +1309,42 @@ def apply_pit_policy(raw: pd.DataFrame, policy: str) -> pd.DataFrame:
         csmar_known = legal_dates + pd.offsets.MonthEnd(1)
 
     out.loc[csmar, "ann_date"] = csmar_known.loc[csmar]
+    out.loc[valid_first, "ann_date"] = out.loc[
+        valid_first,
+        "first_disclosure_date",
+    ]
     out.loc[wind, "ann_date"] = out.loc[wind, "stored_ann_date"]
     out["ann_date"] = pd.to_datetime(out["ann_date"])
 
     out["known_date_source"] = pd.Series(
         "", index=out.index, dtype=object
     )
-    out.loc[csmar, "known_date_source"] = policy
+    out.loc[csmar, "known_date_source"] = f"{policy}_fallback"
+    out.loc[valid_first, "known_date_source"] = "stock_first_disclosure"
     out.loc[wind, "known_date_source"] = "wind_first_disclosure"
 
-    out["true_first_disclosure_verified"] = False
-    out.loc[wind, "true_first_disclosure_verified"] = True
-    out["true_first_disclosure_verified"] = out[
-        "true_first_disclosure_verified"
-    ].astype(bool)
+    verified = (wind | valid_first).astype(bool)
+    out["true_first_disclosure_verified"] = verified
+    dependency_keys = [
+        ()
+        if is_verified
+        else (
+            f"{ts_code}|{end_date:%Y-%m-%d}|"
+            f"{statement_type}|{data_source}",
+        )
+        for is_verified, ts_code, end_date, statement_type, data_source in zip(
+            verified,
+            out["ts_code"],
+            out["end_date"],
+            out["statement_type"],
+            out["data_source"],
+        )
+    ]
+    out["unverified_dependency_keys"] = pd.Series(
+        dependency_keys,
+        index=out.index,
+        dtype=object,
+    )
     return out
 
 
@@ -1378,21 +1366,20 @@ def _fetch_raw_financial(
     """
     db = db or load_db_config()
     sql = f"""
-        SELECT ts_code,
-               end_date,
-               ann_date AS stored_ann_date,
-               statement_type,
-               data,
-               data_source
-        FROM {db['schema']}.stock_financial
-        WHERE ts_code = ANY(%s)
-          AND end_date BETWEEN %s AND %s
-          AND (
-              (data_source = 'csmar' AND end_date <= %s)
-              OR
-              (data_source = 'wind' AND end_date > %s)
-          )
-        ORDER BY ts_code, statement_type, end_date
+        SELECT sf.ts_code, sf.end_date,
+               sf.ann_date AS stored_ann_date,
+               sf.statement_type, sf.data, sf.data_source,
+               fd.first_disclosure_date,
+               fd.quality AS disclosure_quality,
+               fd.end_date AS first_disclosure_evidence_end_date
+        FROM {db['schema']}.stock_financial AS sf
+        LEFT JOIN {db['schema']}.stock_first_disclosure AS fd
+          ON fd.ts_code = sf.ts_code AND fd.end_date = sf.end_date
+        WHERE sf.ts_code = ANY(%s)
+          AND sf.end_date BETWEEN %s AND %s
+          AND ((sf.data_source = 'csmar' AND sf.end_date <= %s)
+            OR (sf.data_source = 'wind' AND sf.end_date > %s))
+        ORDER BY sf.ts_code, sf.statement_type, sf.end_date
     """
     ordered_tickers = sorted(set(tickers))
     batch_size = _RAW_FINANCIAL_TICKER_BATCH
@@ -1419,6 +1406,29 @@ def _fetch_raw_financial(
                     facts,
                     "end_date",
                 )
+                disclosure_evidence = (
+                    facts.loc[
+                        facts[
+                            "first_disclosure_evidence_end_date"
+                        ].notna(),
+                        ["ts_code", "first_disclosure_evidence_end_date"],
+                    ]
+                    .rename(
+                        columns={
+                            "first_disclosure_evidence_end_date": "end_date"
+                        }
+                    )
+                    .drop_duplicates(subset=["ts_code", "end_date"])
+                )
+                recorder.record(
+                    f"{db['schema']}.stock_first_disclosure",
+                    sql,
+                    disclosure_evidence,
+                    "end_date",
+                )
+            facts = facts.drop(
+                columns=["first_disclosure_evidence_end_date"]
+            )
             facts = _validate_raw_financial_facts(facts)
             translated = []
             for data, source, statement in zip(
@@ -1458,6 +1468,25 @@ def _read_sql(
         conn.close()
 
 
+#: Longest observed break between two consecutive trading days in
+#: stock_daily_price (2005-2023) is 2,478 days — about 6.8 years for a name
+#: suspended across the whole stretch.  Ten years of lookback covers that with
+#: room to spare, so the bound can never decide which price the carry-forward
+#: sees; it only keeps the 1990s off the wire.
+INTERVAL_HISTORY_LOOKBACK_YEARS = 10
+
+#: Tickers per batch when loading interval history.  Every access pattern in
+#: build_continuous_suspension_evidence filters by ts_code, so tickers are
+#: independent and batching is exact; it only bounds how much price history is
+#: resident at once.  Mirrors 9e71d01, which bounded preflight the same way.
+INTERVAL_HISTORY_BATCH_TICKERS = 200
+
+
+def _interval_history_start(dates: list):
+    earliest = min(dates)
+    return earliest.replace(year=earliest.year - INTERVAL_HISTORY_LOOKBACK_YEARS)
+
+
 def _fetch_suspension_interval_history(
     db: dict,
     candidates: pd.DataFrame,
@@ -1494,12 +1523,14 @@ def _fetch_suspension_interval_history(
         for value in candidates["formation_date"].drop_duplicates()
     )
     end = pd.Timestamp(data_end).date()
-    history_params = {"tickers": tickers, "end": end}
+    start = _interval_history_start(dates)
+    history_params = {"tickers": tickers, "start": start, "end": end}
 
     price_sql = f"""
             SELECT ts_code, trade_date, close
             FROM {schema}.stock_daily_price
             WHERE ts_code = ANY(%(tickers)s)
+              AND trade_date >= %(start)s
               AND trade_date <= %(end)s
             ORDER BY ts_code, trade_date
         """
@@ -1516,6 +1547,7 @@ def _fetch_suspension_interval_history(
             SELECT ts_code, trade_date, suspend_type, suspend_reason
             FROM {schema}.stock_suspension
             WHERE ts_code = ANY(%(tickers)s)
+              AND trade_date >= %(start)s
               AND trade_date <= %(end)s
             ORDER BY ts_code, trade_date, suspend_type, suspend_reason
         """
@@ -1583,6 +1615,75 @@ def _fetch_suspension_interval_history(
         "source_start": source_start,
         "status": status,
     }
+
+
+def build_interval_evidence_in_batches(
+    db: dict,
+    candidates: pd.DataFrame,
+    data_end: pd.Timestamp,
+    recorder,
+    trading_calendar: pd.DataFrame,
+    *,
+    batch_tickers: int = INTERVAL_HISTORY_BATCH_TICKERS,
+) -> pd.DataFrame:
+    """Build interval evidence one ticker batch at a time.
+
+    Exactly equivalent to loading every candidate's history at once: the
+    evidence builder only ever reads prices, events and status filtered by
+    ``ts_code``, so tickers never interact, and the result is re-sorted on the
+    same total key the single-shot path ends with.  Batching only bounds how
+    much price history is resident at once — the full-history load walked past
+    4 GiB on the first unblocked preflight.
+    """
+
+    if candidates.empty:
+        return empty_interval_evidence()
+    if batch_tickers < 1:
+        raise DataBlocked("interval history batch size must be positive")
+
+    tickers = sorted(candidates["ts_code"].drop_duplicates().tolist())
+    frames: list[pd.DataFrame] = []
+    for offset in range(0, len(tickers), batch_tickers):
+        batch = set(tickers[offset : offset + batch_tickers])
+        subset = candidates.loc[candidates["ts_code"].isin(batch)]
+        history = _fetch_suspension_interval_history(
+            db,
+            subset,
+            data_end,
+            recorder,
+        )
+        frames.append(
+            build_continuous_suspension_evidence(
+                candidates=subset,
+                trading_calendar=trading_calendar,
+                prices=history["prices"],
+                suspension_events=history["events"],
+                suspension_source_start=history["source_start"],
+                stock_status=history["status"],
+            )
+        )
+
+    combined = pd.concat(frames, ignore_index=True)
+    return combined.sort_values(
+        ["formation_date", "ts_code"], kind="stable"
+    ).reset_index(drop=True)
+
+
+def _delisted_mask(
+    delisting: pd.DataFrame,
+    calendar: pd.DatetimeIndex,
+    columns: pd.Index,
+) -> pd.DataFrame:
+    """摘牌日（含）之后的每一天，缺价都算已解释。"""
+    mask = pd.DataFrame(False, index=calendar, columns=columns)
+    dates = (
+        delisting.set_index("ticker")["delist_date"]
+        .reindex(columns)
+        .dropna()
+    )
+    for ticker, delist_date in dates.items():
+        mask.loc[calendar >= delist_date, ticker] = True
+    return mask
 
 
 def _fetch_stock_return_status(
@@ -1700,6 +1801,59 @@ def _fetch_stock_return_status(
         values="is_suspended",
     )
 
+    # 第三个停牌证据源：Wind tradesuspend。stock_status 是稀疏快照——
+    # 2020-04-30 之前一行没有，之后 891 个交易日里也只有 42 天有行——承担不了
+    # "这天这只票停牌了吗"这个日频问题；而 stock_suspension 是日频事件表
+    # （同期 888 天），B3 暴露侧的"带旧价"本来就以它为准。重叠区间实测两者
+    # **零矛盾**（Wind 判停牌的 10,759 天里 97.1% 在 status 里连行都没有，
+    # 2.9% 有行且一致，反向矛盾 0）。同一个语义问题只该有一个答案。
+    wind_suspension = _read_sql(
+        db,
+        f"""SELECT ts_code AS ticker, trade_date
+            FROM {db['schema']}.stock_suspension
+            WHERE trade_date BETWEEN '2013-05-01' AND %(end)s
+            ORDER BY trade_date, ts_code""",
+        {"end": end.date()},
+    )
+    _require_columns(
+        wind_suspension,
+        {"ticker", "trade_date"},
+        "wind suspension evidence",
+    )
+    wind_suspension = _validate_datetime_columns(
+        wind_suspension,
+        ("trade_date",),
+        "wind suspension evidence",
+    )
+    _validate_string_keys(
+        wind_suspension["ticker"], "wind suspension ticker"
+    )
+    wind_wide = (
+        wind_suspension.assign(is_suspended=True)
+        .drop_duplicates(["trade_date", "ticker"])
+        .pivot(index="trade_date", columns="ticker", values="is_suspended")
+        .astype("boolean")
+        .fillna(False)
+        .astype(bool)
+    )
+
+    # 摘牌日起不再是定价日：持仓在那天已被处置，要求它有价格是没有意义的。
+    # 实证（stock_selector 全库扫描 2026-08-10）：窗口内每一只退市 A 股在自己
+    # 摘牌日都无价格行、无一例外；Wind trade_status 当日返回 null 而非"退市"，
+    # 所以这不是能靠补数据解决的缺口，是口径问题。
+    delisting = _read_sql(
+        db,
+        f"""SELECT ts_code AS ticker, delist_date
+            FROM {db['schema']}.stock_meta
+            WHERE delist_date IS NOT NULL
+            ORDER BY ts_code""",
+    )
+    _require_columns(delisting, {"ticker", "delist_date"}, "delisting dates")
+    delisting = _validate_datetime_columns(
+        delisting, ("delist_date",), "delisting dates"
+    )
+    _validate_string_keys(delisting["ticker"], "delisting ticker")
+
     calendar_frame = _read_sql(
         db,
         f"""SELECT trade_date
@@ -1727,7 +1881,11 @@ def _fetch_stock_return_status(
     if not calendar.is_monotonic_increasing:
         raise DataBlocked("stock return calendar is not sorted")
 
-    columns = returns.columns.union(status_wide.columns).sort_values()
+    columns = (
+        returns.columns.union(status_wide.columns)
+        .union(wind_wide.columns)
+        .sort_values()
+    )
     returns = returns.reindex(index=calendar, columns=columns)
     suspended = (
         suspended_from_price.reindex(
@@ -1738,6 +1896,11 @@ def _fetch_stock_return_status(
             index=calendar,
             columns=columns,
         ).fillna(False)
+        | wind_wide.reindex(
+            index=calendar,
+            columns=columns,
+        ).fillna(False)
+        | _delisted_mask(delisting, calendar, columns)
     ).astype(bool)
     returns.index.name = "trade_date"
     suspended.index.name = "trade_date"
@@ -2042,7 +2205,13 @@ def _formation_inputs(
                 SELECT q.trade_date, q.close
                 FROM {schema}.stock_daily_price q
                 WHERE q.ts_code = s.ts_code
-                  AND q.trade_date <= s.trade_date
+                  -- 严格早于：带旧价带的是**更早**的价，同日价不是 carry。
+                  -- 盘中/半日停牌的票当日仍有行情（全库 2014-2023 有 2,107 行
+                  -- 这种重叠），用 <= 会取到同日那行，撞上 _validated_carried_closes
+                  -- 的 close_date 必须早于 formation_date。那些行本来也用不上：
+                  -- closes 矩阵取自同一张表同一批日期，所以它们对应的票必有当日
+                  -- 真实收盘价，而 carry 只在 close.isna() 时才被采纳。
+                  AND q.trade_date < s.trade_date
                 ORDER BY q.trade_date DESC
                 LIMIT 1
             ) p ON TRUE
@@ -2085,19 +2254,12 @@ def _formation_inputs(
         if candidates.empty:
             interval_evidence = empty_interval_evidence()
         else:
-            history = _fetch_suspension_interval_history(
+            interval_evidence = build_interval_evidence_in_batches(
                 db,
                 candidates,
                 data_end,
                 recorder,
-            )
-            interval_evidence = build_continuous_suspension_evidence(
-                candidates=candidates,
-                trading_calendar=authoritative,
-                prices=history["prices"],
-                suspension_events=history["events"],
-                suspension_source_start=history["source_start"],
-                stock_status=history["status"],
+                authoritative,
             )
     except SuspensionEvidenceError as exc:
         raise DataBlocked(
@@ -2216,6 +2378,33 @@ def _industry_snapshot(
     return result
 
 
+def _exclude_invalid_csmar_jan_01_balance_events(
+    facts: pd.DataFrame,
+) -> pd.DataFrame:
+    """Drop CSMAR balance-sheet facts dated January 1 before derived rows.
+
+    CSMAR carries ``YYYY-01-01`` balance rows for some tickers. They are not
+    independent disclosure events: no standalone balance sheet exists for
+    that date, so their dependency key ``ts_code|YYYY-01-01|balance|csmar``
+    can never be verified against stock_first_disclosure, and letting them
+    through moves book equity forward before the genuine annual report is
+    public. Only CSMAR balance facts on a non-quarter-end January 1 are
+    excluded; income and direct-cashflow facts on the same date keep their
+    own YTD/TTM semantics and are left untouched.
+    """
+    end_date = facts["end_date"]
+    invalid = (
+        facts["data_source"].eq("csmar")
+        & facts["statement_type"].eq("balance")
+        & end_date.dt.month.eq(1)
+        & end_date.dt.day.eq(1)
+        & ~end_date.dt.is_quarter_end
+    )
+    if not invalid.any():
+        return facts
+    return facts.loc[~invalid]
+
+
 def build_policy_snapshots(
     raw_facts: pd.DataFrame,
     month_ends,
@@ -2238,15 +2427,28 @@ def build_policy_snapshots(
     from signals.style_basket.scoring import style_scores
 
     facts = apply_pit_policy(raw_facts, policy)
+    facts = _exclude_invalid_csmar_jan_01_balance_events(facts)
 
+    provenance_columns = [
+        "true_first_disclosure_verified",
+        "unverified_dependency_keys",
+    ]
     empty_columns = {
-        "ttm": ["ts_code", "field", "end_date", "known_date", "ttm"],
+        "ttm": [
+            "ts_code",
+            "field",
+            "end_date",
+            "known_date",
+            "ttm",
+            *provenance_columns,
+        ],
         "slope": [
             "ts_code",
             "field",
             "end_date",
             "known_date",
             "slope",
+            *provenance_columns,
         ],
         "event": [
             "ts_code",
@@ -2254,6 +2456,7 @@ def build_policy_snapshots(
             "end_date",
             "known_date",
             "value",
+            *provenance_columns,
         ],
     }
     pool_parts: dict[str, list[pd.DataFrame]] = {
@@ -2272,6 +2475,14 @@ def build_policy_snapshots(
     for name, parts in pool_parts.items():
         if parts:
             pool = pd.concat(parts, ignore_index=True)
+            missing_provenance = sorted(
+                set(provenance_columns).difference(pool.columns)
+            )
+            if missing_provenance:
+                raise DataBlocked(
+                    f"derived {name} provenance columns are missing: "
+                    + ", ".join(missing_provenance)
+                )
             _require_columns(
                 pool,
                 set(empty_columns[name]),
@@ -2290,6 +2501,26 @@ def build_policy_snapshots(
                 ("end_date", "known_date"),
                 f"derived {name} pool",
             )
+            for flag, keys in zip(
+                pool["true_first_disclosure_verified"],
+                pool["unverified_dependency_keys"],
+            ):
+                if not isinstance(flag, (bool, np.bool_)):
+                    raise DataBlocked(
+                        f"derived {name} provenance flag must be bool"
+                    )
+                if not isinstance(keys, tuple) or any(
+                    not isinstance(key, str) or not key for key in keys
+                ):
+                    raise DataBlocked(
+                        f"derived {name} provenance dependencies must be "
+                        "tuple[str, ...]"
+                    )
+                if bool(flag) != (len(keys) == 0):
+                    raise DataBlocked(
+                        f"derived {name} provenance flag disagrees with "
+                        "dependencies"
+                    )
             pool = _deduplicate_or_block(
                 pool,
                 ("ts_code", "field", "end_date"),
@@ -2312,13 +2543,10 @@ def build_policy_snapshots(
             return selected.set_index("ts_code")
         return selected.set_index("ts_code").sort_index()
 
-    def asof_field(
-        pool: pd.DataFrame,
-        date: pd.Timestamp,
-        field: str,
+    def selected_field(
+        selected: pd.DataFrame,
         column: str,
     ) -> pd.Series:
-        selected = asof_selected(pool, date, field)
         if selected.empty:
             return pd.Series(dtype=float, name=column)
         return selected[column].rename(column)
@@ -2562,68 +2790,54 @@ def build_policy_snapshots(
             .astype(str)
         )
 
-        rev_slope_selected = asof_selected(
-            pools["slope"],
-            formation_date,
-            "rev",
-        )
+        selected_factors = {
+            "sal_g": asof_selected(
+                pools["slope"], formation_date, "rev"
+            ),
+            "pro_g": asof_selected(
+                pools["slope"], formation_date, "np"
+            ),
+            "ep": asof_selected(
+                pools["ttm"], formation_date, "np"
+            ),
+            "bp": asof_selected(
+                pools["event"], formation_date, "equity"
+            ),
+            "cfp": asof_selected(
+                pools["ttm"], formation_date, "cfo"
+            ),
+            "dp": asof_selected(
+                pools["event"], formation_date, "dps"
+            ),
+        }
+        rev_slope_selected = selected_factors["sal_g"]
         salg_source_end_date = pd.to_datetime(
             rev_slope_selected["end_date"],
             errors="coerce",
         ).reindex(base)
 
         sal_g = pd.to_numeric(
-            asof_field(
-                pools["slope"],
-                formation_date,
-                "rev",
-                "slope",
-            ),
+            selected_field(selected_factors["sal_g"], "slope"),
             errors="coerce",
         )
         pro_g = pd.to_numeric(
-            asof_field(
-                pools["slope"],
-                formation_date,
-                "np",
-                "slope",
-            ),
+            selected_field(selected_factors["pro_g"], "slope"),
             errors="coerce",
         )
         np_ttm = pd.to_numeric(
-            asof_field(
-                pools["ttm"],
-                formation_date,
-                "np",
-                "ttm",
-            ),
+            selected_field(selected_factors["ep"], "ttm"),
             errors="coerce",
         )
         cfo_ttm = pd.to_numeric(
-            asof_field(
-                pools["ttm"],
-                formation_date,
-                "cfo",
-                "ttm",
-            ),
+            selected_field(selected_factors["cfp"], "ttm"),
             errors="coerce",
         )
         equity = pd.to_numeric(
-            asof_field(
-                pools["event"],
-                formation_date,
-                "equity",
-                "value",
-            ),
+            selected_field(selected_factors["bp"], "value"),
             errors="coerce",
         )
         dps = pd.to_numeric(
-            asof_field(
-                pools["event"],
-                formation_date,
-                "dps",
-                "value",
-            ),
+            selected_field(selected_factors["dp"], "value"),
             errors="coerce",
         )
 
@@ -2651,6 +2865,29 @@ def build_policy_snapshots(
             * eligible_shares
             / eligible_market_value
         )
+        factor_dependencies = pd.DataFrame(
+            index=eligible_tickers,
+            columns=factors.columns,
+            dtype=object,
+        )
+        for factor in factors.columns:
+            selected = selected_factors[factor]
+            if selected.empty:
+                factor_dependencies[factor] = pd.Series(
+                    [()] * len(eligible_tickers),
+                    index=eligible_tickers,
+                    dtype=object,
+                )
+            else:
+                factor_dependencies[factor] = selected[
+                    "unverified_dependency_keys"
+                ].reindex(eligible_tickers)
+        if financial.any():
+            factor_dependencies.loc[financial, "cfp"] = pd.Series(
+                [()] * int(financial.sum()),
+                index=financial.index[financial],
+                dtype=object,
+            )
 
         style_score = pd.Series(
             np.nan,
@@ -2668,32 +2905,26 @@ def build_policy_snapshots(
                 "style_score"
             ].reindex(eligible_tickers)
 
+        verified = pd.Series(False, index=base, dtype=bool)
+        dependency_keys = pd.Series(
+            [()] * len(base), index=base, dtype=object
+        )
+        if len(factors):
+            eligible_verified, eligible_dependencies = (
+                _aggregate_style_dependency_provenance(
+                    factors,
+                    factor_dependencies,
+                    style_score.reindex(eligible_tickers),
+                )
+            )
+            verified.loc[eligible_tickers] = eligible_verified
+            dependency_keys.loc[eligible_tickers] = eligible_dependencies
+
         model_eligible = size_eligible & style_score.notna()
         model_reason = size_reason.copy()
         model_reason.loc[
             size_eligible & ~model_eligible
         ] = "MISSING_STYLE_SCORE"
-
-        known_facts = facts[facts["ann_date"].le(formation_date)]
-        if known_facts.empty:
-            has_csmar_dependency = pd.Series(
-                False,
-                index=base,
-                dtype=bool,
-            )
-        else:
-            has_csmar = (
-                known_facts.assign(
-                    _is_csmar=known_facts["data_source"].eq("csmar")
-                )
-                .groupby("ts_code")["_is_csmar"]
-                .any()
-            )
-            has_csmar_dependency = has_csmar.reindex(
-                base,
-                fill_value=False,
-            ).astype(bool)
-        verified = ~has_csmar_dependency
 
         snapshot = pd.DataFrame(
             {
@@ -2713,6 +2944,7 @@ def build_policy_snapshots(
                 "true_first_disclosure_verified": verified.to_numpy(
                     dtype=bool
                 ),
+                "_unverified_dependency_keys": dependency_keys.to_numpy(),
                 "close_method": close_method.to_numpy(),
                 "close_carried": carried_mask.to_numpy(dtype=bool),
             }
@@ -2763,8 +2995,7 @@ def default_sources(db: dict) -> B3Sources:
                        ts_code AS ticker,
                        effective_date
                 FROM {db['schema']}.index_constituent
-                WHERE effective_date >= '2021-01-01'
-                  AND index_code IN ('000905.SH', '000852.SH')
+                WHERE index_code IN ('000905.SH', '000852.SH')
                 ORDER BY index_code, effective_date, ts_code
             """
         frame = _read_sql(
@@ -2878,6 +3109,7 @@ def run_preflight(
     }
     audit_rows: list[dict] = []
     diagnostic_rows: list[dict] = []
+    exemption_rows: list[dict] = []
     blockers: list[dict] = []
 
     def add_audit(
@@ -3229,6 +3461,22 @@ def run_preflight(
             )
             add_blocker(row)
 
+    # 成份按 formation 日精确取；缺哪一日，那一日的暴露就阻断在 monthly_exposure。
+    members_by_date = (
+        index_members_by_formation(
+            constituents,
+            sorted(
+                {
+                    date
+                    for policy_snapshots in normalized_by_policy.values()
+                    for date in policy_snapshots
+                }
+            ),
+        )
+        if not blockers
+        else {}
+    )
+
     for policy in policies if not blockers else []:
         snapshots = normalized_by_policy[policy]
         for raw_date, snapshot in sorted(
@@ -3246,7 +3494,11 @@ def run_preflight(
                 snapshot,
             )
             try:
-                result = compute_month_exposures(snapshot, cfg)
+                result = compute_month_exposures(
+                    snapshot,
+                    cfg,
+                    index_members=members_by_date.get(formation_date, {}),
+                )
             except DataBlocked as exc:
                 detail = str(exc)
                 row = add_audit(
@@ -3277,6 +3529,42 @@ def run_preflight(
                 continue
 
             exposures[policy][formation_date] = result
+            if result.exemption is not None:
+                # Measured, but not clean: the month is downgraded rather than
+                # blocked, and deliberately does NOT become a run blocker.
+                exemption_rows.append(
+                    {
+                        "pit_policy": policy,
+                        "formation_date": str(formation_date.date()),
+                        "required_formation": bool(required),
+                        **{
+                            key: value
+                            for key, value in result.exemption.items()
+                            if key != "reason_codes"
+                        },
+                        "reason_codes": ",".join(
+                            result.exemption["reason_codes"]
+                        ),
+                    }
+                )
+                add_audit(
+                    policy=policy,
+                    formation_date=formation_date,
+                    required=required,
+                    affects_final=False,
+                    check="monthly_exposure",
+                    status="MEASURE_WITH_EXCLUSION",
+                    reason_code="DATA_MATERIALITY_EXEMPTION",
+                    eligible_count=int(result.exemption["excluded_names"]),
+                    detail=(
+                        f"{result.exemption['excluded_names']}/"
+                        f"{result.exemption['measurable_names']} names "
+                        f"({result.exemption['share']:.4%}) excluded within the "
+                        f"{result.exemption['threshold']:.4%} materiality "
+                        "threshold: "
+                        + ", ".join(result.exemption["reason_codes"])
+                    ),
+                )
             for axis in axes:
                 frame = result.size if axis == "size" else result.model
                 for side in ("plus", "minus"):
@@ -3298,39 +3586,6 @@ def run_preflight(
                     **result.diagnostics,
                 }
             )
-
-    if not blockers:
-        try:
-            for policy in policies:
-                calibration = calibrate_target_coordinates(
-                    exposures[policy],
-                    constituents,
-                )
-                diagnostic_rows.append(
-                    {
-                        "pit_policy": policy,
-                        "formation_date": pd.NaT,
-                        "scope": "target_calibration",
-                        **calibration,
-                    }
-                )
-        except (DataBlocked, CoverageBlocked) as exc:
-            status = (
-                "DATA_BLOCKED"
-                if isinstance(exc, DataBlocked)
-                else "COVERAGE_BLOCKED"
-            )
-            detail = str(exc)
-            row = add_audit(
-                policy="all",
-                formation_date=pd.NaT,
-                required=True,
-                check="target_coordinate_calibration",
-                status=status,
-                reason_code="TARGET_COORDINATE_CALIBRATION",
-                detail=detail,
-            )
-            add_blocker(row)
 
     statuses = {blocker["status"] for blocker in blockers}
     if "DATA_BLOCKED" in statuses:
@@ -3371,6 +3626,7 @@ def run_preflight(
         final_status,
         blockers,
         database_source_evidence=database_evidence,
+        exemptions=exemption_rows,
     )
 
     return PreflightOutcome(

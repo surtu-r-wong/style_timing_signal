@@ -61,13 +61,51 @@ def ticker_financial_rows(facts: pd.DataFrame, growth_n: int = 12) -> dict[str, 
       known=ann_date（无差分依赖）
     """
     ts = facts["ts_code"].iloc[0]
+    provenance_columns = (
+        "true_first_disclosure_verified",
+        "unverified_dependency_keys",
+    )
+    has_provenance = all(column in facts.columns for column in provenance_columns)
     ttm_parts: list[pd.DataFrame] = []
     slope_parts: list[pd.DataFrame] = []
     event_parts: list[pd.DataFrame] = []
 
+    def _append_provenance(
+        rows: pd.DataFrame, source: pd.DataFrame
+    ) -> pd.DataFrame:
+        if not has_provenance:
+            return rows
+        flags: list[bool] = []
+        dependencies: list[tuple[str, ...]] = []
+        for flag, keys in zip(
+            source["true_first_disclosure_verified"],
+            source["unverified_dependency_keys"],
+        ):
+            if not isinstance(flag, (bool, np.bool_)):
+                raise ValueError("invalid provenance: verified flag must be bool")
+            if not isinstance(keys, tuple) or any(
+                not isinstance(key, str) or not key for key in keys
+            ):
+                raise ValueError(
+                    "invalid provenance: dependency keys must be tuple[str, ...]"
+                )
+            if bool(flag) != (len(keys) == 0):
+                raise ValueError(
+                    "invalid provenance: verified flag disagrees with dependency keys"
+                )
+            flags.append(bool(flag))
+            dependencies.append(keys)
+        rows["true_first_disclosure_verified"] = pd.Series(
+            flags, index=rows.index, dtype=object
+        )
+        rows["unverified_dependency_keys"] = pd.Series(
+            dependencies, index=rows.index, dtype=object
+        )
+        return rows
+
     def _ttm_rows(field: str, grid: pd.DataFrame) -> pd.DataFrame:
         valid = grid[grid["ttm"].notna()]
-        return pd.DataFrame(
+        rows = pd.DataFrame(
             {
                 "ts_code": ts,
                 "field": field,
@@ -76,6 +114,7 @@ def ticker_financial_rows(facts: pd.DataFrame, growth_n: int = 12) -> dict[str, 
                 "ttm": valid["ttm"].to_numpy(),
             }
         )
+        return _append_provenance(rows, valid)
 
     # rev / np：YTD → TTM 网格 + 斜率
     for field, stmt, col in [
@@ -86,20 +125,26 @@ def ticker_financial_rows(facts: pd.DataFrame, growth_n: int = 12) -> dict[str, 
         if grid.empty:
             continue
         ttm_parts.append(_ttm_rows(field, grid))
-        sl = rolling_growth_slope(grid["ttm"], grid["known_date"], n=growth_n)
+        sl = rolling_growth_slope(
+            grid["ttm"],
+            grid["known_date"],
+            n=growth_n,
+            unverified_dependencies=(
+                grid["unverified_dependency_keys"] if has_provenance else None
+            ),
+        )
         sl = sl[sl["slope"].notna()]
         if not sl.empty:
-            slope_parts.append(
-                pd.DataFrame(
-                    {
-                        "ts_code": ts,
-                        "field": field,
-                        "end_date": sl.index,
-                        "known_date": sl["known_date"].to_numpy(),
-                        "slope": sl["slope"].to_numpy(),
-                    }
-                )
+            slope_rows = pd.DataFrame(
+                {
+                    "ts_code": ts,
+                    "field": field,
+                    "end_date": sl.index,
+                    "known_date": sl["known_date"].to_numpy(),
+                    "slope": sl["slope"].to_numpy(),
+                }
             )
+            slope_parts.append(_append_provenance(slope_rows, sl))
 
     # cfo：CSMAR YTD 链 + Wind 直接 TTM
     cfo_grid = pit_ttm_with_known(extract_statement_field(facts, "cashflow_direct", "cfo_net"))
@@ -109,17 +154,16 @@ def ticker_financial_rows(facts: pd.DataFrame, growth_n: int = 12) -> dict[str, 
     wind_cfo = extract_statement_field(facts, "cashflow", "cfo_ttm")
     wind_cfo = wind_cfo[wind_cfo["value"].notna() & (wind_cfo["end_date"] > csmar_max)]
     if not wind_cfo.empty:
-        ttm_parts.append(
-            pd.DataFrame(
-                {
-                    "ts_code": ts,
-                    "field": "cfo",
-                    "end_date": wind_cfo["end_date"].to_numpy(),
-                    "known_date": wind_cfo["ann_date"].to_numpy(),
-                    "ttm": wind_cfo["value"].to_numpy(),
-                }
-            )
+        wind_rows = pd.DataFrame(
+            {
+                "ts_code": ts,
+                "field": "cfo",
+                "end_date": wind_cfo["end_date"].to_numpy(),
+                "known_date": wind_cfo["ann_date"].to_numpy(),
+                "ttm": wind_cfo["value"].to_numpy(),
+            }
         )
+        ttm_parts.append(_append_provenance(wind_rows, wind_cfo))
 
     # events：equity / dps
     for field, stmt, col in [
@@ -129,23 +173,25 @@ def ticker_financial_rows(facts: pd.DataFrame, growth_n: int = 12) -> dict[str, 
         ev = extract_statement_field(facts, stmt, col)
         ev = ev[ev["value"].notna()]
         if not ev.empty:
-            event_parts.append(
-                pd.DataFrame(
-                    {
-                        "ts_code": ts,
-                        "field": field,
-                        "end_date": ev["end_date"].to_numpy(),
-                        "known_date": ev["ann_date"].to_numpy(),
-                        "value": ev["value"].to_numpy(),
-                    }
-                )
+            event_rows = pd.DataFrame(
+                {
+                    "ts_code": ts,
+                    "field": field,
+                    "end_date": ev["end_date"].to_numpy(),
+                    "known_date": ev["ann_date"].to_numpy(),
+                    "value": ev["value"].to_numpy(),
+                }
             )
+            event_parts.append(_append_provenance(event_rows, ev))
 
     empty_cols = {
         "ttm": ["ts_code", "field", "end_date", "known_date", "ttm"],
         "slope": ["ts_code", "field", "end_date", "known_date", "slope"],
         "event": ["ts_code", "field", "end_date", "known_date", "value"],
     }
+    if has_provenance:
+        for columns in empty_cols.values():
+            columns.extend(provenance_columns)
     return {
         "ttm": pd.concat(ttm_parts, ignore_index=True) if ttm_parts else pd.DataFrame(columns=empty_cols["ttm"]),
         "slope": pd.concat(slope_parts, ignore_index=True) if slope_parts else pd.DataFrame(columns=empty_cols["slope"]),
