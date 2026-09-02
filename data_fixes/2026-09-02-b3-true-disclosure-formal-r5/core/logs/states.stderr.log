@@ -1,0 +1,88 @@
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1466: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  return pd.read_sql(sql, conn, params=params)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1894: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  ).fillna(False)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1898: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  ).fillna(False)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_build.py:1902: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  ).fillna(False)
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()
+/home/ghls/style_timing_signal-jan01-pit/signals/style_basket/b3_portfolios.py:296: FutureWarning: The behavior of array concatenation with empty entries is deprecated. In a future version, this will no longer exclude empty items when determining the result dtype. To retain the old behavior, exclude the empty entries before the concat operation.
+  result = pd.concat(pieces).sort_index()

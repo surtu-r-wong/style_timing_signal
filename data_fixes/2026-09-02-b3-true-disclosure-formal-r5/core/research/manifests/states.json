@@ -1,0 +1,10 @@
+{
+  "blockers": [],
+  "config_hash": "33e7f69ff47e84e9ac92cabee2aa4f2fd1c19850e3d1a27d42a375a63c6b2c61",
+  "data_end": "2023-12-31",
+  "outputs": {
+    "state_components.csv": "998dd079576a4738815a02405b9b2963f31e82d3e2adb0ffc11d24bdb3696de6"
+  },
+  "stage": "states",
+  "status": "OK"
+}

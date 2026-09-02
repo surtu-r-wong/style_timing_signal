@@ -1,0 +1,19 @@
+{
+  "config_hash": "33e7f69ff47e84e9ac92cabee2aa4f2fd1c19850e3d1a27d42a375a63c6b2c61",
+  "data_end": "2023-12-31",
+  "inputs": {
+    "equal_weight_control": {
+      "date_column": "date",
+      "path": "/home/ghls/style_timing_signal-jan01-pit/output/equal_weight/equal_weight_signal_20d40z.csv",
+      "sha256": "99ccf5554eb4d5c63094cdd0ba8fa917b5c2c7ffead372f285703bc15b70a235",
+      "source_kind": "file",
+      "value_column": "factor_value"
+    }
+  },
+  "outputs": {
+    "model_comparison.csv": "8599c77282e4a12d70d7022c440e131910e471b3d24890b4d2736c7a4a495eee",
+    "structure_coefficients.csv": "76166b41e251a016a3c5a85d19d93f45cf51a1ee7d7b00c6f2f7c416c5db3f1f"
+  },
+  "stage": "structure",
+  "status": "OK"
+}

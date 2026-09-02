@@ -1,0 +1,8 @@
+2026-09-02T17:19:37+08:00 runner=start pid=194572 ppid=85413 pgid=194572 sid=194572 cgroup=/user.slice/user-1000.slice/session-659.scope
+2026-09-02T17:19:37+08:00 stage=structure event=start
+2026-09-02T17:19:37+08:00 stage=structure event=wait job_pid=194599
+2026-09-02T17:20:12+08:00 stage=structure event=end rc=0
+2026-09-02T17:20:12+08:00 stage=eval event=start
+2026-09-02T17:20:12+08:00 stage=eval event=wait job_pid=194731
+2026-09-02T17:20:22+08:00 stage=eval event=end rc=0
+2026-09-02T17:20:37+08:00 trap=EXIT rc=0 signal=none pid=194572 ppid=85413 pgid=194572 sid=194572 cgroup=/user.slice/user-1000.slice/user@1000.service/tmux-spawn-97744753-1778-4bfd-b0e4-879c61a39e6b.scope

@@ -6,7 +6,7 @@
 
 ## 0. 一句话结论
 
-**真首披覆盖 629,556 / 629,556（100%）的正式重跑，统计 verdict 仍为 STOP（四路全 `STRUCTURE_GATE_FAILED`），最终 verdict 仍为 DATA_BLOCKED，run blocker 由三条减为一条（仅剩 `SALG_FRESHNESS`）。** 08-12 分析的核心预测成立：修数据能洗掉 blocker，洗不掉 STOP。登记表条目 `b3-continuous-style-state` 继续 `provisional / data_blocked`。
+**真首披覆盖 629,556 / 629,556（100%）的正式重跑，统计 verdict 仍为 STOP（四路全 `STRUCTURE_GATE_FAILED`），最终 verdict 仍为 DATA_BLOCKED，run blocker 由三条减为一条（仅剩 `SALG_FRESHNESS`）。** 同日回填 000820.SZ 后的 r5（§6）拿到干净最终 verdict = **STOP**，B3 连续风格状态按原判据关账。 08-12 分析的核心预测成立：修数据能洗掉 blocker，洗不掉 STOP。登记表条目 `b3-continuous-style-state` 继续 `provisional / data_blocked`。
 
 ## 1. 运行与证据链
 
@@ -49,9 +49,33 @@ verdicts 96 行 vs 08-12 的 97 行：少的 1 行是 `run/blocker TRUE_DISCLOSU
 
 ## 4. 剩余 blocker
 
-`SALG_FRESHNESS`：`salg_valid_through = 2020-04-30 < 2023-12-31`。足迹与 08-12 一致，只有 000820.SZ 一只票——CSMAR 里它 2020-03-31 与 2021-03-31 两条利润表事实是空 JSON，一季度收入缺失使 TTM 断 4 季、12 季斜率窗再断 11 季。08-12 时同类票 5 只，回填后只剩这一只。修法是 Wind 回填这两个季度（用户决定）；修后只需按冻结规格重跑 structure → eval 即可得到干净的最终 verdict。**现有证据不支持洗净后 STOP 会翻 GO**。
+`SALG_FRESHNESS`：`salg_valid_through = 2020-04-30 < 2023-12-31`。足迹与 08-12 一致，只有 000820.SZ 一只票——CSMAR 里它 2020-03-31 与 2021-03-31 两条利润表事实是空 JSON，一季度收入缺失使 TTM 断 4 季、12 季斜率窗再断 11 季。08-12 时同类票 5 只，回填后只剩这一只。修法是 Wind 回填这两个季度（用户决定）。~~修后只需重跑 structure → eval~~ **更正（同日晚）：SalG 在 exposures 阶段计算，必须按冻结规格重跑全流程**，见 §6。**现有证据不支持洗净后 STOP 会翻 GO**。
 
 ## 5. 登记表处理
 
-- `b3-continuous-style-state`：`provisional / data_blocked` 不变；claim 改为真首披下的 STOP + 单 blocker；reopen 条件收窄为「回填 000820.SZ 两季利润表后仅重跑 structure → eval」；证据指向 r4 核。
+- `b3-continuous-style-state`：r4 时点 `provisional / data_blocked` 不变。**r5 后按交接第 8 条改为 `closed / stop`**（§6）。
 - 旧 08-12 archive 不改、不删。
+
+## 6. r5：回填后的干净裁决（同日 16:49～17:20）
+
+用户裁「回填做一下」。000820.SZ 两季营业收入经 Wind 证实为 0（CSMAR 对零值省键），原地补键后按冻结规格重跑全流程：
+`/home/ghls/b3_runs/20260902_jan01_pit_r5`，代码、config、data_end 与 r4 完全相同；states 段 28 分 exit 0，独立审计仍 629,556 / 629,556，structure / eval 均 exit 0。
+证据核：`data_fixes/2026-09-02-b3-true-disclosure-formal-r5/`（verify OK）。修复记录：`data_fixes/2026-09-02-b3-salg-000820-revenue/`。
+
+| 项 | r4 | r5 |
+|---|---|---|
+| `salg_valid_through` | 2020-04-30 | **2024-04-30** |
+| run blocker | `SALG_FRESHNESS` | **无** |
+| `final_verdict` | DATA_BLOCKED | **STOP** |
+| 四路统计 verdict | STOP | STOP |
+| 其余 94 个闸门 | | **逐行相同** |
+| `stability` 余弦 q500 / qblend / q1000 | −0.286 / −0.265 / +0.175 | 同 |
+| 2021-2023 Sharpe dual_target / unified vs 基线 1.001 | 0.931 / 0.838 | 0.899 / 0.838 |
+
+model_comparison 只有 000820.SZ 连带的少量数值位移（partial_ic 最大 0.080、oos_r2 最大 0.010，`cosine_early_late` 零变化），没有任何闸门翻转。
+bootstrap 仍是哨兵值（tail_prob 1.0，未真跑），这是既有设计，不影响 STOP 的决定性来源（`stability` + `sharpe_improvement`）。
+
+**结论**：真首披 100% 覆盖 + 零 run blocker 下，B3 连续风格状态候选按原判据 **STOP**，登记表 `b3-continuous-style-state` 改为 `closed / stop`。
+重开条件：只有在 `stability` 定义或候选构造本身改变（新的预登记）时才重开；数据侧不再有可洗的 blocker。
+
+附：全市场 csmar 利润表季行同类「零收入省键」还有 43 行 / 13 只票（清单在修复记录 README），不影响本裁决，是否统一回填待裁。

@@ -1,0 +1,7 @@
+{"fetched_at": "2026-09-02T16:5x+08:00 (see session)", "endpoint": "/fetch/financial_snapshot", "options": "rptType=1;unit=1",
+ "rows": [
+  {"ts_code": "000820.SZ", "end_date": "2020-03-31", "tot_oper_rev": 0.0, "oper_rev": 0.0, "stm_issuingdate": "2020-04-30T00:00:00"},
+  {"ts_code": "000820.SZ", "end_date": "2020-06-30", "tot_oper_rev": 3233442.48, "oper_rev": 3233442.48, "stm_issuingdate": "2020-08-31T00:00:00", "role": "control: CSMAR B001100000=3233442.48"},
+  {"ts_code": "000820.SZ", "end_date": "2021-03-31", "tot_oper_rev": 0.0, "oper_rev": 0.0, "stm_issuingdate": "2021-04-29T00:00:00"},
+  {"ts_code": "000820.SZ", "end_date": "2021-06-30", "tot_oper_rev": 1277610.61, "oper_rev": 1277610.61, "stm_issuingdate": "2021-08-31T00:00:00", "role": "control: CSMAR B001100000=1277610.61"}
+ ]}

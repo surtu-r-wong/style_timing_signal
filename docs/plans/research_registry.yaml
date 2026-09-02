@@ -650,19 +650,19 @@ studies:
   - id: b3-continuous-style-state
     title: "B3连续风格状态"
     family: continuous-style-state
-    status: provisional
-    outcome: data_blocked
+    status: closed
+    outcome: stop
     evidence_level: legacy_formal_archive
-    scope: "冻结B3候选在真首披覆盖100%下的正式重跑（2026-09-02 r4，代码013f3bc）及其按原判据的裁决。"
-    claim: "真首披正式重跑统计verdict仍为STOP（四路STRUCTURE_GATE_FAILED，stability在q500/qblend余弦仍为负、q1000秩相关0.30<0.50，sharpe_improvement四路全败），最终verdict仍为DATA_BLOCKED，run blocker由三条减为仅SALG_FRESHNESS一条（000820.SZ一只票）。"
-    non_claims: ["coverage 100%不证明B3因子有效。", "洗净SALG_FRESHNESS后STOP会翻GO（现有证据不支持）。", "旧08-12近似PIT结果不被改写，仅被r4超越。"]
-    caveats: ["缺失或无效首披日仍回退法定截止日，真首披下两PIT口径在多数腿上数值收敛。", "bootstrap仍为哨兵值未真跑。", "Git内r4 archive仅含review core，完整run在host-local tarball。"]
-    reopen_condition: "Wind回填000820.SZ 2020-03-31/2021-03-31利润表并审计后，按冻结规格仅重跑structure→eval出干净最终verdict；统计STOP不因blocker洗净而重开。"
-    production: {affects: false, role: provisional_data_blocked}
+    scope: "冻结B3候选在真首披覆盖100%、零run blocker下的正式重跑（2026-09-02 r5，代码013f3bc）及其按原判据的最终裁决。"
+    claim: "干净最终verdict=STOP：四路STRUCTURE_GATE_FAILED（stability在q500/qblend余弦为负、q1000秩相关0.30<0.50；sharpe_improvement四路全败，2021-2023 Sharpe 0.84~0.90 vs基线1.00需+0.10），与r4/08-12的统计结论一致，数据修复只洗掉了blocker。"
+    non_claims: ["coverage 100%不证明B3因子有效。", "旧08-12与r4结果不被改写，仅被r5超越。", "bootstrap为哨兵值未真跑，但不是STOP的决定性来源。"]
+    caveats: ["缺失或无效首披日仍回退法定截止日，真首披下两PIT口径在多数腿上数值收敛。", "000820.SZ两季零营业收入由Wind回填到csmar行（data_fixes/2026-09-02-b3-salg-000820-revenue）。", "Git内archive仅含review core，完整run在host-local tarball。"]
+    reopen_condition: "仅当stability定义或候选构造本身改变并完成新的预登记时重开；数据侧已无可洗的blocker。"
+    production: {affects: false, role: closed_stop}
     documents:
       spec: [docs/plans/2026-08-05-data-materiality-exemption-design.md, docs/plans/2026-08-06-q500-direct-measurement-design.md, docs/plans/2026-08-14-pit-foundation-handover-proposal.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
       report: [docs/plans/2026-08-12-b3-formal-run-verdict-analysis.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md, docs/plans/2026-08-31-b3-true-disclosure-rerun-handoff.md, docs/plans/2026-09-02-b3-true-disclosure-formal-verdict.md]
-      evidence: [data_fixes/2026-09-02-b3-true-disclosure-formal/core/backtest/verdicts.csv, data_fixes/2026-09-02-b3-true-disclosure-formal/core/backtest/run_manifest.json, data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/verdicts.csv]
+      evidence: [data_fixes/2026-09-02-b3-true-disclosure-formal-r5/core/backtest/verdicts.csv, data_fixes/2026-09-02-b3-true-disclosure-formal-r5/core/backtest/run_manifest.json, data_fixes/2026-09-02-b3-true-disclosure-formal/core/backtest/verdicts.csv]
     supersedes: []
     depends_on: [gate0r-data-foundation]
 

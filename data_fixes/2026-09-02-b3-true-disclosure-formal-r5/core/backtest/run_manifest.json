@@ -1,0 +1,156 @@
+{
+  "candidate_statistical_verdicts": {
+    "legal_deadline/B3_dual_target": "STOP",
+    "legal_deadline/B3_unified": "STOP",
+    "legal_deadline_plus_one_month_end/B3_dual_target": "STOP",
+    "legal_deadline_plus_one_month_end/B3_unified": "STOP"
+  },
+  "code_commit": "013f3bc9fde276671e400abc317aa46c47fcb0bc",
+  "common_historical_end": null,
+  "config_hash": "33e7f69ff47e84e9ac92cabee2aa4f2fd1c19850e3d1a27d42a375a63c6b2c61",
+  "database_source_evidence": {
+    "consumed_sources": [
+      "public.trading_calendar",
+      "stock_selector.index_constituent",
+      "stock_selector.index_daily",
+      "stock_selector.industry_classification",
+      "stock_selector.stock_daily_price",
+      "stock_selector.stock_daily_price_interval_history",
+      "stock_selector.stock_daily_price_last_close",
+      "stock_selector.stock_financial",
+      "stock_selector.stock_first_disclosure",
+      "stock_selector.stock_meta",
+      "stock_selector.stock_share_capital",
+      "stock_selector.stock_status_interval_confirmation",
+      "stock_selector.stock_suspension",
+      "stock_selector.stock_suspension_interval_history",
+      "stock_selector.stock_suspension_source_coverage"
+    ],
+    "sources": {
+      "public.trading_calendar": {
+        "max_date": "2023-12-31",
+        "min_date": "2013-05-01",
+        "query_template_hash": "89f69ff4584d4ae4444153db274a55c2b766045e352bbcefdd93b067a9d20790",
+        "row_count": 3897
+      },
+      "stock_selector.index_constituent": {
+        "max_date": "2026-08-26",
+        "min_date": "2014-01-30",
+        "query_template_hash": "bb0f46c87cbd1b29cd726937fbf54ae7ac90797f3b27e6c10de2eabc2e7ec61b",
+        "row_count": 237000
+      },
+      "stock_selector.index_daily": {
+        "max_date": "2023-12-29",
+        "min_date": "2013-05-02",
+        "query_template_hash": "fcc3fc3713f2b7b3ad236996ac3692679303360cd4855a5e7a80f9df498abe64",
+        "row_count": 2598
+      },
+      "stock_selector.industry_classification": {
+        "max_date": "2026-08-03",
+        "min_date": "2014-01-02",
+        "query_template_hash": "7b771a1a3f1bc805962d34a7f81ebf56cd0ef4e237e852494dca930e797bedad",
+        "row_count": 624060
+      },
+      "stock_selector.stock_daily_price": {
+        "max_date": "2023-12-29",
+        "min_date": "2013-05-31",
+        "query_template_hash": "1b1af6c928b10d2a52a84939bd5c3f032f06cf1a8023a72e39873324a9a23ec3",
+        "row_count": 452635
+      },
+      "stock_selector.stock_daily_price_interval_history": {
+        "max_date": "2023-12-29",
+        "min_date": "2003-06-02",
+        "query_template_hash": "13a5c9fe2d689450faae14921940f716afbf83abcf65c38808ece8e597afe0d7",
+        "row_count": 175996
+      },
+      "stock_selector.stock_daily_price_last_close": {
+        "max_date": "2023-12-28",
+        "min_date": "2010-11-03",
+        "query_template_hash": "aedf179d99ace6b7453b605f4d8144ae9c6634c763263113e05064dc72b72e80",
+        "row_count": 15962
+      },
+      "stock_selector.stock_financial": {
+        "max_date": "2023-12-31",
+        "min_date": "2003-01-01",
+        "query_template_hash": "85d3b33106995349f81d4ec6a4af8bd81df04d33f75b0da3732a084be78091e7",
+        "row_count": 3721765
+      },
+      "stock_selector.stock_first_disclosure": {
+        "max_date": "2023-12-31",
+        "min_date": "2003-03-31",
+        "query_template_hash": "85d3b33106995349f81d4ec6a4af8bd81df04d33f75b0da3732a084be78091e7",
+        "row_count": 243354
+      },
+      "stock_selector.stock_meta": {
+        "max_date": null,
+        "min_date": null,
+        "query_template_hash": "17321d344083fbcf2992e57db92c7b363b93ed9b2b6ac6cffd636c05120503cc",
+        "row_count": 6500
+      },
+      "stock_selector.stock_share_capital": {
+        "max_date": "2026-07-31",
+        "min_date": "1990-12-31",
+        "query_template_hash": "01acaa4809c96668c5b74e392c8ab08dff97c3907147209885409e319f1dd0e5",
+        "row_count": 90770
+      },
+      "stock_selector.stock_status_interval_confirmation": {
+        "max_date": "2023-07-31",
+        "min_date": "2014-10-31",
+        "query_template_hash": "763ccf9d32b6493cf9a5fef299ce55394d9cfabd204e1b0d7dede174e69b58ce",
+        "row_count": 837
+      },
+      "stock_selector.stock_suspension": {
+        "max_date": "2023-12-29",
+        "min_date": "2013-05-31",
+        "query_template_hash": "0868e63d7c48e3b7b1e75089a1d7e16ac2e1d5a75d2f93db7498c22e21dbc44a",
+        "row_count": 16619
+      },
+      "stock_selector.stock_suspension_interval_history": {
+        "max_date": "2023-11-22",
+        "min_date": "2013-01-04",
+        "query_template_hash": "f3b7a9b9745371774f11028c5d064930133bc59145accbf3a6c5a6a3f50ee8d1",
+        "row_count": 15103
+      },
+      "stock_selector.stock_suspension_source_coverage": {
+        "max_date": "2013-01-04",
+        "min_date": "2013-01-04",
+        "query_template_hash": "9666b50f18383529272cc77854a3eaecbaa3006f9017207300c1a529cd7a4ed7",
+        "row_count": 1
+      }
+    }
+  },
+  "family_statistical_verdict": "STOP",
+  "final_verdict": "STOP",
+  "ic_carry_max_date": "2026-08-31",
+  "im_carry_max_date": "2026-08-31",
+  "im_launch_date": "2022-07-22",
+  "index_1000_max_date": "2023-12-29",
+  "index_500_max_date": "2023-12-29",
+  "input_file_hashes": {
+    "model_comparison.csv": "8599c77282e4a12d70d7022c440e131910e471b3d24890b4d2736c7a4a495eee",
+    "monthly_exposures.csv.gz": "9eb59005c1dd185751035a5c5bf16f599f69c031390639e75adc40c2303b6edd",
+    "state_components.csv": "998dd079576a4738815a02405b9b2963f31e82d3e2adb0ffc11d24bdb3696de6",
+    "structure_coefficients.csv": "76166b41e251a016a3c5a85d19d93f45cf51a1ee7d7b00c6f2f7c416c5db3f1f"
+  },
+  "invalid_formation_months": [],
+  "materiality_exemptions": {
+    "max_share": 0.0004375410194705754,
+    "months": 15,
+    "threshold": 0.0025
+  },
+  "requested_data_end": "2023-12-31",
+  "salg_valid_through": "2024-04-30",
+  "stage_manifest_hashes": {
+    "exposures": "43228332809b22577db74fbe3eaf1f7dfc83f4d080b6cd03558f69721e707e0f",
+    "preflight": "9c0dd520ea78ce9a5c9732ff1c3f0898b153a704423fe654c93c405a70d1d982",
+    "states": "0b97a9a2c626b44645b8d5451bbad7663e50e7887e0e6714d8ef8db2963cc5d2",
+    "structure": "5cec5088779f62b56fc124e3202ec4eaea59bee0e299afbe821f6fa68728aeb3"
+  },
+  "stock_price_max_date": null,
+  "true_first_disclosure_coverage": {
+    "coverage_basis": "explicit true_first_disclosure_verified on model rows for every frozen PIT policy and formation month from 2014-10 through 2023-12",
+    "ratio": 1.0,
+    "required_denominator": 629556,
+    "verified_numerator": 629556
+  }
+}

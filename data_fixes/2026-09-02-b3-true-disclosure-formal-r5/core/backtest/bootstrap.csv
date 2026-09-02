@@ -1,0 +1,5 @@
+pit_policy,candidate,draws,block_days,seed,tail_prob,holm_adjusted_tail,ci05,ci50,ci95,structure_pass,gate_pass
+legal_deadline,B3_dual_target,5000,20,20260713,1.0,1.0,,,,False,False
+legal_deadline,B3_unified,5000,20,20260713,1.0,1.0,,,,False,False
+legal_deadline_plus_one_month_end,B3_dual_target,5000,20,20260713,1.0,1.0,,,,False,False
+legal_deadline_plus_one_month_end,B3_unified,5000,20,20260713,1.0,1.0,,,,False,False

@@ -1,0 +1,96 @@
+scope,subject,gate,gate_pass,status,reason_code,detail,provisional,affects_statistical,statistical_verdict,final_verdict,shadow_candidate,shadow_start_allowed
+bootstrap/legal_deadline,B3_dual_target,holm_adjusted_tail,False,FAIL,BOOTSTRAP_GATE_FAILED,holm_adjusted_tail=1,False,True,,,False,False
+bootstrap/legal_deadline,B3_unified,holm_adjusted_tail,False,FAIL,BOOTSTRAP_GATE_FAILED,holm_adjusted_tail=1,False,True,,,False,False
+bootstrap/legal_deadline_plus_one_month_end,B3_dual_target,holm_adjusted_tail,False,FAIL,BOOTSTRAP_GATE_FAILED,holm_adjusted_tail=1,False,True,,,False,False
+bootstrap/legal_deadline_plus_one_month_end,B3_unified,holm_adjusted_tail,False,FAIL,BOOTSTRAP_GATE_FAILED,holm_adjusted_tail=1,False,True,,,False,False
+boundary/legal_deadline,B3_dual_target,post_im_maxdd_difference,True,PASS,,post-IM aggregate production gate,False,True,,,False,False
+boundary/legal_deadline,B3_dual_target,post_im_min_days,True,PASS,,post-IM aggregate production gate,False,True,,,False,False
+boundary/legal_deadline,B3_dual_target,post_im_partial_ic,False,FAIL,EXECUTABLE_BOUNDARY_FAILED,post-IM aggregate production gate,False,True,,,False,False
+boundary/legal_deadline,B3_dual_target,post_im_sharpe_difference,False,FAIL,EXECUTABLE_BOUNDARY_FAILED,post-IM aggregate production gate,False,True,,,False,False
+boundary/legal_deadline,B3_unified,unified_executable_boundary,True,PASS,,unified executable boundary is always satisfied,False,True,,,False,False
+boundary/legal_deadline_plus_one_month_end,B3_dual_target,post_im_maxdd_difference,True,PASS,,post-IM aggregate production gate,False,True,,,False,False
+boundary/legal_deadline_plus_one_month_end,B3_dual_target,post_im_min_days,True,PASS,,post-IM aggregate production gate,False,True,,,False,False
+boundary/legal_deadline_plus_one_month_end,B3_dual_target,post_im_partial_ic,False,FAIL,EXECUTABLE_BOUNDARY_FAILED,post-IM aggregate production gate,False,True,,,False,False
+boundary/legal_deadline_plus_one_month_end,B3_dual_target,post_im_sharpe_difference,False,FAIL,EXECUTABLE_BOUNDARY_FAILED,post-IM aggregate production gate,False,True,,,False,False
+boundary/legal_deadline_plus_one_month_end,B3_unified,unified_executable_boundary,True,PASS,,unified executable boundary is always satisfied,False,True,,,False,False
+candidate/legal_deadline,B3_dual_target,statistical_verdict,False,STOP,STRUCTURE_GATE_FAILED,bootstrap.structure_pass=false,True,True,STOP,,False,False
+candidate/legal_deadline,B3_unified,statistical_verdict,False,STOP,STRUCTURE_GATE_FAILED,bootstrap.structure_pass=false,True,True,STOP,,False,False
+candidate/legal_deadline_plus_one_month_end,B3_dual_target,statistical_verdict,False,STOP,STRUCTURE_GATE_FAILED,bootstrap.structure_pass=false,True,True,STOP,,False,False
+candidate/legal_deadline_plus_one_month_end,B3_unified,statistical_verdict,False,STOP,STRUCTURE_GATE_FAILED,bootstrap.structure_pass=false,True,True,STOP,,False,False
+family/legal_deadline,B3,statistical_verdict,False,STOP,HEADLINE_CANDIDATES_FAILED,"B3_unified=STOP:STRUCTURE_GATE_FAILED,B3_dual_target=STOP:STRUCTURE_GATE_FAILED",False,True,STOP,,False,False
+production/legal_deadline,B3_dual_target,maxdd_worsening,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline,B3_dual_target,partial_ic,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline,B3_dual_target,sharpe_improvement,False,FAIL,PRODUCTION_GATE_FAILED,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline,B3_dual_target,turnover_multiple,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline,B3_unified,maxdd_worsening,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline,B3_unified,partial_ic,False,FAIL,PRODUCTION_GATE_FAILED,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline,B3_unified,sharpe_improvement,False,FAIL,PRODUCTION_GATE_FAILED,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline,B3_unified,turnover_multiple,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline_plus_one_month_end,B3_dual_target,maxdd_worsening,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline_plus_one_month_end,B3_dual_target,partial_ic,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline_plus_one_month_end,B3_dual_target,sharpe_improvement,False,FAIL,PRODUCTION_GATE_FAILED,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline_plus_one_month_end,B3_dual_target,turnover_multiple,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline_plus_one_month_end,B3_unified,maxdd_worsening,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline_plus_one_month_end,B3_unified,partial_ic,False,FAIL,PRODUCTION_GATE_FAILED,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline_plus_one_month_end,B3_unified,sharpe_improvement,False,FAIL,PRODUCTION_GATE_FAILED,2021-2023 aggregate production gate,False,True,,,False,False
+production/legal_deadline_plus_one_month_end,B3_unified,turnover_multiple,True,PASS,,2021-2023 aggregate production gate,False,True,,,False,False
+run,ALL,PIT_POLICY_FLIP,True,PASS,,PIT policy verdict directions agree,False,False,,,False,False
+run,ALL,final_verdict,False,STOP,,,False,False,STOP,STOP,False,False
+structure/legal_deadline,B3_dual_target|q=-|target=-|window=2021-2023|model=-,m1_increment,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=-|target=-|window=2021-2023|model=-,partial_ic,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=-|target=-|window=2021-2023|model=-,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=-|target=-|window=2021-2023|model=-,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q1000|target=1000|window=2015-2017|model=M1,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q1000|target=1000|window=2018-2020|model=M1,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q1000|target=1000|window=2021-2023|model=M1,m1_increment,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q1000|target=1000|window=2021-2023|model=M1,partial_ic,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q1000|target=1000|window=2021-2023|model=M1,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q1000|target=1000|window=2021-2023|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q500|target=500|window=2015-2017|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q500|target=500|window=2018-2020|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q500|target=500|window=2021-2023|model=M1,m1_increment,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q500|target=500|window=2021-2023|model=M1,partial_ic,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q500|target=500|window=2021-2023|model=M1,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_dual_target|q=q500|target=500|window=2021-2023|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=-|target=-|window=2021-2023|model=-,m1_increment,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=-|target=-|window=2021-2023|model=-,partial_ic,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=-|target=-|window=2021-2023|model=-,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=-|target=-|window=2021-2023|model=-,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=qblend|target=blend|window=2015-2017|model=M1,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=qblend|target=blend|window=2018-2020|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=qblend|target=blend|window=2021-2023|model=M1,m1_increment,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=qblend|target=blend|window=2021-2023|model=M1,partial_ic,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=qblend|target=blend|window=2021-2023|model=M1,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,B3_unified|q=qblend|target=blend|window=2021-2023|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,PUBLIC|q=-|target=-|window=2021-2023|model=-,interaction_axis_corr,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,PUBLIC|q=-|target=-|window=structure|model=-,beta_h_same_sign,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline,PUBLIC|q=-|target=-|window=structure|model=-,hard_sort_complete,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=-|target=-|window=2021-2023|model=-,m1_increment,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=-|target=-|window=2021-2023|model=-,partial_ic,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=-|target=-|window=2021-2023|model=-,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=-|target=-|window=2021-2023|model=-,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q1000|target=1000|window=2015-2017|model=M1,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q1000|target=1000|window=2018-2020|model=M1,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q1000|target=1000|window=2021-2023|model=M1,m1_increment,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q1000|target=1000|window=2021-2023|model=M1,partial_ic,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q1000|target=1000|window=2021-2023|model=M1,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q1000|target=1000|window=2021-2023|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q500|target=500|window=2015-2017|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q500|target=500|window=2018-2020|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q500|target=500|window=2021-2023|model=M1,m1_increment,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q500|target=500|window=2021-2023|model=M1,partial_ic,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q500|target=500|window=2021-2023|model=M1,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_dual_target|q=q500|target=500|window=2021-2023|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=-|target=-|window=2021-2023|model=-,m1_increment,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=-|target=-|window=2021-2023|model=-,partial_ic,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=-|target=-|window=2021-2023|model=-,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=-|target=-|window=2021-2023|model=-,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=qblend|target=blend|window=2015-2017|model=M1,state_coverage,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=qblend|target=blend|window=2018-2020|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=qblend|target=blend|window=2021-2023|model=M1,m1_increment,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=qblend|target=blend|window=2021-2023|model=M1,partial_ic,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=qblend|target=blend|window=2021-2023|model=M1,stability,False,FAIL,STRUCTURE_GATE_FAILED,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,B3_unified|q=qblend|target=blend|window=2021-2023|model=M1,state_coverage,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,PUBLIC|q=-|target=-|window=2021-2023|model=-,interaction_axis_corr,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,PUBLIC|q=-|target=-|window=structure|model=-,beta_h_same_sign,True,PASS,,model comparison structure gate,False,True,,,False,False
+structure/legal_deadline_plus_one_month_end,PUBLIC|q=-|target=-|window=structure|model=-,hard_sort_complete,True,PASS,,model comparison structure gate,False,True,,,False,False
