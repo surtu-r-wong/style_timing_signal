@@ -661,7 +661,7 @@ studies:
     production: {affects: false, role: provisional_data_blocked}
     documents:
       spec: [docs/plans/2026-08-05-data-materiality-exemption-design.md, docs/plans/2026-08-06-q500-direct-measurement-design.md, docs/plans/2026-08-14-pit-foundation-handover-proposal.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
-      report: [docs/plans/2026-08-12-b3-formal-run-verdict-analysis.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
+      report: [docs/plans/2026-08-12-b3-formal-run-verdict-analysis.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md, docs/plans/2026-08-31-b3-true-disclosure-rerun-handoff.md]
       evidence: [data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/verdicts.csv, data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/run_manifest.json]
     supersedes: []
     depends_on: [gate0r-data-foundation]
