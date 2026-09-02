@@ -1,0 +1,46 @@
+{
+ "generated_at": "2026-09-02T11:02:07.875149+00:00",
+ "codes": "000918.CSI,000919.CSI",
+ "start": "2014-01-02",
+ "end": "2026-09-01",
+ "dry_run": false,
+ "db_host": "100.65.111.79",
+ "stats": {
+  "fetched_rows": 6160,
+  "wind_open_null": 0,
+  "updated": 6050,
+  "row_missing": 0,
+  "already_filled": 110,
+  "chunks": 39
+ },
+ "per_code": {
+  "000918.CSI": {
+   "fetched": 3080,
+   "updated": 3025,
+   "wind_open_null": 0,
+   "row_missing": 0,
+   "first_open": "2014-01-02",
+   "last_open": "2026-09-01"
+  },
+  "000919.CSI": {
+   "fetched": 3080,
+   "updated": 3025,
+   "wind_open_null": 0,
+   "row_missing": 0,
+   "first_open": "2014-01-02",
+   "last_open": "2026-09-01"
+  }
+ },
+ "gateway_quota_before": {
+  "used": 2718,
+  "max": 500000000,
+  "date": "2026-09-02"
+ },
+ "gateway_quota_after": {
+  "used": 58230,
+  "max": 500000000,
+  "date": "2026-09-02"
+ },
+ "gateway_cells_used": 55512,
+ "elapsed_s": 148.4
+}
