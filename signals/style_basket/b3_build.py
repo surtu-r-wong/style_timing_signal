@@ -2378,6 +2378,33 @@ def _industry_snapshot(
     return result
 
 
+def _exclude_invalid_csmar_jan_01_balance_events(
+    facts: pd.DataFrame,
+) -> pd.DataFrame:
+    """Drop CSMAR balance-sheet facts dated January 1 before derived rows.
+
+    CSMAR carries ``YYYY-01-01`` balance rows for some tickers. They are not
+    independent disclosure events: no standalone balance sheet exists for
+    that date, so their dependency key ``ts_code|YYYY-01-01|balance|csmar``
+    can never be verified against stock_first_disclosure, and letting them
+    through moves book equity forward before the genuine annual report is
+    public. Only CSMAR balance facts on a non-quarter-end January 1 are
+    excluded; income and direct-cashflow facts on the same date keep their
+    own YTD/TTM semantics and are left untouched.
+    """
+    end_date = facts["end_date"]
+    invalid = (
+        facts["data_source"].eq("csmar")
+        & facts["statement_type"].eq("balance")
+        & end_date.dt.month.eq(1)
+        & end_date.dt.day.eq(1)
+        & ~end_date.dt.is_quarter_end
+    )
+    if not invalid.any():
+        return facts
+    return facts.loc[~invalid]
+
+
 def build_policy_snapshots(
     raw_facts: pd.DataFrame,
     month_ends,
@@ -2400,6 +2427,7 @@ def build_policy_snapshots(
     from signals.style_basket.scoring import style_scores
 
     facts = apply_pit_policy(raw_facts, policy)
+    facts = _exclude_invalid_csmar_jan_01_balance_events(facts)
 
     provenance_columns = [
         "true_first_disclosure_verified",

@@ -1499,6 +1499,109 @@ def _patch_minimal_assembly_dependencies(
     )
 
 
+def _jan_01_balance_event_inputs(equity_on_jan_01):
+    inputs = _minimal_assembly_inputs()
+    inputs["raw_facts"] = pd.DataFrame(
+        [
+            {
+                "ts_code": "A",
+                "end_date": "2020-12-31",
+                "stored_ann_date": "2021-04-30",
+                "statement_type": "balance",
+                "data": {"equity_parent": 500.0},
+                "data_source": "csmar",
+                "first_disclosure_date": "2021-04-30",
+                "disclosure_quality": "ok",
+            },
+            {
+                "ts_code": "A",
+                "end_date": "2021-01-01",
+                "stored_ann_date": "2021-07-29",
+                "statement_type": "balance",
+                "data": {"equity_parent": equity_on_jan_01},
+                "data_source": "csmar",
+                "first_disclosure_date": None,
+                "disclosure_quality": "sentinel",
+            },
+        ]
+    )
+    return inputs
+
+
+@pytest.mark.parametrize("policy", [POLICY_MAIN, POLICY_LAG])
+@pytest.mark.parametrize(
+    "equity_on_jan_01",
+    [
+        pytest.param(500.0, id="same-equity"),
+        pytest.param(900.0, id="different-equity"),
+    ],
+)
+def test_snapshot_bp_excludes_csmar_jan_01_balance_event(
+    monkeypatch,
+    policy,
+    equity_on_jan_01,
+):
+    inputs = _jan_01_balance_event_inputs(equity_on_jan_01)
+    inputs["policy"] = policy
+    formation = inputs["month_ends"][0]
+
+    def bp_as_style_score(factors):
+        out = factors.copy()
+        out["style_score"] = factors["bp"]
+        return out
+
+    monkeypatch.setattr(
+        "signals.style_basket.scoring.style_scores",
+        bp_as_style_score,
+    )
+
+    snapshot = build_policy_snapshots(**inputs)[formation].set_index("ticker")
+
+    assert snapshot.loc["A", "style_score"] == pytest.approx(0.5)
+    assert bool(snapshot.loc["A", "true_first_disclosure_verified"])
+    assert snapshot.loc["A", "_unverified_dependency_keys"] == ()
+
+
+def test_snapshot_jan_01_filter_is_balance_event_scoped(monkeypatch):
+    inputs = _jan_01_balance_event_inputs(900.0)
+    inputs["raw_facts"] = pd.concat(
+        [
+            inputs["raw_facts"],
+            pd.DataFrame(
+                [
+                    {
+                        "ts_code": "A",
+                        "end_date": "2021-01-01",
+                        "stored_ann_date": "2021-07-29",
+                        "statement_type": statement_type,
+                        "data": data,
+                        "data_source": "csmar",
+                        "first_disclosure_date": None,
+                        "disclosure_quality": "sentinel",
+                    }
+                    for statement_type, data in [
+                        ("income", {"revenue": 700.0}),
+                        ("cashflow_direct", {"cfo_net": 300.0}),
+                    ]
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
+    seen_jan_01_statements = set()
+
+    def recording_rows(facts):
+        jan_01 = facts["end_date"].eq(pd.Timestamp("2021-01-01"))
+        seen_jan_01_statements.update(facts.loc[jan_01, "statement_type"])
+        return _minimal_derived_rows(facts)
+
+    _patch_minimal_assembly_dependencies(monkeypatch, recording_rows)
+
+    build_policy_snapshots(**inputs)
+
+    assert seen_jan_01_statements == {"income", "cashflow_direct"}
+
+
 def _derived_rows_with_factor_dependencies(facts, dependencies_by_factor):
     ticker = facts["ts_code"].iloc[0]
     known_date = facts["ann_date"].max()
