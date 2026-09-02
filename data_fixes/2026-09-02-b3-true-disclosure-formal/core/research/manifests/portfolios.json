@@ -1,0 +1,12 @@
+{
+  "blockers": [],
+  "config_hash": "33e7f69ff47e84e9ac92cabee2aa4f2fd1c19850e3d1a27d42a375a63c6b2c61",
+  "data_end": "2023-12-31",
+  "outputs": {
+    "axis_returns.csv": "a9a819546e87de626bd7ec6f2bcee26e6d1f07c1d488e8b27091596360bbdc13",
+    "conditional_leg_returns.csv": "5c82452afe60abe1d4f96abcc1ef6355b1f2c4eab01373a5de2664591a661397",
+    "stock_period_returns.csv.gz": "7d27b7cbb4d23607b3381a9237c6c911c98e8b3f00ca09010a0e775c58ef627a"
+  },
+  "stage": "portfolios",
+  "status": "OK"
+}

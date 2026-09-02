@@ -653,16 +653,16 @@ studies:
     status: provisional
     outcome: data_blocked
     evidence_level: legacy_formal_archive
-    scope: "冻结B3候选、旧近似PIT正式统计裁决，以及等待真首披模型行覆盖审计的最终裁决。"
-    claim: "旧统计verdict为STOP，但最终verdict仍为DATA_BLOCKED，尚不能终局关账。"
-    non_claims: ["不把旧近似PIT结果升级成真首披终局结论。", "coverage ready也不证明B3因子有效。"]
-    caveats: ["缺失或无效首披日仍回退法定截止日。", "Git内archive仅含10文件review core。"]
-    reopen_condition: "实际B3模型行真首披覆盖100%，再按冻结设计正式重跑并按原判据裁决。"
+    scope: "冻结B3候选在真首披覆盖100%下的正式重跑（2026-09-02 r4，代码013f3bc）及其按原判据的裁决。"
+    claim: "真首披正式重跑统计verdict仍为STOP（四路STRUCTURE_GATE_FAILED，stability在q500/qblend余弦仍为负、q1000秩相关0.30<0.50，sharpe_improvement四路全败），最终verdict仍为DATA_BLOCKED，run blocker由三条减为仅SALG_FRESHNESS一条（000820.SZ一只票）。"
+    non_claims: ["coverage 100%不证明B3因子有效。", "洗净SALG_FRESHNESS后STOP会翻GO（现有证据不支持）。", "旧08-12近似PIT结果不被改写，仅被r4超越。"]
+    caveats: ["缺失或无效首披日仍回退法定截止日，真首披下两PIT口径在多数腿上数值收敛。", "bootstrap仍为哨兵值未真跑。", "Git内r4 archive仅含review core，完整run在host-local tarball。"]
+    reopen_condition: "Wind回填000820.SZ 2020-03-31/2021-03-31利润表并审计后，按冻结规格仅重跑structure→eval出干净最终verdict；统计STOP不因blocker洗净而重开。"
     production: {affects: false, role: provisional_data_blocked}
     documents:
       spec: [docs/plans/2026-08-05-data-materiality-exemption-design.md, docs/plans/2026-08-06-q500-direct-measurement-design.md, docs/plans/2026-08-14-pit-foundation-handover-proposal.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md]
-      report: [docs/plans/2026-08-12-b3-formal-run-verdict-analysis.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md, docs/plans/2026-08-31-b3-true-disclosure-rerun-handoff.md]
-      evidence: [data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/verdicts.csv, data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/run_manifest.json]
+      report: [docs/plans/2026-08-12-b3-formal-run-verdict-analysis.md, docs/plans/2026-08-24-first-disclosure-pit-upgrade.md, docs/plans/2026-08-31-b3-true-disclosure-rerun-handoff.md, docs/plans/2026-09-02-b3-true-disclosure-formal-verdict.md]
+      evidence: [data_fixes/2026-09-02-b3-true-disclosure-formal/core/backtest/verdicts.csv, data_fixes/2026-09-02-b3-true-disclosure-formal/core/backtest/run_manifest.json, data_fixes/2026-08-01-b3-wind-share-capital-formal-archive/core/backtest/verdicts.csv]
     supersedes: []
     depends_on: [gate0r-data-foundation]
 

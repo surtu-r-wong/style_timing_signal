@@ -1,0 +1,5 @@
+2026-09-02T16:20:01+08:00 runner=start pid=186975 ppid=85413 pgid=186975 sid=186975 cgroup=/user.slice/user-1000.slice/session-659.scope
+2026-09-02T16:20:01+08:00 stage=eval event=start
+2026-09-02T16:20:01+08:00 stage=eval event=wait job_pid=187019
+2026-09-02T16:20:03+08:00 stage=eval event=end rc=2
+2026-09-02T16:21:01+08:00 trap=EXIT rc=2 signal=none pid=186975 ppid=85413 pgid=186975 sid=186975 cgroup=/user.slice/user-1000.slice/user@1000.service/tmux-spawn-2108f9ef-3564-42c7-8981-3a1e525fb646.scope

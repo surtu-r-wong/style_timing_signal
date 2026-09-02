@@ -1,0 +1,5 @@
+2026-09-02T15:39:03+08:00 runner=start pid=183188 ppid=85413 pgid=183188 sid=183188 cgroup=/user.slice/user-1000.slice/user@1000.service/tmux-spawn-c7efcaec-4267-4c38-aa62-d595072b14e9.scope
+2026-09-02T15:39:03+08:00 stage=states event=start
+2026-09-02T15:39:03+08:00 stage=states event=wait job_pid=183232
+2026-09-02T16:06:28+08:00 stage=states event=end rc=0
+2026-09-02T16:07:03+08:00 trap=EXIT rc=0 signal=none pid=183188 ppid=85413 pgid=183188 sid=183188 cgroup=/user.slice/user-1000.slice/user@1000.service/tmux-spawn-c7efcaec-4267-4c38-aa62-d595072b14e9.scope

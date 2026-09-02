@@ -1,0 +1,12 @@
+watchdog_start=2026-09-02T16:20:01+08:00 pid=186982 target=b3j0902r4e
+2026-09-02T16:20:01+08:00 target_session=present pane_id=%45|pane_pid=186975|pane_dead=0|pane_dead_status=|pane_dead_signal=|pane_dead_time=|pane_current_command=bash|pane_start_command=/home/ghls/b3_runs/20260902_jan01_pit_r4/run_jan01_r4_eval.sh
+2026-09-02T16:20:01+08:00 pane_process=present cgroup=/user.slice/user-1000.slice/user@1000.service/tmux-spawn-2108f9ef-3564-42c7-8981-3a1e525fb646.scope current=0 peak=0 events=low 0,high 0,max 0,oom 0,oom_kill 0,oom_group_kill 0, ps= 186975   85413  186975  186975 Ss+        0  3568 bash /home/ghls/b3_runs/20260902_jan01_pit_r4/run_jan01_r4_eval.sh
+2026-09-02T16:20:01+08:00 receipt_tail=run_root=/home/ghls/b3_runs/20260902_jan01_pit_r4;worktree=/home/ghls/style_timing_signal-jan01-pit;head=013f3bc9fde276671e400abc317aa46c47fcb0bc;python=/home/ghls/style_timing_signal/.venv/bin/python;
+2026-09-02T16:20:31+08:00 target_session=present pane_id=%45|pane_pid=186975|pane_dead=0|pane_dead_status=|pane_dead_signal=|pane_dead_time=|pane_current_command=bash|pane_start_command=/home/ghls/b3_runs/20260902_jan01_pit_r4/run_jan01_r4_eval.sh
+2026-09-02T16:20:31+08:00 pane_process=present cgroup=/user.slice/user-1000.slice/user@1000.service/tmux-spawn-2108f9ef-3564-42c7-8981-3a1e525fb646.scope current=88154112 peak=141824000 events=low 0,high 0,max 0,oom 0,oom_kill 0,oom_group_kill 0, ps= 186975   85413  186975  186975 Ss+       30  4148 bash /home/ghls/b3_runs/20260902_jan01_pit_r4/run_jan01_r4_eval.sh
+2026-09-02T16:20:31+08:00 receipt_tail=eval.pid=187019;eval.end=2026-09-02T16:20:03+08:00;eval.exit=2;final_status=eval_exit_2;runner_end=2026-09-02T16:20:03+08:00;
+2026-09-02T16:21:01+08:00 target_session=present pane_id=%45|pane_pid=186975|pane_dead=0|pane_dead_status=|pane_dead_signal=|pane_dead_time=|pane_current_command=bash|pane_start_command=/home/ghls/b3_runs/20260902_jan01_pit_r4/run_jan01_r4_eval.sh
+2026-09-02T16:21:01+08:00 pane_process=present cgroup=/user.slice/user-1000.slice/user@1000.service/tmux-spawn-2108f9ef-3564-42c7-8981-3a1e525fb646.scope current=88154112 peak=141824000 events=low 0,high 0,max 0,oom 0,oom_kill 0,oom_group_kill 0, ps= 186975   85413  186975  186975 Ss+       60  4148 bash /home/ghls/b3_runs/20260902_jan01_pit_r4/run_jan01_r4_eval.sh
+2026-09-02T16:21:01+08:00 receipt_tail=eval.pid=187019;eval.end=2026-09-02T16:20:03+08:00;eval.exit=2;final_status=eval_exit_2;runner_end=2026-09-02T16:20:03+08:00;
+2026-09-02T16:21:31+08:00 target_session=absent
+watchdog_end=2026-09-02T16:21:31+08:00

@@ -1,0 +1,10 @@
+{
+  "blockers": [],
+  "config_hash": "33e7f69ff47e84e9ac92cabee2aa4f2fd1c19850e3d1a27d42a375a63c6b2c61",
+  "data_end": "2023-12-31",
+  "outputs": {
+    "monthly_exposures.csv.gz": "0e7fbc4c1e6c288cf456aad48cdb04d2c2e0c5c3ea56390b3ef4a0514136d109"
+  },
+  "stage": "exposures",
+  "status": "OK"
+}
