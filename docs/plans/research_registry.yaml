@@ -799,6 +799,25 @@ studies:
     supersedes: []
     depends_on: [long-axes-probes]
 
+  - id: money-flow-residual-axis
+    title: "资金流向面（主力残差净流入·慢腿化）"
+    family: positioning-flow
+    status: provisional
+    outcome: data_blocked
+    evidence_level: preregistered
+    scope: "用户09-03给出Wind wset marketmoneyflows沪深300导出触发：四指数板块级主力净流入占比剔同日涨跌（过去250日OLS，PIT）后的残差流，F1市场级/F2小盘减大盘两族，GRID_LEVEL×k{5,10,20,40}=32变体，默认两半窗，三关+关0选优校正。"
+    claim: "预登记已落、机器与5个手算单测已过；数据通路三段中网关端点待用户在Windows部署重启（ssh会话WindPy登录失败-40520004，计划任务被封），表已建成为空。未看任何裁决数。"
+    non_claims: ["不得引作资金流对个股或行业无价值。", "不得引作未残差化原始流无价值（原始流81%是价格，属价格类面既有结论）。"]
+    caveats: ["冻结前只看过65日沪深300描述统计（同日相关0.81、领先相关k=1..5偏负、残差对次日≈0），已在预登记§0披露。", "中证2000板块历史起点未知；F2不依赖它，F1按可用≥3指数记。"]
+    reopen_condition: "网关上线→fetch/load过§5四条数据前置→--run出四关裁决后改为closed。"
+    production: {affects: false, role: candidate_axis}
+    documents:
+      spec: [docs/plans/2026-09-03-money-flow-axis-prereg.md]
+      report: []
+      evidence: [data_fixes/2026-09-03-index-money-flow/README.md]
+    supersedes: []
+    depends_on: [long-axes-probes]
+
   - id: gate0r-data-foundation
     title: "Gate 0R数据底座"
     family: style-basket-foundation
