@@ -723,6 +723,25 @@ studies:
     supersedes: []
     depends_on: [production-equal-weight-long-flat]
 
+  - id: futures-basis-term-structure
+    title: "期指基差期限结构面"
+    family: futures-basis
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "IC/IM每日4合约年化基差率的期限斜率/远近差/斜率变化三族，GRID_LEVEL×k{5,10,20,40}=48变体，默认两半窗，三关+关0选优校正。"
+    claim: "三族STOP：关1不过（置换p 0.11/0.11/0.33，偏IC p 0.12/0.12/0.56），关0网格最优|IC| 0.289对q95 0.317、p_selected 0.10；但T1/T2在16格几乎全为正、两半窗与2015-16/2017-26同号、净Sharpe 0.68，是弱而一致的正向纹理，功效不足而非形态矛盾；覆盖度第十次确认。"
+    non_claims: ["不得引作期限结构无信息（三面里唯一全格同号的候选，量级低于门槛）。", "T1与T2同源，不是两条独立证据。"]
+    caveats: ["2015-06至09股灾极值按冻结规则保留原始值。", "方向+1=远月相对更深贴水后未来收益更高，属描述性经济读法。"]
+    reopen_condition: "与basis-c1-retest同步：carry序列累计到约2029-02后按本规格单点复检T1 lb5zw60/k=40/方向+1，不扫网格；通过则与C1同秤合并装配裁决。"
+    production: {affects: false, role: closed_axis}
+    documents:
+      spec: [docs/plans/2026-09-03-basis-term-structure-axis-prereg.md]
+      report: [docs/plans/2026-09-03-basis-term-structure-axis-results.md]
+      evidence: [backtest/output/basis_term_probe_verdicts.csv, backtest/output/basis_term_selection.json]
+    supersedes: []
+    depends_on: [basis-c1-retest]
+
   - id: gate0r-data-foundation
     title: "Gate 0R数据底座"
     family: style-basket-foundation
