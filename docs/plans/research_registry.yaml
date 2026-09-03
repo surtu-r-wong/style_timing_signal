@@ -780,6 +780,25 @@ studies:
     supersedes: []
     depends_on: [production-equal-weight-long-flat]
 
+  - id: new-high-participation
+    title: "创新高参与度面（250日新高/20日）"
+    family: market-breadth
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "国信周报触发：全市场与500∪1000减300的250日新高20日参与度两族，GRID_LEVEL×k{5,10,20,40}=32变体，默认两半窗，三关+关0选优校正。"
+    claim: "两族STOP：N1 16格IC全为−0.03~−0.08，N2≈0；关1不过（p 0.70/0.98，偏IC p 0.31/0.93）；关0网格最优0.237对q95 0.315、p_selected 0.25；覆盖度第十一次确认，广度轴第三次关帐。"
+    non_claims: ["不得引作创新高信息对个股或行业无价值（研报用法为选股与热点监测）。"]
+    caveats: ["冻结后两处实现更正已披露：停牌日无行需前向填充；close_hfq近期不全改用close×adj_factor。", "k=40约70窗时换采样起点IC可摆动0.2。"]
+    reopen_condition: "仅当取得风格腿成分历史后另行预登记腿级新高参与度差；市场级与规模级不再重开。"
+    production: {affects: false, role: closed_axis}
+    documents:
+      spec: [docs/plans/2026-09-03-new-high-breadth-axis-prereg.md]
+      report: [docs/plans/2026-09-03-new-high-breadth-axis-results.md]
+      evidence: [backtest/output/new_high_axis_probe_verdicts.csv, backtest/output/new_high_axis_selection.json]
+    supersedes: []
+    depends_on: [long-axes-probes]
+
   - id: gate0r-data-foundation
     title: "Gate 0R数据底座"
     family: style-basket-foundation
