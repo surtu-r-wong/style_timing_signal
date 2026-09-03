@@ -818,6 +818,25 @@ studies:
     supersedes: []
     depends_on: [long-axes-probes]
 
+  - id: gateway-provenance-gap
+    title: "网关溯源缺口（现网跑着仓里没有源码的端点）"
+    family: production-monitoring
+    status: open
+    outcome: pending
+    evidence_level: exploratory
+    scope: "对比现网网关 /openapi.json 的 paths 与 stock_selector master 的 wind_gateway/endpoints.py 装饰器集合，核对部署件与仓的一致性。"
+    claim: "双向不一致。现网跑着 /fetch/bonus 与 /fetch/futures 两个端点，源码在 master 的 wind_gateway/ 里完全不存在——是直接改现网文件加的，唯一副本在那台 Windows 机上且无版本控制。反向：master 有三个 etf_option 端点从未部署。另 /fetch/market_money_flow 在分支 feat/index-money-flow 上（基于旧 master cb475ed7，master 已到 b2d479e3），已部署。风险：任何人从 master 重新部署网关，那两个端点就消失，其中 /fetch/futures 正是 08-25 carry 线卡了很久才补上的。"
+    non_claims: ["未核对端点实现的等价性，只比对了端点集合。", "不涉及网关以外的部署件。"]
+    caveats: ["初次比对只扫了 endpoints.py，把 /health /ping /quota /admin/reload 误报为漂移，实际它们在 wind_gateway/main.py，已更正。", "本次资金流端点的部署件是以现网文件为基做的（不能以 master 为基，否则会抹掉那两个端点）——等于把漂移又固化了一层。"]
+    reopen_condition: "未处置。建议顺序：①把现网 endpoints.py/config.yaml 取回仓作一笔「记录既成事实」的提交，不做修改 ②在其上合入 feat/index-money-flow（需先并进已前移的 master）③三个 etf_option 端点是否部署单独裁 ④长期改为「从仓里某个 tag 部署」、禁止直接改现网文件。涉及别人加的端点且 master 已前移，未单方面执行。"
+    production: {affects: true, role: infrastructure}
+    documents:
+      spec: []
+      report: [docs/plans/2026-09-03-gateway-provenance-gap.md]
+      evidence: []
+    supersedes: []
+    depends_on: []
+
   - id: gate0-criterion-max-t-vs-min-p
     title: "关 0 口径论证（max-T vs Westfall–Young min-P）"
     family: robustness-diagnostic

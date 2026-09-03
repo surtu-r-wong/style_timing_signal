@@ -204,6 +204,38 @@ def apply_selection(pool: np.ndarray, select_fn: SelectFn) -> tuple[np.ndarray, 
     return picks, vals
 
 
+GATE0_CRITERIA = ("max_t", "min_p")
+
+
+def adjusted_pvalue(res, variant_index: int, criterion: str) -> float:
+    """指定变体的**单步多重性校正 p**（该变体不必是网格 argmax，族代表通常就不是）。
+
+    - `"max_t"`：p̃ = P(max_l T_l^null ≥ T_j^obs)。门槛由**方差最大的变体类**标定。
+    - `"min_p"`：p̃ = P(min_l P_l^null ≤ P_j^obs)，Westfall–Young，尺度无关。
+
+    **`criterion` 没有默认值——必须显式选，依据写进预登记 §3。**
+    2026-09-03 论证（`docs/plans/2026-09-03-gate0-criterion-argument.md`，两个真实网格 B=1000）：
+    两者检验水平都准（α=0.05 实测 0.050 / 0.050 与 0.050 / 0.040），但功效差别极大——
+    效应落在低噪声档时 max-T 的检出率**等于零假设本底**（k=5 档 δ≤0.15 恒为 0.050，
+    而 min-P 到 0.994/0.997），只有效应落在方差最大那一档时 max-T 才占优（0.301 vs 0.193）。
+    故**默认 min-P**；用 max-T 需论证「网格各变体有效样本量相当」或「先验效应在最吵那一类」。
+
+    历史：本函数之前不存在，四个轴探针各自内联 `bool(obs >= q95)`（= max-T）互相克隆，
+    口径从未被选过。本函数把选择显式化，不改变任何已登记裁决。
+    """
+    if criterion not in GATE0_CRITERIA:
+        raise ValueError(f"criterion 必须是 {GATE0_CRITERIA} 之一，得到 {criterion!r}；"
+                         "依据须写进预登记 §3")
+    pool = np.vstack([res.observed[None, :], res.null_stats])
+    m = pool.shape[0]
+    if criterion == "max_t":
+        sel = pool.max(axis=1)
+        return float(np.count_nonzero(sel >= pool[0, variant_index]) / m)
+    colp = column_pvalues(pool)
+    minp = colp.min(axis=1)
+    return float(np.count_nonzero(minp <= colp[0, variant_index]) / m)
+
+
 def column_pvalues(pool: np.ndarray) -> np.ndarray:
     """池内逐列置换 p：`p[r, j] = #{r': pool[r', j] >= pool[r, j]} / m`（含自身）。
 

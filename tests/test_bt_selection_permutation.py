@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -460,3 +461,82 @@ def test_injected_index_matrix_overrides_sampling():
     except ValueError:
         return
     raise AssertionError("shape mismatch should raise")
+
+
+# ---------------------------------------------------------------- adjusted_pvalue
+# 关 0 口径显式化（2026-09-03）：四个轴探针原本各自内联 `bool(obs >= q95)`（= max-T）
+# 互相克隆，口径从未被选过。`adjusted_pvalue` 强制显式指定，依据写进预登记 §3。
+
+class _FakeRes:
+    """只带 adjusted_pvalue 需要的两个字段。"""
+    def __init__(self, pool):
+        pool = np.asarray(pool, dtype=float)
+        self.observed = pool[0]
+        self.null_stats = pool[1:]
+
+
+# 池（首行为观测）：变体 0 是低方差档（0.1~0.5），变体 1 是高方差档（0.7~0.95）
+_POOL = [[0.5, 0.90],     # 观测
+         [0.1, 0.80],
+         [0.2, 0.95],
+         [0.3, 0.70]]
+
+
+def test_adjusted_pvalue_criterion_is_required_and_validated():
+    from backtest.selection_permutation import adjusted_pvalue
+    res = _FakeRes(_POOL)
+    with pytest.raises(TypeError):                     # 无默认值 → 不给就报错
+        adjusted_pvalue(res, 0)
+    with pytest.raises(ValueError, match="预登记"):     # 拼错的口径必须炸，不许静默回落
+        adjusted_pvalue(res, 0, "maxT")
+
+
+def test_adjusted_pvalue_max_t_hand_computed():
+    """max-T：p̃ = #{行 max ≥ 该变体观测值} / m。m=4，行 max = [0.90, 0.80, 0.95, 0.70]。"""
+    from backtest.selection_permutation import adjusted_pvalue
+    res = _FakeRes(_POOL)
+    # 变体 0 观测 0.5：四行的 max 全 ≥ 0.5 → 4/4
+    assert adjusted_pvalue(res, 0, "max_t") == pytest.approx(1.0)
+    # 变体 1 观测 0.90：只有 0.90 与 0.95 两行 ≥ 0.90 → 2/4
+    assert adjusted_pvalue(res, 1, "max_t") == pytest.approx(0.5)
+
+
+def test_adjusted_pvalue_min_p_hand_computed():
+    """min-P：先逐列转 p，再比 min_j p_j。
+
+    列 0 值 [0.5,0.1,0.2,0.3] → p = [0.25, 1.0, 0.75, 0.5]
+    列 1 值 [0.9,0.8,0.95,0.7] → p = [0.5, 0.75, 0.25, 1.0]
+    逐行 min p = [0.25, 0.75, 0.25, 0.5]
+    """
+    from backtest.selection_permutation import adjusted_pvalue
+    res = _FakeRes(_POOL)
+    # 变体 0 的观测列 p = 0.25；min p ≤ 0.25 的有第 0、2 行 → 2/4
+    assert adjusted_pvalue(res, 0, "min_p") == pytest.approx(0.5)
+    # 变体 1 的观测列 p = 0.50；min p ≤ 0.50 的有第 0、2、3 行 → 3/4
+    assert adjusted_pvalue(res, 1, "min_p") == pytest.approx(0.75)
+
+
+def test_max_t_is_blind_to_the_low_variance_variant_min_p_is_not():
+    """论证的核心形态：低方差档的变体在 max-T 下拿到最差的 p，在 min-P 下明显更好。
+
+    变体 0 是这个池里**观测值相对自身零分布最极端**的那个（列 p = 0.25，比变体 1 的 0.50 更极端），
+    但它的绝对值 0.5 够不到高方差档的水位，于是 max-T 给它 p=1.0（最差可能值）。
+    """
+    from backtest.selection_permutation import adjusted_pvalue
+    res = _FakeRes(_POOL)
+    assert adjusted_pvalue(res, 0, "max_t") == pytest.approx(1.0)      # 完全看不见
+    assert adjusted_pvalue(res, 0, "min_p") < adjusted_pvalue(res, 0, "max_t")
+
+
+def test_max_t_matches_the_inlined_form_used_by_existing_probes():
+    """等价性：现有四个探针内联的 `count(null_selected >= obs)` 与 max-T 口径同源。
+
+    差别只在探针版用的是 `obs >= q95` 的阈值形式、本函数给的是 p 值形式；
+    此处钉住 p 值形式与「池内行 max ≥ 观测」的计数完全一致（含观测行本身）。
+    """
+    from backtest.selection_permutation import adjusted_pvalue
+    pool = np.asarray(_POOL, dtype=float)
+    res = _FakeRes(pool)
+    for j in (0, 1):
+        manual = np.count_nonzero(pool.max(axis=1) >= pool[0, j]) / pool.shape[0]
+        assert adjusted_pvalue(res, j, "max_t") == pytest.approx(manual)

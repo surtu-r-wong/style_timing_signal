@@ -35,6 +35,15 @@ def build_signals(series: pd.DataFrame) -> dict[str, dict[str, pd.Series]]:
     return {fam: {f"{fam}_lb{lb}zw{zw}": level_signal(s[fam].dropna(), lb, zw) for lb, zw in GRID_LEVEL} for fam in FAMILIES}
 
 
+# 关 0 口径（2026-09-03 补注）：本探针用的是 **max-T**（下方 `obs >= q95`）。
+# 它不是选出来的，是从 `new_high_axis_probe` 起逐个克隆下来的默认。口径论证见
+# `docs/plans/2026-09-03-gate0-criterion-argument.md`：max-T 对落在低噪声档的真效应
+# 功效等于零假设本底，此后**默认改用 min-P**（`selection_permutation.adjusted_pvalue`
+# 的 criterion 参数无默认值，强制显式选）。
+# 本行注释只是把既成事实记下来，**不改本探针的计算，也不改任何已登记裁决**。
+GATE0_CRITERION = "max_t"   # 本次运行实际使用的口径（历史默认，非论证后选择）
+
+
 def gate0(sigs: dict, und: pd.Series, verdicts: pd.DataFrame, n_perm: int, seed: int = 0) -> tuple[pd.DataFrame, dict]:
     idx = und.index
     for fam in FAMILIES:
