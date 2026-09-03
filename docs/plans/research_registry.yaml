@@ -818,6 +818,25 @@ studies:
     supersedes: []
     depends_on: [long-axes-probes]
 
+  - id: gate0-criterion-max-t-vs-min-p
+    title: "关 0 口径论证（max-T vs Westfall–Young min-P）"
+    family: robustness-diagnostic
+    status: closed
+    outcome: descriptive
+    evidence_level: committed_formal_probe
+    scope: "用selection_permutation_test的(B,J)联合零分布矩阵做水平与功效研究：留一法测两个口径的真实假阳率；把某档k的列整体抬高δ测检出率。两个独立真实网格：资金流面32变体2715日、现役equal_weight 16变体3003日，B=1000。"
+    claim: "关0默认口径应改为min-P，max-T退为需论证的例外。水平：两网格上min-P假阳率准确或略保守（α=0.05实测0.050/0.040），不是把门槛调松。功效（δ=0.10,α=0.05，max-T/min-P）：效应在k=5为0.050/0.994与0.050/0.997——max-T等于零假设本底、完全看不见；k=10为0.050/0.700与0.068/0.460；k=20为0.078/0.344与0.130/0.418；k=40为0.301/0.193与0.367/0.175，仅此档max-T占优。即max-T的门槛由方差最大的变体类标定（实测池化q95与k=40单独口径float64严格相等、空分布上5%尾部最大值100%由k=40产生），落在低噪声档的真效应够不到那条线。起点是在位者审计：现役equal_weight信号在自己16变体网格上也过不了关0（|IC| 0.1948 vs q95 0.2823），且同一条信号p_selected=0.293不显著而p_min_p=0.013显著。"
+    non_claims: ["不说明关0该取消——没有它时实测假阳率16点网格20%、40点网格35~44%（名义5%），校正必须做，本论证只解决选哪种校正。", "不说明现役信号是假的——关0是发现阶段的多重检验校正，现役信号的证据基础是实盘部署+跨确认窗，两者不同类。", "不构成对任何已登记裁决的翻案——看过读数再换口径等于用同一份数据既选规则又下结论；只改变今后的预登记默认值。", "min-P不是免费的：k=40档损失36%相对功效（0.193 vs 0.301），它是把功效从方差最大的变体重分配给有效观测更多的变体。"]
+    caveats: ["备择假设建模为某档k的|IC|整体位移δ，未建模真实效应按各形态敏感度的不同传导；但四个k在同一建模下对比，方向不受影响。", "证据只来自这两个网格，推广到形态数或k集合差异很大的网格前应重跑（--grid 可加新网格）。", "受影响的已有裁决只有资金流面F1一条（代表在k=20，该档max-T功效0.078）；股指期权IV面O2不受影响（代表在k=40即max-T最优区，且其p_min_p=0.234同样不显著）。", "连带发现：资金流面预登记§4的功效边界「可检出|IC|≳0.16」是按单检验算的，而实际生效的闸是关0的0.337，差两倍多。"]
+    reopen_condition: "网格结构与本论证的两个网格差异很大时（形态数、k集合、有效样本量离散度），须重跑 backtest.gate0_criterion_study 重新论证。"
+    production: {affects: false, role: methodology}
+    documents:
+      spec: [docs/plans/2026-09-03-gate0-incumbent-audit.md]
+      report: [docs/plans/2026-09-03-gate0-criterion-argument.md]
+      evidence: [backtest/gate0_criterion_study.py]
+    supersedes: []
+    depends_on: []
+
   - id: gate0r-data-foundation
     title: "Gate 0R数据底座"
     family: style-basket-foundation

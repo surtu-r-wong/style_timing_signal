@@ -200,5 +200,207 @@
     ]
    }
   }
+ },
+ "incumbent": {
+  "label": "现役 equal_weight 网格（16 变体，3,003 日）",
+  "size": {
+   "n_draws": 1000,
+   "p_selected": {
+    "size_at_0.05": 0.05,
+    "size_at_0.1": 0.1
+   },
+   "p_min_p": {
+    "size_at_0.05": 0.04,
+    "size_at_0.1": 0.1
+   },
+   "p_selected_mean": 0.500738,
+   "p_min_p_mean": 0.503405
+  },
+  "power": {
+   "k5": {
+    "target_k": 5,
+    "alpha": 0.05,
+    "curve": [
+     {
+      "delta": 0.0,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.04
+     },
+     {
+      "delta": 0.02,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.085
+     },
+     {
+      "delta": 0.04,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.251
+     },
+     {
+      "delta": 0.06,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.548
+     },
+     {
+      "delta": 0.08,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.842
+     },
+     {
+      "delta": 0.1,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.997
+     },
+     {
+      "delta": 0.15,
+      "power_p_selected": 0.061,
+      "power_p_min_p": 1.0
+     },
+     {
+      "delta": 0.2,
+      "power_p_selected": 0.208,
+      "power_p_min_p": 1.0
+     }
+    ]
+   },
+   "k10": {
+    "target_k": 10,
+    "alpha": 0.05,
+    "curve": [
+     {
+      "delta": 0.0,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.04
+     },
+     {
+      "delta": 0.02,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.05
+     },
+     {
+      "delta": 0.04,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.085
+     },
+     {
+      "delta": 0.06,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.148
+     },
+     {
+      "delta": 0.08,
+      "power_p_selected": 0.059,
+      "power_p_min_p": 0.3
+     },
+     {
+      "delta": 0.1,
+      "power_p_selected": 0.068,
+      "power_p_min_p": 0.46
+     },
+     {
+      "delta": 0.15,
+      "power_p_selected": 0.136,
+      "power_p_min_p": 0.962
+     },
+     {
+      "delta": 0.2,
+      "power_p_selected": 0.495,
+      "power_p_min_p": 1.0
+     }
+    ]
+   },
+   "k20": {
+    "target_k": 20,
+    "alpha": 0.05,
+    "curve": [
+     {
+      "delta": 0.0,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.04
+     },
+     {
+      "delta": 0.02,
+      "power_p_selected": 0.052,
+      "power_p_min_p": 0.058
+     },
+     {
+      "delta": 0.04,
+      "power_p_selected": 0.059,
+      "power_p_min_p": 0.105
+     },
+     {
+      "delta": 0.06,
+      "power_p_selected": 0.07,
+      "power_p_min_p": 0.175
+     },
+     {
+      "delta": 0.08,
+      "power_p_selected": 0.092,
+      "power_p_min_p": 0.269
+     },
+     {
+      "delta": 0.1,
+      "power_p_selected": 0.13,
+      "power_p_min_p": 0.418
+     },
+     {
+      "delta": 0.15,
+      "power_p_selected": 0.391,
+      "power_p_min_p": 0.796
+     },
+     {
+      "delta": 0.2,
+      "power_p_selected": 0.751,
+      "power_p_min_p": 1.0
+     }
+    ]
+   },
+   "k40": {
+    "target_k": 40,
+    "alpha": 0.05,
+    "curve": [
+     {
+      "delta": 0.0,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.04
+     },
+     {
+      "delta": 0.02,
+      "power_p_selected": 0.08,
+      "power_p_min_p": 0.054
+     },
+     {
+      "delta": 0.04,
+      "power_p_selected": 0.116,
+      "power_p_min_p": 0.075
+     },
+     {
+      "delta": 0.06,
+      "power_p_selected": 0.192,
+      "power_p_min_p": 0.1
+     },
+     {
+      "delta": 0.08,
+      "power_p_selected": 0.261,
+      "power_p_min_p": 0.137
+     },
+     {
+      "delta": 0.1,
+      "power_p_selected": 0.367,
+      "power_p_min_p": 0.175
+     },
+     {
+      "delta": 0.15,
+      "power_p_selected": 0.681,
+      "power_p_min_p": 0.417
+     },
+     {
+      "delta": 0.2,
+      "power_p_selected": 0.921,
+      "power_p_min_p": 0.726
+     }
+    ]
+   }
+  }
  }
 }
