@@ -14,11 +14,23 @@ def _close(n=600, seed=0):
 def test_new_high_flag_requires_full_window_and_holds_20_days():
     idx = pd.bdate_range("2014-01-01", periods=300)
     c = pd.DataFrame({"A": np.linspace(1, 2, 300)}, index=idx)      # 单调上升：每日新高
-    nh20 = new_high_flags(c)
-    assert not nh20.iloc[:249, 0].any() and nh20.iloc[249:, 0].all()
+    nh20 = new_high_flags(c); e = eligible(c)
+    assert nh20.iloc[:, 0].all()                                       # 单调上升：每日都是滚动最高（资格另判）
+    assert not e.iloc[:249, 0].any() and e.iloc[249:, 0].all()         # 分母资格：累计观测 ≥ 250
     c2 = c.copy(); c2.iloc[260:, 0] = 1.5                            # 260 起回落：新高 20 日内仍记
     n2 = new_high_flags(c2)
     assert n2.iloc[260:279, 0].all() and not n2.iloc[280:, 0].any()
+
+
+def test_suspension_gap_does_not_drop_stock_and_delisting_stops_ffill():
+    idx = pd.bdate_range("2014-01-01", periods=400)
+    c = pd.DataFrame({"A": np.linspace(1, 2, 400)}, index=idx)
+    c.iloc[300:310, 0] = np.nan                      # 停牌 10 日
+    nh20 = new_high_flags(c); e = eligible(c)
+    assert e.iloc[310:, 0].all() and nh20.iloc[311:, 0].all()   # 复牌后继续计入且创新高
+    assert not nh20.iloc[300:310, 0].any() or nh20.iloc[300:310, 0].all()  # 停牌日 NH20 只沿用此前 20 日状态
+    d = c.copy(); d.iloc[350:, 0] = np.nan            # 退市
+    assert not eligible(d).iloc[350:, 0].any()
 
 
 def test_eligible_listing_age():
