@@ -1,0 +1,204 @@
+{
+ "moneyflow": {
+  "label": "资金流面网格（32 变体，2,715 日）",
+  "size": {
+   "n_draws": 1000,
+   "p_selected": {
+    "size_at_0.05": 0.05,
+    "size_at_0.1": 0.1
+   },
+   "p_min_p": {
+    "size_at_0.05": 0.05,
+    "size_at_0.1": 0.089
+   },
+   "p_selected_mean": 0.500715,
+   "p_min_p_mean": 0.50547
+  },
+  "power": {
+   "k5": {
+    "target_k": 5,
+    "alpha": 0.05,
+    "curve": [
+     {
+      "delta": 0.0,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.05
+     },
+     {
+      "delta": 0.02,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.116
+     },
+     {
+      "delta": 0.04,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.252
+     },
+     {
+      "delta": 0.06,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.53
+     },
+     {
+      "delta": 0.08,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.833
+     },
+     {
+      "delta": 0.1,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.994
+     },
+     {
+      "delta": 0.15,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 1.0
+     },
+     {
+      "delta": 0.2,
+      "power_p_selected": 0.056,
+      "power_p_min_p": 1.0
+     }
+    ]
+   },
+   "k10": {
+    "target_k": 10,
+    "alpha": 0.05,
+    "curve": [
+     {
+      "delta": 0.0,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.05
+     },
+     {
+      "delta": 0.02,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.087
+     },
+     {
+      "delta": 0.04,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.154
+     },
+     {
+      "delta": 0.06,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.27
+     },
+     {
+      "delta": 0.08,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.466
+     },
+     {
+      "delta": 0.1,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.7
+     },
+     {
+      "delta": 0.15,
+      "power_p_selected": 0.059,
+      "power_p_min_p": 0.998
+     },
+     {
+      "delta": 0.2,
+      "power_p_selected": 0.182,
+      "power_p_min_p": 1.0
+     }
+    ]
+   },
+   "k20": {
+    "target_k": 20,
+    "alpha": 0.05,
+    "curve": [
+     {
+      "delta": 0.0,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.05
+     },
+     {
+      "delta": 0.02,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.069
+     },
+     {
+      "delta": 0.04,
+      "power_p_selected": 0.053,
+      "power_p_min_p": 0.089
+     },
+     {
+      "delta": 0.06,
+      "power_p_selected": 0.054,
+      "power_p_min_p": 0.141
+     },
+     {
+      "delta": 0.08,
+      "power_p_selected": 0.061,
+      "power_p_min_p": 0.23
+     },
+     {
+      "delta": 0.1,
+      "power_p_selected": 0.078,
+      "power_p_min_p": 0.344
+     },
+     {
+      "delta": 0.15,
+      "power_p_selected": 0.19,
+      "power_p_min_p": 0.722
+     },
+     {
+      "delta": 0.2,
+      "power_p_selected": 0.503,
+      "power_p_min_p": 0.98
+     }
+    ]
+   },
+   "k40": {
+    "target_k": 40,
+    "alpha": 0.05,
+    "curve": [
+     {
+      "delta": 0.0,
+      "power_p_selected": 0.05,
+      "power_p_min_p": 0.05
+     },
+     {
+      "delta": 0.02,
+      "power_p_selected": 0.073,
+      "power_p_min_p": 0.055
+     },
+     {
+      "delta": 0.04,
+      "power_p_selected": 0.102,
+      "power_p_min_p": 0.071
+     },
+     {
+      "delta": 0.06,
+      "power_p_selected": 0.155,
+      "power_p_min_p": 0.102
+     },
+     {
+      "delta": 0.08,
+      "power_p_selected": 0.219,
+      "power_p_min_p": 0.138
+     },
+     {
+      "delta": 0.1,
+      "power_p_selected": 0.301,
+      "power_p_min_p": 0.193
+     },
+     {
+      "delta": 0.15,
+      "power_p_selected": 0.559,
+      "power_p_min_p": 0.382
+     },
+     {
+      "delta": 0.2,
+      "power_p_selected": 0.811,
+      "power_p_min_p": 0.653
+     }
+    ]
+   }
+  }
+ }
+}
