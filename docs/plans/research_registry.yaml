@@ -742,6 +742,44 @@ studies:
     supersedes: []
     depends_on: [basis-c1-retest]
 
+  - id: spread-short-reversal
+    title: "风格价差短期反转（快腿资格）"
+    family: momentum-transform
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "07-10短z窗60点动量网格翻号为5~10日价差反转，对称口径三窗，四关（三窗全正/worst_tv≥现役/相关<0.5/⓪）。"
+    claim: "反转形态存在（13/60三窗全正，代表slope L10 zw10 三窗0.43/0.67/0.45，与现役相关0.02）但worst_tv 0.43仅为现役1.26的三分之一、换手60/年、⓪校正后p 0.27（朴素0.019，膨胀14×）；不是分批建仓线要的快腿。"
+    non_claims: ["不得引作价差反转不存在。", "不重开07-10动量扫描的任何结论。"]
+    caveats: ["线索来自已看过的60点网格，⓪覆盖整张网格。", "holdout有3个前排点为负，散点非高原。"]
+    reopen_condition: "仅当出现自身worst(train,val)≥现役且与现役相关<0.5的反转形态（新机制而非调参），并新预登记。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-09-03-reversal-preregistration.md]
+      report: [docs/plans/2026-09-03-reversal-results.md]
+      evidence: [backtest/output/reversal_probe_A.csv, backtest/output/reversal_probe_verdict.json]
+    supersedes: []
+    depends_on: [momentum-transform]
+
+  - id: index-short-trigger
+    title: "指数自身反转/趋势做空触发"
+    family: short-trigger
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "blend自身L日收益z>+1触发做空持k（18点）与价格低于MA做空最短持k（9点），只做空含贴水，三关（空头段Sharpe全窗+两半窗>0/净年化>0/⓪同暴露随机时点空分布）。"
+    claim: "27点净Sharpe全负（−0.46~−1.09，年化−7.6%~−18.4%），两半窗全负；随机时点做空的空分布中位−0.15，代表p_selected 0.99——触发式做空劣于随机做空；贴水墙均值9.2%/年。A股短信号族无空头价值的第六次确认。"
+    non_claims: ["不得引作任何做空策略无价值（事件型、个股级、跨品种对冲未测）。"]
+    caveats: ["秤为blend标的+carry，空头付贴水。", "B2的k只延长退出不提前进入。"]
+    reopen_condition: "仅当贴水结构性消失（年化贴水中位<2%持续两年）后按本规格重测。"
+    production: {affects: false, role: closed_candidate}
+    documents:
+      spec: [docs/plans/2026-09-03-reversal-preregistration.md]
+      report: [docs/plans/2026-09-03-reversal-results.md]
+      evidence: [backtest/output/reversal_probe_B.csv, backtest/output/reversal_probe_verdict.json]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
   - id: gate0r-data-foundation
     title: "Gate 0R数据底座"
     family: style-basket-foundation
