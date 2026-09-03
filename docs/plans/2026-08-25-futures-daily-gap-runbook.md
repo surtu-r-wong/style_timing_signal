@@ -154,3 +154,16 @@ python3 tools/topup_futures_daily.py \
 2. 生产 `wind_gateway/config.yaml`（不在 git 内）加 `fetchers.futures` 段，值同 example。
 3. 重启网关或 `POST /admin/reload`；`GET /fetch/futures?codes=IC2609.CFE&start=...&end=...` 应返回含 `oi`、`settle` 的列。
 4. 回到本仓跑 `tools/topup_futures_daily.py`（合约名单见上文 16 行清单），`carry_readiness` 体检必须不再报 `⛔ 全空`。
+
+### 2026-09-03 部署记录与现状更正
+
+- 网关补丁已部署：部署版 `D:\wind_gateway\endpoints.py`（8 月 24 日独立改过，与仓里版本不同）套补丁后重启，
+  `/fetch/futures` 实测返回 open/high/low/close/volume/oi/amt/settle 全有值（IC2609/IM2609 两日），`/fetch/price` 列不变。
+  部署套件在 `D:\wind_gateway_futures_patch\`。**事故**：套件里 apply.ps1 用 PowerShell `Get-Content/Set-Content` 追加
+  config.yaml，把 UTF-8 中文注释写成 ANSI，网关启动 `UnicodeDecodeError`；已从脚本的字节级备份恢复并以 UTF-8 重插
+  （坏文件留作 `config.yaml.broken_ansi_20260903`）。教训入记忆 `ops-powershell-utf8-config-corruption`。
+- **缺口已由另一条通路闭合**：`public.futures_daily` 自 2026-04-30 至 09-02 共 85 个交易日，IC/IM 每日各 4 合约、全部带 oi，
+  `source='exchange'`，由 market-monitor `data-collecter/exchange_daily/loader.py` 按交易所日数据写入（08-31 起、每日更新到 09-03）。
+  本文「补缺口操作单」与 `tools/topup_futures_daily.py` 降级为**备用通路**，未再写入。
+- C1 复检：新增样本 84 个交易日（k=10 约 +8 观测），功效与 07-09 几乎相同，**不重跑**；重开条件已在登记表量化
+  （k=10 非重叠观测 ≥ 340，约 2029-02）。
