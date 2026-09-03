@@ -1,10 +1,14 @@
 """raw/*.csv → stock_selector.index_money_flow（UPSERT），并做入库前体检。
 
-体检（任一失败即不写库，退出码 1）：
-  1. 恒等式：main = in − out；main = extra + large；四档之和 = 0（容差 0.01）
-  2. 只数：maininflowcount + mainoutflowcount 在成分数 ±5 内（停牌/调样日允许）
-  3. 与用户 Wind 终端导出 CSV（/home/elfbob/exchange/20260903/marketmoneyflows.csv，沪深300）
-     同日逐列对账：逐字相等或恒为 10^4 倍（记录单位倍率）
+体检（硬闸任一失败即不写库，退出码 1）：
+  硬闸 1 恒等式：main_in − main_out == extra_bill + large_bill（2026-09-03 实测 7403 行零违反，
+     这是唯一机械成立的关系；Wind 另给的 maininflowmoney 字段在 25% 的行与之不符，
+     四档净流入零和在 41% 的行不成立——两者都只报数不设闸）
+  硬闸 2 交易日历：与 index_daily 的 000300.SH 日期集合比，各板块自身区间内零缺日
+  硬闸 3 只数上界：固定成分指数 ≤ 成分数（停牌股不计入，故只有上界是硬的；
+     2015-07 千股停牌期沪深300 实测低到 204，属真实事件，不设下界）
+  硬闸 4 对账：与用户 Wind 终端导出 CSV（沪深300 65 天）逐列比值恒定，记单位倍率
+  硬闸 5 金额列无 NaN
 用法：python load_to_db.py [--dry-run] [--exchange-csv PATH]
 """
 from __future__ import annotations
@@ -29,7 +33,10 @@ WIND2DB = {
     "largebillinflowmoney": "large_bill_inflow_money", "middlebillinflowmoney": "middle_bill_inflow_money",
     "smallbillinflowmoney": "small_bill_inflow_money",
 }
-EXPECTED_COUNT = {"000300.SH": 300, "000905.SH": 500, "000852.SH": 1000, "932000.CSI": 2000}
+# 2026-09-03 实测：wset marketmoneyflows 只支持 沪深300/创业板/科创板 三个板块，
+# index_code 取该板块对应的收益率指数（沪深300 / 创业板综 / 科创综指）。
+COUNT_CAP = {"000300.SH": 300}   # 固定成分数的指数才有硬上界；板块无
+SECTOR_OF = {"000300.SH": "csi_300", "399102.SZ": "chinext", "000680.SH": "star"}
 MONEY = [c for c in WIND2DB if c.endswith("money")]
 
 
@@ -49,19 +56,51 @@ def load_raw() -> pd.DataFrame:
 
 def health(df: pd.DataFrame, exchange_csv: Path | None) -> dict:
     rep: dict = {"rows": len(df), "by_index": df.groupby("index_code")["date"].agg(["min", "max", "count"]).astype(str).to_dict("index")}
-    tol = 0.01
-    e1 = (df.maininflowmoney - (df.maininmoney - df.mainoutmoney)).abs().max()
-    e2 = (df.maininflowmoney - (df.extrabillinflowmoney + df.largebillinflowmoney)).abs().max()
-    e3 = df[["extrabillinflowmoney", "largebillinflowmoney", "middlebillinflowmoney", "smallbillinflowmoney"]].sum(axis=1).abs().max()
-    rep["identity_max_err"] = {"in_minus_out": float(e1), "extra_plus_large": float(e2), "four_bills_sum": float(e3)}
-    rep["identity_ok"] = bool(max(e1, e2, e3) <= tol)
-    cnt = df.maininflowcount.fillna(0) + df.mainoutflowcount.fillna(0)
-    exp = df.index_code.map(EXPECTED_COUNT)
-    bad = df[(cnt - exp).abs() > 5]
-    rep["count_bad_rows"] = int(len(bad)); rep["count_ok"] = bool(len(bad) == 0)
-    if len(bad):
-        rep["count_bad_sample"] = bad[["index_code", "date", "maininflowcount", "mainoutflowcount"]].head(5).astype(str).values.tolist()
+    # 硬闸 1：唯一机械恒等式
+    e_main = (df.maininmoney - df.mainoutmoney - df.extrabillinflowmoney - df.largebillinflowmoney).abs()
+    rep["identity_main_max_err"] = float(e_main.max())
+    rep["identity_ok"] = bool(e_main.max() <= 1e-3)
+    # 只报数不设闸：Wind 的 maininflowmoney 字段与恒等式的偏离、四档零和偏离
+    e_field = (df.maininflowmoney - (df.maininmoney - df.mainoutmoney)).abs()
+    e_bills = df[["extrabillinflowmoney", "largebillinflowmoney",
+                  "middlebillinflowmoney", "smallbillinflowmoney"]].sum(axis=1).abs()
+    rep["reported_only"] = {
+        "maininflowmoney_vs_identity": {"n_violations": int((e_field > 1e-3).sum()),
+                                        "p99": float(e_field.quantile(0.99)), "max": float(e_field.max())},
+        "four_bills_sum": {"n_violations": int((e_bills > 1e-3).sum()),
+                           "p99": float(e_bills.quantile(0.99)), "max": float(e_bills.max())},
+    }
     rep["nan_money_rows"] = int(df[MONEY].isna().any(axis=1).sum())
+    # 硬闸 3：只数上界（固定成分指数才有硬上界；板块股票数随 IPO 增长，无上界）
+    df = df.copy()
+    df["cnt"] = df.maininflowcount.fillna(0) + df.mainoutflowcount.fillna(0)
+    cap = df.index_code.map(COUNT_CAP)
+    over = df[cap.notna() & (df.cnt > cap)]
+    rep["count_over_cap_rows"] = int(len(over))
+    rep["count_range"] = {k: [int(v.min()), int(v.max())] for k, v in df.groupby("index_code").cnt}
+    if len(over):
+        rep["count_over_sample"] = over[["index_code", "date", "cnt"]].head(5).astype(str).values.tolist()
+    # 只数日环比跳变只报数：2015-07 千股停牌、科创板早期 IPO 爬坡都会造成大跳，与截断不可区分；
+    # 截断已由日历闸（硬闸 2）直接覆盖。
+    jump = df.groupby("index_code").cnt.transform(lambda x: (x / x.shift(1) - 1).abs())
+    rep["count_jump_gt5pct_days"] = int((jump > 0.05).sum())
+    rep["count_ok"] = bool(len(over) == 0 and (df.cnt > 0).all())
+    # 硬闸 2：交易日历覆盖（各板块自身区间内不得缺日）
+    db = load_db_config()
+    with _connect(db) as conn, conn.cursor() as cur:
+        cur.execute(f"SELECT trade_date FROM {db['schema']}.index_daily "
+                    "WHERE index_code='000300.SH' ORDER BY trade_date")
+        cal_set = {r[0] for r in cur.fetchall()}
+    cal_max = max(cal_set)
+    cov = {}
+    for k, v in df.groupby("index_code"):
+        have = set(v.date)
+        want = {d for d in cal_set if v.date.min() <= d <= min(v.date.max(), cal_max)}
+        missing = sorted(want - have)
+        cov[k] = {"days": len(have), "n_missing": len(missing),
+                  "missing_sample": [str(d) for d in missing[:5]]}
+    rep["calendar"] = cov
+    rep["calendar_ok"] = bool(all(c["n_missing"] == 0 for c in cov.values()))
     rep["reconcile_ok"] = None
     if exchange_csv and exchange_csv.exists():
         ex = pd.read_csv(exchange_csv, encoding="gb18030", skipfooter=3, engine="python")
@@ -108,7 +147,8 @@ def main(argv=None) -> int:
     df = load_raw()
     rep = health(df, Path(a.exchange_csv))
     import json; print(json.dumps(rep, ensure_ascii=False, indent=1, default=str))
-    ok = rep["identity_ok"] and rep["count_ok"] and rep["reconcile_ok"] is not False
+    ok = (rep["identity_ok"] and rep["count_ok"] and rep["calendar_ok"]
+          and rep["reconcile_ok"] is not False and rep["nan_money_rows"] == 0)
     if not ok:
         print("HEALTH FAIL — 不写库"); return 1
     if a.dry_run:

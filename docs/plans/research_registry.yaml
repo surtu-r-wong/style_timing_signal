@@ -803,13 +803,13 @@ studies:
     title: "资金流向面（主力残差净流入·慢腿化）"
     family: positioning-flow
     status: provisional
-    outcome: data_blocked
-    evidence_level: preregistered
-    scope: "用户09-03给出Wind wset marketmoneyflows沪深300导出触发：四指数板块级主力净流入占比剔同日涨跌（过去250日OLS，PIT）后的残差流，F1市场级/F2小盘减大盘两族，GRID_LEVEL×k{5,10,20,40}=32变体，默认两半窗，三关+关0选优校正。"
-    claim: "预登记已落、机器与5个手算单测已过；数据通路三段中网关端点待用户在Windows部署重启（ssh会话WindPy登录失败-40520004，计划任务被封），表已建成为空。未看任何裁决数。"
-    non_claims: ["不得引作资金流对个股或行业无价值。", "不得引作未残差化原始流无价值（原始流81%是价格，属价格类面既有结论）。"]
-    caveats: ["冻结前只看过65日沪深300描述统计（同日相关0.81、领先相关k=1..5偏负、残差对次日≈0），已在预登记§0披露。", "中证2000板块历史起点未知；F2不依赖它，F1按可用≥3指数记。"]
-    reopen_condition: "网关上线→fetch/load过§5四条数据前置→--run出四关裁决后改为closed。"
+    outcome: pending
+    evidence_level: committed_prescreen
+    scope: "用户09-03给出Wind wset marketmoneyflows沪深300导出触发：板块级主力净流入占比剔同日涨跌（过去250日OLS，PIT）后的残差流，F1=mean(沪深300,创业板综)/F2=创业板综减沪深300两族，GRID_LEVEL×k{5,10,20,40}=32变体，两半窗2015-2020/2021-2026，三关+关0选优校正。"
+    claim: "预登记r1已落待冻结；数据全段就绪：7,403行资金流入库、五道硬闸全过、序列2,715个可用日（2015-07-02..2026-09-01）。未看任何裁决数。"
+    non_claims: ["不得引作资金流对个股或行业无价值。", "不得引作未残差化原始流无价值（原始流81%是价格，属价格类面既有结论）。", "不得引作中证500/1000/2000资金流无价值——Wind这张表根本不给这三个板块，属未测。"]
+    caveats: ["冻结前只看过65日沪深300描述统计（同日相关0.81、领先相关k=1..5偏负、残差对次日≈0）与取数体检的数据质量量，已在预登记§0披露。", "wset marketmoneyflows的sector是白名单枚举，只支持沪深300/创业板/科创板（约50个候选含中英文两套写法一致被拒），初稿的四指数设计因此作废。", "数据起点2015-01-05非2014；科创腿因科创综指基期2019-12-31只能自2020-07有残差，不进主检验。", "Wind对该表静默截断到窗口末尾约62~66行不报错，取数须分块+日历硬校验。", "全样本只有main_in−main_out≡extra+large成立；Wind的maininflowmoney字段25%行不符、四档零和41%行不成立，构造改用机械自洽的(in−out)/(in+out)。"]
+    reopen_condition: "用户冻结预登记r1 → --run出四关裁决后改为closed。"
     production: {affects: false, role: candidate_axis}
     documents:
       spec: [docs/plans/2026-09-03-money-flow-axis-prereg.md]

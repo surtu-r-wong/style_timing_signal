@@ -1,0 +1,85 @@
+{
+ "loaded_rows": 7403,
+ "table_rows": 7403,
+ "health": {
+  "rows": 7403,
+  "by_index": {
+   "000300.SH": {
+    "min": "2015-01-05",
+    "max": "2026-09-03",
+    "count": "2837"
+   },
+   "000680.SH": {
+    "min": "2019-07-22",
+    "max": "2026-09-03",
+    "count": "1729"
+   },
+   "399102.SZ": {
+    "min": "2015-01-05",
+    "max": "2026-09-03",
+    "count": "2837"
+   }
+  },
+  "identity_main_max_err": 2.761371433734894e-07,
+  "identity_ok": true,
+  "reported_only": {
+   "maininflowmoney_vs_identity": {
+    "n_violations": 1882,
+    "p99": 6.463373996463479,
+    "max": 78713.45570000689
+   },
+   "four_bills_sum": {
+    "n_violations": 3007,
+    "p99": 28860.980856000257,
+    "max": 105129.5409000004
+   }
+  },
+  "nan_money_rows": 0,
+  "count_over_cap_rows": 0,
+  "count_range": {
+   "000300.SH": [
+    204,
+    300
+   ],
+   "000680.SH": [
+    25,
+    616
+   ],
+   "399102.SZ": [
+    194,
+    1403
+   ]
+  },
+  "count_jump_gt5pct_days": 18,
+  "count_ok": true,
+  "calendar": {
+   "000300.SH": {
+    "days": 2837,
+    "n_missing": 0,
+    "missing_sample": []
+   },
+   "000680.SH": {
+    "days": 1729,
+    "n_missing": 0,
+    "missing_sample": []
+   },
+   "399102.SZ": {
+    "days": 2837,
+    "n_missing": 0,
+    "missing_sample": []
+   }
+  },
+  "calendar_ok": true,
+  "reconcile_ok": true,
+  "reconcile": {
+   "overlap_days": 65,
+   "count_equal": true,
+   "money_ratio_range": [
+    0.9999999999999831,
+    1.0000000000000098
+   ],
+   "unit_multiplier": 1.0
+  }
+ },
+ "fetched_at": "2026-09-03"
+}

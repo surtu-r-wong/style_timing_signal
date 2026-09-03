@@ -1,5 +1,6 @@
 """资金流向面·入场券探针（预登记 docs/plans/2026-09-03-money-flow-axis-prereg.md，冻结后才可 --run）。
-两族 F1/F2 × GRID_LEVEL × k = 32 变体；默认两半窗 2014-2019/2020-2026；关 1~3 原样 + 关 0（候选 ⓪）。
+两族 F1/F2 × GRID_LEVEL × k = 32 变体；两半窗 2015-2020/2021-2026（数据起点 2015-01，
+预登记 §3；初稿的 2014-2019 因此作废）；关 1~3 原样 + 关 0（候选 ⓪）。
 CLI: python3 -m backtest.money_flow_axis_probe --run [--n-perm 1000]
 """
 from __future__ import annotations
@@ -17,6 +18,9 @@ sys.path.insert(0, str(ROOT))
 
 from backtest.money_flow_series import build_series  # noqa: E402
 from backtest.leverage_probe import GRID_LEVEL, level_signal, run_families_probe  # noqa: E402
+
+# 资金流数据自 2015-01-05，250 日 beta 预热后首个可用日 2015-07-02；按可用样本中点切两半窗。
+HALVES = {"2015-2020": ("2015-07-01", "2020-12-31"), "2021-2026": ("2021-01-01", "2026-12-31")}
 from backtest.rotation_probe import nonoverlap_ic  # noqa: E402
 from backtest.selection_permutation import make_stat_fn, selection_permutation_test  # noqa: E402
 
@@ -63,7 +67,7 @@ def main(argv=None) -> int:
         print(series[["F1", "F2"]].describe().round(4).to_string()); print("nan:", series[["F1", "F2"]].isna().sum().to_dict()); return 0
     from backtest.data import load_underlying_returns
     sigs = build_signals(series)
-    panel, verdicts = run_families_probe(sigs, FAMILIES, GRID_K, a.n_perm, a.cost_bps)
+    panel, verdicts = run_families_probe(sigs, FAMILIES, GRID_K, a.n_perm, a.cost_bps, halves=HALVES)
     g0, meta = gate0(sigs, load_underlying_returns("blend"), verdicts, a.n_perm)
     verdicts = verdicts.merge(g0, on="family"); verdicts["PASS_probe"] = verdicts["PASS"]
     verdicts["PASS"] = verdicts["PASS_probe"] & verdicts["gate0_selection_corrected"]
