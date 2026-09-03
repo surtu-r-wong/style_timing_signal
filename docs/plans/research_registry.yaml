@@ -685,6 +685,25 @@ studies:
     supersedes: []
     depends_on: [production-equal-weight-long-flat]
 
+  - id: index-option-implied-vol
+    title: "股指期权隐波面（IO/MO）"
+    family: option-implied-vol
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "IO 期权自算隐波五族（IV30水平/20d变化/期限斜率/偏度/持仓PCR）+ MO−IO 描述族，GRID_LEVEL×k{5,10,20,40}，两半窗2020-2022/2023-2026，三关入场券 + 候选⓪选优校正。"
+    claim: "五族STOP。O2隐波20d变化过探针三关（IC −0.358 p0.032，偏IC p0.023，净Sharpe 0.52）但效应仅在k=40、按年翻转、收益52%集中5日；候选⓪校正后代表p=0.25、网格最大p_selected 0.044/min-P 0.23，无法与80格选择效应区分；生产信号对公开信息面覆盖度第八次确认。"
+    non_claims: ["不得引作期权信息对A股择时无价值（股票级、日内级、MO/HO单独入场券未测）。", "O2记样本内有形态、选优后不显著，不是无信息。"]
+    caveats: ["厂商隐波2026-02-25起全空，全历史自算（平价隐含远期+Black-76），与厂商80日相关0.953。", "IO仅1,602可用日，k=40约39窗，只能检出|IC|≳0.2。", "08-12议程曾误记期权数据不在库，已勘误。"]
+    reopen_condition: "O2_lb5zw60/k=40/方向−1单点事前指定，用2027-01-01起全新样本外数据累计≥15个k=40非重叠窗（约2029-06）后单次确认，不扫网格。"
+    production: {affects: false, role: closed_axis}
+    documents:
+      spec: [docs/plans/2026-09-03-index-option-iv-axis-prereg.md]
+      report: [docs/plans/2026-09-03-index-option-iv-axis-results.md]
+      evidence: [backtest/output/option_axis_probe_verdicts.csv, backtest/output/option_axis_selection.json]
+    supersedes: []
+    depends_on: [production-equal-weight-long-flat]
+
   - id: gate0r-data-foundation
     title: "Gate 0R数据底座"
     family: style-basket-foundation

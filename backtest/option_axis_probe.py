@@ -53,8 +53,7 @@ def quality_report(io: pd.DataFrame, mo: pd.DataFrame | None) -> dict:
                                  for k, v in f["iv30"].groupby(y) if v.notna().any()},
                 "term_median_by_year": {int(k): round(float(v.median()), 4) for k, v in f["term"].groupby(y) if v.notna().any()},
                 "skew_median_by_year": {int(k): round(float(v.median()), 4) for k, v in f["skew"].groupby(y) if v.notna().any()},
-                "pcr_median_by_year": {int(k): round(float(v.median()), 3) for k, v in f["pcr"].groupby(y) if v.notna().any()},
-                "atm_call_put_abs_diff_median": round(float((f["atm_near"] - f["atm_near"]).abs().median()), 6)}
+                "pcr_median_by_year": {int(k): round(float(v.median()), 3) for k, v in f["pcr"].groupby(y) if v.notna().any()}}
     rep = {"IO": stats(io, "IO")}
     if mo is not None:
         rep["MO"] = stats(mo, "MO")
