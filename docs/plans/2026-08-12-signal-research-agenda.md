@@ -714,3 +714,12 @@ $ cat deploy/daily_signals/SKIP_TOPUP           → "2026-08-12 wsd 额度耗尽
    - 全部候选：**预登记不扩网格** + 选择端只用 train/val、2024-26 仅报告（§3 共同纪律、§4 C2）。
 4. **未被本次裁决触及、仍然有效的既有决策**：B3 的唯一重开条件（真 PIT 底座后重跑一次验证）、
    rotation 短窗的"勿重开"、数据质量线移交 stock_selector——本议程不改动它们。
+
+---
+
+### 勘误（2026-09-03）：期权面台账
+
+§0 第 4 条、§1.2「P2 重数据轴」行与 §2 L9 均写期权数据「只有 `stock_selector.etf_option_daily` 15,332 行、半年样本」。
+实测 market-monitor `public.option_daily` 含中金所 IO（2019-12 起 1,624 日）、MO（2022-07 起）、HO（2022-12 起）
+全历史结算/成交/持仓，厂商隐波 2026-02-25 起为空但可自算。期权面**不是**重数据工程，已按新信息面立项：
+`docs/plans/2026-09-03-index-option-iv-axis-prereg.md`。⑥ 隔夜/日内分解已于 09-02 在 citic40d 对象上收官 STOP（equal_weight 对象因 932406～409 无 open 判 data_blocked）。

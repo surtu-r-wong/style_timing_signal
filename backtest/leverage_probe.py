@@ -187,9 +187,16 @@ def build_market_turnover(db=None, force: bool = False) -> pd.Series:
 # ---------------------------------------------------------------- 编排（逐族三关裁决）
 def run_families_probe(sigs_all: dict[str, dict[str, pd.Series]],
                        families: tuple[str, ...], grid_k: tuple[int, ...],
-                       n_perm: int = 1000, cost_bps: float = 3.0, db=None
+                       n_perm: int = 1000, cost_bps: float = 3.0, db=None,
+                       halves: dict[str, tuple[str, str]] | None = None,
                        ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """通用逐族三关裁决（杠杆/温度计等任意轴共用）：IC 面板 + 同号代表 + 三关。"""
+    """通用逐族三关裁决（杠杆/温度计等任意轴共用）：IC 面板 + 同号代表 + 三关。
+
+    halves：两半窗定义，默认 `rotation_probe.HALVES`（2014-2019 / 2020-2026）；
+    样本起点晚于 2014 的信息面（如 2019-12 起的股指期权）须显式传入本面专用的两半窗，
+    否则首半窗为空、代表选择恒失败。
+    """
+    halves = dict(HALVES if halves is None else halves)
     from backtest.data import load_carry, load_underlying_returns
     from backtest.engine import run_strategy
     from backtest.metrics import ann_return, sharpe, turnover
@@ -206,7 +213,7 @@ def run_families_probe(sigs_all: dict[str, dict[str, pd.Series]],
                 for kj, u in und.items():
                     row = {"family": fam, "form": form, "k": k, "kou_jing": kj}
                     row["ic"], row["n_windows"] = nonoverlap_ic(sig, u, k)
-                    for half, (a, b) in HALVES.items():
+                    for half, (a, b) in halves.items():
                         row[f"ic_{half}"] = nonoverlap_ic(
                             _win(sig, a, b), _win(u, a, b), k)[0]
                     rows.append(row)
@@ -216,7 +223,7 @@ def run_families_probe(sigs_all: dict[str, dict[str, pd.Series]],
     verdicts = []
     for fam in families:
         blend = panel[(panel["family"] == fam) & (panel["kou_jing"] == "blend")]
-        best, sign_ok = pick_representative(blend)
+        best, sign_ok = pick_representative(blend, halves=tuple(halves))
         form, k = str(best["form"]), int(best["k"])
         sig = sigs_all[fam][form]
         direction = float(np.sign(best["ic"]))
@@ -237,7 +244,7 @@ def run_families_probe(sigs_all: dict[str, dict[str, pd.Series]],
             "family": fam, "best_form": form, "best_k": k, "direction": direction,
             "ic": float(best["ic"]), "ic_pvalue": p_ic,
             "partial_ic_vs_ew": pic, "partial_ic_pvalue": p_pic,
-            **{f"ic_{h}": float(best[f"ic_{h}"]) for h in HALVES},
+            **{f"ic_{h}": float(best[f"ic_{h}"]) for h in halves},
             "net_sharpe": net_sharpe, "net_ann": ann_return(net),
             "turnover": turnover(pos),
             "gate1_significant_and_independent": gate1,
