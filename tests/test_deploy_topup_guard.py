@@ -7,6 +7,7 @@ import importlib.util
 import inspect
 import json
 import sys
+import types
 from datetime import datetime
 from pathlib import Path
 
@@ -318,3 +319,45 @@ def test_audit_errors_without_snapshot(monkeypatch, tmp_path, capsys):
                          "--snapshot", str(tmp_path / "missing.json")])
     assert guard.main() == guard.EXIT_ERROR
     assert "找不到调用前快照" in capsys.readouterr().out
+
+
+def test_gateway_probe_ignores_environment_proxies(monkeypatch):
+    """网关是 Tailscale 内网地址，走 HTTP 代理会得到假 502 → 前置闸门读成
+    GATEWAY_UNREACHABLE → 静默降级 TOPUP_SKIPPED，上游就此停更且不报警。
+    2026-09-08 手动跑链路实际踩中（systemd 服务环境无代理，交互式必中）。
+    """
+    import deploy.daily_signals.topup_guard as tg
+
+    seen = {}
+
+    class _FakeResp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"status": "ok"}
+
+    class _FakeSession:
+        def __init__(self):
+            self.trust_env = True          # requests 的默认值：吃环境代理
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get(self, url, **kw):
+            seen["trust_env"] = self.trust_env
+            seen["url"] = url
+            return _FakeResp()
+
+    fake_requests = types.SimpleNamespace(Session=_FakeSession)
+    monkeypatch.setitem(sys.modules, "requests", fake_requests)
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:7897")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7897")
+
+    out = tg.fetch_gateway_json("http://10.0.0.1:8080", "/ping", "tok")
+    assert out == {"status": "ok"}
+    assert seen["trust_env"] is False      # 必须显式关掉，否则代理会把内网服务打成 502
+    assert seen["url"] == "http://10.0.0.1:8080/ping"

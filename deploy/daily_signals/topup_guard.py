@@ -195,15 +195,24 @@ def family_sentinel_problems(after_closes: dict, new_dates: set[str]) -> list[st
 # ─────────────────────────────── 只读 IO ───────────────────────────────
 
 def fetch_gateway_json(url: str, path: str, token: str, timeout: float = 10.0) -> object:
+    """只读探网关。**必须绕开环境代理**——网关是 Tailscale 内网地址，走 Clash 之类的
+    HTTP 代理会得到**假 502**，而前置闸门把 502 读成 GATEWAY_UNREACHABLE → 静默降级
+    TOPUP_SKIPPED，上游 index_daily 就此停更且不报警（2026-09-08 手动跑链路实际踩中：
+    systemd 服务环境无代理故服务侧正常，但交互式/运维手动跑必然命中）。
+    `trust_env=False` 同时也让 .netrc / 环境 CA 设置不参与，行为与 fetch_money_flow.py 一致。
+    """
     import requests
 
-    resp = requests.get(
-        f"{url.rstrip('/')}{path}",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    return resp.json()
+    session = requests.Session()
+    session.trust_env = False
+    with session:
+        resp = session.get(
+            f"{url.rstrip('/')}{path}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
 
 
 def load_gateway_config() -> dict:
