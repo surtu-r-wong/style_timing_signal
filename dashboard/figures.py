@@ -14,6 +14,7 @@ from plotly.subplots import make_subplots
 S1 = "#2a78d6"        # 类别 slot1 蓝
 S2 = "#1baf7a"        # 类别 slot2 青（对比度 WARN → 图例+悬浮值缓解）
 UP = "#e34948"        # A 股涨色（仅状态 chip 圆点，恒配文字标签）
+DOWN = "#1baf7a"      # A 股跌色：状态 chip「持空」圆点（2026-09-09 equal_weight 切对称后启用），恒配文字标签
 INK = "#0b0b0b"
 INK2 = "#52514e"
 MUTED = "#898781"

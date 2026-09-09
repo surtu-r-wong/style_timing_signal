@@ -58,6 +58,14 @@ def test_production_position_clips_discrete_short_signal():
     assert list(production_position(s)) == [0, 0, 1, 0, 1]
 
 
+def test_symmetric_position_literal():
+    """对称口径（2026-09-09 部署空头）：>0→+1，<0→−1，0→0；阈值形成死区。"""
+    from backtest.positions import symmetric_position
+    s = pd.Series([-0.5, 0.0, 0.3, -0.1, 0.05])
+    assert list(symmetric_position(s)) == [-1, 0, 1, -1, 1]
+    assert list(symmetric_position(pd.Series([0.05, 0.2, -0.5, -0.05]), threshold=0.1)) == [0, 1, -1, 0]
+
+
 def test_discrete_sign_default():
     s = pd.Series([-0.5, 0.0, 0.3])
     assert list(to_position(s)) == [-1, 0, 1]

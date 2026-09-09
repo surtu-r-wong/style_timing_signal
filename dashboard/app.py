@@ -25,10 +25,11 @@ _SIG_LABEL = {"equal_weight": "equal_weight（生产主信号）",
 
 
 def status_bar(signals: list[dict], fresh: dict) -> list:
-    """① 状态条：三线 chip（因子值 + long-flat 持仓 + 截止日）+ 数据新鲜度行。"""
+    """① 状态条：三线 chip（因子值 + 推荐持仓 + 截止日）+ 数据新鲜度行。equal_weight 自 2026-09-09 起对称（可为 −1）。"""
     chips = []
     for sig in signals:
         long = sig["position"] == 1
+        short = sig["position"] == -1
         stale = sig["pos_date"] != sig["date"]
         lines = [
             html.Div(_SIG_LABEL[sig["name"]],
@@ -38,9 +39,9 @@ def status_bar(signals: list[dict], fresh: dict) -> list:
                           style={"color": F.INK, "fontSize": "22px",
                                  "fontWeight": "600"}),
                 html.Span([
-                    html.Span("●", style={"color": F.UP if long else F.MUTED,
+                    html.Span("●", style={"color": F.UP if long else (F.DOWN if short else F.MUTED),
                                           "marginRight": "4px"}),
-                    "持多" if long else "空仓",
+                    "持多" if long else ("持空" if short else "空仓"),
                 ], style={"color": F.INK2, "fontSize": "13px",
                           "marginLeft": "10px"}),
             ]),

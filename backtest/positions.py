@@ -129,3 +129,15 @@ def production_position(signal: pd.Series, threshold: float = 0.0) -> pd.Series:
     → 交易这些信号时砍掉空头优于对称多空。连续因子与已离散带空信号皆适用。
     """
     return (signal > threshold).astype(int)
+
+
+def symmetric_position(signal: pd.Series, threshold: float = 0.0) -> pd.Series:
+    """对称持仓口径：signal>threshold→+1，signal<−threshold→−1，其余 0。
+
+    2026-09-09 用户裁决"部署空头"：现役 equal_weight 由 long-flat 切到对称。
+    依据（同秤日频引擎，2015-04..2026-09 含期指贴水）：空头腿 Sharpe 0.67 / 年化 13.2%，
+    12 年 11 年为正，崩盘年 2015 +28% / 2018 +48% / 2022 +32%；对称年化 39.0% vs long-flat 25.8%，
+    回撤 −27% vs −17%。这是风险偏好裁决，不是统计裁决（①a 配对 bootstrap 的 Sharpe 差不显著）。
+    决策记录：docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md。
+    """
+    return (signal > threshold).astype(int) - (signal < -threshold).astype(int)

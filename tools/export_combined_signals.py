@@ -95,9 +95,8 @@ def build_combined() -> pd.DataFrame:
         if name in UPSTREAM:
             up_rel, up_col, up_name = UPSTREAM[name]
             cols.append(load_series(up_rel, up_col, up_name))
-        cols.append(load_series(
-            f"output/recommended/{name}_longflat.csv", "position",
-            f"{name}_position"))
+        from backtest.production import RECOMMENDED_FILES
+        cols.append(load_series(RECOMMENDED_FILES[name], "position", f"{name}_position"))
     combined = pd.concat(cols, axis=1).sort_index()
     # 仓位是整数语义，outer join 会把有空洞的列变 float；空值保留为空，非空转 int。
     # hybrid20 的 signal 同样是整数（状态机三值），不转的话会被 float_format 印成

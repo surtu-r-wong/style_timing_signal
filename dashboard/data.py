@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 OUT = ROOT / "output"
 BT_OUT = ROOT / "backtest" / "output"
 
-# 状态条三线：(名称, 信号 CSV, 因子列)；推荐持仓 = output/recommended/<name>_longflat.csv
+# 状态条三线：(名称, 信号 CSV, 因子列)；推荐持仓文件由 backtest.production.RECOMMENDED_FILES 决定（equal_weight 2026-09-09 起对称）
 SIGNALS = (
     ("equal_weight", OUT / "equal_weight/equal_weight_signal_20d40z.csv", "factor_value"),
     ("hybrid20", OUT / "hybrid20/confirmed_signal.csv", "factor_20"),
@@ -146,7 +146,8 @@ def load_signals_status() -> list[dict]:
     for name, path, col in SIGNALS:
         fac = (pd.read_csv(path, parse_dates=["date"]).set_index("date")
                .sort_index()[col].dropna())
-        pos = (pd.read_csv(OUT / f"recommended/{name}_longflat.csv",
+        from backtest.production import RECOMMENDED_FILES
+        pos = (pd.read_csv(ROOT / RECOMMENDED_FILES[name],
                            parse_dates=["date"]).set_index("date")
                .sort_index()["position"].dropna())
         rows.append({

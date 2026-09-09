@@ -392,11 +392,14 @@ def test_output_gap_flips_exit_code(tmp_path, monkeypatch):
 
 
 def test_gated_set_matches_production_signals():
-    """护栏必须覆盖 backtest.baseline.SIGNALS 的三条生产信号 + 三份推荐持仓。"""
+    """护栏必须覆盖 backtest.baseline.SIGNALS 的三条生产信号 + 三份推荐持仓（文件名以 backtest.production.RECOMMENDED_FILES 为准）。"""
     from backtest.baseline import SIGNALS
+    from backtest.production import RECOMMENDED_FILES
 
     gated_paths = set(guard.GATED.values())
     for _, (path, _col) in SIGNALS.items():
         assert path in gated_paths, f"生产信号 {path} 不在护栏清单里"
     for name in SIGNALS:
-        assert f"output/recommended/{name}_longflat.csv" in gated_paths
+        assert RECOMMENDED_FILES[name] in gated_paths, f"推荐持仓 {RECOMMENDED_FILES[name]} 不在护栏清单里"
+    # 2026-09-09 现役切对称后，long-flat 参照文件只报不拦
+    assert "output/recommended/equal_weight_longflat.csv" in set(guard.INFORMATIONAL.values())

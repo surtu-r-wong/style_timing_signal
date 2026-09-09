@@ -28,7 +28,7 @@ signals/hybrid20/update_confirmed_signal.py    # 步骤 2
 signals/citic40d/generate_signal.py            # 步骤 3
 signals/equal_weight/generate_signal.py        # 步骤 4（变体A / 生产口径 20d40z）
 signals/equal_weight/generate_signal.py …5d20z # 步骤 5（变体B / 参考口径）
-python -m backtest.production                  # 步骤 6 → output/recommended/
+python -m backtest.production                  # 步骤 6 → output/recommended/（equal_weight 自 2026-09-09 起对称 → equal_weight_symmetric.csv；long-flat 文件作参照并行产出）
 deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
 ```
 

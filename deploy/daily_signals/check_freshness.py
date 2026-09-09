@@ -47,12 +47,13 @@ GATED = {
     "equal_weight_20d40z": "output/equal_weight/equal_weight_signal_20d40z.csv",
     "recommended_hybrid20": "output/recommended/hybrid20_longflat.csv",
     "recommended_citic40d": "output/recommended/citic40d_longflat.csv",
-    "recommended_equal_weight": "output/recommended/equal_weight_longflat.csv",
+    "recommended_equal_weight": "output/recommended/equal_weight_symmetric.csv",   # 2026-09-09 切对称
 }
 # 只报告不拦截：中间产物与非生产口径的参数变体。
 INFORMATIONAL = {
     "hybrid20_growth_stability": "output/hybrid20/growth_stability_signal.csv",
     "equal_weight_5d20z": "output/equal_weight/equal_weight_signal_5d20z.csv",
+    "recommended_equal_weight_longflat_ref": "output/recommended/equal_weight_longflat.csv",   # 参照口径，2026-09-09 起非现役
 }
 
 # 上游冻结护栏：本项目产出与 index_daily 是同步的，上游一旦不动，
