@@ -733,7 +733,7 @@ studies:
     claim: "三族STOP：关1不过（置换p 0.11/0.11/0.33，偏IC p 0.12/0.12/0.56），关0网格最优|IC| 0.289对q95 0.317、p_selected 0.10；但T1/T2在16格几乎全为正、两半窗与2015-16/2017-26同号、净Sharpe 0.68，是弱而一致的正向纹理，功效不足而非形态矛盾；覆盖度第十次确认。"
     non_claims: ["不得引作期限结构无信息（三面里唯一全格同号的候选，量级低于门槛）。", "T1与T2同源，不是两条独立证据。"]
     caveats: ["2015-06至09股灾极值按冻结规则保留原始值。", "方向+1=远月相对更深贴水后未来收益更高，属描述性经济读法。"]
-    reopen_condition: "2026-09-09用户裁决改为横截面复制：T1 lb5zw60/k=40/方向+1冻结不动，换品种IF→000300、IH→000016各作单点检验（basis-term-cross-section-replication）。原「等到约2029-02」条件作废。复制PASS后再开与C1同秤合并的装配设计。"
+    reopen_condition: "2026-09-09横截面复制（basis-term-cross-section-replication）已跑：IF→300不复现（IC −0.026，p 0.57），STOP终局。原「等到约2029-02」条件作废，本线不再重开。"
     production: {affects: false, role: closed_axis}
     documents:
       spec: [docs/plans/2026-09-03-basis-term-structure-axis-prereg.md]
@@ -821,19 +821,19 @@ studies:
   - id: basis-term-cross-section-replication
     title: "期指基差期限结构·横截面复制（IF/IH）"
     family: futures-basis
-    status: open
-    outcome: pending
-    evidence_level: exploratory
-    scope: "原线代表T1 lb5zw60/k=40/方向+1全部冻结，换品种做机制复制：IF→000300.SH（2014-01起77窗）、IH→000016.SH（2021-01起34窗，000016回填后≈69窗）。单侧循环移位置换p，无网格故关0不适用。"
-    claim: "待跑。预登记待用户冻结；冻结前已看过且披露：库覆盖、单品种T1描述统计、独立性预检（信号层相关IF 0.607/IH 0.406，原始层0.852/0.446）。未看任何目标收益读数。"
-    non_claims: ["不是生产相关性检验（→blend与控现役只作描述性副产物）。", "T2与T1同源不计数。", "STOP为终局，不再写等样本类重开条件。"]
-    caveats: ["IF与原线原始层相关0.85，证据等级为部分独立；PASS须IH同号。", "000016现货仅2021-01起，回填约1,400格待Wind额度恢复。", "冻结前用户须拍板独立性按信号层还是原始层判。"]
-    reopen_condition: "不适用（开放中）。"
-    production: {affects: false, role: replication_probe}
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "原线代表T1 lb5zw60/k=40/方向+1全部冻结，换品种做机制复制：P1 IF→000300.SH（2014-01-02起，76窗）闸；P2 IH→000016.SH（2021-01-04起，33窗）回填前只作同号条件。单侧循环移位置换1000次，无网格故关0不适用。"
+    claim: "STOP（终局）：P1 IC −0.026、单侧p 0.568（双侧0.842），半窗−0.096/+0.209；P2 IC +0.119同号但p 0.281无功效。描述性：IF→blend IC +0.069、控现役偏IC +0.051（p 0.73）；IH→blend −0.157。原线IC/IM上0.195的正向纹理不是跨品种机制，更像网格+代表选择的残余膨胀与2015-16段贡献。"
+    non_claims: ["不得引作IF/IH期限结构对任何目标无信息（只测冻结的一个规格）。", "不得引作基差信息面已穷尽（C1主力合约水平是另一个量）。", "不构成对原线的翻案（原线p 0.113本就未显著，本结果与之一致）。"]
+    caveats: ["IF与原线原始层相关0.85/信号层0.61，证据等级部分独立；结果表明输入侧相关不是效应可迁移性的代理。", "000016回填后IH可升格为显著性检验，但P1已败，预登记规则下回填不再触发重跑。", "首跑读数永久登记，无二次跑。"]
+    reopen_condition: "无。预登记§3.2写明STOP为终局，不再写等样本类条件。要再碰期限结构须换构造并另立预登记。"
+    production: {affects: false, role: closed_axis}
     documents:
       spec: [docs/plans/2026-09-09-basis-term-replication-prereg.md, docs/plans/2026-09-09-cross-section-replication-inventory.md]
-      report: []
-      evidence: [backtest/output/basis_term_replication_series.csv]
+      report: [docs/plans/2026-09-09-basis-term-replication-results.md]
+      evidence: [backtest/output/basis_term_replication_verdict.json, backtest/output/basis_term_replication_panel.csv]
     supersedes: []
     depends_on: [futures-basis-term-structure, basis-c1-retest]
 
