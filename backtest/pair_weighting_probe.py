@@ -52,16 +52,18 @@ def main(argv=None) -> int:
     grid = weight_grid(); eq = tuple(round(0.25, 6) for _ in range(4)); i_eq = grid.index(eq)
     Parr = P.to_numpy(float)
 
-    # stat_fn：idx 为重抽样索引，四对同一移位后合成
+    # stat_fn：idx 为重抽样索引，四对同一移位后合成；先算 |IC| 池，Δ|IC|（减等权列）在池上事后算——等权每行只算一次
     def stat(variant, ridx):
-        Ps = Parr[ridx]
-        sig = pd.Series(Ps @ np.asarray(variant), index=idx).rolling(SMOOTH, min_periods=1).mean()
-        sig_eq = pd.Series(Ps @ np.asarray(eq), index=idx).rolling(SMOOTH, min_periods=1).mean()
-        ic, _ = nonoverlap_ic(sig, ret, K); ic0, _ = nonoverlap_ic(sig_eq, ret, K)
-        return abs(ic) - abs(ic0) if np.isfinite(ic) and np.isfinite(ic0) else -np.inf
+        sig = pd.Series(Parr[ridx] @ np.asarray(variant), index=idx).rolling(SMOOTH, min_periods=1).mean()
+        ic, _ = nonoverlap_ic(sig, ret, K)
+        return abs(ic) if np.isfinite(ic) else -np.inf
 
     n = len(idx); im = build_index_matrix(n, a.n_perm, scheme="rotation", seed=0, min_shift=2 * K, max_shift=n - 2 * K)
-    res = selection_permutation_test(grid, n_obs=n, stat_fn=stat, index_matrix=im, statistic_name="delta_abs_ic_vs_equal")
+    res0 = selection_permutation_test(grid, n_obs=n, stat_fn=stat, index_matrix=im, statistic_name="abs_ic")
+    from types import SimpleNamespace
+    obs_d = res0.observed - res0.observed[i_eq]; null_d = res0.null_stats - res0.null_stats[:, [i_eq]]
+    res = SimpleNamespace(observed=obs_d, null_stats=null_d, best_index=int(np.argmax(obs_d)), observed_best=float(obs_d.max()),
+                          null_selected=null_d.max(axis=1), p_selected=float((1 + np.count_nonzero(null_d.max(axis=1) >= obs_d.max())) / (a.n_perm + 1)))
     win = res.best_index; w_win = grid[win]
     p_minp = adjusted_pvalue(res, win, "min_p"); p_maxt = adjusted_pvalue(res, win, "max_t")
 

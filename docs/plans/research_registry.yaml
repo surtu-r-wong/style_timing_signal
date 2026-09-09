@@ -951,6 +951,25 @@ studies:
     supersedes: []
     depends_on: [pair-set]
 
+  - id: pair-weighting-grid
+    title: "四对合成层静态权重网格（65 点）"
+    family: production-mapping
+    status: closed
+    outcome: stop
+    evidence_level: committed_formal_probe
+    scope: "每对权重{0,1,2}去零去比例重复=65变体（含等权/去一对/倾斜），统计量Δ|IC|（k=20非重叠）vs等权，argmax选优，四对同一移位的循环移位零分布B=1000，min-P主口径；收益层同秤日频对称worst(train,val)≥等权+0.10。"
+    claim: "STOP：赢家(0,0,½,½) Δ|IC| 0.043、min-P p 0.336/max-T 0.373，零分布max Δ中位数0.036/q95 0.083——赢家量级即噪声量级；收益层赢家worst_tv 1.11<等权1.26、holdout 1.18<1.51。等权按|IC|排36/65但收益轴第一。静态权重维度关闭，多重平均降噪第12个实测点。"
+    non_claims: ["不得引作换腿无价值（未测新腿）。", "不得引作动态权重无价值（未测）。"]
+    caveats: ["预登记冻结前已看过摸底文档（已披露）。", "IC是秩相关对信号大小不敏感，等权优势体现在仓位稳定性而非秩相关。"]
+    reopen_condition: "权重维度不再重开；换腿命题须先过相关<0.9诊断并另立预登记。"
+    production: {affects: false, role: closed_axis}
+    documents:
+      spec: [docs/plans/2026-09-09-pair-weighting-prereg.md]
+      report: [docs/plans/2026-09-09-pair-weighting-results.md]
+      evidence: [backtest/output/pair_weighting_verdict.json, backtest/output/pair_weighting_panel.csv]
+    supersedes: []
+    depends_on: [pair-weighting-scoping, pair-set]
+
   - id: gateway-provenance-gap
     title: "网关溯源缺口（现网跑着仓里没有源码的端点）"
     family: production-monitoring

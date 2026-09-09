@@ -1,0 +1,28 @@
+{
+ "n_variants": 65,
+ "n_obs": 3082,
+ "n_perm": 1000,
+ "first": "2014-01-02",
+ "last": "2026-09-03",
+ "winner": {
+  "w": "0.00/0.00/0.50/0.50",
+  "delta_abs_ic": 0.043403964456596,
+  "p_min_p": 0.3356643356643357,
+  "p_max_t": 0.3726273726273726,
+  "p_selected_machine": 0.3726273726273726,
+  "worst_tv": 1.1138093932385595,
+  "holdout": 1.1835775644493645
+ },
+ "equal": {
+  "worst_tv": 1.2560757952402728,
+  "holdout": 1.5108623093670808,
+  "abs_ic_rank_of_equal": 36
+ },
+ "null_max_delta": {
+  "q50": 0.03598571628413563,
+  "q95": 0.08255346008785923
+ },
+ "gate_ic_minp": false,
+ "gate_return_worst_tv_plus_0.10": false,
+ "PASS": false
+}
