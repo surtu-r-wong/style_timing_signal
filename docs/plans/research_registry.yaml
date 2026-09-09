@@ -932,6 +932,25 @@ studies:
     supersedes: []
     depends_on: [gate0-reanalysis-2026-09-09]
 
+  - id: pair-weighting-scoping
+    title: "四对合成层摸底（等权 vs 14 种结构替代）"
+    family: production-mapping
+    status: research_only
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: "用户提议合成层有空间。同秤日频对称引擎上比较四对等权与单对/去一对/中位数/多数票/同向门控/逆波动/固定倾斜共14种结构替代；不扫权重网格。"
+    claim: "等权（1.50）在全部替代里排第一，单对0.82~1.29、去任一对1.15~1.28、中位数1.40、多数票1.43、逆波动1.41、固定倾斜1.33~1.35；仅holdout单窗上多数票/去300对高0.1，换窗即反转。四对相关0.6~0.8、单腿质量相近，等权≈最小方差解；静态重加权无空间。"
+    non_claims: ["不裁决动态权重（同类命题已STOP）与换腿命题（须另立预登记，先过相关<0.9诊断）。", "未扫权重网格。"]
+    caveats: ["本文读数已被看过，任何合成层预登记须在§0披露。"]
+    reopen_condition: "用户坚持时可开4维单纯形5点网格+关0 min-P真实规则的预登记，事前预期不过。"
+    production: {affects: false, role: scoping}
+    documents:
+      spec: [docs/plans/2026-09-09-pair-weighting-scoping.md]
+      report: [docs/plans/2026-09-09-pair-weighting-scoping.md]
+      evidence: [output/equal_weight/equal_weight_signal_20d40z.csv]
+    supersedes: []
+    depends_on: [pair-set]
+
   - id: gateway-provenance-gap
     title: "网关溯源缺口（现网跑着仓里没有源码的端点）"
     family: production-monitoring
