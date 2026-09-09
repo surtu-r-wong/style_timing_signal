@@ -45,9 +45,11 @@ GATED = {
     "hybrid20_confirmed": "output/hybrid20/confirmed_signal.csv",
     "citic40d": "output/citic40d/citic_style_signal_40d.csv",
     "equal_weight_20d40z": "output/equal_weight/equal_weight_signal_20d40z.csv",
+    "slope20_L20zw120": "output/slope20/slope20_signal_L20zw120.csv",   # 2026-09-09 第四条线
     "recommended_hybrid20": "output/recommended/hybrid20_longflat.csv",
     "recommended_citic40d": "output/recommended/citic40d_longflat.csv",
     "recommended_equal_weight": "output/recommended/equal_weight_symmetric.csv",   # 2026-09-09 切对称
+    "recommended_slope20": "output/recommended/slope20_symmetric.csv",
 }
 # 只报告不拦截：中间产物与非生产口径的参数变体。
 INFORMATIONAL = {

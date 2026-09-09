@@ -25,6 +25,7 @@ SIGNALS = {
     "hybrid20": ("output/hybrid20/confirmed_signal.csv", "hybrid_20"),
     "citic40d": ("output/citic40d/citic_style_signal_40d.csv", "factor_20"),
     "equal_weight": ("output/equal_weight/equal_weight_signal_20d40z.csv", "factor_value"),
+    "slope20": ("output/slope20/slope20_signal_L20zw120.csv", "factor_value"),   # 2026-09-09 用户裁决升为第四条生产线
 }
 KOU_JING = ["500", "1000", "blend"]
 WINDOWS = {

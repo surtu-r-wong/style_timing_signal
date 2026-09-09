@@ -23,6 +23,7 @@ BT_OUT = ROOT / "backtest" / "output"
 # 状态条三线：(名称, 信号 CSV, 因子列)；推荐持仓文件由 backtest.production.RECOMMENDED_FILES 决定（equal_weight 2026-09-09 起对称）
 SIGNALS = (
     ("equal_weight", OUT / "equal_weight/equal_weight_signal_20d40z.csv", "factor_value"),
+    ("slope20", OUT / "slope20/slope20_signal_L20zw120.csv", "factor_value"),   # 2026-09-09 第四条线
     ("hybrid20", OUT / "hybrid20/confirmed_signal.csv", "factor_20"),
     ("citic40d", OUT / "citic40d/citic_style_signal_40d.csv", "factor_20"),
 )

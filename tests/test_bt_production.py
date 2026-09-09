@@ -27,6 +27,15 @@ def test_recommended_frame_equal_weight_is_symmetric_on_committed_signal():
     assert list(lf["position"]) == list((df["position"] > 0).astype(int).values)
 
 
+def test_recommended_frame_slope20_is_symmetric_and_matches_definition():
+    """slope20 2026-09-09 上线为第四条线：对称映射；信号文件须与 momentum_factor_fn 的 slope/20/0/120/0 定义同源（由生成器保证）。"""
+    from backtest.production import PRODUCTION_MAPPING, RECOMMENDED_FILES, recommended_position_frame
+    assert PRODUCTION_MAPPING["slope20"] == "symmetric"
+    assert RECOMMENDED_FILES["slope20"] == "output/recommended/slope20_symmetric.csv"
+    df = recommended_position_frame("slope20")
+    assert df["position"].isin([-1, 0, 1]).all() and (df["position"] < 0).any() and len(df) > 100
+
+
 def test_recommended_frame_other_two_signals_stay_long_flat():
     from backtest.production import PRODUCTION_MAPPING, recommended_position_frame
     for name in ("hybrid20", "citic40d"):

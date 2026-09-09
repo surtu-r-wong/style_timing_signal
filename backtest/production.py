@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 from backtest.baseline import SIGNALS  # noqa: E402
 from backtest.positions import production_position, symmetric_position  # noqa: E402
 
-PRODUCTION_MAPPING = {"hybrid20": "longflat", "citic40d": "longflat", "equal_weight": "symmetric"}
+PRODUCTION_MAPPING = {"hybrid20": "longflat", "citic40d": "longflat", "equal_weight": "symmetric", "slope20": "symmetric"}   # slope20 2026-09-09 上线，空头腿 0.62 同形态
 MAPPERS = {"longflat": production_position, "symmetric": symmetric_position}
 # 下游（仪表盘 / 新鲜度护栏 / 合并导出）一律从这里取推荐持仓文件，不要自己拼文件名。
 RECOMMENDED_FILES = {name: f"output/recommended/{name}_{m}.csv" for name, m in PRODUCTION_MAPPING.items()}

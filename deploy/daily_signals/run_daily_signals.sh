@@ -206,7 +206,7 @@ topup_rc=0
 topup_stage || topup_rc=$?
 [[ ${topup_rc} -eq 0 ]] || fail "topup_audit(${TOPUP_STATUS})" 1
 
-# ── 步骤 1-6：三条信号线 + 推荐持仓（均为全量重算覆写）────────────────────────
+# ── 步骤 1-6：四条信号线（slope20 2026-09-09 加入）+ 推荐持仓（均为全量重算覆写）────────────────────────
 run_step "hybrid20_growth_stability" \
   "${PYTHON}" signals/hybrid20/update_growth_stability.py
 run_step "hybrid20_confirmed" \
@@ -219,6 +219,8 @@ run_step "equal_weight_5d20z" \
   "${PYTHON}" signals/equal_weight/generate_signal.py \
       --lookback 5 --z-window 20 --smoothing 0 \
       --output output/equal_weight/equal_weight_signal_5d20z.csv
+run_step "slope20_L20zw120" \
+  "${PYTHON}" signals/slope20/generate_signal.py
 run_step "recommended_positions" \
   "${PYTHON}" -m backtest.production
 

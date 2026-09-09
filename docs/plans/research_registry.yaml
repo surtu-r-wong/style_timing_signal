@@ -39,6 +39,25 @@ studies:
     supersedes: [production-equal-weight-long-flat]
     depends_on: []
 
+  - id: production-slope20-fourth-line
+    title: "现役第四条线 slope20（2026-09-09 上线，对称）"
+    family: production-mapping
+    status: adopted
+    outcome: selected
+    evidence_level: committed_formal_probe
+    scope: "slope_L20s0_zw120_sm0（07-11 登记的第一替补）作为第四条生产线与 equal_weight/hybrid20/citic40d 并行，对称映射；不融合不替换。生成器 signals/slope20/generate_signal.py 与 fusion_probe 定义逐位一致（corr 1.0）。"
+    claim: "用户 2026-09-09 裁决。同秤日频含贴水：对称 1.41/年化36.5%/回撤−32%，多头腿 1.42，空头腿 0.62（12年8正，崩盘年+59%/+35%/+39%）；验证窗 2021-23 对称 1.84 vs 现役 1.26，holdout 2024-26 1.08 vs 1.51，全窗平手——现役同一根轴的慢档，各赢一段行情。"
+    non_claims: ["不声称优于现役（全窗平手，holdout 落后）。", "不是独立信息源（与现役 corr 0.82）。", "分歧日（约20%）不构成投票依据，两线为并行独立仓位。"]
+    caveats: ["上线即处于其弱势段（2024-26）。", "空头段执行价未审计。", "上线当日与现役分歧：equal_weight 持多，slope20 持空。", "回滚=从 PRODUCTION_MAPPING/SIGNALS/护栏/链路四处移除。"]
+    reopen_condition: "用户风险偏好改变或执行审计发现问题时回退；部署裁决不需预登记。"
+    production: {affects: true, role: incumbent}
+    documents:
+      spec: [docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md, docs/plans/2026-07-10-momentum-transform-scan-design.md]
+      report: [docs/plans/2026-08-12-probe-3-fusion-slope20.md]
+      evidence: [output/recommended/slope20_symmetric.csv, output/slope20/slope20_signal_L20zw120.csv]
+    supersedes: []
+    depends_on: [momentum-transform, fusion-slope20]
+
   - id: production-equal-weight-long-flat
     title: "等权 long-flat（2026-09-09 前现役）"
     family: production-mapping

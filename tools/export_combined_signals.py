@@ -58,7 +58,7 @@ from backtest.baseline import SIGNALS  # noqa: E402  (需先设好 sys.path)
 #   equal_weight 1.6163 > hybrid20 1.2269 > citic40d 1.1213
 # 注意别按 full 段排——那会把 citic40d(0.783) 排到最后而 hybrid20(1.270) 靠前，
 # 名次虽同但判据不是部署口径；部署是 long-flat，故一律看 seg=long。
-ORDER = ["equal_weight", "hybrid20", "citic40d"]
+ORDER = ["equal_weight", "slope20", "hybrid20", "citic40d"]
 # 信号列本身就是整数的线（状态机离散化产物），见模块 docstring 的取值域说明。
 DISCRETE_SIGNALS = {"hybrid20"}
 

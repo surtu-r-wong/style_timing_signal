@@ -20,7 +20,7 @@ from dashboard.data import data_bundle, rebase_indices, slice_range  # noqa: E40
 PAGE = "#f9f9f7"
 CARD = {"background": F.SURFACE, "borderRadius": "8px", "padding": "12px 16px",
         "marginBottom": "14px", "border": "1px solid rgba(11,11,11,0.10)"}
-_SIG_LABEL = {"equal_weight": "equal_weight（生产主信号）",
+_SIG_LABEL = {"equal_weight": "equal_weight（生产主信号）", "slope20": "slope20（第四条线，2026-09-09）",
               "hybrid20": "hybrid20", "citic40d": "citic40d"}
 
 
