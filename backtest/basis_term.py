@@ -21,6 +21,9 @@ MIN_CONTRACTS = 3
 FUT = {"500": "IC", "1000": "IM"}
 SPOT = {"500": "000905.SH", "1000": "000852.SH"}
 CACHE = ROOT / "backtest" / "output" / "basis_term_series.csv"
+# 横截面复制（预登记 docs/plans/2026-09-09-basis-term-replication-prereg.md）：IF/IH 单品种序列，构造逐字同上
+REPL = {"IF": "300", "IH": "50", "IC": "500", "IM": "1000"}   # 品种 → data._SPOT 口径键
+REPL_CACHE = ROOT / "backtest" / "output" / "basis_term_replication_series.csv"
 
 
 def day_term_metrics(rows: pd.DataFrame, spot: float, td) -> dict:
@@ -80,4 +83,36 @@ def build_series(force: bool = False, db=None) -> pd.DataFrame:
     out = combine(legs)
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(CACHE)
+    return out
+
+
+def _load_fut(prefix: str, db) -> pd.DataFrame:
+    from backtest.data import _connect
+    conn = _connect(db)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT trade_date, symbol, close FROM public.futures_daily WHERE symbol LIKE %s AND close IS NOT NULL", (prefix + "%",))
+            return pd.DataFrame(cur.fetchall(), columns=["trade_date", "symbol", "close"])
+    finally:
+        conn.close()
+
+
+def build_replication_series(force: bool = False, db=None) -> pd.DataFrame:
+    """单品种期限结构（不合并腿）：列 T1_<品种> / T2_<品种> / n_used_<品种>，IF/IH/IC/IM 各自对自身现货。
+
+    与 build_series 的唯一差别是不做 500/1000 腿均值——复制对象是单品种，原线的合并
+    规则在这里没有对应物。IC/IM 单腿列只用于独立性预检（与原线合并序列对照）。
+    """
+    if REPL_CACHE.exists() and not force:
+        return pd.read_csv(REPL_CACHE, parse_dates=["date"]).set_index("date")
+    from backtest.data import load_spot_close
+    from signals.common.config import load_db_config
+    db = db or load_db_config()
+    cols = {}
+    for pre, kj in REPL.items():
+        d = build_index_series(_load_fut(pre, db), load_spot_close(kj, None, db))
+        cols[f"T1_{pre}"] = d["slope"]; cols[f"T2_{pre}"] = d["far_near"]; cols[f"n_used_{pre}"] = d["n_used"]
+    out = pd.DataFrame(cols).sort_index(); out.index.name = "date"
+    REPL_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    out.to_csv(REPL_CACHE)
     return out

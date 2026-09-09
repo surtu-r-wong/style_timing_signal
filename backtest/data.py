@@ -20,8 +20,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from signals.common.config import load_db_config  # noqa: E402
 
-_SPOT = {"500": "000905.SH", "1000": "000852.SH"}
-_FUT = {"500": "IC", "1000": "IM"}
+_SPOT = {"500": "000905.SH", "1000": "000852.SH",
+         "300": "000300.SH", "50": "000016.SH"}   # 300/50：2026-09-09 基差横截面复制用，index_daily 000016 仅 2021-01 起
+_FUT = {"500": "IC", "1000": "IM", "300": "IF", "50": "IH"}
 
 
 # ---------------- 纯函数 ----------------

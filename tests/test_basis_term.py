@@ -32,3 +32,13 @@ def test_combine_uses_available_legs_without_zero_fill():
     assert abs(out["T1"].iloc[0] - 0.2) < 1e-12          # 只有 IC 时不补 0
     assert abs(out["T1"].iloc[-1] - 0.3) < 1e-12         # 两腿平均
     assert out["T3"].iloc[:20].isna().all() and abs(out["T3"].iloc[-1]) < 1e-12
+
+
+def test_replication_instruments_map_to_data_layer_codes():
+    """复制预登记（2026-09-09）：IF/IH 走 data._SPOT/_FUT 的 300/50 口径键，品种前缀与口径键必须互相一致。"""
+    from backtest.basis_term import REPL
+    from backtest.data import _FUT, _SPOT
+    assert REPL == {"IF": "300", "IH": "50", "IC": "500", "IM": "1000"}
+    for pre, kj in REPL.items():
+        assert _FUT[kj] == pre
+    assert _SPOT["300"] == "000300.SH" and _SPOT["50"] == "000016.SH"
