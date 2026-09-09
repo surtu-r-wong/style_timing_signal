@@ -856,6 +856,25 @@ studies:
     supersedes: []
     depends_on: [money-flow-residual-axis]
 
+  - id: gate0-reanalysis-2026-09-09
+    title: "关 0 批量重分析（真实选优规则 / min-P / 偏 IC 增量版）"
+    family: methodology
+    status: closed
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: "用户裁决机器有缺陷就修、修完对全部已关帐线一律重跑。五条族探针线（基差/分析师/资金流/创新高/隐波）16个族代表+现役校准点，同一份置换索引矩阵B=1000跑三版：V0复算原关0、V1把pick_representative真实规则塞进零分布（select_fn此前从未被探针调用）、V3偏IC增量版；每版报max-T与min-P单步校正p。翻转处置跑前冻结。"
+    claim: "零翻转。V0 max-T与登记逐位一致（创新高/隐波差在评窗多一天）。最贴线=资金流F1：V1 max-T 0.059/min-P 0.071、V3 min-P 0.040，按规则不翻且横截面复制已STOP。min-P对多落在k=40的族代表普遍不比max-T松。更正：09-03在位者审计的min-P 0.013是网格赢家k=10的p，部署点k=20自己是0.155。"
+    non_claims: ["不改变任何已登记裁决（本次正是为了检验它们，结果全部维持）。", "不覆盖reversal/dual_channel/fifth_bucket/family_unification/threshold（其选优本身是argmax，无本错配）。"]
+    caveats: ["错配是真的但修正后未改变任何裁决。", "口径论证仍成立，但对本批候选无救。", "今后预登记关0必须用select_fn传真实代表规则并同时报V3增量版。"]
+    reopen_condition: "不适用。新面预登记按本机器V1/V3模板执行。"
+    production: {affects: false, role: methodology}
+    documents:
+      spec: [docs/plans/2026-09-09-gate0-reanalysis-design.md]
+      report: [docs/plans/2026-09-09-gate0-reanalysis-results.md]
+      evidence: [backtest/output/gate0_reanalysis_summary.csv, backtest/gate0_reanalysis.py]
+    supersedes: []
+    depends_on: [gate0-criterion-max-t-vs-min-p]
+
   - id: gateway-provenance-gap
     title: "网关溯源缺口（现网跑着仓里没有源码的端点）"
     family: production-monitoring
