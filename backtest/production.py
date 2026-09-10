@@ -4,6 +4,10 @@
 - hybrid20 / citic40d：long-flat（Phase 3 v1 采纳，方向A；空头腿 Sharpe 0.49 / 0.05）。
 - equal_weight：**对称**（2026-09-09 用户裁决"部署空头"，决策记录
   docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md）。long-flat 文件继续并行产出作参照。
+- slope20：对称（2026-09-09 第四条线）。**2026-09-10 用户裁决「两池分信号」**：实盘资金分现货池（只能做多）
+  与期货池（可做空），现货池跟 slope20 **long-flat**（参照产出 slope20_longflat.csv），期货池跟 equal_weight 对称。
+  依据是风险分散（两池收益相关 0.64→0.46）而非收益（2016 起 Sharpe 与全用 equal_weight 持平），
+  决策记录 docs/plans/2026-09-10-two-pool-signal-assignment-decision.md。
 信号 CSV 本身不改（字节回归护栏）——本模块只做下游持仓口径，读 committed 信号产出。
 回滚 = 把 PRODUCTION_MAPPING["equal_weight"] 改回 "longflat"。
 """
@@ -23,7 +27,12 @@ MAPPERS = {"longflat": production_position, "symmetric": symmetric_position}
 # 下游（仪表盘 / 新鲜度护栏 / 合并导出）一律从这里取推荐持仓文件，不要自己拼文件名。
 RECOMMENDED_FILES = {name: f"output/recommended/{name}_{m}.csv" for name, m in PRODUCTION_MAPPING.items()}
 # 参照产出：非现役口径也照常写，便于对照与回滚（equal_weight 的 long-flat）。
-REFERENCE_OUTPUTS = {"equal_weight": "longflat"}
+REFERENCE_OUTPUTS = {
+    "equal_weight": "longflat",
+    # 2026-09-10 用户裁决「两池分信号」：现货池（只多）跟 slope20 long-flat，期货池跟 equal_weight 对称。
+    # 现货池文件 = 本参照产出；决策记录 docs/plans/2026-09-10-two-pool-signal-assignment-decision.md。
+    "slope20": "longflat",
+}
 
 
 def recommended_position_frame(name: str, threshold: float = 0.0, mapping: str | None = None) -> pd.DataFrame:

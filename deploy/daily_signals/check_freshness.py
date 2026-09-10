@@ -56,6 +56,7 @@ INFORMATIONAL = {
     "hybrid20_growth_stability": "output/hybrid20/growth_stability_signal.csv",
     "equal_weight_5d20z": "output/equal_weight/equal_weight_signal_5d20z.csv",
     "recommended_equal_weight_longflat_ref": "output/recommended/equal_weight_longflat.csv",   # 参照口径，2026-09-09 起非现役
+    "recommended_slope20_longflat_ref": "output/recommended/slope20_longflat.csv",   # 2026-09-10 两池分信号：现货池（只多）用此文件
 }
 
 # 上游冻结护栏：本项目产出与 index_daily 是同步的，上游一旦不动，

@@ -36,6 +36,21 @@ def test_recommended_frame_slope20_is_symmetric_and_matches_definition():
     assert df["position"].isin([-1, 0, 1]).all() and (df["position"] < 0).any() and len(df) > 100
 
 
+def test_slope20_longflat_reference_output_for_spot_pool():
+    """2026-09-10 两池分信号：现货池（只能做多）跟 slope20 long-flat。参照产出必须登记、写盘，且等于对称口径的多头段。"""
+    from backtest.production import REFERENCE_OUTPUTS, recommended_position_frame, write_recommended_positions
+    assert REFERENCE_OUTPUTS["slope20"] == "longflat"
+    sym = recommended_position_frame("slope20")
+    lf = recommended_position_frame("slope20", mapping="longflat")
+    assert lf["position"].isin([0, 1]).all()
+    assert list(lf["position"]) == list((sym["position"] > 0).astype(int).values)
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        written = write_recommended_positions(Path(d))
+        assert written["slope20[longflat 参照]"].name == "slope20_longflat.csv"
+        assert written["slope20[longflat 参照]"].exists()
+
+
 def test_recommended_frame_other_two_signals_stay_long_flat():
     from backtest.production import PRODUCTION_MAPPING, recommended_position_frame
     for name in ("hybrid20", "citic40d"):
