@@ -157,11 +157,22 @@ git commit -m "..." deploy/daily_signals/SKIP_TOPUP    # ← 必须一起提交�
 
 1. `rm deploy/daily_signals/SKIP_TOPUP`（只需这一步）。
 2. **不需要手工补昨天**：`tools/topup_index_daily.sh` 的补跑语义是**范围补齐**，不是只取当日——
-   它调用 `stock_selector … backfill date-range --start <默认 14 天前> --end <今天>`，
+   它调用 `stock_selector … backfill date-range --start <默认 14 天前> --end <闸门认可的最后一个交易日>`，
    而 `backfill_date_range` 按整个区间取数 + 幂等 upsert。所以第二天正常跑一次，
    **落下的那一天会连同区间一起补上**。
 3. 缺口超过 14 天时显式给起点：`tools/topup_index_daily.sh 2026-07-20`。
-4. 恢复后确认：`cat logs/daily_signals_status.json` 应看到 `"topup": "OK"`，
+4. **盘中补跑只补到上一个交易日**（2026-09-11 起）：END 不是 `date +%F`，而是问
+   `topup_guard.py --mode last-trading-day` 要——与前置闸门同一个 `expected_last_trading_day()`。
+   15:30 前跑，当天的行根本不去取。
+   要看将补哪段而不联网、不写库：`TOPUP_DRY_RUN=1 tools/topup_index_daily.sh`。
+
+   起因是 2026-09-10 09:07 的实录：闸门按 15:30 正确判出「应有的最后交易日 = 09-09」
+   并放行补跑（库内当时停在 09-03），而脚本自己 `END=$(date +%F)` 取到 09-10，于是
+   15 个指数的当日收盘价全是前值复制的占位行，进了库。那次被事后审计的「前值复制」
+   规则接住，但**接住它靠运气**：开盘才 7 分钟，Wind 还在返回前一日收盘；同样的补跑
+   发生在 10:30，Wind 返回的是实时价——既不等于前值、也是个有限的正常数字——事后审计
+   的每一条规则与同族共动性哨兵全都抓不到。判例见 `tests/test_tools_topup_index_daily.py`。
+5. 恢复后确认：`cat logs/daily_signals_status.json` 应看到 `"topup": "OK"`，
    且 `upstream.max_trade_date` 已推进。
 
 ## 产物

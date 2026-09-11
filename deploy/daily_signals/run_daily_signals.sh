@@ -75,6 +75,10 @@ pick_python() {
   command -v python3
 }
 PYTHON="$(pick_python)"
+# 传给子进程：tools/topup_index_daily.sh 要用它跑闸门的 last-trading-day 模式。
+# 不传的话脚本只能退回 PATH 里的 python3，而 systemd user service 的 PATH 不含
+# miniconda——同一个闸门文件会被两个不同解释器跑，没必要。
+export STYLE_SIGNALS_PYTHON="${PYTHON}"
 
 STARTED_AT="$(date --iso-8601=seconds)"
 START_TS=${SECONDS}

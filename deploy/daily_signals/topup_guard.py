@@ -35,6 +35,12 @@
 
     python3 deploy/daily_signals/topup_guard.py --mode audit --snapshot /path/snap.json
         exit 0 → 干净；exit 1 → SUSPECT（stdout 逐条列出）；exit 2 → 护栏自身出错
+
+    python3 deploy/daily_signals/topup_guard.py --mode last-trading-day
+        只打印「应有的最后一个交易日」（闸门 3 用的同一个判断）后退出 0。
+        `tools/topup_index_daily.sh` 的 END 取自这里——2026-09-10 的事故是闸门按
+        15:30 判、脚本自己 `date +%F` 另判一套，于是盘中取了当天的占位行。
+        「补到哪天」必须只有一个真相源。
 """
 from __future__ import annotations
 
@@ -356,11 +362,18 @@ def run_audit(snapshot_path: Path, now: datetime) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="topup 写库护栏（前置闸门 + 事后审计）")
-    ap.add_argument("--mode", choices=["preflight", "audit"], required=True)
-    ap.add_argument("--snapshot", required=True, help="调用前快照 JSON 路径")
+    ap.add_argument("--mode", choices=["preflight", "audit", "last-trading-day"],
+                    required=True)
+    ap.add_argument("--snapshot", help="调用前快照 JSON 路径（preflight / audit 必需）")
     args = ap.parse_args()
 
     now = datetime.now()
+    if args.mode == "last-trading-day":
+        # 唯一真相源：topup 脚本的 END 取自这里，不再自己用 `date +%F` 另判一套。
+        print(expected_last_trading_day(now).isoformat())
+        return EXIT_GO
+    if not args.snapshot:
+        ap.error("--snapshot 是 preflight / audit 模式的必需参数")
     snapshot_path = Path(args.snapshot)
     try:
         if args.mode == "preflight":

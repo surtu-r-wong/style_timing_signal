@@ -8,7 +8,7 @@ import inspect
 import json
 import sys
 import types
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -361,3 +361,29 @@ def test_gateway_probe_ignores_environment_proxies(monkeypatch):
     assert out == {"status": "ok"}
     assert seen["trust_env"] is False      # 必须显式关掉，否则代理会把内网服务打成 502
     assert seen["url"] == "http://10.0.0.1:8080/ping"
+
+
+# ────────── 闸门与执行体的「补到哪天」口径一致性（2026-09-11 立）──────────
+#
+# 2026-09-10 09:07 实录：前置闸门按 15:30 正确判出「应有的最后交易日 = 09-09」并放行
+# 补跑（库内当时停在 09-03），而 tools/topup_index_daily.sh 自己写死 END=$(date +%F)
+# 取到 **09-10**——一个闸门根本没打算让它取的日子。于是盘中取当天 → 15 个指数的
+# 09-10 收盘价全是前一日复制的占位值，进了库。那次被事后审计的「前值复制」规则接住
+# 了，但接住它靠运气：开盘才 7 分钟，Wind 还在返回前一日收盘。同样的补跑发生在
+# 10:30，Wind 返回的是**实时价**——既不等于前值、也是个有限的正常数字——事后审计
+# 的每一条规则都抓不到。
+#
+# 治本 = 让脚本的 END 与闸门同源，而不是各判各的。
+
+def test_main_exposes_last_trading_day_mode(monkeypatch, capsys):
+    """闸门须提供一个只打印「应有的最后交易日」的模式，供 topup 脚本取 END。
+
+    这样「补到哪天」只有一个真相源；脚本不再自己用 `date +%F` 另判一套。
+    """
+    monkeypatch.setattr(guard, "expected_last_trading_day", lambda now: date(2026, 9, 9))
+    monkeypatch.setattr(sys, "argv", ["topup_guard.py", "--mode", "last-trading-day"])
+
+    rc = guard.main()
+
+    assert rc == guard.EXIT_GO
+    assert capsys.readouterr().out.strip() == "2026-09-09"
