@@ -1,0 +1,7 @@
+python -m pytest tests/test_grid_reassessment.py tests/test_research_registry.py -q -p no:cacheprovider
+16 passed in 0.66s
+ruff --select F,E9: passed
+research_registry validate/render --check: passed
+git diff --check: passed
+Initial standalone pytest launcher could not resolve new project module; python -m pytest resolved the import path. No code change required.
+Original scan interface comparisons, prior full daily ledger comparisons and unchanged forward code guards: see outputs/cross_validation.json.

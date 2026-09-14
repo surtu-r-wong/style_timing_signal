@@ -1,0 +1,13 @@
+{
+  "historical_rehearsal": true,
+  "contemporaneous_receipts": false,
+  "missing_signal_sessions": [],
+  "signal_coverage": 1.0,
+  "longest_signal_gap": 0,
+  "calendar_sessions": 505,
+  "completed_fill_sessions": 504,
+  "observation_start": "2024-08-15",
+  "observation_end": "2026-09-11",
+  "actual_account_returns": false,
+  "go_enabled": false
+}

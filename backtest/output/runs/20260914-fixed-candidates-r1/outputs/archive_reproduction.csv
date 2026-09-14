@@ -1,0 +1,6 @@
+name,expected_disagreement,actual_disagreement,match
+raw,285,285,True
+DEMA5,225,225,True
+DEMA7,162,162,True
+CUSUM,1374,1374,True
+Hamilton,843,843,True

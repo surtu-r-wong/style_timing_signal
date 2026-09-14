@@ -1,0 +1,13 @@
+{
+  "n_draws": 200,
+  "p_selected": {
+    "size_at_0.05": 0.05,
+    "size_at_0.1": 0.1
+  },
+  "p_min_p": {
+    "size_at_0.05": 0.05,
+    "size_at_0.1": 0.1
+  },
+  "p_selected_mean": 0.5025,
+  "p_min_p_mean": 0.5025
+}

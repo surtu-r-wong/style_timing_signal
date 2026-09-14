@@ -1,0 +1,8 @@
+{
+  "development_only": false,
+  "go_enabled": false,
+  "size_scenario_criterion_met": false,
+  "power_target_met": false,
+  "formal_forward_method_frozen": false,
+  "scope": "listed synthetic net-return DGPs only"
+}

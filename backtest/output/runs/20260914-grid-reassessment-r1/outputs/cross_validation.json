@@ -1,0 +1,51 @@
+{
+  "checks": [
+    {
+      "name": "ew_L20_zw40_sm5",
+      "regime": "old_sym",
+      "reference": "original scan_grid",
+      "max_abs_error": 4.440892098500626e-16
+    },
+    {
+      "name": "ew_L20_zw40_sm5",
+      "regime": "fixed_sym",
+      "reference": "original scan_grid",
+      "max_abs_error": 4.440892098500626e-16
+    },
+    {
+      "name": "slope_L20s0_zw120_sm0",
+      "regime": "old_sym",
+      "reference": "original scan_grid",
+      "max_abs_error": 2.220446049250313e-16
+    },
+    {
+      "name": "slope_L20s0_zw120_sm0",
+      "regime": "fixed_sym",
+      "reference": "original scan_grid",
+      "max_abs_error": 4.440892098500626e-16
+    },
+    {
+      "cost_bps": 3,
+      "reference": "prior execution-audit-r2 full daily ledger",
+      "matched": true
+    },
+    {
+      "cost_bps": 10,
+      "reference": "prior execution-audit-r2 full daily ledger",
+      "matched": true
+    },
+    {
+      "campaign": {
+        "records": 0,
+        "last_signal_date": null,
+        "head_sha256": null,
+        "last_recorded_at_utc": "2026-09-14T08:45:36.901402+00:00",
+        "mode": "observation_only_no_statistical_go"
+      }
+    }
+  ],
+  "python": "3.13.9",
+  "numpy": "2.3.4",
+  "pandas": "2.3.3",
+  "forward_code_guards_unchanged": 9
+}

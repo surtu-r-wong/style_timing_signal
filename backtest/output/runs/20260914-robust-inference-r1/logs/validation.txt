@@ -1,0 +1,7 @@
+python -m pytest tests/test_robust_sharpe_inference.py: 6 passed in 1.43s
+python -m pytest tests/test_research_registry.py: 13 passed in 0.39s
+ruff --select F,E9: passed
+research registry validate/render --check: passed
+git diff --check: passed
+A seeds=10800 unique; B seeds=7200 unique; sets disjoint.
+Original signal guards=9 and market guards=5 unchanged; both campaigns zero observations; GO disabled.

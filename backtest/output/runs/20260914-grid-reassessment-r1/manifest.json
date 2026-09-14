@@ -1,0 +1,360 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/code/backtest__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code/backtest__engine.py",
+      "sha256": "adcfc4d510af01294d3dfaf30e9abd240572b15eef56832910f8963437b9fbec",
+      "size": 2454
+    },
+    {
+      "path": "inputs/code/backtest__execution_audit.py",
+      "sha256": "22bf6393ac76fd1041cb66656617edbcc3a9a96cfec8bfd059ef7e9ccedae729",
+      "size": 12644
+    },
+    {
+      "path": "inputs/code/backtest__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code/backtest__grid_reassessment.py",
+      "sha256": "6756e24d5b9755e012fea78cbd9d6d7904e9ee8301920935fd10fad6c96af329",
+      "size": 11357
+    },
+    {
+      "path": "inputs/code/backtest__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code/backtest__momentum_scan.py",
+      "sha256": "529e202b1d3624542c9fc569e4f6fcad7b5d3cb87184c6719613c3251ea33df5",
+      "size": 11926
+    },
+    {
+      "path": "inputs/code/backtest__paired_bootstrap.py",
+      "sha256": "9de3d5ab5a6756c4cbf71bae42b7b51377bfe86e7034f5d98ca29b942b5c8d07",
+      "size": 8647
+    },
+    {
+      "path": "inputs/code/backtest__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code/backtest__scan.py",
+      "sha256": "202d01d82fe3b20d0cc011a4898a329ed0ab7c47452f37bb150a2606bf60d0e5",
+      "size": 5593
+    },
+    {
+      "path": "inputs/code/cross_validate.py",
+      "sha256": "9cb1a49f8d47b296da7b1729b2186a1b511da5b234020ddb57f01a1093f9ab38",
+      "size": 2596
+    },
+    {
+      "path": "inputs/code/signals__common__factors.py",
+      "sha256": "33372e7cb61e1dcd45adcd903f0c02e2b051f1662bc43f591d3c965d77a8e9ff",
+      "size": 22096
+    },
+    {
+      "path": "inputs/code/signals__equal_weight__generate_signal.py",
+      "sha256": "4e4bc24d8caf9744a1acede9828a7d76029ef2a8ff1da2fff95b8fddf5e6451a",
+      "size": 12885
+    },
+    {
+      "path": "inputs/code/test_grid_reassessment.py",
+      "sha256": "c04aef48d5fab7c93cab44db3f75c59054a5893e939543ba016f7f28cd39e593",
+      "size": 1271
+    },
+    {
+      "path": "inputs/config_4pairs.csv",
+      "sha256": "52b9091d17cf4661b4f9d927bd861e18fbd9bf7ada047e77afd83c4e719635af",
+      "size": 213
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc",
+      "size": 192861
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/historical_scan_equal_weight.csv",
+      "sha256": "9eab56e4e6fcc4d51ac5376309ae9dda1020617c461091245dbb00e25d3731ae",
+      "size": 2740
+    },
+    {
+      "path": "inputs/historical_scan_momentum.csv",
+      "sha256": "27094aaded972da9c53380c5df4a61d5eacece2e8ccd24ea6697cf37e9be7770",
+      "size": 13417
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "0f71dc830d4e2e414f00c81a2ccc773368733fe5f39d0b2ec8cf4092e342abef",
+      "size": 2455
+    },
+    {
+      "path": "inputs/slope20.csv",
+      "sha256": "3bad72ce3afd89e08eec7bf4881ca2d7011364135f619deceb33911df52fd823",
+      "size": 56298
+    },
+    {
+      "path": "inputs/snapshot.json",
+      "sha256": "bc788f161026b1ab1fd93bc1f400db4cece919608883260bd35c5d80302b01f0",
+      "size": 246
+    },
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "inputs/style_prices.csv",
+      "sha256": "947d5aad9c933fcde31368587350007465f2e7ac2bc517232206bce4b0558ef7",
+      "size": 277779
+    },
+    {
+      "path": "outputs/carry_comparison.csv",
+      "sha256": "fc86c26b8eabb20cb76eb7010ad0780bb89dc00619c91235b8754e7af7495700",
+      "size": 219095
+    },
+    {
+      "path": "outputs/cross_validation.json",
+      "sha256": "00bfcb5b8bda65b0ee3b1da2059e992b19c4bf3b7c4b1b8f8d6e5c172fbde297",
+      "size": 1263
+    },
+    {
+      "path": "outputs/execution_panel.csv",
+      "sha256": "cd69e15211bbb7dd87ca39ea4e0d33669df5232e5d2cc6debc4417788cd8dfef",
+      "size": 12899
+    },
+    {
+      "path": "outputs/family_winners.csv",
+      "sha256": "a83f839adcb7f10107f1eff779bfe077e3e6a2216fa0e190f7475bc252acd609",
+      "size": 3865
+    },
+    {
+      "path": "outputs/full_grid.csv",
+      "sha256": "255e93eb243cffb47c888419996c6d4be0c01db558abd02e1421f7f908234727",
+      "size": 115622
+    },
+    {
+      "path": "outputs/incumbent_ranks.csv",
+      "sha256": "b1c5b12e99703e6992b10d0d76cbd3c9118e84bc76369ceb5a874e5d69b4a9f7",
+      "size": 1169
+    },
+    {
+      "path": "outputs/ledger_futures_ew_L20_zw100_sm0_10bps.csv",
+      "sha256": "a7ecae2f87ba273f89c6866de65f6663d0d489010a409c158a71519ddbe3d738",
+      "size": 635323
+    },
+    {
+      "path": "outputs/ledger_futures_ew_L20_zw100_sm0_3bps.csv",
+      "sha256": "f558820a6a87870221ca3e655e3c3ea47c61ef2e0f8d0ff6024f10900335a294",
+      "size": 633130
+    },
+    {
+      "path": "outputs/ledger_futures_ew_L20_zw40_sm5_10bps.csv",
+      "sha256": "76fdcf13ec573514cb7975610623fbf914c7e8849fe9601c3f01491f4fa16676",
+      "size": 631515
+    },
+    {
+      "path": "outputs/ledger_futures_ew_L20_zw40_sm5_3bps.csv",
+      "sha256": "19db5bf185425a60350c666f05ed7986d10f340ce8f9cff76705983b6bc9efcf",
+      "size": 630137
+    },
+    {
+      "path": "outputs/ledger_spot_slope_L20s0_zw120_sm0_10bps.csv",
+      "sha256": "da1c48047664cd69bd50837f2b979db18778326d7d1e37608ac4896d621851e6",
+      "size": 459881
+    },
+    {
+      "path": "outputs/ledger_spot_slope_L20s0_zw120_sm0_3bps.csv",
+      "sha256": "e3d527632f45842eb81443046ad44721224144a155f342753dee6bb2beb5200c",
+      "size": 460274
+    },
+    {
+      "path": "outputs/ledger_two_pool_ew_L20_zw100_sm0__slope_L20s0_zw120_sm0_10bps.csv",
+      "sha256": "1065d86e417381919b352aaa60bea0030c6f9a0835e15dbc258c226abe6ab862",
+      "size": 142028
+    },
+    {
+      "path": "outputs/ledger_two_pool_ew_L20_zw100_sm0__slope_L20s0_zw120_sm0_3bps.csv",
+      "sha256": "faa1ad7a94e6e6b177cdaf6943cf610359a92ef38aa5b19a542ebaf3cbdd1026",
+      "size": 141694
+    },
+    {
+      "path": "outputs/ledger_two_pool_ew_L20_zw40_sm5__slope_L20s0_zw120_sm0_10bps.csv",
+      "sha256": "0fb707ba3e71ce86689e7eff91dc24aff92f71c1191ef8a87980e5ce4ee92fff",
+      "size": 141396
+    },
+    {
+      "path": "outputs/ledger_two_pool_ew_L20_zw40_sm5__slope_L20s0_zw120_sm0_3bps.csv",
+      "sha256": "21c734041c9e7ba305fc43e018aec73f5abbc1812157de9aad4f79266fec299f",
+      "size": 141402
+    },
+    {
+      "path": "outputs/paired_descriptive.csv",
+      "sha256": "2e4feeb317f791e4e3fd32d77ead2c8894ca10d688add07a811c94eea16c52e8",
+      "size": 1120
+    },
+    {
+      "path": "outputs/report.md",
+      "sha256": "df3779d62de2c59480c02c64c23abd83ee614e5ee3bd165999e80a0c60e0e65e",
+      "size": 6958
+    },
+    {
+      "path": "outputs/selected.json",
+      "sha256": "0b3fbff2117151c39d726a98c8cf86698516072af307a7eb6a3ea8fddcc2ec7f",
+      "size": 150
+    },
+    {
+      "path": "outputs/selected_factors.csv",
+      "sha256": "9b79f0e7fbd9e8ee95b0ac0521bd991f76cdf7e389a5a07e672bce1e5e51c494",
+      "size": 101474
+    },
+    {
+      "path": "outputs/slope20_neighborhood.csv",
+      "sha256": "bfd2ca644b949613421a5beeedd73d2470586ea3df27dbaecfdb85cdc4330bd9",
+      "size": 3332
+    },
+    {
+      "path": "outputs/validation.json",
+      "sha256": "7071518b8029ee76f43231be6ab6a3394b81fc0af9706c70bdc0cd7051d80a2c",
+      "size": 260
+    },
+    {
+      "path": "logs/validation.txt",
+      "sha256": "a5ed19c2e95e494aaea4ab6ce0654356b461b9bff5e5a38ed1dedf1bc85278e6",
+      "size": 509
+    }
+  ],
+  "completed_utc": "2026-09-14T09:11:29.467543+00:00",
+  "git": {
+    "commit": "f61fea7d57e158ea02915137d3265f22893d4404",
+    "dirty": true,
+    "porcelain": [
+      " M README.md",
+      " M backtest/basis_term_probe.py",
+      " M backtest/consensus_axis_probe.py",
+      " M backtest/gate0_criterion_study.py",
+      " M backtest/metrics.py",
+      " M backtest/money_flow_axis_probe.py",
+      " M backtest/new_high_axis_probe.py",
+      " M backtest/selection_permutation.py",
+      " M backtest/short_leg_audit.py",
+      " M backtest/significance.py",
+      " M docs/plans/2026-07-08-b1-style-basket-replication.md",
+      " M docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      " M docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      " M docs/plans/2026-07-11-external-review-fixes.md",
+      " M docs/plans/2026-08-12-selection-permutation-machine.md",
+      " M docs/plans/2026-09-03-gate0-criterion-argument.md",
+      " M docs/plans/2026-09-03-gate0-incumbent-audit.md",
+      " M docs/plans/2026-09-03-index-option-iv-axis-results.md",
+      " M docs/plans/2026-09-03-money-flow-axis-results.md",
+      " M docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+      " M docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      " M docs/plans/2026-09-09-gate0-reanalysis-results.md",
+      " M docs/plans/2026-09-10-two-pool-signal-assignment-decision.md",
+      " M docs/plans/PREREG_TEMPLATE.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/audit_corrections.py",
+      "?? backtest/candidate_completion.py",
+      "?? backtest/execution_audit.py",
+      "?? backtest/execution_ledger.py",
+      "?? backtest/forward_observation.py",
+      "?? backtest/grid_reassessment.py",
+      "?? backtest/output/forward/",
+      "?? backtest/output/runs/20260914-audit-corrections-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r2/",
+      "?? backtest/output/runs/20260914-fixed-candidates-r1/",
+      "?? backtest/output/runs/20260914-grid-reassessment-r1/",
+      "?? backtest/output/runs/20260914-incumbent-lineage-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r2/",
+      "?? backtest/output/runs/20260914-risk-allocation-r1/",
+      "?? backtest/output/runs/20260914-statistical-dependency-audit-r1/",
+      "?? backtest/output/runs/20260914-statistics-r1/",
+      "?? backtest/research_data_inventory.py",
+      "?? backtest/research_statistics.py",
+      "?? docs/plans/2026-09-14-incumbent-forward-observation.md",
+      "?? docs/plans/2026-09-14-incumbent-parameter-lineage.md",
+      "?? docs/plans/2026-09-14-research-followthrough-results.md",
+      "?? docs/plans/2026-09-14-statistical-dependency-audit.md",
+      "?? docs/superpowers/plans/2026-09-14-grid-reassessment-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-incumbent-lineage-forward-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-research-followthrough.md",
+      "?? tests/test_execution_ledger.py",
+      "?? tests/test_forward_observation.py",
+      "?? tests/test_grid_reassessment.py",
+      "?? tests/test_research_statistics.py",
+      "?? tests/test_short_leg_audit_alignment.py"
+    ],
+    "tracked_dirty": true
+  },
+  "inference": "descriptive, reused history; no selection-adjusted PASS",
+  "selected": {
+    "ew": [
+      "ew_L20_zw40_sm5",
+      "ew_L20_zw100_sm0"
+    ],
+    "rule": "frozen plan, train/val only",
+    "slope": [
+      "slope_L20s0_zw120_sm0"
+    ]
+  },
+  "source_verified": [
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc",
+      "size": 192861
+    },
+    {
+      "path": "inputs/slope20.csv",
+      "sha256": "3bad72ce3afd89e08eec7bf4881ca2d7011364135f619deceb33911df52fd823",
+      "size": 56298
+    },
+    {
+      "path": "inputs/snapshot.json",
+      "sha256": "bc788f161026b1ab1fd93bc1f400db4cece919608883260bd35c5d80302b01f0",
+      "size": 246
+    },
+    {
+      "path": "inputs/style_prices.csv",
+      "sha256": "947d5aad9c933fcde31368587350007465f2e7ac2bc517232206bce4b0558ef7",
+      "size": 277779
+    },
+    {
+      "path": "inputs/config_4pairs.csv",
+      "sha256": "52b9091d17cf4661b4f9d927bd861e18fbd9bf7ada047e77afd83c4e719635af",
+      "size": 213
+    }
+  ],
+  "status": "complete",
+  "validation": {
+    "forward_records": 0,
+    "original_scan_checks": 4,
+    "prior_ledger_checks": 2,
+    "targeted_tests_passed": 16
+  }
+}

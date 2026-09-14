@@ -1,0 +1,9 @@
+{
+  "selected_form": "O2_lb5zw60",
+  "selected_k": 40,
+  "selected_sign_consistent": true,
+  "grid_winner_form": "O2_lb20zw60",
+  "grid_winner_half1": -0.55,
+  "grid_winner_half2": -0.0129870129870129,
+  "finding": "Winner halves have same sign; old different-sign/gate2-fail wording false. Worst-half absolute IC chooses lb5zw60 instead."
+}

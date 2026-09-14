@@ -1,0 +1,193 @@
+[
+  {
+    "path": "docs/plans/research_registry.yaml",
+    "sha256": "95d349b8284e41ce0971c2930df7d9b66fc49275e08f848eab7fb75071e3ce16",
+    "size": 84485
+  },
+  {
+    "path": "docs/plans/2026-08-12-selection-permutation-machine.md",
+    "sha256": "45c23779dd9deab0d20cf05d0d753840209773fa6c08a7ea5b952c9771281a68",
+    "size": 29031
+  },
+  {
+    "path": "docs/plans/2026-09-03-gate0-incumbent-audit.md",
+    "sha256": "7024b3ffb74c7ee3a461f7604d7587915c4761011b166fce8c12cf0f06e77e1d",
+    "size": 5457
+  },
+  {
+    "path": "docs/plans/2026-09-03-gate0-criterion-argument.md",
+    "sha256": "4f3482e220833aabe1637a9a23c5d3dd48fa367b1e2624bf0e933ee19015894c",
+    "size": 9548
+  },
+  {
+    "path": "docs/plans/2026-09-09-gate0-reanalysis-results.md",
+    "sha256": "6a7682d08941dfba59dcd9247b247397f68e88907aa8576bfdbfad83b97f632d",
+    "size": 4802
+  },
+  {
+    "path": "docs/plans/2026-09-03-money-flow-axis-results.md",
+    "sha256": "16c91b78e70e09b61e2d8b8b10b30b796cac166f5a3737aefd8a0bee078a7703",
+    "size": 7528
+  },
+  {
+    "path": "docs/plans/2026-09-03-index-option-iv-axis-results.md",
+    "sha256": "781df4e83224360084d48eb1fa3527790dafeaef64477573a48b4d553c643bca",
+    "size": 4824
+  },
+  {
+    "path": "docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+    "sha256": "6be8c43017508cf3a98f0ba72d77612923dbd49f9ba8a7d0078c3cad76f362be",
+    "size": 5739
+  },
+  {
+    "path": "docs/plans/2026-07-08-b1-style-basket-replication.md",
+    "sha256": "36910ff93365d276bd929a7520e9f0efb66e0b66aaba035b0aaeb374ef157e0a",
+    "size": 4840
+  },
+  {
+    "path": "docs/plans/2026-07-10-momentum-transform-scan-design.md",
+    "sha256": "f23f00aba1c505e95cf72a77d3f89055c8e09297ffc9bb803354f8ab4b0db4a1",
+    "size": 11276
+  },
+  {
+    "path": "docs/plans/2026-07-11-external-review-fixes.md",
+    "sha256": "9149d61fb081529086b93ab86e2fcb63cd427974c7c0558e8d189df72d52e96d",
+    "size": 9019
+  },
+  {
+    "path": "docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+    "sha256": "82f19e42bf7cb9ca2b2762585042b329532e73d80a1253de61016c674f6f4ff1",
+    "size": 3792
+  },
+  {
+    "path": "docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+    "sha256": "e4f46eef224950d46f476e4d7dbb87f020e9922490eaa9a825226f84e7fa38b5",
+    "size": 3322
+  },
+  {
+    "path": "docs/plans/2026-08-12-probe-3-fusion-slope20.md",
+    "sha256": "6553f079bcf379e4ce2b873a35f9443d763f0224fae32efcae2e0ea94553bc66",
+    "size": 32701
+  },
+  {
+    "path": "backtest/significance.py",
+    "sha256": "9d2a00614fcb9656d81d0400df8b919ce499df48efe3cb9e0427916208520f61",
+    "size": 1533
+  },
+  {
+    "path": "backtest/baseline.py",
+    "sha256": "d8727a0b9d2c576f0cfbd1a82a35cd659d35424c27f46f25c8f7eff0f053bc9a",
+    "size": 5637
+  },
+  {
+    "path": "backtest/selection_permutation.py",
+    "sha256": "36d202ed14d2f96093cac6ef59ff0fd8b5af32bc5f38743e0905a30e217d244b",
+    "size": 29933
+  },
+  {
+    "path": "backtest/gate0_reanalysis.py",
+    "sha256": "e569cddf20c40a91f793b1e90611870dcf8a78d74efe5834629592abfa55f2e3",
+    "size": 10054
+  },
+  {
+    "path": "backtest/gate0_incumbent_audit.py",
+    "sha256": "0beca417aa33c854c07859ebd282426c07ceff938773cc425dee0e8ad445aea6",
+    "size": 6147
+  },
+  {
+    "path": "backtest/gate0_criterion_study.py",
+    "sha256": "99d94a0ea5877a6b3b3d95db7a1191a865aa2247c82c7816db8e77565e018663",
+    "size": 9868
+  },
+  {
+    "path": "backtest/pure_style_eval.py",
+    "sha256": "0365c3d074383852269a8a922e8f1799f28404eb9c61d303f7a39b6bc4a0e7b9",
+    "size": 3183
+  },
+  {
+    "path": "backtest/money_flow_axis_probe.py",
+    "sha256": "fd1b4256577f16fdf1476928734b91a2cd46b57acac17d50ab67e1ff9573a7c4",
+    "size": 5503
+  },
+  {
+    "path": "backtest/basis_term_probe.py",
+    "sha256": "83b90897585a35dec44b4e9d7b0afd877295737e5f6af5aac35550b99e493e50",
+    "size": 5213
+  },
+  {
+    "path": "backtest/consensus_axis_probe.py",
+    "sha256": "aa36c8d7903360610a77ae875b68e6f538a075886d82ed6475a7d19d0f8b7fef",
+    "size": 5717
+  },
+  {
+    "path": "backtest/new_high_axis_probe.py",
+    "sha256": "251fbcf3d9a2b5efb7f625e0041ef672ee1b1ca892e5b60906535e9fdfe28026",
+    "size": 5200
+  },
+  {
+    "path": "signals/style_basket/decompose.py",
+    "sha256": "4acac08383eef85bda5944a31d86940746867ca43b78f04e294b0f0186f747ec",
+    "size": 6821
+  },
+  {
+    "path": "backtest/output/gate0_reanalysis_summary.csv",
+    "sha256": "0ad65c52bf4538ba562278aa70496f72768e34e87959f5c42ffcecf24aa33a38",
+    "size": 2826
+  },
+  {
+    "path": "backtest/output/gate0_incumbent_audit.json",
+    "sha256": "4aef6feeae7a9495a76240bc29e2bcbc39143b929ce848a675686d503f036791",
+    "size": 1485
+  },
+  {
+    "path": "backtest/output/money_flow_axis_selection.json",
+    "sha256": "0a91fbd03c2be92101085c202fb5ef0fe7453c30f49964ffa1a95e3a7e598452",
+    "size": 412
+  },
+  {
+    "path": "backtest/output/option_axis_selection.json",
+    "sha256": "3f7090466e40b41862f831f58dfa1e1ee1e39e4a2f7b0af32e17c69433a742c0",
+    "size": 947
+  },
+  {
+    "path": "backtest/output/money_flow_axis_probe_verdicts.csv",
+    "sha256": "08c03292aa49bcc065ce0d83c1504c35706dd7e91a4c9ff2be1255d6e8349801",
+    "size": 857
+  },
+  {
+    "path": "backtest/output/option_axis_probe_verdicts.csv",
+    "sha256": "e71d7c37ae02a534b7caf85b03c9b1f9ba50d2eea2ec476853ed9c7de2c8c2de",
+    "size": 1585
+  },
+  {
+    "path": "backtest/output/pure_style_eval.csv",
+    "sha256": "d8b1e7e3b5499d4a85f49b7733182adaff736816f5ca174da0f8e6d56f21e339",
+    "size": 20496
+  },
+  {
+    "path": "output/style_basket/validation_all.csv",
+    "sha256": "643c58f7a35c749917ce5b743607f2bb2dd514236164d8db643f73d229fbd331",
+    "size": 1748
+  },
+  {
+    "path": "output/style_basket/decomposition_U2.csv",
+    "sha256": "5cea43f6fdabc03b57778f1e7e83c48d91c002a1cf57b32c2e558e84d40b2607",
+    "size": 2057
+  },
+  {
+    "path": "backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs/gate0r_result.json",
+    "sha256": "1797140ddac913a16104cccd48b84e7c8e7e608644e20a29897a87c23be815a0",
+    "size": 2136
+  },
+  {
+    "path": "backtest/output/runs/20260914-statistics-r1/outputs/calibration_summary.csv",
+    "sha256": "8bd8ba2150b02d948b2d5b264a3159165b8e81162140a76d657d5845f8083db4",
+    "size": 1295
+  },
+  {
+    "path": "backtest/output/selection_permutation_demo_summary.json",
+    "sha256": "d3bc884eefe8dbfefdbe61f42eb3f54252f3e7aaed3a67e753ba6226a8bf808b",
+    "size": 1371,
+    "snapshot": "research summary only; infrastructure metadata omitted"
+  }
+]

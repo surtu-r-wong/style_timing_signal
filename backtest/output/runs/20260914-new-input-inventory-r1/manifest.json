@@ -1,0 +1,129 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/code/candidate_completion.py",
+      "sha256": "cb36ff2a03880cfc8f7573e0d37dc7bd6a3368380b58f8429bd33ca90f35e50b",
+      "size": 5893
+    },
+    {
+      "path": "inputs/code/data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code/engine.py",
+      "sha256": "adcfc4d510af01294d3dfaf30e9abd240572b15eef56832910f8963437b9fbec",
+      "size": 2454
+    },
+    {
+      "path": "inputs/code/execution_audit.py",
+      "sha256": "22bf6393ac76fd1041cb66656617edbcc3a9a96cfec8bfd059ef7e9ccedae729",
+      "size": 12644
+    },
+    {
+      "path": "inputs/code/execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code/gate0_criterion_study.py",
+      "sha256": "99d94a0ea5877a6b3b3d95db7a1191a865aa2247c82c7816db8e77565e018663",
+      "size": 9868
+    },
+    {
+      "path": "inputs/code/leverage_probe.py",
+      "sha256": "2d6ab727d6f1da4b8b27f229be5ad65629ea61cfee81da82021263c5c775f8e9",
+      "size": 13775
+    },
+    {
+      "path": "inputs/code/metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code/paired_bootstrap.py",
+      "sha256": "9de3d5ab5a6756c4cbf71bae42b7b51377bfe86e7034f5d98ca29b942b5c8d07",
+      "size": 8647
+    },
+    {
+      "path": "inputs/code/research_data_inventory.py",
+      "sha256": "e6eb6235523b3397d8eb51a548154690e6125f8c91e2f7d163e4fefba237383f",
+      "size": 3885
+    },
+    {
+      "path": "inputs/code/research_statistics.py",
+      "sha256": "2eb62ac1e6a4246ff4ddfe00196845d1cc62a41ed2290c5435818a21f9545324",
+      "size": 6097
+    },
+    {
+      "path": "inputs/code/rotation_probe.py",
+      "sha256": "dd2f891a19b1e72d9c00e7ba6d2c9db8cd159ee4a1ee31f1cd586c6e34a77429",
+      "size": 11229
+    },
+    {
+      "path": "inputs/code/selection_permutation.py",
+      "sha256": "36d202ed14d2f96093cac6ef59ff0fd8b5af32bc5f38743e0905a30e217d244b",
+      "size": 29933
+    },
+    {
+      "path": "inputs/code/short_leg_audit.py",
+      "sha256": "bf8d83ab7014b30fe71f60f0ccfe3b786a20ba6cf239dfd8cc43bb5f4ee3a89a",
+      "size": 7178
+    },
+    {
+      "path": "inputs/code/signals__common__factors.py",
+      "sha256": "33372e7cb61e1dcd45adcd903f0c02e2b051f1662bc43f591d3c965d77a8e9ff",
+      "size": 22096
+    },
+    {
+      "path": "inputs/code/signals__equal_weight__generate_signal.py",
+      "sha256": "4e4bc24d8caf9744a1acede9828a7d76029ef2a8ff1da2fff95b8fddf5e6451a",
+      "size": 12885
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "168a532c4db0ed1335f03fa3003751fb449a7270117bbe53088c98549a999fca",
+      "size": 4597
+    },
+    {
+      "path": "outputs/data_inventory.json",
+      "sha256": "4f3dfc55e7583b6473edf1926c00e09475a13551f9db3a13b5fcd116c1df79f7",
+      "size": 5913
+    }
+  ],
+  "completed_utc": "2026-09-14T07:44:24.644328+00:00",
+  "git": {
+    "commit": "f61fea7d57e158ea02915137d3265f22893d4404",
+    "dirty": true,
+    "porcelain": [
+      " M README.md",
+      " M backtest/gate0_criterion_study.py",
+      " M backtest/metrics.py",
+      " M backtest/selection_permutation.py",
+      " M backtest/short_leg_audit.py",
+      " M docs/plans/2026-09-03-gate0-criterion-argument.md",
+      " M docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      " M docs/plans/2026-09-10-two-pool-signal-assignment-decision.md",
+      " M docs/plans/PREREG_TEMPLATE.md",
+      "?? backtest/candidate_completion.py",
+      "?? backtest/execution_audit.py",
+      "?? backtest/execution_ledger.py",
+      "?? backtest/output/runs/20260914-execution-audit-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r2/",
+      "?? backtest/output/runs/20260914-fixed-candidates-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r1/",
+      "?? backtest/output/runs/20260914-risk-allocation-r1/",
+      "?? backtest/output/runs/20260914-statistics-r1/",
+      "?? backtest/research_data_inventory.py",
+      "?? backtest/research_statistics.py",
+      "?? docs/plans/2026-09-14-research-followthrough-results.md",
+      "?? docs/superpowers/plans/2026-09-14-research-followthrough.md",
+      "?? tests/test_execution_ledger.py",
+      "?? tests/test_research_statistics.py",
+      "?? tests/test_short_leg_audit_alignment.py"
+    ],
+    "tracked_dirty": true
+  },
+  "stage": "new_input_inventory",
+  "status": "complete"
+}

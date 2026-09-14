@@ -1,0 +1,8 @@
+python -m pytest tests/test_sharpe_calibration.py: 4 passed in 1.06s
+python -m pytest tests/test_forward_market.py: 9 passed in 0.72s
+python -m pytest tests/test_research_registry.py: 13 passed in 0.40s
+ruff --select F,E9: passed
+research registry validate/render --check: passed
+git diff --check: passed
+Original frozen code guards unchanged: 9; new implementation guards unchanged: 5.
+Real signal observations=0; market observations=0; GO=false. No schedule installed.

@@ -1,0 +1,21 @@
+{
+  "quality": {
+    "records": 0,
+    "head_sha256": null,
+    "last_recorded_at_utc": "2026-09-14T09:29:05.207559+00:00",
+    "last_date": null,
+    "sessions": [],
+    "missing_market_sessions": [],
+    "completed_fill_sessions": 0,
+    "mode": "price_based_research_no_actual_fills",
+    "missing_signal_sessions": [],
+    "signal_records": 0,
+    "returns_released": false,
+    "observation_sessions_required": 504,
+    "score_ready": false,
+    "go_enabled": false
+  },
+  "original_code_guards_unchanged": 9,
+  "new_implementation_guards_unchanged": 5,
+  "automatic_schedule_installed": false
+}

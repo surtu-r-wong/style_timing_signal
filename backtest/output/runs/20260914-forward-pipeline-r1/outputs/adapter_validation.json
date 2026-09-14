@@ -1,0 +1,17 @@
+{
+  "mode": "historical_adapter_smoke",
+  "provenance": {
+    "kind": "readonly_database_snapshot",
+    "transaction_timestamp": "2026-09-14 17:27:54.918821+08",
+    "calendar_source": "public.trading_calendar.sfe; require both spot proxies and IC/IM quotes each recorded day",
+    "actual_executions": false
+  },
+  "spot_rows": 2,
+  "futures_rows": 8,
+  "calendar_rows": 71,
+  "next_session": "2026-09-14",
+  "next_contracts": {
+    "IC": "IC2609.CFE",
+    "IM": "IM2609.CFE"
+  }
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "commit": "6b07639d6cd1ddcce594b6c8da7b8bc6a3725298",
+    "authored_at": "2026-07-02T16:45:27+08:00",
+    "committed_at": "2026-07-02T16:45:27+08:00",
+    "subject": "baseline: 整理前原始状态快照（原目录名 20260325）"
+  },
+  {
+    "commit": "a2e19f0f86b85269608b284e302df54d1be7770e",
+    "authored_at": "2026-07-02T19:18:15+08:00",
+    "committed_at": "2026-07-02T19:18:15+08:00",
+    "subject": "feat(equal_weight): 合并 20d40z/5d20z 两变体为参数化单脚本"
+  },
+  {
+    "commit": "dcb291fe664e26f38410d97c83a343a72bd3c292",
+    "authored_at": "2026-07-06T10:55:27+08:00",
+    "committed_at": "2026-07-06T10:55:27+08:00",
+    "subject": "feat(equal_weight): 去创业板/科创两对→四对 + 默认源切 PG"
+  },
+  {
+    "commit": "3b05c55460e59c587480920163db9be086fa8dc7",
+    "authored_at": "2026-07-06T13:46:34+08:00",
+    "committed_at": "2026-07-06T13:46:34+08:00",
+    "subject": "feat(backtest): walk-forward 参数扫描器（scan_grid + equal_weight 网格）"
+  },
+  {
+    "commit": "cfd9d70f2e099ab27f6fb204d734782044ad7af5",
+    "authored_at": "2026-07-06T13:50:10+08:00",
+    "committed_at": "2026-07-06T13:50:10+08:00",
+    "subject": "fix(backtest): scan 排序列名 + equal_weight 扫描结果"
+  },
+  {
+    "commit": "213f8071a35894740896eacae418d971a4254ada",
+    "authored_at": "2026-07-06T18:30:53+08:00",
+    "committed_at": "2026-07-06T18:30:53+08:00",
+    "subject": "feat(backtest): 采纳 long-flat 作 production 推荐持仓口径（方向A）"
+  },
+  {
+    "commit": "4cfe03a52fba1802521fb90ac44840238d6dadfe",
+    "authored_at": "2026-07-10T14:57:45+08:00",
+    "committed_at": "2026-07-10T14:57:45+08:00",
+    "subject": "feat(backtest): 动量变换器扫描结果——预登记标准不换,slope20 登记第一替补"
+  },
+  {
+    "commit": "0a91aed91dd0a38d3f2814886046481b36375026",
+    "authored_at": "2026-07-10T15:29:13+08:00",
+    "committed_at": "2026-07-10T15:29:13+08:00",
+    "subject": "feat(backtest): 动量短窗补测(L∈{5,10} 三族)——全灭,信息载频结论定型"
+  },
+  {
+    "commit": "98f22f29291557fc3d23e695b99ec6e0a8a7dc0e",
+    "authored_at": "2026-07-10T18:22:53+08:00",
+    "committed_at": "2026-07-10T18:22:53+08:00",
+    "subject": "feat(backtest): 国信研报三候选配对级补测——三族全灭关①,现任第五次确认"
+  },
+  {
+    "commit": "f7ad5b1b8f45627f5e1cb1351cb38b01858e5490",
+    "authored_at": "2026-07-11T20:38:29+08:00",
+    "committed_at": "2026-07-11T20:38:29+08:00",
+    "subject": "fix(backtest): 外部审查六条修复——blend carry 固定50/50 + holdout 退出选择 + 仪表盘日期守卫 + PIT 文档纠偏"
+  },
+  {
+    "commit": "95233656a480293ccae17ef6b58b9cd8a1d58f04",
+    "authored_at": "2026-09-09T16:56:27+08:00",
+    "committed_at": "2026-09-09T16:56:27+08:00",
+    "subject": "deploy(production): 现役 equal_weight 由 long-flat 切到对称 —— 用户 2026-09-09 裁决\"部署空头\""
+  },
+  {
+    "commit": "fb963948e6dd0d24df3abeb80cb6dcd83aba90c6",
+    "authored_at": "2026-09-09T19:14:32+08:00",
+    "committed_at": "2026-09-09T19:14:32+08:00",
+    "subject": "deploy(production): slope20 升为第四条生产线（对称）—— 用户 2026-09-09 裁决\"这个信号正是我想要的，也加到现役里\""
+  },
+  {
+    "commit": "063c3229158b1296084c2a660113a4357a928ee1",
+    "authored_at": "2026-09-10T10:08:11+08:00",
+    "committed_at": "2026-09-10T10:08:11+08:00",
+    "subject": "deploy(production): 两池分信号 —— 用户 2026-09-10 裁决现货池跟 slope20 long-flat、期货池跟 equal_weight 对称"
+  },
+  {
+    "commit": "f56c05cc669142c4afe4c5ab1033d2c482e47eee",
+    "authored_at": "2026-09-10T09:17:11+08:00",
+    "committed_at": "2026-09-10T09:17:11+08:00",
+    "subject": "data(signals): 日更补跑 2026-09-04~09-09 —— Wind 额度恢复后补齐 4 个交易日，纯新增 0 改写"
+  },
+  {
+    "commit": "2d4fa9ca35d5580a44c2ca3977a2e52bc7eccd2d",
+    "authored_at": "2026-09-11T19:12:58+08:00",
+    "committed_at": "2026-09-11T19:12:58+08:00",
+    "subject": "data(signals): 日更 2026-09-10~09-11 —— 纯新增 2 个交易日，0 改写"
+  }
+]

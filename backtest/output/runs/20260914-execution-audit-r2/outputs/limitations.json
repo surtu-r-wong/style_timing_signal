@@ -1,0 +1,12 @@
+{
+  "spot_proxy": true,
+  "actual_spot_account_verified": false,
+  "fractional_contracts": true,
+  "mark": "close, not settlement cash balance",
+  "cash_interest": 0,
+  "margin_and_limit_locks_simulated": false,
+  "integer_lots": false,
+  "pool_rule": "initial half, no transfers; daily half only sensitivity",
+  "pre_IM_rule": "100% IC futures; spot remains 500/1000 index proxy",
+  "first_trading_day": "initialize flat; first decision uses next market day"
+}

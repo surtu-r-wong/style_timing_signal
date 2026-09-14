@@ -1,0 +1,212 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/backtest__paired_bootstrap.py",
+      "sha256": "9de3d5ab5a6756c4cbf71bae42b7b51377bfe86e7034f5d98ca29b942b5c8d07",
+      "size": 8647
+    },
+    {
+      "path": "inputs/backtest__research_statistics.py",
+      "sha256": "9970e78735dadc87b04f95a2ab9a18cff3abfd015e39238c21cb858a32ca5a80",
+      "size": 6093
+    },
+    {
+      "path": "inputs/backtest__sharpe_calibration.py",
+      "sha256": "e1a05a3d9dfde3c84512e59cc19569ad6d4e744d6e7324ee7873f3fa9d8f2752",
+      "size": 6699
+    },
+    {
+      "path": "inputs/code/backtest__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code/backtest__execution_audit.py",
+      "sha256": "22bf6393ac76fd1041cb66656617edbcc3a9a96cfec8bfd059ef7e9ccedae729",
+      "size": 12644
+    },
+    {
+      "path": "inputs/code/backtest__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code/backtest__forward_market.py",
+      "sha256": "54eb3837a794c54ad7ab83ab1c8b2e62a99d2665103930ab70019c4f7ef2b86c",
+      "size": 11816
+    },
+    {
+      "path": "inputs/code/backtest__forward_observation.py",
+      "sha256": "ecc9d121227612f17552ac8fdd1b10304031d165daa1f60d8473f7f6d3179231",
+      "size": 10355
+    },
+    {
+      "path": "inputs/code/backtest__forward_scoring.py",
+      "sha256": "3952defb0e5b306fa4ff3a8710b701df3a8e2a5a187727653f316be52836b556",
+      "size": 6195
+    },
+    {
+      "path": "inputs/code/backtest__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code/backtest__paired_bootstrap.py",
+      "sha256": "9de3d5ab5a6756c4cbf71bae42b7b51377bfe86e7034f5d98ca29b942b5c8d07",
+      "size": 8647
+    },
+    {
+      "path": "inputs/code/backtest__research_statistics.py",
+      "sha256": "9970e78735dadc87b04f95a2ab9a18cff3abfd015e39238c21cb858a32ca5a80",
+      "size": 6093
+    },
+    {
+      "path": "inputs/code/backtest__sharpe_calibration.py",
+      "sha256": "e1a05a3d9dfde3c84512e59cc19569ad6d4e744d6e7324ee7873f3fa9d8f2752",
+      "size": 6699
+    },
+    {
+      "path": "inputs/code/tests__test_forward_market.py",
+      "sha256": "06d3897c9564b4ead9c2e96986bee66560dbd2be946b0098e0f7397fe471693b",
+      "size": 5350
+    },
+    {
+      "path": "inputs/code/tests__test_sharpe_calibration.py",
+      "sha256": "173c80b94d065de75e3a31236a7bdd20948333e28b8a5cefa98b6b3c1f4aeb18",
+      "size": 1277
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "bddf5f3db302907063f3d0c959ce024d00bb06b26a9e3ecb66845c04e4ea4294",
+      "size": 3182
+    },
+    {
+      "path": "inputs/tests__test_sharpe_calibration.py",
+      "sha256": "173c80b94d065de75e3a31236a7bdd20948333e28b8a5cefa98b6b3c1f4aeb18",
+      "size": 1277
+    },
+    {
+      "path": "outputs/environment.json",
+      "sha256": "38268ad82c8473b51a717edfdaf1af3d9eb19826917b36fa7269e1c07a242cbf",
+      "size": 86
+    },
+    {
+      "path": "outputs/forward_readiness.json",
+      "sha256": "86f71ca371a7ad68accce927fa67327850dfb1bdaaa323b6d32798734044c669",
+      "size": 600
+    },
+    {
+      "path": "outputs/replications.csv",
+      "sha256": "02902ce8d445a24fbb68e45839882fe8a31b8a42933d9306ec5304386b69fcaf",
+      "size": 851789
+    },
+    {
+      "path": "outputs/report.md",
+      "sha256": "ecbfad8be5b77af219ed6dee89afa9603fb81d122436b52eab9bf91184853e13",
+      "size": 8197
+    },
+    {
+      "path": "outputs/summary.csv",
+      "sha256": "0c4331b6dabebdf2fb37e85321cee66530cbdca23fabeb77223d81ca49488d08",
+      "size": 3778
+    },
+    {
+      "path": "outputs/verdict.json",
+      "sha256": "afd1ac413f7dc66c2fa09f63fec2cadb5fe575aab4f0e4a4445d6369248b5048",
+      "size": 216
+    },
+    {
+      "path": "logs/validation.txt",
+      "sha256": "72de8f680c88f2ba3e6c8131e5666f9c170df52ffabdf1c4e4675d251eaf6533",
+      "size": 471
+    }
+  ],
+  "completed_utc": "2026-09-14T09:36:25.349008+00:00",
+  "development_only": false,
+  "draws": 499,
+  "formal_forward_method_frozen": false,
+  "git": {
+    "commit": "f61fea7d57e158ea02915137d3265f22893d4404",
+    "dirty": true,
+    "porcelain": [
+      " M README.md",
+      " M backtest/basis_term_probe.py",
+      " M backtest/consensus_axis_probe.py",
+      " M backtest/gate0_criterion_study.py",
+      " M backtest/metrics.py",
+      " M backtest/money_flow_axis_probe.py",
+      " M backtest/new_high_axis_probe.py",
+      " M backtest/selection_permutation.py",
+      " M backtest/short_leg_audit.py",
+      " M backtest/significance.py",
+      " M docs/plans/2026-07-08-b1-style-basket-replication.md",
+      " M docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      " M docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      " M docs/plans/2026-07-11-external-review-fixes.md",
+      " M docs/plans/2026-08-12-selection-permutation-machine.md",
+      " M docs/plans/2026-09-03-gate0-criterion-argument.md",
+      " M docs/plans/2026-09-03-gate0-incumbent-audit.md",
+      " M docs/plans/2026-09-03-index-option-iv-axis-results.md",
+      " M docs/plans/2026-09-03-money-flow-axis-results.md",
+      " M docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+      " M docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      " M docs/plans/2026-09-09-gate0-reanalysis-results.md",
+      " M docs/plans/2026-09-10-two-pool-signal-assignment-decision.md",
+      " M docs/plans/PREREG_TEMPLATE.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/audit_corrections.py",
+      "?? backtest/candidate_completion.py",
+      "?? backtest/execution_audit.py",
+      "?? backtest/execution_ledger.py",
+      "?? backtest/forward_market.py",
+      "?? backtest/forward_observation.py",
+      "?? backtest/forward_scoring.py",
+      "?? backtest/grid_reassessment.py",
+      "?? backtest/output/forward/",
+      "?? backtest/output/runs/20260914-audit-corrections-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r2/",
+      "?? backtest/output/runs/20260914-fixed-candidates-r1/",
+      "?? backtest/output/runs/20260914-forward-pipeline-r1/",
+      "?? backtest/output/runs/20260914-grid-reassessment-r1/",
+      "?? backtest/output/runs/20260914-incumbent-lineage-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r2/",
+      "?? backtest/output/runs/20260914-risk-allocation-r1/",
+      "?? backtest/output/runs/20260914-sharpe-calibration-r1/",
+      "?? backtest/output/runs/20260914-statistical-dependency-audit-r1/",
+      "?? backtest/output/runs/20260914-statistics-r1/",
+      "?? backtest/research_data_inventory.py",
+      "?? backtest/research_statistics.py",
+      "?? backtest/sharpe_calibration.py",
+      "?? docs/plans/2026-09-14-forward-pipeline-and-calibration.md",
+      "?? docs/plans/2026-09-14-grid-reassessment-results.md",
+      "?? docs/plans/2026-09-14-incumbent-forward-observation.md",
+      "?? docs/plans/2026-09-14-incumbent-parameter-lineage.md",
+      "?? docs/plans/2026-09-14-research-followthrough-results.md",
+      "?? docs/plans/2026-09-14-statistical-dependency-audit.md",
+      "?? docs/superpowers/plans/2026-09-14-forward-completion-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-grid-reassessment-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-incumbent-lineage-forward-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-research-followthrough.md",
+      "?? tests/test_execution_ledger.py",
+      "?? tests/test_forward_market.py",
+      "?? tests/test_forward_observation.py",
+      "?? tests/test_grid_reassessment.py",
+      "?? tests/test_research_statistics.py",
+      "?? tests/test_sharpe_calibration.py",
+      "?? tests/test_short_leg_audit_alignment.py"
+    ],
+    "tracked_dirty": true
+  },
+  "go_enabled": false,
+  "n_sessions": 504,
+  "power_target_met": false,
+  "reps": 400,
+  "scope": "listed synthetic net-return DGPs only",
+  "seed": 2026091402,
+  "size_scenario_criterion_met": false,
+  "status": "complete",
+  "targeted_tests_passed": 26
+}

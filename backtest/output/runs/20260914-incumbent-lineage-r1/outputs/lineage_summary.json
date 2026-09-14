@@ -1,0 +1,27 @@
+{
+  "first_git_snapshot": "6b07639",
+  "first_git_snapshot_date": "2026-07-02",
+  "pre_snapshot_search_present": true,
+  "pre_snapshot_optimization_sample_start": "2014-01-02",
+  "pre_snapshot_optimization_sample_end": "2026-06-18",
+  "pre_snapshot_signal_variants": [
+    "factor_value",
+    "factor_value_raw"
+  ],
+  "initial_snapshot_pairs": 6,
+  "parameterization_pairs": 6,
+  "current_pairs": 4,
+  "momentum_scan_rows": [
+    84,
+    120,
+    174
+  ],
+  "slope_current_spec_reproduced": true,
+  "scan_blob_unchanged_at_carry_fix": true,
+  "unknowns": [
+    "Before-first-snapshot selection chronology and number of tries",
+    "Whether uncommitted scans were run during July 11 repair",
+    "Independent real-money execution and point-in-time records"
+  ],
+  "historical_boundary": "All dates through 2026-09-14 excluded from prospective observation; prior work has evaluated returns through 2026-09-11."
+}

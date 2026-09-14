@@ -1,0 +1,309 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/adapter_historical_calendar.csv",
+      "sha256": "a53fd580bc495a3c57063a0b20db1a1b11082e70e192df151d6441238df78648",
+      "size": 1172
+    },
+    {
+      "path": "inputs/adapter_historical_futures.csv",
+      "sha256": "27a17775b4240ca14655d31e383d0c083afae7dc9cd013896dd58ba05a9f1dec",
+      "size": 414
+    },
+    {
+      "path": "inputs/adapter_historical_spot.csv",
+      "sha256": "7d6ec7c2ab5ee93292c4d1fad4f98486db3231728dc19413ad7bbd3f86e6150b",
+      "size": 116
+    },
+    {
+      "path": "inputs/code/backtest__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code/backtest__execution_audit.py",
+      "sha256": "22bf6393ac76fd1041cb66656617edbcc3a9a96cfec8bfd059ef7e9ccedae729",
+      "size": 12644
+    },
+    {
+      "path": "inputs/code/backtest__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code/backtest__forward_market.py",
+      "sha256": "54eb3837a794c54ad7ab83ab1c8b2e62a99d2665103930ab70019c4f7ef2b86c",
+      "size": 11816
+    },
+    {
+      "path": "inputs/code/backtest__forward_observation.py",
+      "sha256": "ecc9d121227612f17552ac8fdd1b10304031d165daa1f60d8473f7f6d3179231",
+      "size": 10355
+    },
+    {
+      "path": "inputs/code/backtest__forward_scoring.py",
+      "sha256": "3952defb0e5b306fa4ff3a8710b701df3a8e2a5a187727653f316be52836b556",
+      "size": 6195
+    },
+    {
+      "path": "inputs/code/backtest__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code/backtest__paired_bootstrap.py",
+      "sha256": "9de3d5ab5a6756c4cbf71bae42b7b51377bfe86e7034f5d98ca29b942b5c8d07",
+      "size": 8647
+    },
+    {
+      "path": "inputs/code/backtest__research_statistics.py",
+      "sha256": "9970e78735dadc87b04f95a2ab9a18cff3abfd015e39238c21cb858a32ca5a80",
+      "size": 6093
+    },
+    {
+      "path": "inputs/code/backtest__sharpe_calibration.py",
+      "sha256": "e1a05a3d9dfde3c84512e59cc19569ad6d4e744d6e7324ee7873f3fa9d8f2752",
+      "size": 6699
+    },
+    {
+      "path": "inputs/code/tests__test_forward_market.py",
+      "sha256": "06d3897c9564b4ead9c2e96986bee66560dbd2be946b0098e0f7397fe471693b",
+      "size": 5350
+    },
+    {
+      "path": "inputs/code/tests__test_sharpe_calibration.py",
+      "sha256": "173c80b94d065de75e3a31236a7bdd20948333e28b8a5cefa98b6b3c1f4aeb18",
+      "size": 1277
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc",
+      "size": 192861
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "bddf5f3db302907063f3d0c959ce024d00bb06b26a9e3ecb66845c04e4ea4294",
+      "size": 3182
+    },
+    {
+      "path": "inputs/rehearsal.py",
+      "sha256": "5bb7c34611391739810663c5d7d906f2a19337fcb3c59faa213cba9086dfb234",
+      "size": 3759
+    },
+    {
+      "path": "inputs/slope20.csv",
+      "sha256": "3bad72ce3afd89e08eec7bf4881ca2d7011364135f619deceb33911df52fd823",
+      "size": 56298
+    },
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "outputs/adapter_validation.json",
+      "sha256": "4ffdf176f7aac9ccabef8c81eeeabe28393c45fe2b7470ad9c33a444c1ca7c2d",
+      "size": 482
+    },
+    {
+      "path": "outputs/environment.json",
+      "sha256": "38268ad82c8473b51a717edfdaf1af3d9eb19826917b36fa7269e1c07a242cbf",
+      "size": 86
+    },
+    {
+      "path": "outputs/forward_readiness.json",
+      "sha256": "86f71ca371a7ad68accce927fa67327850dfb1bdaaa323b6d32798734044c669",
+      "size": 600
+    },
+    {
+      "path": "outputs/historical_rehearsal_comparisons.csv",
+      "sha256": "0906e5635177d1b137d20d1674f7d5dc217691abea67d1b9533ab990f519c3dc",
+      "size": 148
+    },
+    {
+      "path": "outputs/historical_rehearsal_metrics.csv",
+      "sha256": "9a3bc71baf34bea0362bfe8c7c418956b7ca7d985d74ba35add78cbf3debdf2e",
+      "size": 1994
+    },
+    {
+      "path": "outputs/market_initial/journal.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "outputs/market_initial/market.json",
+      "sha256": "10cf6f4cbafbaa18a61618a0790a88d880b94497a844e3a48ee369b3880ec1e6",
+      "size": 890
+    },
+    {
+      "path": "outputs/market_initial/market.sha256",
+      "sha256": "06f1ea5c9a72e135971ec4c7eaaeea28f356753738ed7ce8dd8a7d7f980e6c13",
+      "size": 65
+    },
+    {
+      "path": "outputs/rehearsal_checks.json",
+      "sha256": "66403b3a68504947c056eed6acded960eee5230255c3ad586b1c05207cec279e",
+      "size": 271
+    },
+    {
+      "path": "outputs/rehearsal_current_two_pool_10bps.csv",
+      "sha256": "1d7a0cc35af0ca79f7cab6bb35688cfdec3ed47f1f74545ccf1c7783c23a90de",
+      "size": 25848
+    },
+    {
+      "path": "outputs/rehearsal_current_two_pool_3bps.csv",
+      "sha256": "7a0287a8811c2c1d56bc0035530a5f65b49183a18c36858d6501449ef0795ac7",
+      "size": 25859
+    },
+    {
+      "path": "outputs/rehearsal_ew_two_pool_10bps.csv",
+      "sha256": "5ba6fba0eb86208e13c9acb292f57c5d992e98106867ec43b560193d7d009372",
+      "size": 25829
+    },
+    {
+      "path": "outputs/rehearsal_ew_two_pool_3bps.csv",
+      "sha256": "fd8f6fa5d35d061d7097383ad3b2350274aecadfc1d054c9ba7150cdda2c25fb",
+      "size": 25825
+    },
+    {
+      "path": "outputs/rehearsal_futures_always_long_10bps.csv",
+      "sha256": "e65317498d7f9d0f659ea62c6fc0714fd2c89c48ddaea2e4aedaffa75fae0a0a",
+      "size": 126694
+    },
+    {
+      "path": "outputs/rehearsal_futures_always_long_3bps.csv",
+      "sha256": "9605af76da7ef97f50c11b717ad219b17df3a24b4ead67a1e7921f78ede0d751",
+      "size": 126735
+    },
+    {
+      "path": "outputs/rehearsal_futures_ew_10bps.csv",
+      "sha256": "7b47d1b935a0cc6780d14d25c85007a3b10b7acc8bee0631e9222b2a3b076457",
+      "size": 126273
+    },
+    {
+      "path": "outputs/rehearsal_futures_ew_3bps.csv",
+      "sha256": "38dd3a4a2b5907d0a5eae16b475dbf3197e7093ae0080e97a1fb6c2cfdbd26af",
+      "size": 126259
+    },
+    {
+      "path": "outputs/rehearsal_quality.json",
+      "sha256": "ec5efda68aa50b830c6ab09a75a049315165fc5722120d2eccf66b31108176d3",
+      "size": 349
+    },
+    {
+      "path": "outputs/rehearsal_spot_ew_10bps.csv",
+      "sha256": "4773d825e6e6d55a62c835185ee5d6def22ec88a2610348e55cbb30d71131129",
+      "size": 86330
+    },
+    {
+      "path": "outputs/rehearsal_spot_ew_3bps.csv",
+      "sha256": "675a7034654a40bd770c6bf9e8723f8afb738b2877668e1e1ccfd7d8c7efaeec",
+      "size": 86302
+    },
+    {
+      "path": "outputs/rehearsal_spot_slope_10bps.csv",
+      "sha256": "f5cd8320e86d24d231d51eb71d763eb43b7e89b9c3d62157b728e86a2af6b982",
+      "size": 83891
+    },
+    {
+      "path": "outputs/rehearsal_spot_slope_3bps.csv",
+      "sha256": "336c7ffbab39aa8713be62a4604ffc3300463ee139bc9dfcb99533da1765c98e",
+      "size": 83935
+    },
+    {
+      "path": "outputs/report.md",
+      "sha256": "ecbfad8be5b77af219ed6dee89afa9603fb81d122436b52eab9bf91184853e13",
+      "size": 8197
+    },
+    {
+      "path": "logs/validation.txt",
+      "sha256": "72de8f680c88f2ba3e6c8131e5666f9c170df52ffabdf1c4e4675d251eaf6533",
+      "size": 471
+    }
+  ],
+  "completed_utc": "2026-09-14T09:36:25.311992+00:00",
+  "created_utc": "2026-09-14T09:27:44.999637+00:00",
+  "git": {
+    "commit": "f61fea7d57e158ea02915137d3265f22893d4404",
+    "dirty": true,
+    "porcelain": [
+      " M README.md",
+      " M backtest/basis_term_probe.py",
+      " M backtest/consensus_axis_probe.py",
+      " M backtest/gate0_criterion_study.py",
+      " M backtest/metrics.py",
+      " M backtest/money_flow_axis_probe.py",
+      " M backtest/new_high_axis_probe.py",
+      " M backtest/selection_permutation.py",
+      " M backtest/short_leg_audit.py",
+      " M backtest/significance.py",
+      " M docs/plans/2026-07-08-b1-style-basket-replication.md",
+      " M docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      " M docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      " M docs/plans/2026-07-11-external-review-fixes.md",
+      " M docs/plans/2026-08-12-selection-permutation-machine.md",
+      " M docs/plans/2026-09-03-gate0-criterion-argument.md",
+      " M docs/plans/2026-09-03-gate0-incumbent-audit.md",
+      " M docs/plans/2026-09-03-index-option-iv-axis-results.md",
+      " M docs/plans/2026-09-03-money-flow-axis-results.md",
+      " M docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+      " M docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      " M docs/plans/2026-09-09-gate0-reanalysis-results.md",
+      " M docs/plans/2026-09-10-two-pool-signal-assignment-decision.md",
+      " M docs/plans/PREREG_TEMPLATE.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/audit_corrections.py",
+      "?? backtest/candidate_completion.py",
+      "?? backtest/execution_audit.py",
+      "?? backtest/execution_ledger.py",
+      "?? backtest/forward_market.py",
+      "?? backtest/forward_observation.py",
+      "?? backtest/forward_scoring.py",
+      "?? backtest/grid_reassessment.py",
+      "?? backtest/output/forward/",
+      "?? backtest/output/runs/20260914-audit-corrections-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r2/",
+      "?? backtest/output/runs/20260914-fixed-candidates-r1/",
+      "?? backtest/output/runs/20260914-forward-pipeline-r1/",
+      "?? backtest/output/runs/20260914-grid-reassessment-r1/",
+      "?? backtest/output/runs/20260914-incumbent-lineage-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r2/",
+      "?? backtest/output/runs/20260914-risk-allocation-r1/",
+      "?? backtest/output/runs/20260914-sharpe-calibration-r1/",
+      "?? backtest/output/runs/20260914-statistical-dependency-audit-r1/",
+      "?? backtest/output/runs/20260914-statistics-r1/",
+      "?? backtest/research_data_inventory.py",
+      "?? backtest/research_statistics.py",
+      "?? backtest/sharpe_calibration.py",
+      "?? docs/plans/2026-09-14-forward-pipeline-and-calibration.md",
+      "?? docs/plans/2026-09-14-grid-reassessment-results.md",
+      "?? docs/plans/2026-09-14-incumbent-forward-observation.md",
+      "?? docs/plans/2026-09-14-incumbent-parameter-lineage.md",
+      "?? docs/plans/2026-09-14-research-followthrough-results.md",
+      "?? docs/plans/2026-09-14-statistical-dependency-audit.md",
+      "?? docs/superpowers/plans/2026-09-14-forward-completion-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-grid-reassessment-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-incumbent-lineage-forward-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-research-followthrough.md",
+      "?? tests/test_execution_ledger.py",
+      "?? tests/test_forward_market.py",
+      "?? tests/test_forward_observation.py",
+      "?? tests/test_grid_reassessment.py",
+      "?? tests/test_research_statistics.py",
+      "?? tests/test_sharpe_calibration.py",
+      "?? tests/test_short_leg_audit_alignment.py"
+    ],
+    "tracked_dirty": true
+  },
+  "mode": "historical_rehearsal_not_forward",
+  "status": "complete",
+  "targeted_tests_passed": 26
+}

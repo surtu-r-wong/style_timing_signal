@@ -1,0 +1,8 @@
+{
+  "transaction_timestamp": "2026-09-14 15:32:37.127826+08",
+  "end": "2026-09-11",
+  "spot_rows": 6176,
+  "futures_rows": 15128,
+  "spot_open_valid": 106,
+  "signal_note": "local production CSV frozen alongside repeatable-read price snapshot"
+}

@@ -1,0 +1,23 @@
+{
+  "registry_studies_screened": 56,
+  "positive_final_records": 5,
+  "risk_preference_adoption_records": 3,
+  "replication_acceptance_records": 2,
+  "reviewed_claim_cases": 14,
+  "positive_component_rows": 34,
+  "reanalysis_representatives": 17,
+  "V1_minP_below_005": 0,
+  "V3_minP_below_005": [
+    {
+      "line": "money_flow",
+      "family": "F1",
+      "p": 0.03996003996003996
+    }
+  ],
+  "scope": "Registry and top-level verdict/selection artifacts plus cited positive prose; no rerun of historical p-values, no estimate of actual false discoveries.",
+  "limits": [
+    "No complete historical search log reconstructed.",
+    "No independently verified live trading track record audited.",
+    "Hybrid20/citic40d original adoption evidence not separately represented among these five positive registry records."
+  ]
+}

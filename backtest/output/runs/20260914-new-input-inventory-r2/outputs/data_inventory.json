@@ -1,0 +1,452 @@
+{
+  "observed_at": "2026-09-14 15:46:12.642144+08",
+  "research_tables": [
+    "etf_constituent",
+    "etf_option_contract",
+    "etf_option_daily",
+    "etf_option_quote_snapshot",
+    "fund_factor_returns",
+    "fund_holder_structure",
+    "fund_industry_weight",
+    "fund_meta",
+    "fund_nav",
+    "fund_nav_daily",
+    "fund_period_trading",
+    "fund_stock_holdings",
+    "index_money_flow",
+    "stock_fund_holdings",
+    "stock_share_capital"
+  ],
+  "money_flow": [
+    {
+      "index_code": "000300.SH",
+      "first": "2015-01-05",
+      "last": "2026-09-03",
+      "rows": 2837,
+      "open_nonnull": 2837,
+      "end_nonnull": 2837,
+      "in_count_nonnull": 2837,
+      "out_count_nonnull": 2837,
+      "extra_nonnull": 2837,
+      "large_nonnull": 2837,
+      "n_sources": 1,
+      "first_fetch": "2026-09-03",
+      "last_fetch": "2026-09-03"
+    },
+    {
+      "index_code": "000680.SH",
+      "first": "2019-07-22",
+      "last": "2026-09-03",
+      "rows": 1729,
+      "open_nonnull": 1729,
+      "end_nonnull": 1729,
+      "in_count_nonnull": 1729,
+      "out_count_nonnull": 1729,
+      "extra_nonnull": 1729,
+      "large_nonnull": 1729,
+      "n_sources": 1,
+      "first_fetch": "2026-09-03",
+      "last_fetch": "2026-09-03"
+    },
+    {
+      "index_code": "399102.SZ",
+      "first": "2015-01-05",
+      "last": "2026-09-03",
+      "rows": 2837,
+      "open_nonnull": 2837,
+      "end_nonnull": 2837,
+      "in_count_nonnull": 2837,
+      "out_count_nonnull": 2837,
+      "extra_nonnull": 2837,
+      "large_nonnull": 2837,
+      "n_sources": 1,
+      "first_fetch": "2026-09-03",
+      "last_fetch": "2026-09-03"
+    }
+  ],
+  "etf_baskets": {
+    "first": "2026-03-16",
+    "last": "2026-07-17",
+    "rows": 63700,
+    "n_funds": 12
+  },
+  "field_catalog": [
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "fund_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "basket_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "ts_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "sec_name"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "share"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "cash_sub_mark"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "close_price"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "price_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "weight"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "fund_cash_amount"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "fund_basket_value"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "etf_constituent",
+      "column": "updated_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "fund_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "report_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "institution_holding_pct"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "personal_holding_pct"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "stock_to_nav_pct"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "data_source"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "created_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "updated_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "scale_is_merged"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_holder_structure",
+      "column": "share_net_asset"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "fund_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "name"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "fund_type"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "mgr_company"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "inception_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "delist_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "benchmark_index"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "status"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "created_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "updated_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "initial_fund_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_meta",
+      "column": "theme_type"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav",
+      "column": "fund_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav",
+      "column": "trade_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav",
+      "column": "unit_nav"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav",
+      "column": "accumulated_nav"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav",
+      "column": "net_asset"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav",
+      "column": "month_return"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav",
+      "column": "created_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav",
+      "column": "updated_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav_daily",
+      "column": "fund_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav_daily",
+      "column": "trade_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav_daily",
+      "column": "unit_nav"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav_daily",
+      "column": "accumulated_nav"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav_daily",
+      "column": "created_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_nav_daily",
+      "column": "updated_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_period_trading",
+      "column": "fund_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_period_trading",
+      "column": "report_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_period_trading",
+      "column": "buy_stock_cost"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_period_trading",
+      "column": "sell_stock_income"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_period_trading",
+      "column": "stock_invest_activity"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_period_trading",
+      "column": "data_source"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_period_trading",
+      "column": "created_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "fund_period_trading",
+      "column": "updated_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "index_code"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "trade_date"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "wind_sector"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "main_inflow_count"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "main_outflow_count"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "main_in_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "main_out_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "main_inflow_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "open_main_inflow_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "end_main_inflow_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "extra_bill_inflow_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "large_bill_inflow_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "middle_bill_inflow_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "small_bill_inflow_money"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "src"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "fetched_at"
+    },
+    {
+      "schema": "stock_selector",
+      "table": "index_money_flow",
+      "column": "updated_at"
+    }
+  ],
+  "illustrative_etf_prices": [],
+  "illustrative_etf_meta": [],
+  "illustrative_etf_nav_assets": [],
+  "illustrative_etf_daily_nav": [],
+  "interpretation": {
+    "member_positions": "No exchange member-ranking table identified in research schema/public member names. Account position tables intentionally excluded.",
+    "fund_asset_caveat": "fund_nav.net_asset and fund_holder_structure.share_net_asset exist; the three illustrative ETF codes have no metadata/NAV rows. This does not assert all fund-size history is absent.",
+    "etf_creation_redemption": "Basket constituents and basket cash/value are not outstanding fund units or daily net creations. Need dated total units and distribution/split treatment.",
+    "money_flow_intraday": "Nonnull daily vendor open/end fields are available; confirm field interval/units and historical revision policy before defining any signal.",
+    "pit": "fetched_at is collection time, not proof of contemporaneous historical release; no future-return test performed.",
+    "scope": "Local research-data inventory only, no external historical pull or production service change."
+  }
+}

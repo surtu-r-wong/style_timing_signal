@@ -1,0 +1,5 @@
+# Frozen evidence and receipt hashes bind exact bytes, including line endings.
+backtest/output/runs/** -text
+backtest/output/forward/** -text
+# CSV writers may emit CRLF; retain the normal checks for other whitespace.
+backtest/output/runs/**/*.csv whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

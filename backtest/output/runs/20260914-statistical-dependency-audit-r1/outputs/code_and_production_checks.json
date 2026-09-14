@@ -1,0 +1,8 @@
+{
+  "backtest/significance.py": "identical executable AST (comments/docstrings excluded)",
+  "backtest/money_flow_axis_probe.py": "identical executable AST (comments/docstrings excluded)",
+  "backtest/basis_term_probe.py": "identical executable AST (comments/docstrings excluded)",
+  "backtest/consensus_axis_probe.py": "identical executable AST (comments/docstrings excluded)",
+  "backtest/new_high_axis_probe.py": "identical executable AST (comments/docstrings excluded)",
+  "production_guard": "all guarded code and recommended files unchanged"
+}

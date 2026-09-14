@@ -1,0 +1,103 @@
+{
+  "campaign_id": "20260914-incumbents-v1",
+  "version": 1,
+  "timezone": "Asia/Shanghai",
+  "status": "observation_only_no_statistical_go",
+  "first_signal_date": "2026-09-15",
+  "historical_dates_excluded_through": "2026-09-14",
+  "earliest_record_hour": 16,
+  "recording_deadline": "same local calendar day 23:59:59",
+  "fill": "next_actual_trading_day_close",
+  "sources": {
+    "equal_weight": "output/equal_weight/equal_weight_signal_20d40z.csv",
+    "slope20": "output/slope20/slope20_signal_L20zw120.csv"
+  },
+  "code_files": [
+    "signals/equal_weight/generate_signal.py",
+    "signals/equal_weight/config_4pairs.csv",
+    "signals/slope20/generate_signal.py",
+    "backtest/momentum_scan.py",
+    "backtest/scan.py",
+    "backtest/positions.py",
+    "backtest/execution_ledger.py",
+    "backtest/forward_observation.py",
+    "signals/common/data_source.py"
+  ],
+  "parameters": {
+    "equal_weight": {
+      "lookback": 20,
+      "z_window": 40,
+      "smoothing": 5,
+      "pairs": 4
+    },
+    "slope20": {
+      "family": "slope",
+      "length": 20,
+      "skip": 0,
+      "z_window": 120,
+      "smoothing": 0,
+      "pairs": 4
+    }
+  },
+  "research_portfolio": {
+    "spot": "slope20_longflat",
+    "futures": "equal_weight_symmetric; IC/IM equal notional; prior-day OI main contract with expiry exclusion",
+    "initial_pool_weights": [
+      0.5,
+      0.5
+    ],
+    "pool_transfers": false,
+    "notional_per_pool": 1,
+    "spot_proxy": "000905.SH/000852.SH equal notional; no account claim"
+  },
+  "comparisons": [
+    {
+      "id": "C1",
+      "question": "Does equal_weight futures timing improve Sharpe over always-long IC/IM under the same ledger and costs?",
+      "primary_metric": "net_sharpe_difference"
+    },
+    {
+      "id": "C2",
+      "question": "Does the two-pool assignment improve Sharpe over equal_weight used in both pools, with identical execution and pool accounting?",
+      "primary_metric": "net_sharpe_difference"
+    }
+  ],
+  "cost_bps_per_side": {
+    "primary": 3,
+    "stress": 10
+  },
+  "observation_sessions": 504,
+  "interim_quality_checks_only": true,
+  "secondary_descriptive_metrics": [
+    "arithmetic_annual_return",
+    "CAGR",
+    "max_drawdown_including_initial_NAV",
+    "ES05",
+    "turnover",
+    "missed_receipts"
+  ],
+  "missing_receipt_policy": "Never back-sign or remove a return day. Scoring must carry the last recorded target (initially flat), separately report coverage and gaps.",
+  "inference": {
+    "status": "not_frozen_not_calibrated",
+    "go_enabled": false,
+    "requirements": [
+      "Fix and independently calibrate paired-strategy inference under relevant nonstationary nulls before opening its confirmatory sample.",
+      "Two primary comparisons require family-wise multiplicity handling; do not choose blocks or windows after outcomes.",
+      "If the method is fixed after observing this campaign outcomes, use a later unobserved confirmation window."
+    ],
+    "candidate_diagnostic_only": "20/60-day paired block bootstrap; current IC-null simulations do not certify Sharpe-difference inference."
+  },
+  "readiness": {
+    "signal_recorder": "implemented_manual_invocation",
+    "automatic_schedule": "not_installed",
+    "market_and_contract_receipts": "not_integrated",
+    "return_scoring": "not_implemented",
+    "actual_spot_portfolio": "not_provided"
+  },
+  "claims_excluded": [
+    "No current forward validation PASS.",
+    "No account realized P&L.",
+    "No externally notarized timestamp.",
+    "No guarantee that 504 sessions deliver enough power."
+  ]
+}

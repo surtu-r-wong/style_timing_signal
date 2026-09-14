@@ -1,0 +1,452 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/build_audit.py",
+      "sha256": "eca07aeed2d1d56bf68ca1248790b239bff657876d4541109d8b519daba8a57d",
+      "size": 10950
+    },
+    {
+      "path": "inputs/demo_research_summary.json",
+      "sha256": "f36876f269fec070dd94574fe2a1d25e4aae57126d795db6ca63816e7d613d01",
+      "size": 509
+    },
+    {
+      "path": "inputs/production_guard.json",
+      "sha256": "0adacbd5c1b2480bc8cb99194fd52b725f31fc4409cd12d73add1488cbea7bba",
+      "size": 1215
+    },
+    {
+      "path": "inputs/source_before/backtest/baseline.py",
+      "sha256": "d8727a0b9d2c576f0cfbd1a82a35cd659d35424c27f46f25c8f7eff0f053bc9a",
+      "size": 5637
+    },
+    {
+      "path": "inputs/source_before/backtest/basis_term_probe.py",
+      "sha256": "83b90897585a35dec44b4e9d7b0afd877295737e5f6af5aac35550b99e493e50",
+      "size": 5213
+    },
+    {
+      "path": "inputs/source_before/backtest/consensus_axis_probe.py",
+      "sha256": "aa36c8d7903360610a77ae875b68e6f538a075886d82ed6475a7d19d0f8b7fef",
+      "size": 5717
+    },
+    {
+      "path": "inputs/source_before/backtest/gate0_criterion_study.py",
+      "sha256": "99d94a0ea5877a6b3b3d95db7a1191a865aa2247c82c7816db8e77565e018663",
+      "size": 9868
+    },
+    {
+      "path": "inputs/source_before/backtest/gate0_incumbent_audit.py",
+      "sha256": "0beca417aa33c854c07859ebd282426c07ceff938773cc425dee0e8ad445aea6",
+      "size": 6147
+    },
+    {
+      "path": "inputs/source_before/backtest/gate0_reanalysis.py",
+      "sha256": "e569cddf20c40a91f793b1e90611870dcf8a78d74efe5834629592abfa55f2e3",
+      "size": 10054
+    },
+    {
+      "path": "inputs/source_before/backtest/leverage_probe.py",
+      "sha256": "2d6ab727d6f1da4b8b27f229be5ad65629ea61cfee81da82021263c5c775f8e9",
+      "size": 13775
+    },
+    {
+      "path": "inputs/source_before/backtest/money_flow_axis_probe.py",
+      "sha256": "fd1b4256577f16fdf1476928734b91a2cd46b57acac17d50ab67e1ff9573a7c4",
+      "size": 5503
+    },
+    {
+      "path": "inputs/source_before/backtest/new_high_axis_probe.py",
+      "sha256": "251fbcf3d9a2b5efb7f625e0041ef672ee1b1ca892e5b60906535e9fdfe28026",
+      "size": 5200
+    },
+    {
+      "path": "inputs/source_before/backtest/output/gate0_incumbent_audit.json",
+      "sha256": "4aef6feeae7a9495a76240bc29e2bcbc39143b929ce848a675686d503f036791",
+      "size": 1485
+    },
+    {
+      "path": "inputs/source_before/backtest/output/gate0_reanalysis_summary.csv",
+      "sha256": "0ad65c52bf4538ba562278aa70496f72768e34e87959f5c42ffcecf24aa33a38",
+      "size": 2826
+    },
+    {
+      "path": "inputs/source_before/backtest/output/money_flow_axis_probe.csv",
+      "sha256": "f064330923ed494aa1d3604c895109e8d0dd2256f89e421563cbe71db17206ea",
+      "size": 8521
+    },
+    {
+      "path": "inputs/source_before/backtest/output/money_flow_axis_probe_verdicts.csv",
+      "sha256": "08c03292aa49bcc065ce0d83c1504c35706dd7e91a4c9ff2be1255d6e8349801",
+      "size": 857
+    },
+    {
+      "path": "inputs/source_before/backtest/output/money_flow_axis_selection.json",
+      "sha256": "0a91fbd03c2be92101085c202fb5ef0fe7453c30f49964ffa1a95e3a7e598452",
+      "size": 412
+    },
+    {
+      "path": "inputs/source_before/backtest/output/option_axis_probe.csv",
+      "sha256": "68da88801aaff559eb327a9ec439a9a5777b5a085b56f915db4e3de93d33c418",
+      "size": 24583
+    },
+    {
+      "path": "inputs/source_before/backtest/output/option_axis_probe_verdicts.csv",
+      "sha256": "e71d7c37ae02a534b7caf85b03c9b1f9ba50d2eea2ec476853ed9c7de2c8c2de",
+      "size": 1585
+    },
+    {
+      "path": "inputs/source_before/backtest/output/option_axis_selection.json",
+      "sha256": "3f7090466e40b41862f831f58dfa1e1ee1e39e4a2f7b0af32e17c69433a742c0",
+      "size": 947
+    },
+    {
+      "path": "inputs/source_before/backtest/output/probe4_conditional_verdict.csv",
+      "sha256": "7aacb160973076328f1e17becd3b6e9713979bd43ce2e39d58c2239e2b013ade",
+      "size": 6111
+    },
+    {
+      "path": "inputs/source_before/backtest/output/probe_1b_mapping_verdict.csv",
+      "sha256": "4b84dfd8073d4dbef84f3ba205c863c5d9b1c7991381b681a6b7687a710efdd8",
+      "size": 2437
+    },
+    {
+      "path": "inputs/source_before/backtest/output/probe_2_divergence_verdict.csv",
+      "sha256": "14eeda9a47eb4ae5d09bcba1de1dc874fadd604e6dc80ec0237d74fc09ce3fe7",
+      "size": 2325
+    },
+    {
+      "path": "inputs/source_before/backtest/output/probe_3_fusion_verdict.csv",
+      "sha256": "b6d82de24c43d3ebb8d5c1ec0569d65ad2df21c9fd8731041424f4683374924e",
+      "size": 2872
+    },
+    {
+      "path": "inputs/source_before/backtest/output/probe_5_pairset_verdict.csv",
+      "sha256": "a4b5fa24e8b4deaa0984f9d1c2ea916a35dadfdabef3485f9a08546813db256c",
+      "size": 4620
+    },
+    {
+      "path": "inputs/source_before/backtest/output/probe_5b_dividend_partner_verdict.csv",
+      "sha256": "c7dfd56536d4df2079cd63311d38e8c9b6f5e26101a6a9c7de84adadbdc329c6",
+      "size": 2453
+    },
+    {
+      "path": "inputs/source_before/backtest/output/probe_7_fund_crowding_verdict.csv",
+      "sha256": "f05d37952c86073dc1d2529228f8d441b32a33fcc35f669e6fa0e691133ba43f",
+      "size": 4742
+    },
+    {
+      "path": "inputs/source_before/backtest/output/probe_xsection_verdict.csv",
+      "sha256": "4e12df2a71d784b21e38cefa73fcf65695feb902377abb3587128441969a04e9",
+      "size": 2563
+    },
+    {
+      "path": "inputs/source_before/backtest/output/pure_style_eval.csv",
+      "sha256": "d8b1e7e3b5499d4a85f49b7733182adaff736816f5ca174da0f8e6d56f21e339",
+      "size": 20496
+    },
+    {
+      "path": "inputs/source_before/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs/gate0r_result.json",
+      "sha256": "1797140ddac913a16104cccd48b84e7c8e7e608644e20a29897a87c23be815a0",
+      "size": 2136
+    },
+    {
+      "path": "inputs/source_before/backtest/output/runs/20260914-statistics-r1/outputs/calibration_summary.csv",
+      "sha256": "8bd8ba2150b02d948b2d5b264a3159165b8e81162140a76d657d5845f8083db4",
+      "size": 1295
+    },
+    {
+      "path": "inputs/source_before/backtest/pure_style_eval.py",
+      "sha256": "0365c3d074383852269a8a922e8f1799f28404eb9c61d303f7a39b6bc4a0e7b9",
+      "size": 3183
+    },
+    {
+      "path": "inputs/source_before/backtest/selection_permutation.py",
+      "sha256": "36d202ed14d2f96093cac6ef59ff0fd8b5af32bc5f38743e0905a30e217d244b",
+      "size": 29933
+    },
+    {
+      "path": "inputs/source_before/backtest/significance.py",
+      "sha256": "9d2a00614fcb9656d81d0400df8b919ce499df48efe3cb9e0427916208520f61",
+      "size": 1533
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-07-08-b1-style-basket-replication.md",
+      "sha256": "36910ff93365d276bd929a7520e9f0efb66e0b66aaba035b0aaeb374ef157e0a",
+      "size": 4840
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      "sha256": "6be8c43017508cf3a98f0ba72d77612923dbd49f9ba8a7d0078c3cad76f362be",
+      "size": 5739
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      "sha256": "f23f00aba1c505e95cf72a77d3f89055c8e09297ffc9bb803354f8ab4b0db4a1",
+      "size": 11276
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-07-11-external-review-fixes.md",
+      "sha256": "9149d61fb081529086b93ab86e2fcb63cd427974c7c0558e8d189df72d52e96d",
+      "size": 9019
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-08-12-probe-3-fusion-slope20.md",
+      "sha256": "6553f079bcf379e4ce2b873a35f9443d763f0224fae32efcae2e0ea94553bc66",
+      "size": 32701
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-08-12-selection-permutation-machine.md",
+      "sha256": "45c23779dd9deab0d20cf05d0d753840209773fa6c08a7ea5b952c9771281a68",
+      "size": 29031
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-09-03-gate0-criterion-argument.md",
+      "sha256": "4f3482e220833aabe1637a9a23c5d3dd48fa367b1e2624bf0e933ee19015894c",
+      "size": 9548
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-09-03-gate0-incumbent-audit.md",
+      "sha256": "7024b3ffb74c7ee3a461f7604d7587915c4761011b166fce8c12cf0f06e77e1d",
+      "size": 5457
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-09-03-index-option-iv-axis-results.md",
+      "sha256": "781df4e83224360084d48eb1fa3527790dafeaef64477573a48b4d553c643bca",
+      "size": 4824
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-09-03-money-flow-axis-results.md",
+      "sha256": "16c91b78e70e09b61e2d8b8b10b30b796cac166f5a3737aefd8a0bee078a7703",
+      "size": 7528
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+      "sha256": "e4f46eef224950d46f476e4d7dbb87f020e9922490eaa9a825226f84e7fa38b5",
+      "size": 3322
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      "sha256": "82f19e42bf7cb9ca2b2762585042b329532e73d80a1253de61016c674f6f4ff1",
+      "size": 3792
+    },
+    {
+      "path": "inputs/source_before/docs/plans/2026-09-09-gate0-reanalysis-results.md",
+      "sha256": "6a7682d08941dfba59dcd9247b247397f68e88907aa8576bfdbfad83b97f632d",
+      "size": 4802
+    },
+    {
+      "path": "inputs/source_before/docs/plans/research_registry.yaml",
+      "sha256": "95d349b8284e41ce0971c2930df7d9b66fc49275e08f848eab7fb75071e3ce16",
+      "size": 84485
+    },
+    {
+      "path": "inputs/source_before/output/style_basket/decomposition_U2.csv",
+      "sha256": "5cea43f6fdabc03b57778f1e7e83c48d91c002a1cf57b32c2e558e84d40b2607",
+      "size": 2057
+    },
+    {
+      "path": "inputs/source_before/output/style_basket/validation_all.csv",
+      "sha256": "643c58f7a35c749917ce5b743607f2bb2dd514236164d8db643f73d229fbd331",
+      "size": 1748
+    },
+    {
+      "path": "inputs/source_before/signals/style_basket/decompose.py",
+      "sha256": "4acac08383eef85bda5944a31d86940746867ca43b78f04e294b0f0186f747ec",
+      "size": 6821
+    },
+    {
+      "path": "inputs/source_hashes.json",
+      "sha256": "98add627906fd2514ea42fc198e9a9262221e29fd8a81f0ef4213beb0c81e3f0",
+      "size": 6460
+    },
+    {
+      "path": "outputs/artifact_pass_rows.csv",
+      "sha256": "e9408912f223287fcf8448f565b19952d04e6d0c1bbd57b657877a27487cda44",
+      "size": 3899
+    },
+    {
+      "path": "outputs/code_and_production_checks.json",
+      "sha256": "02febd3c223d352098d03b8a74825c420eda4d78b79c4feb995b73083d4ee0c6",
+      "size": 549
+    },
+    {
+      "path": "outputs/o2_representative_check.json",
+      "sha256": "723dbef830aad69bfbe9360c7c22b88036c5e6cff84bff263a0c1d34bbc2ec6d",
+      "size": 341
+    },
+    {
+      "path": "outputs/positive_claims.csv",
+      "sha256": "2450522cde9159f5e0489585bb1cd0a7a845572e073f3d6bf45b94c884d88d8d",
+      "size": 3999
+    },
+    {
+      "path": "outputs/registry_inventory.csv",
+      "sha256": "c3e86d3db763980e291ec4d1abbcc34a0e3428b39743defc0f7946265e844327",
+      "size": 22145
+    },
+    {
+      "path": "outputs/source_after/backtest/basis_term_probe.py",
+      "sha256": "1b9eee74956b1261ceb3ba2533282f662f66aa36e8a024580660e01c7c71b3aa",
+      "size": 4986
+    },
+    {
+      "path": "outputs/source_after/backtest/consensus_axis_probe.py",
+      "sha256": "60692af7e9d1388276b5188dd7197529fa2bd001630bc297799369f94e00b244",
+      "size": 5490
+    },
+    {
+      "path": "outputs/source_after/backtest/money_flow_axis_probe.py",
+      "sha256": "037657dfffcb5bb497c6863ef185cefede05845b5f4a532151c220bf97fbb971",
+      "size": 5276
+    },
+    {
+      "path": "outputs/source_after/backtest/new_high_axis_probe.py",
+      "sha256": "c6c2259d7a366167e63b91c7c4870c4e01806e51fcbd34f72cc69a113c410598",
+      "size": 4973
+    },
+    {
+      "path": "outputs/source_after/backtest/significance.py",
+      "sha256": "95a1062b85f47735d73437f9ec4bd9143baa161e7a8a0bf0597270e1acb2811b",
+      "size": 1770
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-07-08-b1-style-basket-replication.md",
+      "sha256": "065329f3d17059a1be5be87d4eca154ab8618059a986414b8b1b8ab0017d19c8",
+      "size": 5257
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      "sha256": "ed74af39556811d9774762f78dde674e418b4117a8eae055f5be6e8875b0186c",
+      "size": 6134
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      "sha256": "12b3dc12037ce97d3224bae8903f24a6b8f7e26833f530a73a4f1ff99eac9ae4",
+      "size": 11693
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-07-11-external-review-fixes.md",
+      "sha256": "c276406b0e909f61ad6fe1b60e9b06b95ee8a31eaf6a9090695e57b6cd57e491",
+      "size": 9394
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-08-12-selection-permutation-machine.md",
+      "sha256": "34cc7c25c672451603834fb8a6c8b97cfc4b9aea43e6660c98446f5f32352124",
+      "size": 29478
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-09-03-gate0-incumbent-audit.md",
+      "sha256": "deca8388bf0c69ddaf41b89b2d1c879afff541acd78b18f362a55cfdca1e77a5",
+      "size": 5876
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-09-03-index-option-iv-axis-results.md",
+      "sha256": "fa52becb3ee2f71ee0b297914acf4b700d529364a358f55f2ba15bce4b1488f6",
+      "size": 5388
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-09-03-money-flow-axis-results.md",
+      "sha256": "b536fbcb619db16695849c91f552be66a6916a4771f06153ef231176777a5001",
+      "size": 8003
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+      "sha256": "efc38581046b4dcc47fa8568f0cba72d56065f6721f0116b0c6dcf8e3332ef9e",
+      "size": 3789
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      "sha256": "284b103623ac577ebae157d12f2d41bec619e5df355f586cb64bf255f95e2a17",
+      "size": 4134
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-09-09-gate0-reanalysis-results.md",
+      "sha256": "238856641ac41c3b5a75d75312ea3ab9bf078fe219d4040abf0bf174f2e8d15f",
+      "size": 5222
+    },
+    {
+      "path": "outputs/source_after/docs/plans/2026-09-14-statistical-dependency-audit.md",
+      "sha256": "e7f305d4abc2e35c9a2e07798d01c02ecfd91aa8058676ce012678b6b4730ea5",
+      "size": 8868
+    },
+    {
+      "path": "outputs/source_after/docs/plans/README.md",
+      "sha256": "b84f0c9088911d805d4194ad6f8c3939c6d8b71b0b8dea2eeee0d1f964a05aec",
+      "size": 60989
+    },
+    {
+      "path": "outputs/source_after/docs/plans/research_registry.yaml",
+      "sha256": "dd6f70e04b7d5840434e9f4fdb3aa4719c16f05dc01b5f92aa4690ca44579e78",
+      "size": 88848
+    },
+    {
+      "path": "outputs/summary.json",
+      "sha256": "f62a41ae8f792da0892fc3bdd91ec64a30d903e497b04dd5fe191f15d8eaebaf",
+      "size": 827
+    },
+    {
+      "path": "outputs/validation.json",
+      "sha256": "ea069c7ba6b681bb9ee57aaf905da47075082bb09adefe5cbc1d40e9d7b2d050",
+      "size": 563
+    }
+  ],
+  "completed_utc": "2026-09-14T08:20:25.368226+00:00",
+  "git": {
+    "commit": "f61fea7d57e158ea02915137d3265f22893d4404",
+    "dirty": true,
+    "porcelain": [
+      " M README.md",
+      " M backtest/basis_term_probe.py",
+      " M backtest/consensus_axis_probe.py",
+      " M backtest/gate0_criterion_study.py",
+      " M backtest/metrics.py",
+      " M backtest/money_flow_axis_probe.py",
+      " M backtest/new_high_axis_probe.py",
+      " M backtest/selection_permutation.py",
+      " M backtest/short_leg_audit.py",
+      " M backtest/significance.py",
+      " M docs/plans/2026-07-08-b1-style-basket-replication.md",
+      " M docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      " M docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      " M docs/plans/2026-07-11-external-review-fixes.md",
+      " M docs/plans/2026-08-12-selection-permutation-machine.md",
+      " M docs/plans/2026-09-03-gate0-criterion-argument.md",
+      " M docs/plans/2026-09-03-gate0-incumbent-audit.md",
+      " M docs/plans/2026-09-03-index-option-iv-axis-results.md",
+      " M docs/plans/2026-09-03-money-flow-axis-results.md",
+      " M docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+      " M docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      " M docs/plans/2026-09-09-gate0-reanalysis-results.md",
+      " M docs/plans/2026-09-10-two-pool-signal-assignment-decision.md",
+      " M docs/plans/PREREG_TEMPLATE.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/audit_corrections.py",
+      "?? backtest/candidate_completion.py",
+      "?? backtest/execution_audit.py",
+      "?? backtest/execution_ledger.py",
+      "?? backtest/output/runs/20260914-audit-corrections-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r2/",
+      "?? backtest/output/runs/20260914-fixed-candidates-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r2/",
+      "?? backtest/output/runs/20260914-risk-allocation-r1/",
+      "?? backtest/output/runs/20260914-statistical-dependency-audit-r1/",
+      "?? backtest/output/runs/20260914-statistics-r1/",
+      "?? backtest/research_data_inventory.py",
+      "?? backtest/research_statistics.py",
+      "?? docs/plans/2026-09-14-research-followthrough-results.md",
+      "?? docs/plans/2026-09-14-statistical-dependency-audit.md",
+      "?? docs/superpowers/plans/2026-09-14-research-followthrough.md",
+      "?? tests/test_execution_ledger.py",
+      "?? tests/test_research_statistics.py",
+      "?? tests/test_short_leg_audit_alignment.py"
+    ],
+    "tracked_dirty": true
+  },
+  "scope": "56 registry studies screened, five positive records traced, 14 focused cases; documents and diagnostic metadata only",
+  "stage": "statistical-dependency-audit",
+  "status": "complete"
+}

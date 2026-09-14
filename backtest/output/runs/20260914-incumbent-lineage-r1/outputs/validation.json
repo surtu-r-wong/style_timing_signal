@@ -1,0 +1,17 @@
+{
+  "tests": {
+    "command": "python3 -m pytest tests/test_forward_observation.py tests/test_research_registry.py tests/test_bt_run_manifest.py -q -p no:cacheprovider",
+    "passed": 48,
+    "failed": 0,
+    "elapsed_seconds": 0.66
+  },
+  "checks": [
+    "historical representative selection replay matched",
+    "identical scan blob across carry repair",
+    "ruff F,E9 passed",
+    "registry valid and generated index consistent",
+    "production source and recommendation hashes unchanged",
+    "campaign protocol byte-identical; zero receipts verified"
+  ],
+  "scope": "Prepared observation layer; no forward return result or inferential GO; no automatic schedule or production changes."
+}

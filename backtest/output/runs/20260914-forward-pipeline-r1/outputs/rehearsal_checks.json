@@ -1,0 +1,14 @@
+[
+  {
+    "cost_bps": 3.0,
+    "sessions": 504,
+    "first_ret_is_initialization_zero": true,
+    "all_daily_returns_finite": true
+  },
+  {
+    "cost_bps": 10.0,
+    "sessions": 504,
+    "first_ret_is_initialization_zero": true,
+    "all_daily_returns_finite": true
+  }
+]

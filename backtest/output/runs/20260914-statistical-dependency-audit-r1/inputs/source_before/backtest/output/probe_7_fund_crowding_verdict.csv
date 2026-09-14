@@ -1,0 +1,89 @@
+gate,metric,value,threshold,pass,family_group
+1_permutation_significant,p_selected,0.4035964035964036,0.025,False,B
+1_permutation_significant,p_naive_UNCORRECTED(对照·不入闸),0.2087912087912088,,,B
+1b_partial_ic_same_sign,partial_ic_signed_at_winner,-0.1990855491228061,0.0,True,B
+1b_partial_ic_same_sign,p_selected_at_winner,0.42357642357642356,0.025,False,B
+2_stable_halves,ic_half1,-0.17401960784313728,0.0,True,B
+2_stable_halves,ic_half2,-0.32658127818231547,0.0,True,B
+3_net_positive,net_sharpe_selection_2014_2023,0.43544902360754806,0.0,True,B
+OVERALL,STOP(任一关不过),0.0,,False,B
+1_permutation_significant,p_selected,0.6473526473526473,0.025,False,A
+1_permutation_significant,p_naive_UNCORRECTED(对照·不入闸),0.27172827172827174,,,A
+1b_partial_ic_same_sign,partial_ic_signed_at_winner,-0.239825438335663,0.0,True,A
+1b_partial_ic_same_sign,p_selected_at_winner,0.6053946053946054,0.025,False,A
+2_stable_halves,ic_half1,-0.18551735511819167,0.0,True,A
+2_stable_halves,ic_half2,-0.35233942448257105,0.0,True,A
+3_net_positive,net_sharpe_selection_2014_2023,0.15381327031879494,0.0,True,A
+OVERALL,STOP(任一关不过),0.0,,False,A
+META,verdict,STOP,,,B
+META,winner,"('size', '240', '500', 40)",,,B
+META,winner_abs_ic,0.2027036537011014,,,B
+META,p_selected_ic,0.4035964035964036,,,B
+META,p_naive_ic_UNCORRECTED,0.2087912087912088,,,B
+META,p_min_p_ic,0.44255744255744256,,,B
+META,selection_inflation_ic,1.9330143540669855,,,B
+META,partial_ic_signed_at_winner,-0.1990855491228061,,,B
+META,p_selected_partial_at_winner,0.42357642357642356,,,B
+META,null_selected_p95_ic,0.34087567765254606,,,B
+META,n_distinct_null_winners_ic,12,,,B
+META,winner_ic_selection_2014_2023,-0.20270365370110144,,,B
+META,winner_ic_train_2014_2020,-0.17401960784313728,,,B
+META,winner_ic_val_2021_2023,-0.41421568627450983,,,B
+META,winner_ic_holdout_2024_2026,0.002200221353402789,,,B
+META,winner_ic_full_2014_2026,-0.16716444995607624,,,B
+META,winner_ic_half1,-0.17401960784313728,,,B
+META,winner_ic_half2,-0.32658127818231547,,,B
+META,winner_net_sharpe_selection_2014_2023,0.43544902360754806,,,B
+META,winner_net_sharpe_train_2014_2020,0.4312579965671204,,,B
+META,winner_net_sharpe_val_2021_2023,0.614741705200183,,,B
+META,winner_net_sharpe_holdout_2024_2026,0.590786615746837,,,B
+META,winner_net_sharpe_full_2014_2026,0.45246596366035424,,,B
+META,run_n_obs,1450,,,B
+META,run_min_shift,80,,,B
+META,run_max_shift,1370,,,B
+META,run_first_date,2018-01-11,,,B
+META,run_last_date,2023-12-29,,,B
+META,verdict,STOP,,,A
+META,winner,"('A2', 'expanding', 'annP95', 40)",,,A
+META,winner_abs_ic,0.23326440234912882,,,A
+META,p_selected_ic,0.6473526473526473,,,A
+META,p_naive_ic_UNCORRECTED,0.27172827172827174,,,A
+META,p_min_p_ic,0.7212787212787213,,,A
+META,selection_inflation_ic,2.38235294117647,,,A
+META,partial_ic_signed_at_winner,-0.239825438335663,,,A
+META,p_selected_partial_at_winner,0.6053946053946054,,,A
+META,null_selected_p95_ic,0.48031783427130964,,,A
+META,n_distinct_null_winners_ic,6,,,A
+META,winner_ic_selection_2014_2023,-0.23326440234912885,,,A
+META,winner_ic_train_2014_2020,-0.13129595307736341,,,A
+META,winner_ic_val_2021_2023,-0.4069792156591293,,,A
+META,winner_ic_holdout_2024_2026,0.2816179718697737,,,A
+META,winner_ic_full_2014_2026,-0.0962613631422811,,,A
+META,winner_ic_half1,-0.18551735511819167,,,A
+META,winner_ic_half2,-0.35233942448257105,,,A
+META,winner_net_sharpe_selection_2014_2023,0.15381327031879494,,,A
+META,winner_net_sharpe_train_2014_2020,0.3482377791504686,,,A
+META,winner_net_sharpe_val_2021_2023,-0.036050776377250834,,,A
+META,winner_net_sharpe_holdout_2024_2026,-0.9708526009894525,,,A
+META,winner_net_sharpe_full_2014_2026,-0.25202781769633054,,,A
+META,run_n_obs,1385,,,A
+META,run_min_shift,120,,,A
+META,run_max_shift,1265,,,A
+META,run_first_date,2018-04-23,,,A
+META,run_last_date,2023-12-29,,,A
+META,n_perm,1000,,,共同
+META,seed,0,,,共同
+META,cost_bps,3.0,,,共同
+META,family_alpha,0.025,,,共同
+META,w_main,240,,,共同
+META,w_sensitivity,120,,,共同
+META,index_codes,"['885000.WI', '000300.SH', '000852.SH', '399370.SZ', '399371.SZ']",,,共同
+META,active_fund_types,"['偏股混合型', '偏股混合型基金', '普通股票型', '普通股票型基金']",,,共同
+META,a_burn_in,8,,,共同
+META,pit_main,ann_date P95 (percentile_disc),,,共同
+META,pit_sensitivity,report_date + 30 calendar days,,,共同
+META,n_quarters,41,,,共同
+META,beta_first_dates,"{'beta_s_size_w240': '2015-12-28', 'beta_s_size_w120': '2015-07-02', 'beta_s_gv_w240': '2015-12-28', 'beta_s_gv_w120': '2015-07-02'}",,,共同
+META,max_abs_diff_rebuilt_ew_vs_production_csv,4.9966071478557694e-05,,,共同
+META,db_host,settings.yaml default,,,共同
+META,holdout_policy,2024-2026 只报告不选择、不进任何闸门,,,共同

@@ -1,33 +1,29 @@
 # style_timing_signal — 风格择时信号研究
 
-基于中信风格指数与成长/价值指数配对的 A 股择时信号研究项目。三条活跃信号线 + 历史研究归档。
+基于中信风格指数与成长/价值指数配对的 A 股择时信号研究项目。四条活跃信号线 + 历史研究归档。
 
-## 三条信号线
+## 四条信号线
 
 | 信号线 | 目录 | 一句话逻辑 | 输入 | 输出 |
 |---|---|---|---|---|
 | ① hybrid20 状态机信号 | `signals/hybrid20/` | 成长/稳健 20d 强弱定方向（250d z + tanh + 状态机），金融/稳定信号只用于阻止做空 | **PG `index_daily`**（中信5风格，默认）· CSV 备份 | `output/hybrid20/confirmed_signal.csv` 的 **hybrid_20** 列 |
 | ② citic40d 连续信号 | `signals/citic40d/` | 五因子（成长/稳定、周期/消费、金融/稳定、进攻/防御篮子×2）40d z 等权连续值 | **PG `index_daily`**（中信5风格，默认）· CSV 备份 | `output/citic40d/citic_style_signal_40d.csv` 的 **factor_20** 列 |
 | ③ equal_weight 配对信号 | `signals/equal_weight/` | 配置驱动的成长/价值配对相对强弱，等权平均连续值，参数可调 | **PG `index_daily`**（4对成长价值，默认）· CSV 备份 | `output/equal_weight/equal_weight_signal_{20d40z,5d20z}.csv` 的 **factor_value** 列 |
+| ④ slope20 斜率信号 | `signals/slope20/` | 四对20日对数价格斜率差，120日z，等权、不加平滑 | PG `index_daily` | `output/slope20/slope20_signal_L20zw120.csv` 的 **factor_value** 列 |
 
-## 推荐持仓口径（production = long-flat）⭐
+## 当前持仓与研究证据
 
-**交易这三条信号时，砍掉空头、只做多/空仓（long-flat）。** 部署口径 `production_position`（`signal>0 → +1，否则 0`）与阈值 0 对称多空同秤对比（equal_weight blend · full；**2026-07-11 blend carry 修正后重算**，勘误全记录 → `docs/plans/2026-07-11-external-review-fixes.md`）：
-
-| 持仓口径 | 年化 | Sharpe | MaxDD | Calmar |
-|---|---|---|---|---|
-| **long-flat（推荐）** | 26.4% | **1.62** | **−16.7%** | **1.58** |
-| 对称多空（原口径） | 35.6% | 1.41 | −29.3% | 1.22 |
-| buy & hold | 9.2% | 0.36 | −68.9% | 0.13 |
-
-carry 修正（IM 上市前单腿期不再按全额 IC carry 计）让多头少赚 ≈2pp/年、空头少付 ≈3pp/年：同秤下推荐**维持**（Sharpe 差距 0.41→0.20 收窄无翻转；修正前为 1.78 vs 1.37）。两点诚实降级：① "空头无价值"命题弱化为"**无显著独立价值**"——CITIC 轴 16 组阈值 `short_sharpe` 重算后全部转正（`∈[+0.11,+0.21]`，原 [−0.07,+0.04]"无一盈利"不再成立），equal_weight 空头段 Sharpe 0.48，但空头引擎（θ=0.30+carry 门控）单独 Sharpe 仍 0.01 / p=0.13，加空头腿 MaxDD 反差 6.5pp、跌月命中 43.5% < 50%；② Phase 3 双引擎表（θ=0.10 多头腿）修正后 1.28 < 对称 1.42，该评估口径下排序翻转——细节见勘误文档。此后专属信号方向已测尽：**空头五轴 + 多头三轴共八个观察面全 STOP**（p 值偏乐观下仍全灭，校正只会更 STOP）——库内零成本公开信息面无一提供独立于 equal_weight 的增量（复盘 `docs/plans/2026-07-10-optimization-roadmap-retrospective.md`）。
-
-信号 CSV 输出不变（仍是连续因子 / 带空状态机信号）；推荐持仓是**下游口径**，用 `backtest.positions.production_position(factor)`（`signal>0 → +1，否则 0`）得到。一键生成三条线推荐持仓：
+2026-09-10 的两池决策：现货池跟 **slope20 long-flat**，期货池跟 **equal_weight 对称多空**。文件分别是 `output/recommended/slope20_longflat.csv` 与 `output/recommended/equal_weight_symmetric.csv`。四条生产映射和参照文件仍由 `backtest.production` 统一生成。
 
 ```bash
-python3 -m backtest.production          # → output/recommended/<signal>_longflat.csv
-python3 -m backtest.dual --signal equal_weight   # 复现上表（dual_engine_metrics.csv）
+python3 -m backtest.production
 ```
+
+详见 [两池决策](docs/plans/2026-09-10-two-pool-signal-assignment-decision.md) 与 [研究权威索引](docs/plans/README.md)。旧“所有信号只做多、空头无价值”的概括已被取代；各STOP只约束其冻结规格。
+
+[2026-09-14后续研究](docs/plans/2026-09-14-research-followthrough-results.md)补充实际合约执行、独立零假设校准与风险配置。旧指数+carry收益不是实际账户业绩；2024-2026是反复使用的第二验证窗。现货实际持仓尚未提供，当前执行研究使用指数代理。新研究不自动变更生产映射。
+
+**2026-09-14阶段收尾**：暂保留现役，依据是尚无充分替换证据，不能称已证明最优；两池分工优势未确认，统计GO关闭。前瞻记录工具已准备，当前0观察且未安装自动调度。完整状态及后续入口见[收尾交接](docs/plans/2026-09-14-research-closeout.md)。
 
 ## 数据源（2026-07 起：PG 优先）
 
@@ -54,6 +50,9 @@ python3 signals/equal_weight/generate_signal.py
 python3 signals/equal_weight/generate_signal.py \
   --lookback 5 --z-window 20 --smoothing 0 \
   --output output/equal_weight/equal_weight_signal_5d20z.csv
+
+# ④ slope20
+python3 signals/slope20/generate_signal.py
 
 # 测试
 python3 -m pytest tests/ -q

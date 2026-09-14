@@ -1,0 +1,5 @@
+{
+  "reason": "literal percent in parametrized query; failed before saving price inputs or computing performance",
+  "stage": "capture",
+  "status": "failed"
+}

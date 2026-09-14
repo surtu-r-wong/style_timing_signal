@@ -1,0 +1,12 @@
+[
+  {
+    "title": "Ibragimov and Mueller, t-Statistic Based Correlation and Heterogeneity Robust Inference (2010)",
+    "url": "https://www.tandfonline.com/doi/abs/10.1198/jbes.2009.08046",
+    "role": "group estimator t inference; conditions remain required"
+  },
+  {
+    "title": "Shao, A self-normalized approach to confidence interval construction in time series (2010)",
+    "url": "https://arxiv.org/abs/1005.2137",
+    "role": "self-normalization theory; this study uses an influence-function adaptation"
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "ew": [
+    "ew_L20_zw40_sm5",
+    "ew_L20_zw100_sm0"
+  ],
+  "slope": [
+    "slope_L20s0_zw120_sm0"
+  ],
+  "rule": "frozen plan, train/val only"
+}

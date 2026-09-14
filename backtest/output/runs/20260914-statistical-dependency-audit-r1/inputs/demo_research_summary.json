@@ -1,0 +1,16 @@
+{
+  "statistic": "worst_tv_sharpe(train,val)",
+  "n_variants": 40,
+  "n_perm": 1000,
+  "seed": 0,
+  "scheme": "rotation",
+  "best_variant": "(('lookback', 20), ('smoothing', 0), ('z_window', 100))",
+  "observed_best": 1.6276249913311567,
+  "p_selected": 0.006993006993006993,
+  "p_min_p": 0.014985014985014986,
+  "p_naive_UNCORRECTED": 0.000999000999000999,
+  "selection_inflation": 7.0,
+  "null_selected_mean": 0.36940815481237005,
+  "null_selected_p95": 0.7651557641685859,
+  "n_distinct_null_winners": 40
+}

@@ -1,0 +1,93 @@
+{
+  "runs": [
+    {
+      "run": "20260914-audit-corrections-r1",
+      "status": "complete",
+      "artifacts": 28
+    },
+    {
+      "run": "20260914-execution-audit-r1",
+      "status": "failed",
+      "artifacts": 0
+    },
+    {
+      "run": "20260914-execution-audit-r2",
+      "status": "complete",
+      "artifacts": 37
+    },
+    {
+      "run": "20260914-fixed-candidates-r1",
+      "status": "complete",
+      "artifacts": 41
+    },
+    {
+      "run": "20260914-forward-pipeline-r1",
+      "status": "complete",
+      "artifacts": 45
+    },
+    {
+      "run": "20260914-grid-reassessment-r1",
+      "status": "complete",
+      "artifacts": 47
+    },
+    {
+      "run": "20260914-incumbent-lineage-r1",
+      "status": "complete",
+      "artifacts": 48
+    },
+    {
+      "run": "20260914-new-input-inventory-r1",
+      "status": "complete",
+      "artifacts": 18
+    },
+    {
+      "run": "20260914-new-input-inventory-r2",
+      "status": "complete",
+      "artifacts": 18
+    },
+    {
+      "run": "20260914-risk-allocation-r1",
+      "status": "complete",
+      "artifacts": 26
+    },
+    {
+      "run": "20260914-robust-inference-r1",
+      "status": "complete",
+      "artifacts": 26
+    },
+    {
+      "run": "20260914-sharpe-calibration-r1",
+      "status": "complete",
+      "artifacts": 24
+    },
+    {
+      "run": "20260914-statistical-dependency-audit-r1",
+      "status": "complete",
+      "artifacts": 78
+    },
+    {
+      "run": "20260914-statistics-r1",
+      "status": "complete",
+      "artifacts": 25
+    }
+  ],
+  "artifacts_verified": 461,
+  "forward_quality": {
+    "records": 0,
+    "head_sha256": null,
+    "last_recorded_at_utc": "2026-09-14T09:29:05.207559+00:00",
+    "last_date": null,
+    "sessions": [],
+    "missing_market_sessions": [],
+    "completed_fill_sessions": 0,
+    "mode": "price_based_research_no_actual_fills",
+    "missing_signal_sessions": [],
+    "signal_records": 0,
+    "returns_released": false,
+    "observation_sessions_required": 504,
+    "score_ready": false,
+    "go_enabled": false
+  },
+  "signal_code_guards_unchanged": 9,
+  "market_code_guards_unchanged": 5
+}

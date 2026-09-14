@@ -1,0 +1,309 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/build_lineage.py",
+      "sha256": "a83fc28eb8a927b2ce7b094a3a4983497743272b4fcbe9f5ccc4ed835a86c067",
+      "size": 5488
+    },
+    {
+      "path": "inputs/current/backtest/execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/current/backtest/forward_observation.py",
+      "sha256": "ecc9d121227612f17552ac8fdd1b10304031d165daa1f60d8473f7f6d3179231",
+      "size": 10355
+    },
+    {
+      "path": "inputs/current/backtest/momentum_scan.py",
+      "sha256": "529e202b1d3624542c9fc569e4f6fcad7b5d3cb87184c6719613c3251ea33df5",
+      "size": 11926
+    },
+    {
+      "path": "inputs/current/backtest/positions.py",
+      "sha256": "6418950e77bb6ead042bfff8aecb15a094c34645af040b3817a31545cd4d6404",
+      "size": 7768
+    },
+    {
+      "path": "inputs/current/backtest/production.py",
+      "sha256": "ada16aa99b47c7367e4dd39fbbfb67bbc813dc1928240560248ef3569f5cee99",
+      "size": 4102
+    },
+    {
+      "path": "inputs/current/backtest/scan.py",
+      "sha256": "202d01d82fe3b20d0cc011a4898a329ed0ab7c47452f37bb150a2606bf60d0e5",
+      "size": 5593
+    },
+    {
+      "path": "inputs/current/docs/superpowers/plans/2026-09-14-incumbent-lineage-forward-plan.md",
+      "sha256": "1c6a68a1c4722d72e08d38a2ffb10731b3ad1beff8c49fad6e318ebd82ac15a1",
+      "size": 1892
+    },
+    {
+      "path": "inputs/current/signals/common/data_source.py",
+      "sha256": "a85b168c2a383ca1b04ddd51844a9cab59ee6cf51f9008a9a51d3b732c51a199",
+      "size": 5894
+    },
+    {
+      "path": "inputs/current/signals/common/factors.py",
+      "sha256": "33372e7cb61e1dcd45adcd903f0c02e2b051f1662bc43f591d3c965d77a8e9ff",
+      "size": 22096
+    },
+    {
+      "path": "inputs/current/signals/equal_weight/config_4pairs.csv",
+      "sha256": "52b9091d17cf4661b4f9d927bd861e18fbd9bf7ada047e77afd83c4e719635af",
+      "size": 213
+    },
+    {
+      "path": "inputs/current/signals/equal_weight/generate_signal.py",
+      "sha256": "4e4bc24d8caf9744a1acede9828a7d76029ef2a8ff1da2fff95b8fddf5e6451a",
+      "size": 12885
+    },
+    {
+      "path": "inputs/current/signals/slope20/generate_signal.py",
+      "sha256": "d99295896fd48ffdcce55ec6968ddf38217a134bf813a34105413ea3a04bbbc7",
+      "size": 1720
+    },
+    {
+      "path": "inputs/current/tests/test_forward_observation.py",
+      "sha256": "05258c6b0e592cbbbf0e75ef64782d8f44c136f623a26d35a8ba8837048db014",
+      "size": 5141
+    },
+    {
+      "path": "inputs/git/063c322/backtest/production.py",
+      "sha256": "ada16aa99b47c7367e4dd39fbbfb67bbc813dc1928240560248ef3569f5cee99",
+      "size": 4102
+    },
+    {
+      "path": "inputs/git/0a91aed/backtest/output/scan_momentum.csv",
+      "sha256": "e8750cd0b9e2add163e1b07768b71162cbafa94418fd26baa6859da7680c8bce",
+      "size": 9305
+    },
+    {
+      "path": "inputs/git/3b05c55/backtest/scan.py",
+      "sha256": "bfe39b6ace471424e6b9c36a4886feac37fa9947efda822fd6bd8084267251eb",
+      "size": 3814
+    },
+    {
+      "path": "inputs/git/4cfe03a/backtest/output/scan_momentum.csv",
+      "sha256": "78ac97bffab02179e8094942d40664a8a7dc9407c733ff31c437fd97873988ed",
+      "size": 6588
+    },
+    {
+      "path": "inputs/git/6b07639/latest_equal_weight_signal/generate_equal_weight_signal_contrast.py",
+      "sha256": "59d0c32c5f601f64f761ceef1805b1aa107ded0616399baced755a0f9611e990",
+      "size": 9970
+    },
+    {
+      "path": "inputs/git/6b07639/latest_equal_weight_signal/smooth_vs_raw_grid_optimization_0621_next_close_summary.csv",
+      "sha256": "5ae40aa16b603c34f1c84019bca7882e50240259582ef028250a4f123f0a1770",
+      "size": 6695
+    },
+    {
+      "path": "inputs/git/6b07639/latest_equal_weight_signal/style_factor_groups.csv",
+      "sha256": "b106789f9e241adee62cffaf76a3368f3d6c21d7ff1fd5a197702f875ec54690",
+      "size": 291
+    },
+    {
+      "path": "inputs/git/9523365/backtest/production.py",
+      "sha256": "814e553d370dda2cbe9f50791f1b003251c7dd446b679b0f250e4ba43d97e267",
+      "size": 3241
+    },
+    {
+      "path": "inputs/git/98f22f2/backtest/output/scan_momentum.csv",
+      "sha256": "27094aaded972da9c53380c5df4a61d5eacece2e8ccd24ea6697cf37e9be7770",
+      "size": 13417
+    },
+    {
+      "path": "inputs/git/a2e19f0/signals/equal_weight/config_6pairs.csv",
+      "sha256": "b106789f9e241adee62cffaf76a3368f3d6c21d7ff1fd5a197702f875ec54690",
+      "size": 291
+    },
+    {
+      "path": "inputs/git/a2e19f0/signals/equal_weight/generate_signal.py",
+      "sha256": "6135af183ced6f5da55ac1c7d9546763f81703692e596d503a8d71d8982a056b",
+      "size": 11817
+    },
+    {
+      "path": "inputs/git/cfd9d70/backtest/output/scan_equal_weight.csv",
+      "sha256": "9eab56e4e6fcc4d51ac5376309ae9dda1020617c461091245dbb00e25d3731ae",
+      "size": 2740
+    },
+    {
+      "path": "inputs/git/dcb291f/signals/equal_weight/config_4pairs.csv",
+      "sha256": "52b9091d17cf4661b4f9d927bd861e18fbd9bf7ada047e77afd83c4e719635af",
+      "size": 213
+    },
+    {
+      "path": "inputs/git/f7ad5b1/backtest/momentum_scan.py",
+      "sha256": "529e202b1d3624542c9fc569e4f6fcad7b5d3cb87184c6719613c3251ea33df5",
+      "size": 11926
+    },
+    {
+      "path": "inputs/git/f7ad5b1/backtest/output/momentum_head2head.csv",
+      "sha256": "0a78644c5651bc0d5ff0294c80873e0fa451191d88aaede563c77841252f3eee",
+      "size": 85648
+    },
+    {
+      "path": "inputs/git/f7ad5b1/backtest/output/scan_momentum.csv",
+      "sha256": "27094aaded972da9c53380c5df4a61d5eacece2e8ccd24ea6697cf37e9be7770",
+      "size": 13417
+    },
+    {
+      "path": "inputs/git/fb96394/signals/slope20/generate_signal.py",
+      "sha256": "d99295896fd48ffdcce55ec6968ddf38217a134bf813a34105413ea3a04bbbc7",
+      "size": 1720
+    },
+    {
+      "path": "inputs/production_guard.json",
+      "sha256": "b91656703cd105db28f865483b60038168da5bfb5a5a69d7c28cc3bf422c04e3",
+      "size": 1124
+    },
+    {
+      "path": "outputs/campaign_initial/campaign.json",
+      "sha256": "4da8214114ab93145ec6fdc87498fdfb505a5ba88ed13e32498bf143d8582862",
+      "size": 1187
+    },
+    {
+      "path": "outputs/campaign_initial/campaign.sha256",
+      "sha256": "546ae78c4b987d32892471a0d056c1ecfa6d60bc840ada34fb1f19e6043e17bf",
+      "size": 65
+    },
+    {
+      "path": "outputs/campaign_initial/journal.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "outputs/campaign_initial/protocol.json",
+      "sha256": "d0500f55e6d3f9f21354d5a16e601c5dee98741c4caa86d71a227f18a0b94e68",
+      "size": 3564
+    },
+    {
+      "path": "outputs/commit_timeline.json",
+      "sha256": "f4abc3bf19c7fff93b9f2be14286f0fc45f59f894c8f81015209ec305e6f850b",
+      "size": 4168
+    },
+    {
+      "path": "outputs/documents/docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      "sha256": "5aabe52d4f8a3dbc2f0600e0276b08f775547d654765cae3e4c5f82d2e232799",
+      "size": 11977
+    },
+    {
+      "path": "outputs/documents/docs/plans/2026-07-11-external-review-fixes.md",
+      "sha256": "14af88ee74b59bb7718851d4d6bed800c608a4dabfe2bbfa4a23b4bd5bdf17a3",
+      "size": 9660
+    },
+    {
+      "path": "outputs/documents/docs/plans/2026-09-14-incumbent-forward-observation.md",
+      "sha256": "0e356de973b7e100f7bf7db9a904712579d3b05c4dafa8ef5e713c51ab708db6",
+      "size": 5154
+    },
+    {
+      "path": "outputs/documents/docs/plans/2026-09-14-incumbent-parameter-lineage.md",
+      "sha256": "1f3d36be7237aa47939dcb89eb82a39df88c0126463c463ed7bbe918aebd0bc2",
+      "size": 6233
+    },
+    {
+      "path": "outputs/documents/docs/plans/README.md",
+      "sha256": "f52c91e358cd0bb984a23686ed30b47954cbe1df04ed77b481172e3ebce4140a",
+      "size": 64302
+    },
+    {
+      "path": "outputs/documents/docs/plans/research_registry.yaml",
+      "sha256": "0d4774b3a24c57f52c99648e01fc3efe384d50197e1ceb975be1408d8b9222f5",
+      "size": 93215
+    },
+    {
+      "path": "outputs/forward_protocol.json",
+      "sha256": "d0500f55e6d3f9f21354d5a16e601c5dee98741c4caa86d71a227f18a0b94e68",
+      "size": 3564
+    },
+    {
+      "path": "outputs/initial_campaign_state.json",
+      "sha256": "9489bc44d49c1575dca4c8cfe98a96afcba165fedd046f9fc74e872228101db9",
+      "size": 179
+    },
+    {
+      "path": "outputs/lineage_summary.json",
+      "sha256": "b6d5ccef2cd7fcd81525084bd7c1c5c82d8449fc30965ab01c76b1c49dde7107",
+      "size": 911
+    },
+    {
+      "path": "outputs/selection_replay.csv",
+      "sha256": "6facbaf5ab8a1a845dc4fdcf89d1f2b93c8571bb5802bf201cd3aef109643a34",
+      "size": 848
+    },
+    {
+      "path": "outputs/validation.json",
+      "sha256": "b2a26199a34be8004cf96c06e08b9d175da409f5a4bb6d1913e86cbcde7ce602",
+      "size": 694
+    }
+  ],
+  "claim_scope": "Historical lineage audit and prepared signal-receipt campaign only; future observation and statistical confirmation pending.",
+  "completed_utc": "2026-09-14T08:47:51.944361+00:00",
+  "git": {
+    "commit": "f61fea7d57e158ea02915137d3265f22893d4404",
+    "dirty": true,
+    "porcelain": [
+      " M README.md",
+      " M backtest/basis_term_probe.py",
+      " M backtest/consensus_axis_probe.py",
+      " M backtest/gate0_criterion_study.py",
+      " M backtest/metrics.py",
+      " M backtest/money_flow_axis_probe.py",
+      " M backtest/new_high_axis_probe.py",
+      " M backtest/selection_permutation.py",
+      " M backtest/short_leg_audit.py",
+      " M backtest/significance.py",
+      " M docs/plans/2026-07-08-b1-style-basket-replication.md",
+      " M docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      " M docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      " M docs/plans/2026-07-11-external-review-fixes.md",
+      " M docs/plans/2026-08-12-selection-permutation-machine.md",
+      " M docs/plans/2026-09-03-gate0-criterion-argument.md",
+      " M docs/plans/2026-09-03-gate0-incumbent-audit.md",
+      " M docs/plans/2026-09-03-index-option-iv-axis-results.md",
+      " M docs/plans/2026-09-03-money-flow-axis-results.md",
+      " M docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+      " M docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      " M docs/plans/2026-09-09-gate0-reanalysis-results.md",
+      " M docs/plans/2026-09-10-two-pool-signal-assignment-decision.md",
+      " M docs/plans/PREREG_TEMPLATE.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/audit_corrections.py",
+      "?? backtest/candidate_completion.py",
+      "?? backtest/execution_audit.py",
+      "?? backtest/execution_ledger.py",
+      "?? backtest/forward_observation.py",
+      "?? backtest/output/forward/",
+      "?? backtest/output/runs/20260914-audit-corrections-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r2/",
+      "?? backtest/output/runs/20260914-fixed-candidates-r1/",
+      "?? backtest/output/runs/20260914-incumbent-lineage-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r2/",
+      "?? backtest/output/runs/20260914-risk-allocation-r1/",
+      "?? backtest/output/runs/20260914-statistical-dependency-audit-r1/",
+      "?? backtest/output/runs/20260914-statistics-r1/",
+      "?? backtest/research_data_inventory.py",
+      "?? backtest/research_statistics.py",
+      "?? docs/plans/2026-09-14-incumbent-forward-observation.md",
+      "?? docs/plans/2026-09-14-incumbent-parameter-lineage.md",
+      "?? docs/plans/2026-09-14-research-followthrough-results.md",
+      "?? docs/plans/2026-09-14-statistical-dependency-audit.md",
+      "?? docs/superpowers/plans/2026-09-14-incumbent-lineage-forward-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-research-followthrough.md",
+      "?? tests/test_execution_ledger.py",
+      "?? tests/test_forward_observation.py",
+      "?? tests/test_research_statistics.py",
+      "?? tests/test_short_leg_audit_alignment.py"
+    ],
+    "tracked_dirty": true
+  },
+  "stage": "incumbent-lineage-and-forward-preparation",
+  "status": "complete"
+}

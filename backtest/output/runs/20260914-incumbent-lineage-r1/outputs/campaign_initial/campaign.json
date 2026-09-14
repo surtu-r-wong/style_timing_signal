@@ -1,0 +1,17 @@
+{
+  "code_sha256": {
+    "backtest/execution_ledger.py": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+    "backtest/forward_observation.py": "ecc9d121227612f17552ac8fdd1b10304031d165daa1f60d8473f7f6d3179231",
+    "backtest/momentum_scan.py": "529e202b1d3624542c9fc569e4f6fcad7b5d3cb87184c6719613c3251ea33df5",
+    "backtest/positions.py": "6418950e77bb6ead042bfff8aecb15a094c34645af040b3817a31545cd4d6404",
+    "backtest/scan.py": "202d01d82fe3b20d0cc011a4898a329ed0ab7c47452f37bb150a2606bf60d0e5",
+    "signals/common/data_source.py": "a85b168c2a383ca1b04ddd51844a9cab59ee6cf51f9008a9a51d3b732c51a199",
+    "signals/equal_weight/config_4pairs.csv": "52b9091d17cf4661b4f9d927bd861e18fbd9bf7ada047e77afd83c4e719635af",
+    "signals/equal_weight/generate_signal.py": "4e4bc24d8caf9744a1acede9828a7d76029ef2a8ff1da2fff95b8fddf5e6451a",
+    "signals/slope20/generate_signal.py": "d99295896fd48ffdcce55ec6968ddf38217a134bf813a34105413ea3a04bbbc7"
+  },
+  "created_at_utc": "2026-09-14T08:45:36.901402+00:00",
+  "mode": "observation_only_no_statistical_go",
+  "protocol_sha256": "d0500f55e6d3f9f21354d5a16e601c5dee98741c4caa86d71a227f18a0b94e68",
+  "schema_version": 1
+}

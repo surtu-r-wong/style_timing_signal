@@ -1,0 +1,17 @@
+{
+  "registry_tests": {
+    "command": "python3 -m pytest tests/test_research_registry.py -q -p no:cacheprovider",
+    "passed": 13,
+    "failed": 0,
+    "elapsed_seconds": 0.34
+  },
+  "checks": [
+    "registry validate passed",
+    "registry render --check passed",
+    "git diff --check passed",
+    "five executable ASTs unchanged",
+    "production guard hashes unchanged",
+    "O2 representative reproduced from frozen CSV"
+  ],
+  "full_suite": "Not repeated for explanation-only changes; previous 2042 passed / one pre-existing dashboard failure retained."
+}

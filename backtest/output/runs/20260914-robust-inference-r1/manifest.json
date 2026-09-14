@@ -1,0 +1,227 @@
+{
+  "A_datasets": 10800,
+  "B_datasets": 7200,
+  "artifacts": [
+    {
+      "path": "inputs/backtest__research_statistics.py",
+      "sha256": "9970e78735dadc87b04f95a2ab9a18cff3abfd015e39238c21cb858a32ca5a80",
+      "size": 6093
+    },
+    {
+      "path": "inputs/backtest__robust_sharpe_inference.py",
+      "sha256": "f15dd152020575b38b9c1a9cb2e0b5a7fdadb22b4bac85313060cf3965075579",
+      "size": 10594
+    },
+    {
+      "path": "inputs/brownian_absolute_reference.npy",
+      "sha256": "c97abddbeabc15f4548cbe955978017083a28c02242e860221a94f09eb27a15c",
+      "size": 400128
+    },
+    {
+      "path": "inputs/code/backtest__research_statistics.py",
+      "sha256": "9970e78735dadc87b04f95a2ab9a18cff3abfd015e39238c21cb858a32ca5a80",
+      "size": 6093
+    },
+    {
+      "path": "inputs/code/backtest__robust_sharpe_inference.py",
+      "sha256": "f15dd152020575b38b9c1a9cb2e0b5a7fdadb22b4bac85313060cf3965075579",
+      "size": 10594
+    },
+    {
+      "path": "inputs/code/backtest__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code/tests__test_robust_sharpe_inference.py",
+      "sha256": "47daf3d9b40c79b2cb938081194ee953b19db6e6e46c4b9b38e6b7ccf34484c1",
+      "size": 2576
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "9d6f10b8e68bf98276839bc5ac1ed3026bfe8930c9ec51a7b257665364fd9bcc",
+      "size": 3803
+    },
+    {
+      "path": "inputs/rehearsal_current_two_pool_3bps.csv",
+      "sha256": "7a0287a8811c2c1d56bc0035530a5f65b49183a18c36858d6501449ef0795ac7",
+      "size": 25859
+    },
+    {
+      "path": "inputs/rehearsal_ew_two_pool_3bps.csv",
+      "sha256": "fd8f6fa5d35d061d7097383ad3b2350274aecadfc1d054c9ba7150cdda2c25fb",
+      "size": 25825
+    },
+    {
+      "path": "inputs/rehearsal_futures_always_long_3bps.csv",
+      "sha256": "9605af76da7ef97f50c11b717ad219b17df3a24b4ead67a1e7921f78ede0d751",
+      "size": 126735
+    },
+    {
+      "path": "inputs/rehearsal_futures_ew_3bps.csv",
+      "sha256": "38dd3a4a2b5907d0a5eae16b475dbf3197e7093ae0080e97a1fb6c2cfdbd26af",
+      "size": 126259
+    },
+    {
+      "path": "inputs/tests__test_robust_sharpe_inference.py",
+      "sha256": "47daf3d9b40c79b2cb938081194ee953b19db6e6e46c4b9b38e6b7ccf34484c1",
+      "size": 2576
+    },
+    {
+      "path": "outputs/A_replications.csv",
+      "sha256": "e9a9896de6e90a1d1b56aad64cde77db30929fa51b11533ac0f6b4fd1e152727",
+      "size": 4239622
+    },
+    {
+      "path": "outputs/A_summary.csv",
+      "sha256": "382a88c3691ca9a0a9d04ad885c80d3265413ee1cca64888b76bf61f612b7511",
+      "size": 9705
+    },
+    {
+      "path": "outputs/B_frozen_choice.json",
+      "sha256": "f8b75a90498a10159e7b0a3f4d3aadec58c635c55e63d3e5b278dbbbeed5a8f5",
+      "size": 131
+    },
+    {
+      "path": "outputs/B_replications.csv",
+      "sha256": "a29e341463c8924b23a8b8919a648efd71df0265cbabc5f8d60a5f5191c7c001",
+      "size": 957246
+    },
+    {
+      "path": "outputs/B_summary.csv",
+      "sha256": "8beb6c1e3256dece2c8033050128da041a710c12c5ed7e42e55524151b1c75f4",
+      "size": 1194
+    },
+    {
+      "path": "outputs/environment.json",
+      "sha256": "38268ad82c8473b51a717edfdaf1af3d9eb19826917b36fa7269e1c07a242cbf",
+      "size": 86
+    },
+    {
+      "path": "outputs/historical_dependence_descriptive.csv",
+      "sha256": "2b58124f4a931214e30fc037e13fb8b6ad1e0a4857a31af4e033fe1e4a45d550",
+      "size": 335
+    },
+    {
+      "path": "outputs/iid_gaussian_planning.csv",
+      "sha256": "0739b05ebda5cccaa29d71ef2cc43c2529ba0081a5fe6d1c2886f07da9b8af9e",
+      "size": 270
+    },
+    {
+      "path": "outputs/independence_and_guards.json",
+      "sha256": "227273f477126b23414748461a0590eb2fd39807027fc145b016070307231a0b",
+      "size": 657
+    },
+    {
+      "path": "outputs/method_sources.json",
+      "sha256": "907c575538f2d7aab499a4c1ea52a7d7240b04d77a82417653bef31cb9e66bf4",
+      "size": 518
+    },
+    {
+      "path": "outputs/report.md",
+      "sha256": "b67dc1a2c4492391790582f3613fb85464a3d54eaa652d5d57b2da204e96604b",
+      "size": 7866
+    },
+    {
+      "path": "outputs/verdict.json",
+      "sha256": "9ca42ba1c6a96ff65ccc3e9e3c0acf13443b54b74ed0ae58ddd8817673284a1e",
+      "size": 247
+    },
+    {
+      "path": "logs/validation.txt",
+      "sha256": "3079882858da7e31e1f564ca6428c75fec79e219b156d16ae2405f05a566d61d",
+      "size": 406
+    }
+  ],
+  "completed_utc": "2026-09-14T09:50:54.398203+00:00",
+  "confirmation_power_target_met": false,
+  "confirmation_size_passed": false,
+  "development_only": false,
+  "forward_protocol_changed": false,
+  "git": {
+    "commit": "f61fea7d57e158ea02915137d3265f22893d4404",
+    "dirty": true,
+    "porcelain": [
+      " M README.md",
+      " M backtest/basis_term_probe.py",
+      " M backtest/consensus_axis_probe.py",
+      " M backtest/gate0_criterion_study.py",
+      " M backtest/metrics.py",
+      " M backtest/money_flow_axis_probe.py",
+      " M backtest/new_high_axis_probe.py",
+      " M backtest/selection_permutation.py",
+      " M backtest/short_leg_audit.py",
+      " M backtest/significance.py",
+      " M docs/plans/2026-07-08-b1-style-basket-replication.md",
+      " M docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      " M docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      " M docs/plans/2026-07-11-external-review-fixes.md",
+      " M docs/plans/2026-08-12-selection-permutation-machine.md",
+      " M docs/plans/2026-09-03-gate0-criterion-argument.md",
+      " M docs/plans/2026-09-03-gate0-incumbent-audit.md",
+      " M docs/plans/2026-09-03-index-option-iv-axis-results.md",
+      " M docs/plans/2026-09-03-money-flow-axis-results.md",
+      " M docs/plans/2026-09-09-deploy-slope20-fourth-line-decision.md",
+      " M docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md",
+      " M docs/plans/2026-09-09-gate0-reanalysis-results.md",
+      " M docs/plans/2026-09-10-two-pool-signal-assignment-decision.md",
+      " M docs/plans/PREREG_TEMPLATE.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/audit_corrections.py",
+      "?? backtest/candidate_completion.py",
+      "?? backtest/execution_audit.py",
+      "?? backtest/execution_ledger.py",
+      "?? backtest/forward_market.py",
+      "?? backtest/forward_observation.py",
+      "?? backtest/forward_scoring.py",
+      "?? backtest/grid_reassessment.py",
+      "?? backtest/output/forward/",
+      "?? backtest/output/runs/20260914-audit-corrections-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r1/",
+      "?? backtest/output/runs/20260914-execution-audit-r2/",
+      "?? backtest/output/runs/20260914-fixed-candidates-r1/",
+      "?? backtest/output/runs/20260914-forward-pipeline-r1/",
+      "?? backtest/output/runs/20260914-grid-reassessment-r1/",
+      "?? backtest/output/runs/20260914-incumbent-lineage-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r1/",
+      "?? backtest/output/runs/20260914-new-input-inventory-r2/",
+      "?? backtest/output/runs/20260914-risk-allocation-r1/",
+      "?? backtest/output/runs/20260914-robust-inference-r1/",
+      "?? backtest/output/runs/20260914-sharpe-calibration-r1/",
+      "?? backtest/output/runs/20260914-statistical-dependency-audit-r1/",
+      "?? backtest/output/runs/20260914-statistics-r1/",
+      "?? backtest/research_data_inventory.py",
+      "?? backtest/research_statistics.py",
+      "?? backtest/robust_sharpe_inference.py",
+      "?? backtest/sharpe_calibration.py",
+      "?? docs/plans/2026-09-14-forward-pipeline-and-calibration.md",
+      "?? docs/plans/2026-09-14-grid-reassessment-results.md",
+      "?? docs/plans/2026-09-14-incumbent-forward-observation.md",
+      "?? docs/plans/2026-09-14-incumbent-parameter-lineage.md",
+      "?? docs/plans/2026-09-14-research-followthrough-results.md",
+      "?? docs/plans/2026-09-14-statistical-dependency-audit.md",
+      "?? docs/superpowers/plans/2026-09-14-forward-completion-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-grid-reassessment-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-incumbent-lineage-forward-plan.md",
+      "?? docs/superpowers/plans/2026-09-14-research-followthrough.md",
+      "?? docs/superpowers/plans/2026-09-14-robust-inference-plan.md",
+      "?? tests/test_execution_ledger.py",
+      "?? tests/test_forward_market.py",
+      "?? tests/test_forward_observation.py",
+      "?? tests/test_grid_reassessment.py",
+      "?? tests/test_research_statistics.py",
+      "?? tests/test_robust_sharpe_inference.py",
+      "?? tests/test_sharpe_calibration.py",
+      "?? tests/test_short_leg_audit_alignment.py"
+    ],
+    "tracked_dirty": true
+  },
+  "go_enabled": false,
+  "method": "group_t4",
+  "n_sessions": 8064,
+  "screen_size_passed": false,
+  "seed_sets_disjoint": true,
+  "status": "complete",
+  "targeted_tests_passed": 19
+}

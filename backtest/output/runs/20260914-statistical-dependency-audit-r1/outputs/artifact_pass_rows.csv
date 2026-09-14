@@ -1,0 +1,35 @@
+source,data_row,positive_columns,subject,gate,metric,classification
+backtest/output/money_flow_axis_probe_verdicts.csv,1,PASS_probe,F1,,,partial_probe
+backtest/output/option_axis_probe_verdicts.csv,2,PASS,O2,,,partial_probe
+backtest/output/probe4_conditional_verdict.csv,3,pass,,1_two_window_same_sign,two_window_same_sign,component_gate
+backtest/output/probe4_conditional_verdict.csv,8,pass,,3_early_late_cosine,demeaned_cosine_early_vs_late,component_gate
+backtest/output/probe_1b_mapping_verdict.csv,1,pass,,1_worst_tv_sharpe,winner_worst_tv_sharpe,component_gate
+backtest/output/probe_1b_mapping_verdict.csv,3,pass,,1_worst_tv_sharpe,margin_vs_incumbent,component_gate
+backtest/output/probe_2_divergence_verdict.csv,3,pass,,1b_partial_ic_same_sign,partial_ic_signed_at_winner,component_gate
+backtest/output/probe_2_divergence_verdict.csv,5,pass,,2_stable_halves,ic_train_2014_2020,component_gate
+backtest/output/probe_2_divergence_verdict.csv,6,pass,,2_stable_halves,ic_val_2021_2023,component_gate
+backtest/output/probe_2_divergence_verdict.csv,7,pass,,3_net_positive,net_sharpe_selection_2014_2023,component_gate
+backtest/output/probe_3_fusion_verdict.csv,1,pass,,0_rank_ic,rank_ic,component_gate
+backtest/output/probe_3_fusion_verdict.csv,2,pass,,0_rank_ic,rank_ic,component_gate
+backtest/output/probe_3_fusion_verdict.csv,7,pass,,3_turnover_not_up,turnover,component_gate
+backtest/output/probe_3_fusion_verdict.csv,9,pass,,3_turnover_not_up,turnover,component_gate
+backtest/output/probe_5_pairset_verdict.csv,1,pass,B_500_1000_2000,0_rank_ic,rank_ic_train_2014_2020,component_gate
+backtest/output/probe_5_pairset_verdict.csv,2,pass,B_500_1000_2000,0_rank_ic,rank_ic_val_2021_2023,component_gate
+backtest/output/probe_5_pairset_verdict.csv,17,pass,C_1000_only,2_turnover_not_up,选择窗年化换手,component_gate
+backtest/output/probe_5_pairset_verdict.csv,21,pass,D_four_plus_dividend,PRE_dividend_corr,max|corr| vs 现役四对族,component_gate
+backtest/output/probe_5_pairset_verdict.csv,28,pass,D_four_plus_dividend,2_turnover_not_up,选择窗年化换手,component_gate
+backtest/output/probe_5b_dividend_partner_verdict.csv,1,pass,E_four_plus_dividend_leg,PRE_partner_corr,max|corr| vs 现役四对族,component_gate
+backtest/output/probe_5b_dividend_partner_verdict.csv,3,pass,E_four_plus_dividend_leg,0_rank_ic,rank_ic_train_2014_2020,component_gate
+backtest/output/probe_5b_dividend_partner_verdict.csv,4,pass,E_four_plus_dividend_leg,0_rank_ic,rank_ic_val_2021_2023,component_gate
+backtest/output/probe_5b_dividend_partner_verdict.csv,9,pass,E_four_plus_dividend_leg,2_turnover_not_up,选择窗年化换手,component_gate
+backtest/output/probe_7_fund_crowding_verdict.csv,3,pass,B,1b_partial_ic_same_sign,partial_ic_signed_at_winner,component_gate
+backtest/output/probe_7_fund_crowding_verdict.csv,5,pass,B,2_stable_halves,ic_half1,component_gate
+backtest/output/probe_7_fund_crowding_verdict.csv,6,pass,B,2_stable_halves,ic_half2,component_gate
+backtest/output/probe_7_fund_crowding_verdict.csv,7,pass,B,3_net_positive,net_sharpe_selection_2014_2023,component_gate
+backtest/output/probe_7_fund_crowding_verdict.csv,11,pass,A,1b_partial_ic_same_sign,partial_ic_signed_at_winner,component_gate
+backtest/output/probe_7_fund_crowding_verdict.csv,13,pass,A,2_stable_halves,ic_half1,component_gate
+backtest/output/probe_7_fund_crowding_verdict.csv,14,pass,A,2_stable_halves,ic_half2,component_gate
+backtest/output/probe_7_fund_crowding_verdict.csv,15,pass,A,3_net_positive,net_sharpe_selection_2014_2023,component_gate
+backtest/output/probe_xsection_verdict.csv,3,pass,,1b_partial_ic_same_sign,partial_ic_signed_at_winner,component_gate
+backtest/output/probe_xsection_verdict.csv,5,pass,,2_stable_halves,ic_train_2014_2020,component_gate
+backtest/output/probe_xsection_verdict.csv,7,pass,,3_net_positive,net_sharpe_selection_2014_2023,component_gate

@@ -1,0 +1,16 @@
+{
+  "campaign": "/home/elfbob/claude-code/style_timing_signal/backtest/output/forward/20260914-incumbents-v1",
+  "campaign_sha256": "4da8214114ab93145ec6fdc87498fdfb505a5ba88ed13e32498bf143d8582862",
+  "created_at_utc": "2026-09-14T09:29:05.207559+00:00",
+  "first_signal_date": "2026-09-15",
+  "implementation_sha256": {
+    "data.py": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+    "execution_audit.py": "22bf6393ac76fd1041cb66656617edbcc3a9a96cfec8bfd059ef7e9ccedae729",
+    "forward_market.py": "54eb3837a794c54ad7ab83ab1c8b2e62a99d2665103930ab70019c4f7ef2b86c",
+    "forward_scoring.py": "3952defb0e5b306fa4ff3a8710b701df3a8e2a5a187727653f316be52836b556",
+    "metrics.py": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b"
+  },
+  "interim_quality_only": true,
+  "mode": "price_based_research_no_actual_fills",
+  "observation_sessions": 504
+}

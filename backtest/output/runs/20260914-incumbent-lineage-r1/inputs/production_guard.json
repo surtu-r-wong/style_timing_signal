@@ -1,0 +1,12 @@
+{
+  "backtest/production.py": "ada16aa99b47c7367e4dd39fbbfb67bbc813dc1928240560248ef3569f5cee99",
+  "signals/equal_weight/generate_signal.py": "4e4bc24d8caf9744a1acede9828a7d76029ef2a8ff1da2fff95b8fddf5e6451a",
+  "signals/slope20/generate_signal.py": "d99295896fd48ffdcce55ec6968ddf38217a134bf813a34105413ea3a04bbbc7",
+  "output/recommended/citic40d_longflat.csv": "83602b136218009224e347110a4a694bfa03d3ff33681482c51cbca7367373e8",
+  "output/recommended/combined_signals.csv": "33920d503105d1663ab4e8ab863e31176da359b62fd2b131c10bb3d56e438d42",
+  "output/recommended/equal_weight_longflat.csv": "4c96420830e202ab24128d179193fcca407bf90ee56411b481b816905c2c003e",
+  "output/recommended/equal_weight_symmetric.csv": "e65cf2217633624e815ea96b4b77e8bf8f929a5767264298de98330dcef20e4d",
+  "output/recommended/hybrid20_longflat.csv": "f1ffd83fce6a4bdd9b675c5aed291d8b4a05f7813a5ef2b418bf4e216ced7909",
+  "output/recommended/slope20_longflat.csv": "5e9e4a8a9bb4e2c51071d28c8209e1bf4202261a5f84a94c0f237745faa3f11d",
+  "output/recommended/slope20_symmetric.csv": "0359dda953ef8ee69840d214accf928e712d7c72d486ee1b041d818330714ada"
+}
