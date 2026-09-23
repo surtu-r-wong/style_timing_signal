@@ -63,9 +63,11 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
   `settings.yaml` 读不到、SQL 被拒——表不存在 / 无权限）立即判检查出错，不空等到截止；连不上、超时这类照旧下一轮再查。
 - **同族共动性哨兵**（2026-08-24 起 topup 事后审计里的规则 5/6，办公室模式下接回；判据与标定——12.6~13.5 年历史
   零误报——见 `family_sentinel.py`）：到齐后读 T 前 30 天到 T 的收盘价，只判 T。**CRITICAL**（成长/价值对内价差 ≥8pp，或
-  收盘价与前值逐位相等而同族在动）→ `OFFICE_SUSPECT`，**在信号重算之前中止**、走告警；WARN 只记不阻断（同旧
-  口径）。判定范围是这 15 个输入码（旧审计判新写入那天时，纯风格 4 码要到 20:01 才入库，实际判的也是这 15 码；
-  932400.CSI 晚间会取到前一日值，纳入只会因为生产不用的码误拦生产）。哨兵自身出错 → `OFFICE_CHECK_ERROR`（不阻断）。
+  收盘价与前值逐位相等而同族在动）→ `OFFICE_SUSPECT`，**在信号重算之前中止**、走告警（失败步骤 `inputs_check(OFFICE_SUSPECT)`）；只有 WARN →
+  `OFFICE_OK_WARN`，不阻断（同旧口径），推送里一行不带 ⚠ 的 ℹ 提示人工看一眼；零发现才是 CLEAN。判定范围是这 15 个输入码（旧审计判新写入那天时，纯风格 4 码要到 20:01 才入库，实际判的也是这 15 码；
+  932400.CSI 晚间会取到前一日值，纳入只会因为生产不用的码误拦生产）。到齐后哨兵没判成（出错 / T 算不出日收益 / 缺行）→ `OFFICE_UNCHECKED`，
+  照常往下走：本链路不写库，数据归办公室负责、它自有重看与覆盖检查，哨兵只是只读复查，复查设施故障不该让当晚
+  没信号。
   人工核实是真实行情后，`--accept-sentinel T` 只放行那一天的 CRITICAL（记 `OFFICE_ACCEPTED`，照常往下走；日期
   不是 T 不生效，哨兵没判 CRITICAL 时用不上，都记一行日志）。
   **不接回「历史被改写」审计**：办公室每晚重看会合法改写 T-1..T-5。2026-09-23 对近 80 个交易日只读回放：只有
@@ -75,10 +77,12 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
 
   | 取值 | 含义 | 链路 / 推送 |
   |---|---|---|
-  | `OFFICE_OK` | T 日 15 码到齐、哨兵无 CRITICAL（常态） | 照算；体检行 `输入 办公室日更 ✓ · 护栏 OK（…）`，无 ⚠ 行 |
+  | `OFFICE_OK` | T 日 15 码到齐、哨兵零发现（常态） | 照算；体检行 `输入 办公室日更 ✓ · 护栏 OK（…）`，无 ⚠ 行 |
+  | `OFFICE_OK_WARN` | 到齐，哨兵只有 WARN（不阻断） | 照算；体检行同上，下面一行不带 ⚠ 的 `ℹ 输入哨兵 WARN（不阻断，建议人工看一眼）：<明细>`；失败通知不提它 |
+  | `OFFICE_UNCHECKED` | 到齐，但哨兵没判成（出错 / T 算不出日收益 / 缺行） | 照算；另起 `⚠ 输入哨兵未判定：<原因>（15 码已到齐，本日数据未经同族共动性检查）` |
   | `OFFICE_LATE` | 到截止仍缺码（哨兵不跑） | 用库内已有数据照算；另起 `⚠ 输入未到齐：<T> 截至 21:30 仍缺 k 码：…，按库内已有数据照算` |
-  | `OFFICE_CHECK_ERROR` | 查询到截止仍出错 / 不可重试的错误 / 哨兵自身出错 / 等数脚本没给出结果（超时、崩溃） | 照算；另起 `⚠ 输入到齐检查出错：<T>：<类型>: <消息>` |
-  | `OFFICE_SUSPECT` | 哨兵 CRITICAL（输入可能脏了） | **信号重算之前中止**，不推持仓；`OnFailure` 告警，失败通知里带 `topup OFFICE_SUSPECT：<哨兵明细>` |
+  | `OFFICE_CHECK_ERROR` | 到齐检查本身出错：查询到截止仍出错 / 不可重试的错误 / 等数脚本没给出结果（超时、崩溃）或结果不认识 / 参数写错 / 结果副本建不了 | 照算；另起 `⚠ 输入到齐检查出错：<T>：<类型>: <消息>` |
+  | `OFFICE_SUSPECT` | 哨兵 CRITICAL（输入可能脏了） | **信号重算之前中止**（失败步骤 `inputs_check(OFFICE_SUSPECT)`），不推持仓；`OnFailure` 告警，失败通知里带 `topup OFFICE_SUSPECT：<哨兵明细>` |
   | `OFFICE_ACCEPTED` | 哨兵 CRITICAL，已按 `--accept-sentinel T` 人工放行 | 照算；另起 `⚠ 输入哨兵 CRITICAL 已人工放行：<明细>` |
 
   除 `OFFICE_SUSPECT` 外都**不中止链路**；新鲜度由步骤 7 护栏兜底（产出落后超过 1 个交易日照样 `STALE`、不推、告警）。
@@ -320,7 +324,9 @@ topup OK · 护栏 OK（最大落后 0 交易日 · 缺口 0）
 - 办公室日更（步骤 0 办公室模式）：到齐时体检行以 `输入 办公室日更 ✓ ·` 开头、无 ⚠ 行；到 21:30 仍缺码另起一行
   `⚠ 输入未到齐：2026-09-23 截至 21:30 仍缺 3 码：932409.CSI、932000.CSI、000300.SH，按库内已有数据照算`；
   到齐检查出错另起一行 `⚠ 输入到齐检查出错：2026-09-23：OperationalError: …`；同族哨兵 CRITICAL（`OFFICE_SUSPECT`）
-  链路在信号重算前中止，**不推持仓**，改由告警器推失败通知；人工放行重跑后（`OFFICE_ACCEPTED`）照推，另起一行
+  链路在信号重算前中止，**不推持仓**，改由告警器推失败通知；哨兵只有 WARN（`OFFICE_OK_WARN`）照推，体检行下面
+  一行不带 ⚠ 的 `ℹ 输入哨兵 WARN（不阻断，建议人工看一眼）：<明细>`；到齐但哨兵没判成（`OFFICE_UNCHECKED`）照推，
+  另起 `⚠ 输入哨兵未判定：<原因>`；人工放行重跑后（`OFFICE_ACCEPTED`）照推，另起一行
   `⚠ 输入哨兵 CRITICAL 已人工放行：<明细>`
 - topup 降级/跳过（回退到 topup 模式时）：体检行不再以 `topup OK ·` 开头，另起一行 `⚠ topup <状态>：<原因>`
 - 上游近窗缺口：加 `⚠ 上游缺 N 天：…`
@@ -362,7 +368,9 @@ runner 对推送调用限时 120 秒、再宽限 10 秒强杀（`timeout -k 10 1
 | 工作日休市（国庆等） | 链路照跑、信号日不变，照推并注明「今天 X」——静默不等于成功（步骤 0 按交易日历判信号日，节假日不等） |
 | 办公室日更迟到 / 失败（夜间作业没写进来：WSD 额度耗尽、周日 Wind 掉登录、WSL2 没开；办公室会收到它自己的告警） | 步骤 0 每 5 分钟查一次、等到 21:30 仍不齐 → `OFFICE_LATE`，用库内已有数据照算、约 21:31 照推：首行「信号日 X（今天 Y）」并带「⚠ 输入未到齐：…」行。19 码一起停时日历冻结，护栏照报 OK，超过 7 天 `UPSTREAM_STALE`；只缺本项目码、日历被别的码推进时，连续缺的第 3 晚落后 2 > `max_lag` 1 → `STALE`，**不推持仓** + `OnFailure` 告警 |
 | 等数中途才到齐（办公室晚了但 21:30 前写完） | 到齐那一轮即往下走，照推；体检行 `输入 办公室日更 ✓`，原因里记「等 N 秒」（只进日志与状态文件） |
-| 到齐检查出错（查询到截止仍失败 / 不可重试的错误 / 哨兵自身出错 / 等数脚本超时或崩溃） | `OFFICE_CHECK_ERROR`，照算、照推，附「⚠ 输入到齐检查出错」行；PG 真连不上时步骤 1 起就会失败 → 不推 + 告警 |
+| 到齐检查出错（查询到截止仍失败 / 不可重试的错误 / 等数脚本超时或崩溃） | `OFFICE_CHECK_ERROR`，照算、照推，附「⚠ 输入到齐检查出错」行；PG 真连不上时步骤 1 起就会失败 → 不推 + 告警 |
+| 到齐了但同族哨兵没判成（哨兵出错 / T 算不出日收益） | `OFFICE_UNCHECKED`，照算、照推，附「⚠ 输入哨兵未判定：…（15 码已到齐，本日数据未经同族共动性检查）」行 |
+| 同族哨兵只有 WARN（对内价差 6~8pp） | `OFFICE_OK_WARN`，照算、照推，体检行下附一行不带 ⚠ 的「ℹ 输入哨兵 WARN（不阻断，建议人工看一眼）」 |
 | 办公室写入的当日输入没过同族哨兵（对内价差 ≥8pp / 序列冻结） | `OFFICE_SUSPECT`：**信号重算之前中止**，不推持仓；`OnFailure` → 告警文件 + 失败通知（`topup OFFICE_SUSPECT：<明细>`）。处置先判真假：**数据错** → 交 data_manager 办公室改正（它每晚重看前 5 个交易日），改好后重跑本链路；**真实行情** → 核实后 `STYLE_SIGNALS_INPUTS_ARGS="--accept-sentinel <T>" deploy/daily_signals/run_daily_signals.sh` 放行重跑（T = 信号日，只放行那一天），推送里带「⚠ 输入哨兵 CRITICAL 已人工放行」行 |
 | topup 降级/跳过（回退到 topup 模式时适用） | 照推，附 ⚠ topup 行 |
 | 仅 topup 失败（DEGRADED），20:00 夜间作业照常写纯风格 4 码（回退到 topup 模式时适用；描述的是 2026-09-21~09-22 夜间作业只写这 4 码时的形态——回退后若夜间作业仍写 15 个输入码，缺的数当晚 20:00 就会被补上） | 日历仍被夜间作业推进，产出逐日落后：前两晚落后 0 / 1 个交易日，护栏照报 OK、照推，首行「信号日 X（今天 Y）」并带「⚠ topup DEGRADED」行；连续失败的第 3 晚落后 2 > `max_lag` 1 → `STALE`，**不推持仓** + `OnFailure` 告警（见上「上游冻结护栏」的写入方说明） |
@@ -418,9 +426,9 @@ python3 deploy/daily_signals/notify_wechat.py --alert --dry-run \
 | 产物 | 说明 |
 |---|---|
 | `logs/daily_signals_YYYYMMDD.log` | 按日滚动的运行日志（同时进 journal） |
-| `logs/daily_signals_status.json` | 最新一次运行的状态：结果、失败步骤、各步耗时、步骤 0 结果与原因、上游最新交易日与是否冻结、每份产出的末行日期与落后交易日数；`notify` 段：推送结果 `sent / at / as_of / bytes / error`（步骤 8 写，`--dry-run` 不写）。步骤 0 结果的字段名仍叫 `topup`（告警器与推送按它读）：办公室模式取 `OFFICE_OK` / `OFFICE_LATE` / `OFFICE_CHECK_ERROR` / `OFFICE_SUSPECT` / `OFFICE_ACCEPTED`（`topup_reason` = 等数结果原文，如「2026-09-23 15 码到齐（等 0 秒）」；`OFFICE_SUSPECT` / `OFFICE_ACCEPTED` 时是哨兵明细），topup 模式取 `OK` / `DEGRADED` / `TOPUP_SKIPPED` / `SUSPECT` / `TOPUP_VERIFY_FAILED`；`steps` 里这一步也仍叫 `topup` |
+| `logs/daily_signals_status.json` | 最新一次运行的状态：结果、失败步骤、各步耗时、步骤 0 结果与原因、上游最新交易日与是否冻结、每份产出的末行日期与落后交易日数；`notify` 段：推送结果 `sent / at / as_of / bytes / error`（步骤 8 写，`--dry-run` 不写）。步骤 0 结果的字段名仍叫 `topup`（告警器与推送按它读）：办公室模式取 `OFFICE_OK` / `OFFICE_OK_WARN` / `OFFICE_UNCHECKED` / `OFFICE_LATE` / `OFFICE_CHECK_ERROR` / `OFFICE_SUSPECT` / `OFFICE_ACCEPTED`（`topup_reason` = 等数结果原文，如「2026-09-23 15 码到齐（等 0 秒）」；`OFFICE_SUSPECT` / `OFFICE_ACCEPTED` / `OFFICE_OK_WARN` / `OFFICE_UNCHECKED` 时是哨兵明细或没判成的原因，有日历注记就跟在后面），topup 模式取 `OK` / `DEGRADED` / `TOPUP_SKIPPED` / `SUSPECT` / `TOPUP_VERIFY_FAILED`；`steps` 里这一步也仍叫 `topup` |
 | `logs/ALERT_daily_signals` | 失败告警文件（只在失败时出现，**不自动清除**，处置完手动 `rm`） |
-| `logs/.inputs_wait.XXXXXX` | 办公室模式：本次等数脚本输出的临时副本（`mktemp` 每次新建，runner 从末尾五行 `INPUTS_*` 解析结果后即删；链路中途被杀时可能留下，可直接删） |
+| `logs/.inputs_wait.XXXXXX` | 办公室模式：本次等数脚本输出的临时副本（`mktemp` 每次新建，runner 从末尾五行 `INPUTS_*` 解析结果后即删；链路中途被杀时可能留下，下次办公室分支开头会把超过 60 分钟的残留清掉） |
 | `logs/.topup_pre_snapshot.json` | topup 模式：topup 调用前的 PG 快照，供事后审计比对 |
 | `logs/.daily_signals.lock` | flock 锁文件 |
 
