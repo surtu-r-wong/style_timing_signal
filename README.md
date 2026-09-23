@@ -31,7 +31,7 @@ python3 -m backtest.production
 
 - **① hybrid20 / ② citic40d**：默认 `--source pg`（读中信 5 风格 CI005917–21）。已验证 PG 与 CSV 输出**逐字节一致**。
 - **③ equal_weight**：默认 `--source pg`。已去掉创业板/科创两对（逻辑性存疑），收敛为 沪深300/中证500/中证1000/中证2000 **四对**（`config_4pairs`，起点 2014-01-02）；csv==pg 输出逐字节一致。旧 `config_5pairs`/`config_6pairs`（含创业板/科创）留档待定稿。
-- **2026-09-23 起 15 个输入码由 data_manager 办公室的夜间作业写入 `index_daily`**（WSL2 每晚 20:00 起跑、约 20:02 结束，每晚补数前重看前 5 个交易日纠错；请求函与处置见 `data_manager/requests/2026-09-23-style-timing-signal-index-daily-takeover/`），**本链路只读、完全不写库**：日更链路第一步只等当日 15 码到齐（`deploy/daily_signals/wait_for_inputs.py`，最迟等到 21:30），信号脚本与护栏只读 PG，推荐持仓读 committed 信号 CSV。连接配置见 `config/settings.yaml`（gitignored，模板 `config/settings.example.yaml`）。
+- **2026-09-23 起 15 个输入码由 data_manager 办公室的夜间作业写入 `index_daily`**（WSL2 每晚 20:00 起跑、约 20:02 结束，每晚补数前重看前 5 个交易日纠错；请求函与处置见 `data_manager/requests/2026-09-23-style-timing-signal-index-daily-takeover/`），**本链路只读、完全不写库**：日更链路第一步只等当日 15 码到齐（`deploy/daily_signals/wait_for_inputs.py`，最迟等到 21:30），到齐后过同族共动性哨兵（CRITICAL 即在信号重算前中止），信号脚本与护栏只读 PG，推荐持仓读 committed 信号 CSV。连接配置见 `config/settings.yaml`（gitignored，模板 `config/settings.example.yaml`）。
 - 〔回退用，2026-08-12~09-22 的做法〕PG 由日更链路第一步 topup 保鲜：`tools/topup_index_daily.sh` 调 stock_selector 的 backfill CLI，经 Wind gateway 取 15 个输入码、幂等写 `index_daily`（默认回看 14 天）；调用前由前置闸门 `deploy/daily_signals/topup_guard.py` 只读探网关 `/ping`、`/health`、`/quota` 并查库，存疑就不调用（网关地址与 token 在 `config/settings.yaml` 的 `wind_gateway` 段）。删掉标志文件 `deploy/daily_signals/SKIP_TOPUP` 即回到这种模式，见 `deploy/daily_signals/README.md`。
 
 ## 运行（均在仓库根执行）

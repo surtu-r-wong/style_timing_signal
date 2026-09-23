@@ -11,7 +11,7 @@
 | 文件 | 作用 |
 |---|---|
 | `run_daily_signals.sh` | 链路 runner：输入（办公室模式等数 / topup 模式取数）→ 各信号线 → 推荐持仓 → 护栏 → 企业微信推送；带 flock、分步计时、日志、状态文件 |
-| `wait_for_inputs.py` | 等数脚本（只读 PG，办公室模式的步骤 0）：等期望信号日的 15 个输入码到齐，每 5 分钟查一次、最迟 21:30；最后三行 `INPUTS_*` 交给 runner。见下「输入指数：办公室模式」 |
+| `wait_for_inputs.py` | 等数脚本（只读 PG，办公室模式的步骤 0）：等期望信号日的 15 个输入码到齐（每 5 分钟查一次、最迟 21:30），到齐后跑同族共动性哨兵；最后五行 `INPUTS_*` 交给 runner。见下「输入指数：办公室模式」 |
 | `input_codes.txt` | 15 个输入码，一行一个；与 `tools/topup_index_daily.sh` 的 `CODES` 由测试钉成一致 |
 | `check_freshness.py` | 产出护栏（只读 PG）：末行不落后 + 区间无缺口，兼状态 JSON 写入器 |
 | `topup_guard.py` | topup 写库护栏（topup 模式用）：前置闸门（只读 gateway+PG）+ 事后审计（只读 PG） |
@@ -25,7 +25,7 @@
 ## 链路
 
 ```
-deploy/daily_signals/wait_for_inputs.py        # 步骤 0（办公室模式，常态）：只读等当日 15 码到齐，最迟 21:30 → OFFICE_*
+deploy/daily_signals/wait_for_inputs.py        # 步骤 0（办公室模式，常态）：只读等当日 15 码到齐（最迟 21:30）+ 同族哨兵 → OFFICE_*
 tools/topup_index_daily.sh                     # 步骤 0（topup 模式，回退用）：自己经 Wind 取数写库，允许失败 → DEGRADED
 signals/hybrid20/update_growth_stability.py    # 步骤 1
 signals/hybrid20/update_confirmed_signal.py    # 步骤 2
@@ -49,34 +49,57 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
 **只读、零写入**（请求函、处置与回函：`data_manager/requests/2026-09-23-style-timing-signal-index-daily-takeover/`）。
 标志文件 `SKIP_TOPUP` 在即办公室模式；定时器随之由 18:30 改到 20:30。
 
-步骤 0 跑 `wait_for_inputs.py`，只回答「期望信号日 T 的 15 码到齐没有」：
+步骤 0 跑 `wait_for_inputs.py`，回答两件事：「期望信号日 T 的 15 码到齐没有」；到齐了，「T 这天的数过不过
+同族共动性哨兵」。
 
 - **T**：今天是交易日且已过 20:00 → 今天；否则此前最近的交易日。交易日历取 `data_manager.business_calendar`
   （`calendar_id='CN'`）；表里没有的日子（如 2027 未装载）按周一至周五推断，结果里注明「日历缺 …，按工作日推断」。
+  当前时刻按 Asia/Shanghai 取（与定时器一致），与本机时区设置无关。
 - **到齐**：T 日这 15 码 `close` 非空的行数 = 15（办公室回函 01 §7.3 的判据：直接查数据，不查作业台账）。
-- **等**：只在「T 是今天、还没到 21:30」时每 5 分钟查一次，最后一轮恰在 21:30；白天手工重跑、开机补跑、
-  节假日照跑时 T 是过去某天（那一晚的夜间作业早跑完了），只查一次。每轮一行进度实时进日志。
-- **结果**（状态文件 `topup` 字段，名字沿用）：
+- **等**：只在「T 是今天、还没到截止」时每 5 分钟查一次，最后一轮恰在截止时刻。截止 = min(当天 21:30,
+  开跑 + `--max-wait` 4240 秒)：定时器 20:30 起跑时由 21:30 管着；20:00~20:15 手工起跑时由 max-wait 管着（如
+  20:00 起跑最迟等到 21:10:40），到点报 LATE，而不是被兜底 timeout 杀掉。白天手工重跑、开机补跑、节假日照跑时
+  T 是过去某天（那一晚的夜间作业早跑完了），只查一次。每轮一行进度实时进日志。重试也不会好的错误（依赖缺失、
+  `settings.yaml` 读不到、SQL 被拒——表不存在 / 无权限）立即判检查出错，不空等到截止；连不上、超时这类照旧下一轮再查。
+- **同族共动性哨兵**（2026-08-24 起 topup 事后审计里的规则 5/6，办公室模式下接回；判据与标定——12.6~13.5 年历史
+  零误报——见 `family_sentinel.py`）：到齐后读 T 前 30 天到 T 的收盘价，只判 T。**CRITICAL**（成长/价值对内价差 ≥8pp，或
+  收盘价与前值逐位相等而同族在动）→ `OFFICE_SUSPECT`，**在信号重算之前中止**、走告警；WARN 只记不阻断（同旧
+  口径）。判定范围是这 15 个输入码（旧审计判新写入那天时，纯风格 4 码要到 20:01 才入库，实际判的也是这 15 码；
+  932400.CSI 晚间会取到前一日值，纳入只会因为生产不用的码误拦生产）。哨兵自身出错 → `OFFICE_CHECK_ERROR`（不阻断）。
+  **不接回「历史被改写」审计**：办公室每晚重看会合法改写 T-1..T-5。2026-09-23 对近 80 个交易日只读回放：只有
+  2026-06-16（已知 level shift 事故，库里仍在）判 CRITICAL，WARN 3 天。
+- **结果**（状态文件 `topup` 字段，名字沿用；等数脚本末尾五行 `INPUTS_STATUS / DAY / REASON / SENTINEL /
+  SENTINEL_DETAIL` 是给 runner 的契约）：
 
-  | 取值 | 含义 | 推送体检行 |
+  | 取值 | 含义 | 链路 / 推送 |
   |---|---|---|
-  | `OFFICE_OK` | T 日 15 码到齐（常态） | `输入 办公室日更 ✓ · 护栏 OK（…）`，无 ⚠ 行 |
-  | `OFFICE_LATE` | 到截止仍缺码 | 另起 `⚠ 输入未到齐：<T> 截至 21:30 仍缺 k 码：…，按库内已有数据照算` |
-  | `OFFICE_CHECK_ERROR` | 查询到截止仍出错，或等数脚本没给出结果（超时 / 崩溃） | 另起 `⚠ 输入到齐检查出错：<原因>` |
+  | `OFFICE_OK` | T 日 15 码到齐、哨兵无 CRITICAL（常态） | 照算；体检行 `输入 办公室日更 ✓ · 护栏 OK（…）`，无 ⚠ 行 |
+  | `OFFICE_LATE` | 到截止仍缺码（哨兵不跑） | 用库内已有数据照算；另起 `⚠ 输入未到齐：<T> 截至 21:30 仍缺 k 码：…，按库内已有数据照算` |
+  | `OFFICE_CHECK_ERROR` | 查询到截止仍出错 / 不可重试的错误 / 哨兵自身出错 / 等数脚本没给出结果（超时、崩溃） | 照算；另起 `⚠ 输入到齐检查出错：<T>：<类型>: <消息>` |
+  | `OFFICE_SUSPECT` | 哨兵 CRITICAL（输入可能脏了） | **信号重算之前中止**，不推持仓；`OnFailure` 告警，失败通知里带 `topup OFFICE_SUSPECT：<哨兵明细>` |
 
-  三种都**不中止链路**，用库内已有数据照算；新鲜度由步骤 7 护栏兜底（产出落后超过 1 个交易日照样
-  `STALE`、不推、告警）。
-- **时间预算**：等数外包 `timeout -k 10 4500`（正常最多等约 61 分钟：20:30 起跑、21:30 截止），service
-  `TimeoutStartSec=5400` = 等数兜底 + 推送限时 + 600 秒余量（判例钉住）。等数期间一直占着锁。
+  前三种都**不中止链路**；新鲜度由步骤 7 护栏兜底（产出落后超过 1 个交易日照样 `STALE`、不推、告警）。
+  `OFFICE_SUSPECT` 的处置：对照母指数当日行情先判真假——数据错了通知 data_manager 办公室核对（它每晚重看前 5 个
+  交易日，改正后重跑本链路即可）；确属真实行情就记录，次日运行只判次日、会自动恢复。当晚没有「人工确认后放行」
+  的开关。
+- **时间预算**（三条不等式都由 `tests/test_deploy_daily_wiring.py` 钉住）：
+  - 定时器：`OnCalendar` 20:30 Asia/Shanghai ≥ ready-from 20:00；最晚起跑（+ RandomizedDelaySec 2min + AccuracySec
+    1min）< 截止 21:30；最早起跑等到截止 3600 秒 ≤ max-wait——max-wait 只截短手工早跑，截不到定时器；
+  - 等数：外包 `timeout -k 10 4500` ≥ max-wait 4240 + 截止那一轮最多三次查询（重读日历 + 到齐 + 哨兵）×（连库 10
+    + 单句 60 秒）+ 余量 50；
+  - service：`TimeoutStartSec=5400` ≥ 等数兜底 4510 + 推送限时 130 + 600 秒余量。等数期间一直占着锁。
 
 **回退**：删掉 `SKIP_TOPUP`（并提交这次删除）即回到 topup 模式；办公室回函 02 §5 另要求把定时器换回 18:30 的
 备份——**换定时器时要先停定时器、改触发时间戳再启动**，否则 systemd 会把「错过的」那次立刻补跑、多推一条。
-两边同源、都只补缺失的行，同时写也无害。
+两边同源、都只补缺失的行，同时写也无害。**办公室在切换后会撤销本项目对 `index_daily` 的写权限**（回函 01 §7.5：
+在切换日之后排期撤销）：撤销之后再删 `SKIP_TOPUP`，topup 每晚都会写库失败、记 `DEGRADED`——回退之前须先请办公室
+恢复写权限。
 
 ## 语义与护栏
 
 - **步骤 0 可降级**：办公室模式下办公室日更迟到或到齐检查出错**不中止链路**（`OFFICE_LATE` /
-  `OFFICE_CHECK_ERROR`，见上）。topup 模式下 Wind gateway 不可达 / wsd 额度受限时 topup 失败或被
+  `OFFICE_CHECK_ERROR`，见上）；唯一例外是同族哨兵 CRITICAL（`OFFICE_SUSPECT`），在信号重算之前中止。
+  topup 模式下 Wind gateway 不可达 / wsd 额度受限时 topup 失败或被
   闸门拦下同样**不中止链路**，改用 `index_daily` 库内现有数据继续，日志与状态文件记 `DEGRADED` /
   `TOPUP_SKIPPED`，新鲜度由步骤 7 兜底；唯一例外是 topup 的事后审计不过（`TOPUP_SUSPECT`）——
   那说明库可能已脏，必须停在信号重算之前。
@@ -292,7 +315,8 @@ topup OK · 护栏 OK（最大落后 0 交易日 · 缺口 0）
 - 某条线末行落后于信号日（护栏允许落后 1 个交易日）：该行附 `（末行 09-29）`
 - 办公室日更（步骤 0 办公室模式）：到齐时体检行以 `输入 办公室日更 ✓ ·` 开头、无 ⚠ 行；到 21:30 仍缺码另起一行
   `⚠ 输入未到齐：2026-09-23 截至 21:30 仍缺 3 码：932409.CSI、932000.CSI、000300.SH，按库内已有数据照算`；
-  到齐检查出错另起一行 `⚠ 输入到齐检查出错：<原因>`
+  到齐检查出错另起一行 `⚠ 输入到齐检查出错：2026-09-23：OperationalError: …`；同族哨兵 CRITICAL（`OFFICE_SUSPECT`）
+  链路在信号重算前中止，**不推持仓**，改由告警器推失败通知
 - topup 降级/跳过（回退到 topup 模式时）：体检行不再以 `topup OK ·` 开头，另起一行 `⚠ topup <状态>：<原因>`
 - 上游近窗缺口：加 `⚠ 上游缺 N 天：…`
 - 超过 2048 字节（企业微信是整条拒收，不是截断）：从末尾整行删并注明删了几行，池子两行永远在最前
@@ -333,7 +357,8 @@ runner 对推送调用限时 120 秒、再宽限 10 秒强杀（`timeout -k 10 1
 | 工作日休市（国庆等） | 链路照跑、信号日不变，照推并注明「今天 X」——静默不等于成功（步骤 0 按交易日历判信号日，节假日不等） |
 | 办公室日更迟到 / 失败（夜间作业没写进来：WSD 额度耗尽、周日 Wind 掉登录、WSL2 没开；办公室会收到它自己的告警） | 步骤 0 每 5 分钟查一次、等到 21:30 仍不齐 → `OFFICE_LATE`，用库内已有数据照算、约 21:31 照推：首行「信号日 X（今天 Y）」并带「⚠ 输入未到齐：…」行。19 码一起停时日历冻结，护栏照报 OK，超过 7 天 `UPSTREAM_STALE`；只缺本项目码、日历被别的码推进时，连续缺的第 3 晚落后 2 > `max_lag` 1 → `STALE`，**不推持仓** + `OnFailure` 告警 |
 | 等数中途才到齐（办公室晚了但 21:30 前写完） | 到齐那一轮即往下走，照推；体检行 `输入 办公室日更 ✓`，原因里记「等 N 秒」（只进日志与状态文件） |
-| 到齐检查出错（查询到截止仍失败 / 等数脚本超时或崩溃） | `OFFICE_CHECK_ERROR`，照算、照推，附「⚠ 输入到齐检查出错」行；PG 真连不上时步骤 1 起就会失败 → 不推 + 告警 |
+| 到齐检查出错（查询到截止仍失败 / 不可重试的错误 / 哨兵自身出错 / 等数脚本超时或崩溃） | `OFFICE_CHECK_ERROR`，照算、照推，附「⚠ 输入到齐检查出错」行；PG 真连不上时步骤 1 起就会失败 → 不推 + 告警 |
+| 办公室写入的当日输入没过同族哨兵（对内价差 ≥8pp / 序列冻结） | `OFFICE_SUSPECT`：**信号重算之前中止**，不推持仓；`OnFailure` → 告警文件 + 失败通知（`topup OFFICE_SUSPECT：<明细>`）；处置见上「输入指数：办公室模式」 |
 | topup 降级/跳过（回退到 topup 模式时适用） | 照推，附 ⚠ topup 行 |
 | 仅 topup 失败（DEGRADED），20:00 夜间作业照常写纯风格 4 码（回退到 topup 模式时适用；描述的是 2026-09-21~09-22 夜间作业只写这 4 码时的形态——回退后若夜间作业仍写 15 个输入码，缺的数当晚 20:00 就会被补上） | 日历仍被夜间作业推进，产出逐日落后：前两晚落后 0 / 1 个交易日，护栏照报 OK、照推，首行「信号日 X（今天 Y）」并带「⚠ topup DEGRADED」行；连续失败的第 3 晚落后 2 > `max_lag` 1 → `STALE`，**不推持仓** + `OnFailure` 告警（见上「上游冻结护栏」的写入方说明） |
 | topup 与夜间作业都没取到（回退到 topup 模式时适用：同一个 Wind WSD 额度池耗尽 / 网关不可达） | 日历冻结，护栏照报 OK、照推，但首行显示「信号日 X（今天 Y）」并带「⚠ topup DEGRADED」行——2026-09-14/15 Wind 日额度耗尽两晚就是这个形态（那时夜间作业还没写纯风格码），以前没人看得见（超过 7 天由上游冻结护栏判 `UPSTREAM_STALE`，转为不推 + 告警） |
@@ -388,9 +413,9 @@ python3 deploy/daily_signals/notify_wechat.py --alert --dry-run \
 | 产物 | 说明 |
 |---|---|
 | `logs/daily_signals_YYYYMMDD.log` | 按日滚动的运行日志（同时进 journal） |
-| `logs/daily_signals_status.json` | 最新一次运行的状态：结果、失败步骤、各步耗时、步骤 0 结果与原因、上游最新交易日与是否冻结、每份产出的末行日期与落后交易日数；`notify` 段：推送结果 `sent / at / as_of / bytes / error`（步骤 8 写，`--dry-run` 不写）。步骤 0 结果的字段名仍叫 `topup`（告警器与推送按它读）：办公室模式取 `OFFICE_OK` / `OFFICE_LATE` / `OFFICE_CHECK_ERROR`（`topup_reason` = 等数结果原文，如「办公室日更 2026-09-23 15 码到齐（等 0 秒）」），topup 模式取 `OK` / `DEGRADED` / `TOPUP_SKIPPED` / `SUSPECT` / `TOPUP_VERIFY_FAILED`；`steps` 里这一步也仍叫 `topup` |
+| `logs/daily_signals_status.json` | 最新一次运行的状态：结果、失败步骤、各步耗时、步骤 0 结果与原因、上游最新交易日与是否冻结、每份产出的末行日期与落后交易日数；`notify` 段：推送结果 `sent / at / as_of / bytes / error`（步骤 8 写，`--dry-run` 不写）。步骤 0 结果的字段名仍叫 `topup`（告警器与推送按它读）：办公室模式取 `OFFICE_OK` / `OFFICE_LATE` / `OFFICE_CHECK_ERROR` / `OFFICE_SUSPECT`（`topup_reason` = 等数结果原文，如「2026-09-23 15 码到齐（等 0 秒）」；`OFFICE_SUSPECT` 时是哨兵明细），topup 模式取 `OK` / `DEGRADED` / `TOPUP_SKIPPED` / `SUSPECT` / `TOPUP_VERIFY_FAILED`；`steps` 里这一步也仍叫 `topup` |
 | `logs/ALERT_daily_signals` | 失败告警文件（只在失败时出现，**不自动清除**，处置完手动 `rm`） |
-| `logs/.inputs_wait.out` | 办公室模式：本次等数脚本输出的副本（进度行 + 末尾三行 `INPUTS_*`，runner 从中解析结果；每次运行先删后写） |
+| `logs/.inputs_wait.XXXXXX` | 办公室模式：本次等数脚本输出的临时副本（`mktemp` 每次新建，runner 从末尾五行 `INPUTS_*` 解析结果后即删；链路中途被杀时可能留下，可直接删） |
 | `logs/.topup_pre_snapshot.json` | topup 模式：topup 调用前的 PG 快照，供事后审计比对 |
 | `logs/.daily_signals.lock` | flock 锁文件 |
 
@@ -436,7 +461,7 @@ systemctl --user daemon-reload
 > ——步骤 8 只打印不发，前面的步骤 0（等数 / topup）、信号重算、护栏照常。
 
 > **手工重跑会不会等**（办公室模式）：只有**交易日 20:00~21:30 之间、且当天数据还没到**时会等（每 5 分钟查
-> 一次，最迟到 21:30，期间一直占着锁）；其余时刻（白天、次日补跑、节假日）信号日是过去某天，只查一次不等。
+> 一次，最迟到 21:30、且不超过开跑后 4240 秒，期间一直占着锁）；其余时刻（白天、次日补跑、节假日）信号日是过去某天，只查一次不等。
 > 不想等：`STYLE_SIGNALS_INPUTS_ARGS=--once deploy/daily_signals/run_daily_signals.sh`（只查一次，没齐就记
 > `OFFICE_LATE`、用库内已有数据照算）。
 
@@ -454,7 +479,7 @@ deploy/daily_signals/run_daily_signals.sh               # 不经 systemd 直接�
 | 变量 | 默认 | 作用 |
 |---|---|---|
 | `STYLE_SIGNALS_PYTHON` | 自动探测（`.venv` → miniconda → PATH） | 指定解释器 |
-| `STYLE_SIGNALS_INPUTS_ARGS` | 空 | 办公室模式：透传给 `wait_for_inputs.py`，如 `--once`（只查一次、不等）；也认 `--deadline HH:MM` / `--interval 秒` / `--ready-from HH:MM`。写错了步骤 0 记 `OFFICE_CHECK_ERROR`，链路照常往下走 |
+| `STYLE_SIGNALS_INPUTS_ARGS` | 空 | 办公室模式：透传给 `wait_for_inputs.py`，如 `--once`（只查一次、不等）；也认 `--deadline HH:MM` / `--interval 秒` / `--max-wait 秒` / `--ready-from HH:MM`（`--max-wait` 调大超过 4240 会撞上 runner 的 4500 秒兜底）。写错了步骤 0 记 `OFFICE_CHECK_ERROR`，链路照常往下走 |
 | `STYLE_SIGNALS_SKIP_TOPUP` | `0` | topup 模式：`1` = 跳过步骤 0（`TOPUP_SKIPPED`，不写库、不等数，只用库内现有数据）；标志文件在时不看它 |
 | `STYLE_SIGNALS_MAX_LAG` | `1` | 护栏允许落后的交易日数 |
 | `STYLE_SIGNALS_TOPUP_TIMEOUT` | `900` | topup 模式：步骤 0 超时秒数 |

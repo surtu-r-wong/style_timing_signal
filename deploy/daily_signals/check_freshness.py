@@ -427,7 +427,7 @@ def main() -> int:
     ap.add_argument("--run-log", default=None, help="本次运行日志路径（记入状态文件）")
     ap.add_argument("--started-at", default=None, help="运行开始时间 ISO 串")
     ap.add_argument("--topup", default="UNKNOWN",
-                    help="步骤 0 结果：办公室模式 OFFICE_OK/OFFICE_LATE/OFFICE_CHECK_ERROR；"
+                    help="步骤 0 结果：办公室模式 OFFICE_OK/OFFICE_LATE/OFFICE_CHECK_ERROR/OFFICE_SUSPECT；"
                          "topup 模式 OK/DEGRADED/TOPUP_SKIPPED/SUSPECT/TOPUP_VERIFY_FAILED")
     ap.add_argument("--topup-reason", default="",
                     help="步骤 0 的原因（等数结果 / topup 被跳过、降级、存疑的原因），原样记入状态文件")

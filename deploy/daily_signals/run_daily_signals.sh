@@ -198,7 +198,7 @@ office_inputs_stage() {
     log "OFFICE_SUSPECT: 办公室写入的输入没过同族共动性哨兵（CRITICAL）：${TOPUP_REASON}"
     log "OFFICE_SUSPECT: 本次**不重算信号**，committed CSV 维持上一次可信结果"
     log "OFFICE_SUSPECT: 先判真假——对照母指数当日行情：数据错了 → 通知 data_manager 办公室核对（它每晚重看"
-    log "OFFICE_SUSPECT:   前 5 个交易日，改正后重跑本链路即可）；确属真实行情（判据 12.6 年零误报）→ 记录，"
+    log "OFFICE_SUSPECT:   前 5 个交易日，改正后重跑本链路即可）；确属真实行情（判据 12.6~13.5 年零误报）→ 记录，"
     log "OFFICE_SUSPECT:   次日运行只判次日，会自动恢复"
     return 1
   fi

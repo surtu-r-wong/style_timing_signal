@@ -13,7 +13,7 @@
 * 75 只属于 flock 跳过：service 的 SuccessExitStatus=75 把它记成功，步骤自己退出 75 若原样透传，
   失败就被吞成了成功；
 * 步骤 0 办公室模式（2026-09-23 起，标志文件 SKIP_TOPUP 在）：调等数脚本 wait_for_inputs.py（限时、-u、
-  输出经 tee 实时进日志），按它最后三行映射 OFFICE_OK / OFFICE_LATE / OFFICE_CHECK_ERROR，没结果也记
+  输出经 tee 实时进日志），按它末尾的 INPUTS_* 映射 OFFICE_OK / OFFICE_LATE / OFFICE_CHECK_ERROR，没结果也记
   OFFICE_CHECK_ERROR，**三种都不中止链路**；同族哨兵 CRITICAL → OFFICE_SUSPECT，**在信号重算之前中止**。
   只有环境变量 STYLE_SIGNALS_SKIP_TOPUP=1 时仍是旧的 TOPUP_SKIPPED（不等）；标志文件不在时走原 topup 路径
   （回退用）。时间预算前后自洽：定时器窗口 ⊂ 等数截止、等数 max-wait + 最后一轮 ≤ 兜底、兜底 + 推送 ≤ service。
