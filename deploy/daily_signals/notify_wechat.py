@@ -18,6 +18,7 @@ qyapi.weixin.qq.com 是国内端点，本机 Clash 代理会让它失败 → 显
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import os
@@ -27,6 +28,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +43,7 @@ WEBHOOK_ENV = "ALERT_WEBHOOK_URL"
 DEFAULT_ENV_FILE = Path.home() / ".config" / "market-monitor" / "alert.env"
 SEND_TIMEOUT = 10.0
 RETRY_WAIT = 5.0
+DEFAULT_STATUS = ROOT / "logs" / "daily_signals_status.json"
 
 
 class Refused(RuntimeError):
@@ -229,3 +232,73 @@ def send_text(url: str, text: str, *, timeout: float = SEND_TIMEOUT, retries: in
     if reply.get("errcode", 0) != 0:
         raise SendError(_scrub(f"企业微信拒收：errcode={reply.get('errcode')} "
                                f"{reply.get('errmsg')}", url))
+
+
+def load_status(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise Refused(f"读不了状态文件 {path}：{type(exc).__name__}") from None
+
+
+def record_notify(status_path: Path, notify: dict) -> None:
+    """把推送结果写回状态文件的 notify 段：重读再写 + 原子替换，其他字段原样保留。"""
+    status = load_status(status_path)
+    status["notify"] = notify
+    tmp = status_path.with_name(status_path.name + ".tmp")
+    tmp.write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, status_path)
+
+
+def run_push(args) -> int:
+    status_path = Path(args.status_file)
+    status = load_status(status_path)
+    text, as_of = compose_message(Path(args.root), status,
+                                  today=args.today or date.today().isoformat())
+    print(text)
+    if args.dry_run:
+        print("（--dry-run：未发送，未写状态文件）")
+        return 0
+    notify = {"sent": False, "at": datetime.now().astimezone().isoformat(timespec="seconds"),
+              "as_of": as_of, "bytes": len(text.encode("utf-8")), "error": None}
+    url = resolve_webhook(Path(args.env_file))
+    try:
+        if not url:
+            raise Refused(f"没有 {WEBHOOK_ENV}（环境变量或 {args.env_file}），拒绝静默；"
+                          f"预览用 --dry-run")
+        send_text(url, text)
+        notify["sent"] = True
+    except (Refused, SendError) as exc:
+        notify["error"] = str(exc)
+        raise
+    finally:
+        record_notify(status_path, notify)
+    print(f"已推送企业微信（信号日 {as_of}，{notify['bytes']} 字节）")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(description="日更信号链企业微信推送")
+    ap.add_argument("--status-file", default=str(DEFAULT_STATUS), help="状态 JSON（护栏写的那份）")
+    ap.add_argument("--root", default=str(ROOT), help="数据根目录，默认仓库根（测试/演示可指向副本）")
+    ap.add_argument("--env-file", default=str(DEFAULT_ENV_FILE),
+                    help=f"{WEBHOOK_ENV} 所在 env 文件（环境变量优先）")
+    ap.add_argument("--dry-run", action="store_true", help="只打印消息：不发送、不写状态文件")
+    ap.add_argument("--alert", action="store_true", help="失败通知模式（由 alert_on_failure.sh 调用）")
+    ap.add_argument("--systemd-result", default="", help="--alert 用：主 service 的 systemd Result")
+    ap.add_argument("--today", default=None, help="YYYY-MM-DD，默认今天（测试用）")
+    return ap
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        return run_push(args)
+    except (Refused, SendError) as exc:
+        print(f"REFUSED: {exc}" if isinstance(exc, Refused) else f"SEND_FAILED: {exc}",
+              file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

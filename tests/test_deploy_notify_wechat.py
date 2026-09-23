@@ -246,3 +246,61 @@ def test_webhook_from_env_file_and_env_var_precedence(tmp_path, monkeypatch):
     assert nw.resolve_webhook(tmp_path / "missing.env") == ""
     monkeypatch.setenv("ALERT_WEBHOOK_URL", "https://example.invalid/y?key=def")
     assert nw.resolve_webhook(env) == "https://example.invalid/y?key=def"
+
+
+def _status_file(tmp_path, status):
+    p = tmp_path / "logs" / "daily_signals_status.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return p
+
+
+def _argv(tmp_path, status_path, *extra):
+    return ["--root", str(tmp_path), "--status-file", str(status_path),
+            "--env-file", str(tmp_path / "no-such.env"), "--today", "2026-09-22", *extra]
+
+
+def test_dry_run_prints_sends_nothing_and_leaves_status_alone(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
+    p = _status_file(tmp_path, make_tree(tmp_path))
+    before = p.read_bytes()
+    assert nw.main(_argv(tmp_path, p, "--dry-run")) == 0
+    assert "风格择时 信号日 2026-09-22｜链路 OK" in capsys.readouterr().out
+    assert p.read_bytes() == before
+
+
+def test_push_sends_and_records_notify_block(tmp_path, monkeypatch, stub):
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
+    p = _status_file(tmp_path, make_tree(tmp_path))
+    assert nw.main(_argv(tmp_path, p)) == 0
+    assert stub["bodies"][0]["text"]["content"].startswith("风格择时 信号日 2026-09-22")
+    st = json.loads(p.read_text(encoding="utf-8"))
+    assert st["notify"]["sent"] is True and st["notify"]["as_of"] == "2026-09-22"
+    assert st["notify"]["error"] is None and st["result"] == "OK" and "files" in st
+
+
+def test_push_without_webhook_fails_and_records(tmp_path, monkeypatch):
+    monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
+    p = _status_file(tmp_path, make_tree(tmp_path))
+    assert nw.main(_argv(tmp_path, p)) == 1
+    notify = json.loads(p.read_text(encoding="utf-8"))["notify"]
+    assert notify["sent"] is False and "ALERT_WEBHOOK_URL" in notify["error"]
+
+
+def test_push_rejected_by_wechat_records_error(tmp_path, monkeypatch, stub):
+    stub["reply"] = {"errcode": 45009, "errmsg": "api freq out of limit"}
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
+    p = _status_file(tmp_path, make_tree(tmp_path))
+    assert nw.main(_argv(tmp_path, p)) == 1
+    notify = json.loads(p.read_text(encoding="utf-8"))["notify"]
+    assert notify["sent"] is False and "45009" in notify["error"]
+    assert "TESTKEY123" not in json.dumps(notify)
+
+
+def test_push_refused_when_guard_not_ok(tmp_path, monkeypatch, stub, capsys):
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
+    st = make_tree(tmp_path)
+    st["result"] = "STALE"
+    p = _status_file(tmp_path, st)
+    assert nw.main(_argv(tmp_path, p)) == 1
+    assert stub["bodies"] == [] and "REFUSED" in capsys.readouterr().err
