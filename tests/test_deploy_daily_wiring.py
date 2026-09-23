@@ -14,14 +14,17 @@
   失败就被吞成了成功；
 * 步骤 0 办公室模式（2026-09-23 起，标志文件 SKIP_TOPUP 在）：调等数脚本 wait_for_inputs.py（限时、-u、
   输出经 tee 实时进日志），按它最后三行映射 OFFICE_OK / OFFICE_LATE / OFFICE_CHECK_ERROR，没结果也记
-  OFFICE_CHECK_ERROR，**三种都不中止链路**；只有环境变量 STYLE_SIGNALS_SKIP_TOPUP=1 时仍是旧的 TOPUP_SKIPPED
-  （不等）；标志文件不在时走原 topup 路径（回退用）。service 的 TimeoutStartSec 要装得下等数兜底 + 推送限时。
+  OFFICE_CHECK_ERROR，**三种都不中止链路**；同族哨兵 CRITICAL → OFFICE_SUSPECT，**在信号重算之前中止**。
+  只有环境变量 STYLE_SIGNALS_SKIP_TOPUP=1 时仍是旧的 TOPUP_SKIPPED（不等）；标志文件不在时走原 topup 路径
+  （回退用）。时间预算前后自洽：定时器窗口 ⊂ 等数截止、等数 max-wait + 最后一轮 ≤ 兜底、兜底 + 推送 ≤ service。
 """
+import importlib.util
 import json
 import os
 import re
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -43,6 +46,21 @@ WAIT = "wait_for_inputs.py"
 INPUTS_ARGS = re.compile(r'(?<!")\$\{STYLE_SIGNALS_INPUTS_ARGS:?-\}(?!")')
 INPUTS_ARGS_WORD = re.compile(r"\$\{STYLE_SIGNALS_INPUTS_ARGS:?-\}")
 SERVICE_BUDGET_MARGIN = 600   # 秒：主 service TimeoutStartSec 里留给链路本身（约 20 秒）与抖动的余量
+TIMER = DEPLOY / "style-signals-daily.timer"
+WAIT_BUDGET_SLACK = 50       # 秒：等数兜底里「max-wait + 截止那一轮最坏查询」之外再留的余量（进程启动、导入等）
+
+
+def _load_wait():
+    """等数脚本本体（取它的默认值与连接参数来核时间预算；不连库）。"""
+    sys.path.insert(0, str(ROOT))
+    spec = importlib.util.spec_from_file_location("wait_for_inputs_for_wiring", DEPLOY / WAIT)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+WFI = _load_wait()
 
 
 # ── 文本解析 ───────────────────────────────────────────────────────────────────
@@ -421,18 +439,21 @@ def test_runner_wait_call_shape(runner):
     assert "--once" not in cmd, "写死 --once = 从此不等，办公室晚到几分钟就照旧数据算"
 
 
-_STEP0_STUB = r'''#!/usr/bin/env bash
-# 冒充解释器：记下 argv，照 STUB_OUT 原样打印（冒充等数脚本 / 前置闸门的输出），按 STUB_RC 退出
+_STEP0_STUB = r"""#!/usr/bin/env bash
+# 冒充解释器：记下 argv，照 STUB_OUT 原样打印（冒充等数脚本 / 前置闸门的输出），按 STUB_RC 退出。
+# 给了 STUB_LS_DIR 就先把那个目录的文件名记进 STUB_LS（看等数期间结果副本叫什么）。
 printf '%s\n' "$@" > "${STUB_ARGV}"
+if [[ -n "${STUB_LS_DIR:-}" ]]; then ls -A "${STUB_LS_DIR}" > "${STUB_LS}"; fi
 printf '%s' "${STUB_OUT:-}"
 exit "${STUB_RC:-0}"
-'''
+"""
 
 
 def _run_step0(tmp_path, *, flag: bool, stub_out: str = "", stub_rc: int = 0, env_extra: dict | None = None,
                before: str = ""):
     """runner 从「# ── 步骤 0」到「# ── 步骤 1-6」之前的原文 + 桩解释器，跑完打印 TOPUP_STATUS / TOPUP_REASON /
-    steps JSON。record_step 用 runner 原文；fail 换成打印后退出 1。-> (bash 结果, 结果字典, 桩 argv 或 None)。"""
+    steps JSON。record_step 用 runner 原文；fail 换成先打印同样三项、再退出 1（哨兵 CRITICAL 走的就是它）。
+    -> (bash 结果, 结果字典, 桩 argv 或 None)。"""
     text = RUNNER.read_text(encoding="utf-8")
     stub = tmp_path / "python_stub"
     stub.write_text(_STEP0_STUB, encoding="utf-8")
@@ -442,13 +463,15 @@ def _run_step0(tmp_path, *, flag: bool, stub_out: str = "", stub_rc: int = 0, en
     log_dir.mkdir()
     if flag:
         (script_dir / "SKIP_TOPUP").write_text("2026-09-23 起输入由办公室写入\n", encoding="utf-8")
+    report = ['echo "RESULT_STATUS=${TOPUP_STATUS}"', 'echo "RESULT_REASON=${TOPUP_REASON}"',
+              'echo "RESULT_STEPS=$(steps_json)"']
     script = tmp_path / "step0.sh"
     script.write_text("\n".join([
         "set -euo pipefail",
         'log() { echo "LOG $*"; }',
         _function(text, "record_step"),
         'steps_json() { echo "[${STEPS_JSON}]"; }',
-        'fail() { echo "FAIL_CALLED $*"; exit 1; }',
+        'fail() { echo "FAIL_CALLED $*"; ' + "; ".join(report) + "; exit 1; }",
         f"PYTHON={shlex.quote(str(stub))}",
         f"SCRIPT_DIR={shlex.quote(str(script_dir))}",
         f"LOG_DIR={shlex.quote(str(log_dir))}",
@@ -457,14 +480,11 @@ def _run_step0(tmp_path, *, flag: bool, stub_out: str = "", stub_rc: int = 0, en
         f"TOPUP_SNAPSHOT={shlex.quote(str(log_dir / '.topup_pre_snapshot.json'))}",
         "TOPUP_TIMEOUT=900 TOPUP_STATUS=UNKNOWN TOPUP_REASON= STEPS_JSON=",
         before,
-    ]) + "\n" + text[text.index("# ── 步骤 0"):text.index("# ── 步骤 1-6")] + "\n".join([
-        'echo "RESULT_STATUS=${TOPUP_STATUS}"',
-        'echo "RESULT_REASON=${TOPUP_REASON}"',
-        'echo "RESULT_STEPS=$(steps_json)"',
-    ]) + "\n", encoding="utf-8")
+    ]) + "\n" + text[text.index("# ── 步骤 0"):text.index("# ── 步骤 1-6")] + "\n".join(report) + "\n",
+        encoding="utf-8")
     argv_file = tmp_path / "argv"
     env = {**os.environ, "STUB_OUT": stub_out, "STUB_RC": str(stub_rc), "STUB_ARGV": str(argv_file)}
-    for var in ("STYLE_SIGNALS_INPUTS_ARGS", "STYLE_SIGNALS_SKIP_TOPUP"):
+    for var in ("STYLE_SIGNALS_INPUTS_ARGS", "STYLE_SIGNALS_SKIP_TOPUP", "STUB_LS_DIR", "STUB_LS"):
         env.pop(var, None)
     env.update(env_extra or {})
     out = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, timeout=60)
@@ -473,25 +493,50 @@ def _run_step0(tmp_path, *, flag: bool, stub_out: str = "", stub_rc: int = 0, en
     return out, got, argv
 
 
-def _contract(status: str, reason: str) -> str:
-    return (f"[wait_for_inputs] 20:31:17 第 1 轮：进度行\n"
-            f"INPUTS_STATUS={status}\nINPUTS_DAY=2026-09-23\nINPUTS_REASON={reason}\n")
+CLEAN_DETAIL = "2026-09-23 同族共动性：15 码日收益无 CRITICAL"
+OK_REASON = "2026-09-23 15 码到齐（等 0 秒）"
+LATE_REASON = "2026-09-23 截至 21:30 仍缺 1 码：000300.SH，按库内已有数据照算"
+ERR_REASON = "2026-09-23：OperationalError: timeout expired"
+CRIT_DETAIL = "2026-09-23：CRITICAL 2000pair 对内价差 27.07pp （932409.CSI +16.02% vs 932408.CSI -11.05%，判据 ≥8pp）"
+
+
+def _contract(status: str, reason: str, sentinel: str | None = "CLEAN", detail: str | None = CLEAN_DETAIL) -> str:
+    """冒充等数脚本的输出：一行进度 + 契约行（sentinel / detail 给 None 就不打那一行）。"""
+    lines = ["[wait_for_inputs] 20:31:17 第 1 轮：进度行", f"INPUTS_STATUS={status}", "INPUTS_DAY=2026-09-23",
+             f"INPUTS_REASON={reason}"]
+    lines += [] if sentinel is None else [f"INPUTS_SENTINEL={sentinel}"]
+    lines += [] if detail is None else [f"INPUTS_SENTINEL_DETAIL={detail}"]
+    return "\n".join(lines) + "\n"
+
+
+def _skipped(status: str, reason: str) -> str:
+    return _contract(status, reason, "SKIPPED", "输入未到齐，未做同族哨兵")
 
 
 @pytest.mark.parametrize("stub_out, stub_rc, status, reason", [
-    (_contract("OK", "办公室日更 2026-09-23 15 码到齐（等 0 秒）"), 0,
-     "OFFICE_OK", "办公室日更 2026-09-23 15 码到齐（等 0 秒）"),
-    (_contract("LATE", "2026-09-23 截至 21:30 仍缺 1 码：000300.SH，按库内已有数据照算"), 0,
-     "OFFICE_LATE", "2026-09-23 截至 21:30 仍缺 1 码：000300.SH，按库内已有数据照算"),
-    (_contract("CHECK_ERROR", "2026-09-23 到齐检查出错：OperationalError: timeout expired"), 0,
-     "OFFICE_CHECK_ERROR", "2026-09-23 到齐检查出错：OperationalError: timeout expired"),
+    (_contract("OK", OK_REASON), 0, "OFFICE_OK", OK_REASON),
+    (_skipped("LATE", LATE_REASON), 0, "OFFICE_LATE", LATE_REASON),
+    (_skipped("CHECK_ERROR", ERR_REASON), 0, "OFFICE_CHECK_ERROR", ERR_REASON),
+    # 到齐了却没有哨兵结论（跳过 / 缺行）：不当成 OFFICE_OK 放过去
+    (_contract("OK", OK_REASON, "SKIPPED", "x"), 0,
+     "OFFICE_CHECK_ERROR", f"{OK_REASON}；缺同族哨兵结论（INPUTS_SENTINEL=SKIPPED）"),
+    (_contract("OK", OK_REASON, None, None), 0,
+     "OFFICE_CHECK_ERROR", f"{OK_REASON}；缺同族哨兵结论（INPUTS_SENTINEL=空）"),
     ("", 124, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 124）"),          # 超时被杀，什么都没打
     ("Traceback …\n", 1, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 1）"),  # 崩了
     ("", 0, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 0）"),              # 退 0 但没给结果
-], ids=["ok", "late", "check-error", "timeout-no-output", "crash", "exit0-no-output"])
+    (_skipped("WAITING", "x"), 0,
+     "OFFICE_CHECK_ERROR", "wait_for_inputs 结果不认识（INPUTS_STATUS=WAITING，exit 0）"),
+    # m-4：多组结果取最后一组；原因里的 = 原样保留；只有 STATUS 行 → 未记原因
+    (_contract("OK", OK_REASON) + _skipped("LATE", LATE_REASON), 0, "OFFICE_LATE", LATE_REASON),
+    (_skipped("CHECK_ERROR", "2026-09-23：OperationalError: host=10.0.0.1 port=5432 failed"), 0,
+     "OFFICE_CHECK_ERROR", "2026-09-23：OperationalError: host=10.0.0.1 port=5432 failed"),
+    ("INPUTS_STATUS=LATE\n", 0, "OFFICE_LATE", "未记原因"),
+], ids=["ok", "late", "check-error", "ok-sentinel-skipped", "ok-sentinel-missing", "timeout-no-output",
+        "crash", "exit0-no-output", "unknown-status", "last-group-wins", "reason-with-equals", "status-only"])
 def test_runner_office_mode_maps_wait_result(tmp_path, stub_out, stub_rc, status, reason):
-    """标志文件在 → 跑等数脚本，按最后三行映射；没解析到结果一律 OFFICE_CHECK_ERROR。三种都不中止链路，
-    状态文件字段名仍叫 topup（告警器与推送按它读）。"""
+    """标志文件在 → 跑等数脚本，按末尾的 INPUTS_* 映射；没解析到结果一律 OFFICE_CHECK_ERROR。这几种都不中止
+    链路，状态文件字段名仍叫 topup（告警器与推送按它读）。"""
     out, got, argv = _run_step0(tmp_path, flag=True, stub_out=stub_out, stub_rc=stub_rc)
     log = out.stdout + out.stderr
     assert out.returncode == 0 and "FAIL_CALLED" not in log, log
@@ -501,6 +546,47 @@ def test_runner_office_mode_maps_wait_result(tmp_path, stub_out, stub_rc, status
     assert argv is not None and argv[1].endswith(f"/{WAIT}"), argv   # 真的调了等数脚本
     if stub_out.startswith("[wait_for_inputs]"):
         assert "第 1 轮：进度行" in out.stdout, log                     # 经 tee 实时进日志
+
+
+@pytest.mark.parametrize("status", ["OK", "LATE"])
+def test_runner_office_sentinel_critical_aborts_before_signals(tmp_path, status):
+    """同族哨兵 CRITICAL → OFFICE_SUSPECT，office_inputs_stage 返回 1 → fail "topup_audit(OFFICE_SUSPECT)"：
+    在信号重算之前中止、交告警器（同 2026-08-24 起 topup 事后审计的口径）。只看哨兵行，不看 STATUS。"""
+    out, got, argv = _run_step0(tmp_path, flag=True, stub_out=_contract(status, "x", "CRITICAL", CRIT_DETAIL))
+    log = out.stdout + out.stderr
+    assert out.returncode == 1 and "FAIL_CALLED topup_audit(OFFICE_SUSPECT) 1" in log, log
+    assert (got["RESULT_STATUS"], got["RESULT_REASON"]) == ("OFFICE_SUSPECT", CRIT_DETAIL), log
+    steps = json.loads(got["RESULT_STEPS"])
+    assert [(s["step"], s["status"]) for s in steps] == [("topup", "OFFICE_SUSPECT")], steps
+    assert any(line.startswith("LOG OFFICE_SUSPECT:") for line in out.stdout.splitlines()), log
+
+
+def test_runner_office_sentinel_critical_without_detail(tmp_path):
+    out, got, _ = _run_step0(tmp_path, flag=True, stub_out=_contract("OK", "x", "CRITICAL", None))
+    assert out.returncode == 1 and got["RESULT_REASON"] == "同族哨兵 CRITICAL（没记明细）", out.stdout
+
+
+def test_runner_office_mode_result_copy_is_temporary(tmp_path):
+    """结果副本每次 mktemp 新建（logs/.inputs_wait.XXXXXX）、解析完即删：不可能读到上一次的结果。"""
+    listing = tmp_path / "ls"
+    out, got, _ = _run_step0(tmp_path, flag=True, stub_out=_contract("OK", OK_REASON),
+                             env_extra={"STUB_LS_DIR": str(tmp_path / "logs"), "STUB_LS": str(listing)})
+    assert got["RESULT_STATUS"] == "OFFICE_OK", out.stdout + out.stderr
+    during = listing.read_text(encoding="utf-8").split()
+    assert len(during) == 1 and re.fullmatch(r"\.inputs_wait\.\w{6}", during[0]), during
+    assert sorted(p.name for p in (tmp_path / "logs").iterdir()) == []
+
+
+def test_runner_office_mode_mktemp_failure(tmp_path):
+    """logs/ 不可写、建不了结果副本：记 OFFICE_CHECK_ERROR 照常往下走，不调等数脚本。"""
+    try:
+        out, got, argv = _run_step0(tmp_path, flag=True, stub_out=_contract("OK", OK_REASON),
+                                    before='chmod 555 "${LOG_DIR}"')
+    finally:
+        (tmp_path / "logs").chmod(0o755)
+    assert out.returncode == 0 and argv is None, out.stdout + out.stderr
+    assert got["RESULT_STATUS"] == "OFFICE_CHECK_ERROR"
+    assert got["RESULT_REASON"].startswith("建不了等数结果副本"), got
 
 
 @pytest.mark.parametrize("inputs_args", [None, "--once", "--once --interval 60"],
@@ -516,7 +602,7 @@ def test_runner_office_mode_argv(tmp_path, inputs_args):
 
 
 def test_runner_office_mode_does_not_parse_stale_result(tmp_path):
-    """上一次的结果副本删不掉重写（例如被别的用户留成只读）时，不能把它当成这一次的结果。"""
+    """旧的固定名副本 logs/.inputs_wait.out 残留（哪怕只读）也读不到：结果只从本次 mktemp 的副本解析。"""
     stale = "INPUTS_STATUS=OK\nINPUTS_DAY=2026-09-22\nINPUTS_REASON=昨天的结果\n"
     before = ("mkdir -p \"${LOG_DIR}\" && printf '%s' " + shlex.quote(stale)
               + " > \"${LOG_DIR}/.inputs_wait.out\" && chmod 444 \"${LOG_DIR}/.inputs_wait.out\"")
@@ -605,6 +691,14 @@ def test_alerter_text_runs_no_commands(alerter):
     assert not bad, bad
 
 
+def test_alerter_explains_office_suspect(alerter):
+    """【处置】段说清 OFFICE_SUSPECT（办公室模式下同族哨兵拦下的中止）怎么办：它不是 topup 模式的 SUSPECT，
+    不能照「置 SKIP_TOPUP」处置——标志文件本来就在。"""
+    start = _only([i for i, line in enumerate(alerter) if re.fullmatch(r'echo\s+"\[处置\]"', line)], "【处置】段标题")
+    end = next(i for i in range(start, len(alerter)) if alerter[i].startswith("}"))
+    assert any("OFFICE_SUSPECT" in line for line in alerter[start:end]), alerter[start:end]
+
+
 def test_alerter_time_budget(alerter):
     """告警器里会卡住的外部调用（推送、notify-send）都限时，合计（含宽限）给告警单元 TimeoutStartSec
     留出余量——超了 systemd 会把告警器整个杀掉，排在后面的通知全丢。"""
@@ -642,6 +736,42 @@ def test_service_timeout_covers_wait_and_push(runner):
     _, d_push, k_push, _ = _notify_call(runner, "runner 的推送调用")
     limit = _timeout_start_sec(SERVICE)
     assert d_wait + k_wait + d_push + k_push + SERVICE_BUDGET_MARGIN <= limit, (d_wait, k_wait, d_push, k_push, limit)
+
+
+def test_runner_wait_timeout_covers_max_wait_and_last_round(runner):
+    """runner 的等数兜底 ≥ 等数脚本 max-wait 默认值 + 截止那一轮最坏查询耗时 + 余量：等数脚本到点自己报 LATE，
+    不被兜底杀掉（被杀 = 没结果，只能记 OFFICE_CHECK_ERROR，哨兵也没跑成）。一轮最多三次查询（重读日历 +
+    到齐 + 哨兵），单次最坏 = 连库超时 + 单句超时，取自 connect_kwargs 实际交给 psycopg2 的参数。"""
+    _, duration, _, _ = _wait_call(runner)
+    kw = WFI.connect_kwargs({"host": "h", "port": 1, "name": "n", "user": "u", "password": "p", "schema": "s"})
+    per_query = kw["connect_timeout"] + int(re.search(r"statement_timeout=(\d+)", kw["options"]).group(1)) / 1000
+    need = WFI.DEFAULT_MAX_WAIT + WFI.QUERIES_PER_ROUND_MAX * per_query + WAIT_BUDGET_SLACK
+    assert duration >= need, (duration, WFI.DEFAULT_MAX_WAIT, WFI.QUERIES_PER_ROUND_MAX, per_query)
+
+
+def _clock_seconds(text: str) -> int:
+    hh, mm = text.split(":")
+    return int(hh) * 3600 + int(mm) * 60
+
+
+def test_timer_window_fits_wait_defaults():
+    """定时器（OnCalendar + RandomizedDelaySec + AccuracySec）与等数默认值自洽：
+    ① 按 Asia/Shanghai 触发（等数脚本的时钟也是北京时间）；
+    ② 最早起跑 ≥ ready-from：定时器那次的信号日是「今天」，才会等今天的数；
+    ③ 最晚起跑 < 截止：定时器那次一定有得等；
+    ④ 从起跑等到截止 ≤ max-wait：最早起跑时等得最久，这一条对它成立，对 [最早, 最晚] 里任何起跑时刻都成立——
+       max-wait 只截短手工早跑，截不到定时器。"""
+    timer = _unit(TIMER)["Timer"]
+    on_calendar = timer["OnCalendar"][-1]
+    assert "Asia/Shanghai" in on_calendar.split(), on_calendar
+    m = re.search(r"(?<!\d)(\d{1,2}):(\d{2})(?!\d)", on_calendar)
+    assert m, on_calendar
+    earliest = int(m.group(1)) * 3600 + int(m.group(2)) * 60
+    latest = earliest + _timespan(timer["RandomizedDelaySec"][-1]) + _timespan(timer.get("AccuracySec", ["1min"])[-1])
+    ready, deadline = _clock_seconds(WFI.DEFAULT_READY_FROM), _clock_seconds(WFI.DEFAULT_DEADLINE)
+    assert ready <= earliest, "定时器早于 ready-from 起跑：信号日会取成前一天，永远不等当天的数"
+    assert latest < deadline, "定时器最晚起跑已过截止：等数形同虚设"
+    assert deadline - earliest <= WFI.DEFAULT_MAX_WAIT, "定时器起跑的自然等待被 max-wait 截短"
 
 
 def test_service_keeps_onfailure_and_no_install():

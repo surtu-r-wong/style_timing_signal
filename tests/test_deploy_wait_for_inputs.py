@@ -391,6 +391,15 @@ def test_timer_start_is_not_capped_by_max_wait():
     assert logs[0].endswith("每 300 秒查一次，最迟等到 21:30")
 
 
+def test_worst_round_query_count_matches_budget_constant():
+    """时间预算按「一轮最多几次查询」算（QUERIES_PER_ROUND_MAX，runner 兜底判例用它）。最坏的一轮：日历还没读到
+    要重读 + 到齐查询 + 到齐后跑哨兵 = 三次；常量写小了预算就是假的。"""
+    loader, fetch, check = RangeLoader(OSError("calendar down")), Seq(ALL), sentinel()
+    res, _ = run(Clock("2026-09-23 21:30:00"), fetch, calendar=loader, check=check)
+    queries = len(loader.calls) + len(fetch.calls) + len(check.calls)
+    assert res.status == "OK" and queries == 3 and queries <= wfi.QUERIES_PER_ROUND_MAX
+
+
 def test_calendar_is_loaded_for_a_range_ending_today():
     """日历取 [今天 - 回看, 今天]；回看至少覆盖春节加两头周末（约 12 天）。"""
     loader = RangeLoader(CAL)

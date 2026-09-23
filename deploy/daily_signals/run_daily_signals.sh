@@ -6,8 +6,9 @@
 #   0. 输入指数 —— 两种模式，由标志文件 deploy/daily_signals/SKIP_TOPUP 切换：
 #      【办公室模式】标志文件在（2026-09-23 起的常态）：15 个输入指数由 data_manager 夜间作业
 #        （WSL2 20:00 起跑，约 20:02 结束）写入，本链路**只读、零写入**。跑 wait_for_inputs.py 等
-#        期望信号日的 15 码到齐（每 5 分钟查一次，最迟等到 21:30），结果记 OFFICE_OK / OFFICE_LATE /
-#        OFFICE_CHECK_ERROR；三种都照常往下走（用库内已有数据照算），新鲜度由步骤 7 护栏兜底
+#        期望信号日的 15 码到齐（每 5 分钟查一次，最迟等到 21:30），到齐后过同族共动性哨兵；结果记
+#        OFFICE_OK / OFFICE_LATE / OFFICE_CHECK_ERROR（照常往下走，用库内已有数据照算，新鲜度由步骤 7
+#        护栏兜底），哨兵 CRITICAL 记 OFFICE_SUSPECT 并**在信号重算之前中止**
 #      【topup 模式】标志文件不在（回退用；2026-09-23 前的做法）：保鲜上游 index_daily。
 #        三层保护，原则=不可信响应零写入：
 #        0a 环境变量 STYLE_SIGNALS_SKIP_TOPUP=1 即跳过（不等数），理由记进日志与 status.json
@@ -28,8 +29,9 @@
 #
 # 语义要点：
 #   * 步骤 0 允许失败/跳过/迟到（记 OFFICE_LATE / OFFICE_CHECK_ERROR / DEGRADED / TOPUP_SKIPPED，
-#     用库内现有数据继续）；唯一例外是 topup 模式下事后审计不过（TOPUP_SUSPECT）——那说明库可能
-#     已脏，必须停在信号之前。状态文件里步骤 0 的字段仍叫 topup（告警器与推送按它读）。
+#     用库内现有数据继续）；例外是输入可能已脏：办公室模式下同族哨兵 CRITICAL（OFFICE_SUSPECT）、
+#     topup 模式下事后审计不过（TOPUP_SUSPECT）——必须停在信号之前。状态文件里步骤 0 的字段仍叫
+#     topup（告警器与推送按它读）。
 #     步骤 1-8 任一失败即整链非零退出。
 #   * 步骤 8 失败（日志 NOTIFY_FAILED）时信号与护栏都已完成、只是没送达：状态文件 result
 #     仍是 OK，原因记在它的 notify 段；照样退出 1，交 OnFailure 告警器——没送达等于没人知道。
@@ -143,7 +145,6 @@ log "repo=${REPO} python=${PYTHON} log=${LOG_FILE}"
 # 标志文件 SKIP_TOPUP 在 = 办公室模式（office_inputs_stage，只读等数）；不在 = topup 模式
 # （topup_stage，回退用，原样保留）。标志文件是版本控制文件，置上/解除见 README。
 SKIP_FLAG_FILE="${SCRIPT_DIR}/SKIP_TOPUP"
-INPUTS_OUT="${LOG_DIR}/.inputs_wait.out"
 INPUTS_MODE="topup"
 OFFICE_FLAG_REASON=""
 TOPUP_REASON=""
@@ -156,34 +157,72 @@ fi
 
 # 办公室模式：15 个输入指数由 data_manager 夜间作业（WSL2 20:00 起跑，约 20:02 结束；补数前先重看
 # 前 5 个交易日纠错）写入，本链路零写入。wait_for_inputs.py 查期望信号日的 15 码是否到齐（判据 =
-# 办公室回函 01 §7.3：T 日 close 非空的行数 = 码数），没齐每 5 分钟再查、最迟等到 21:30；信号日不是
-# 今天（白天重跑、开机补跑、节假日）或已过截止只查一次。它的最后三行 INPUTS_STATUS/DAY/REASON 映射成
-# OFFICE_OK / OFFICE_LATE / OFFICE_CHECK_ERROR（没解析到 = OFFICE_CHECK_ERROR），三种都照常往下走：
-# 迟到就用库内已有数据照算，新鲜度由步骤 7 护栏兜底，推送里带 ⚠ 行。
-# 限时 4500s、再宽限 10s 强杀：定时器 20:30（+≤2min 随机）起跑、等到 21:30 截止约 61 分钟，这层是硬兜底
-# （service 的 TimeoutStartSec 按「等数兜底 + 推送限时 + 600s」留足，判例钉住）。
-# -u + tee：进度行边等边进日志（一小时里每 5 分钟一行，而不是等完才一次吐出）；落盘副本只为解析末尾
-# 三行，先删旧的——副本若删不掉重写（如被别的用户留成只读），宁可「无结果」也不能读到上一次的结果。
-# 透传参数不加引号，按词拆开（如 --once）；排在任何固定参数之前。
+# 办公室回函 01 §7.3：T 日 close 非空的行数 = 码数），没齐每 5 分钟再查、最迟等到 21:30（手工早跑时由
+# --max-wait 截住）；信号日不是今天（白天重跑、开机补跑、节假日）或已过截止只查一次。到齐后跑同族共动性
+# 哨兵（topup 事后审计的规则 5/6，2026-08-24 起的口径：只判 T、只有 CRITICAL 阻断）。
+# 它末尾的 INPUTS_STATUS / REASON / SENTINEL / SENTINEL_DETAIL 映射成：
+#   哨兵 CRITICAL              → OFFICE_SUSPECT，返回 1 → fail：在信号重算之前中止（数可能脏了），交告警器
+#   OK + 哨兵 CLEAN            → OFFICE_OK
+#   OK 但缺哨兵结论            → OFFICE_CHECK_ERROR（不放过去当 OFFICE_OK）
+#   LATE / CHECK_ERROR         → OFFICE_LATE / OFFICE_CHECK_ERROR
+#   没结果 / 结果不认识        → OFFICE_CHECK_ERROR
+# 除 OFFICE_SUSPECT 外都照常往下走：迟到就用库内已有数据照算，新鲜度由步骤 7 护栏兜底，推送里带 ⚠ 行。
+# 限时 4500s、再宽限 10s 强杀：定时器 20:30（+≤2min 随机）起跑、等到 21:30 截止约 61 分钟；等数脚本自己的
+# --max-wait（默认 4240）再给截止那一轮的查询留足时间，到点报 LATE 而不是被这层杀掉。service 的
+# TimeoutStartSec 按「等数兜底 + 推送限时 + 600s」留足。三条不等式都由判例钉住。
+# -u + tee：进度行边等边进日志（一小时里每 5 分钟一行，而不是等完才一次吐出）；结果副本每次 mktemp 新建、
+# 解析完即删，只从本次的副本解析。透传参数不加引号，按词拆开（如 --once）；排在任何固定参数之前。
 office_inputs_stage() {
-  local t0=${SECONDS} wait_rc=0 status reason
+  local t0=${SECONDS} wait_rc=0 out status reason sentinel detail
   log "▶ 输入等数（办公室模式；标志文件 SKIP_TOPUP：${OFFICE_FLAG_REASON:-未写原因}）: wait_for_inputs.py ${STYLE_SIGNALS_INPUTS_ARGS:-}"
-  rm -f "${INPUTS_OUT}"
+  if ! out="$(mktemp -p "${LOG_DIR}" .inputs_wait.XXXXXX)"; then
+    TOPUP_STATUS="OFFICE_CHECK_ERROR"
+    TOPUP_REASON="建不了等数结果副本（mktemp -p ${LOG_DIR} 失败），没有等数"
+    log "⚠ ${TOPUP_STATUS}: ${TOPUP_REASON} —— 不中止链路，用 index_daily 库内已有数据照算；新鲜度由步骤 7 护栏兜底"
+    record_step "topup" "${TOPUP_STATUS}" "$((SECONDS - t0))"
+    return 0
+  fi
   # shellcheck disable=SC2086
   timeout -k 10 4500 "${PYTHON}" -u "${SCRIPT_DIR}/wait_for_inputs.py" ${STYLE_SIGNALS_INPUTS_ARGS:-} 2>&1 \
-      | tee "${INPUTS_OUT}" || wait_rc=$?
-  status="$(grep '^INPUTS_STATUS=' "${INPUTS_OUT}" 2>/dev/null | tail -n 1 | cut -d= -f2-)" || true
-  reason="$(grep '^INPUTS_REASON=' "${INPUTS_OUT}" 2>/dev/null | tail -n 1 | cut -d= -f2-)" || true
+      | tee "${out}" || wait_rc=$?
+  status="$(grep '^INPUTS_STATUS=' "${out}" | tail -n 1 | cut -d= -f2-)" || true
+  reason="$(grep '^INPUTS_REASON=' "${out}" | tail -n 1 | cut -d= -f2-)" || true
+  sentinel="$(grep '^INPUTS_SENTINEL=' "${out}" | tail -n 1 | cut -d= -f2-)" || true
+  detail="$(grep '^INPUTS_SENTINEL_DETAIL=' "${out}" | tail -n 1 | cut -d= -f2-)" || true
+  rm -f "${out}"
+
+  if [[ "${sentinel}" == "CRITICAL" ]]; then
+    TOPUP_STATUS="OFFICE_SUSPECT"
+    TOPUP_REASON="${detail:-同族哨兵 CRITICAL（没记明细）}"
+    record_step "topup" "${TOPUP_STATUS}" "$((SECONDS - t0))"
+    log "OFFICE_SUSPECT: 办公室写入的输入没过同族共动性哨兵（CRITICAL）：${TOPUP_REASON}"
+    log "OFFICE_SUSPECT: 本次**不重算信号**，committed CSV 维持上一次可信结果"
+    log "OFFICE_SUSPECT: 先判真假——对照母指数当日行情：数据错了 → 通知 data_manager 办公室核对（它每晚重看"
+    log "OFFICE_SUSPECT:   前 5 个交易日，改正后重跑本链路即可）；确属真实行情（判据 12.6 年零误报）→ 记录，"
+    log "OFFICE_SUSPECT:   次日运行只判次日，会自动恢复"
+    return 1
+  fi
   case "${status}" in
-    OK|LATE|CHECK_ERROR)
+    OK)
+      if [[ "${sentinel}" == "CLEAN" ]]; then
+        TOPUP_STATUS="OFFICE_OK"
+        TOPUP_REASON="${reason:-未记原因}"
+      else
+        TOPUP_STATUS="OFFICE_CHECK_ERROR"
+        TOPUP_REASON="${reason:-未记原因}；缺同族哨兵结论（INPUTS_SENTINEL=${sentinel:-空}）"
+      fi ;;
+    LATE|CHECK_ERROR)
       TOPUP_STATUS="OFFICE_${status}"
       TOPUP_REASON="${reason:-未记原因}" ;;
-    *)
+    "")
       TOPUP_STATUS="OFFICE_CHECK_ERROR"
       TOPUP_REASON="wait_for_inputs 无结果（exit ${wait_rc}）" ;;
+    *)
+      TOPUP_STATUS="OFFICE_CHECK_ERROR"
+      TOPUP_REASON="wait_for_inputs 结果不认识（INPUTS_STATUS=${status}，exit ${wait_rc}）" ;;
   esac
   if [[ "${TOPUP_STATUS}" == "OFFICE_OK" ]]; then
-    log "✔ 输入到齐：${TOPUP_REASON}"
+    log "✔ 输入到齐：${TOPUP_REASON}（同族哨兵：${detail:-—}）"
   else
     log "⚠ ${TOPUP_STATUS}: ${TOPUP_REASON} —— 不中止链路，用 index_daily 库内已有数据照算；新鲜度由步骤 7 护栏兜底"
   fi

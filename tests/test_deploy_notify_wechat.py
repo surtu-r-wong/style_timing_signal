@@ -714,9 +714,10 @@ def test_alert_skips_office_ok_topup_line():
     assert "topup" not in text and "办公室日更" not in text and "护栏：b0" in text
 
 
-@pytest.mark.parametrize("topup", ["OFFICE_LATE", "OFFICE_CHECK_ERROR"])
+@pytest.mark.parametrize("topup", ["OFFICE_LATE", "OFFICE_CHECK_ERROR", "OFFICE_SUSPECT"])
 def test_alert_keeps_office_problem_topup_line(topup):
-    """办公室迟到 / 检查出错照旧出 topup 行：它多半就是护栏落后的原因。"""
+    """办公室迟到 / 检查出错照旧出 topup 行：它多半就是护栏落后的原因；同族哨兵拦下的中止（OFFICE_SUSPECT）
+    也出——那一行就是中止的原因。"""
     st = {"result": "STALE", "finished_at": "2026-09-23T21:31:05+08:00", "topup": topup,
           "topup_reason": OFFICE_LATE_REASON, "breaches": ["b0"]}
     lines = nw.build_alert(st, systemd_result="exit-code", now="2026-09-23 21:31:07").split("\n")
