@@ -444,6 +444,7 @@ _STEP0_STUB = r"""#!/usr/bin/env bash
 # 给了 STUB_LS_DIR 就先把那个目录的文件名记进 STUB_LS（看等数期间结果副本叫什么）。
 printf '%s\n' "$@" > "${STUB_ARGV}"
 if [[ -n "${STUB_LS_DIR:-}" ]]; then ls -A "${STUB_LS_DIR}" > "${STUB_LS}"; fi
+if [[ " $* " == *" audit "* && -n "${STUB_AUDIT_RC:-}" ]]; then exit "${STUB_AUDIT_RC}"; fi
 printf '%s' "${STUB_OUT:-}"
 exit "${STUB_RC:-0}"
 """
@@ -484,7 +485,7 @@ def _run_step0(tmp_path, *, flag: bool, stub_out: str = "", stub_rc: int = 0, en
         encoding="utf-8")
     argv_file = tmp_path / "argv"
     env = {**os.environ, "STUB_OUT": stub_out, "STUB_RC": str(stub_rc), "STUB_ARGV": str(argv_file)}
-    for var in ("STYLE_SIGNALS_INPUTS_ARGS", "STYLE_SIGNALS_SKIP_TOPUP", "STUB_LS_DIR", "STUB_LS"):
+    for var in ("STYLE_SIGNALS_INPUTS_ARGS", "STYLE_SIGNALS_SKIP_TOPUP", "STUB_LS_DIR", "STUB_LS", "STUB_AUDIT_RC"):
         env.pop(var, None)
     env.update(env_extra or {})
     out = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, timeout=60)
@@ -499,6 +500,9 @@ LATE_REASON = "2026-09-23 截至 21:30 仍缺 1 码：000300.SH，按库内已�
 ERR_REASON = "2026-09-23：OperationalError: timeout expired"
 CRIT_DETAIL = "2026-09-23：CRITICAL 2000pair 对内价差 27.07pp （932409.CSI +16.02% vs 932408.CSI -11.05%，判据 ≥8pp）"
 ACCEPTED_DETAIL = f"{CRIT_DETAIL}（已按 --accept-sentinel 2026-09-23 人工放行）"
+WARN_DETAIL = "2026-09-23：WARN 300pair 对内价差 6.50pp （判据 ≥6pp，需人工复核）"
+UNCHECKED_DETAIL = "RuntimeError: boom（15 码已到齐，本日数据未经同族共动性检查）"
+NO_VERDICT = "等数结果没给出同族哨兵结论（INPUTS_SENTINEL={}）；2026-09-23 15 码到齐（等 0 秒），本日数据未经同族共动性检查"
 
 
 def _contract(status: str, reason: str, sentinel: str | None = "CLEAN", detail: str | None = CLEAN_DETAIL) -> str:
@@ -518,11 +522,14 @@ def _skipped(status: str, reason: str) -> str:
     (_contract("OK", OK_REASON), 0, "OFFICE_OK", OK_REASON),
     (_skipped("LATE", LATE_REASON), 0, "OFFICE_LATE", LATE_REASON),
     (_skipped("CHECK_ERROR", ERR_REASON), 0, "OFFICE_CHECK_ERROR", ERR_REASON),
-    # 到齐了却没有哨兵结论（跳过 / 缺行）：不当成 OFFICE_OK 放过去
-    (_contract("OK", OK_REASON, "SKIPPED", "x"), 0,
-     "OFFICE_CHECK_ERROR", f"{OK_REASON}；缺同族哨兵结论（INPUTS_SENTINEL=SKIPPED）"),
-    (_contract("OK", OK_REASON, None, None), 0,
-     "OFFICE_CHECK_ERROR", f"{OK_REASON}；缺同族哨兵结论（INPUTS_SENTINEL=空）"),
+    # 到齐了、哨兵没判成（出错 / 缺行 / 不认识）：OFFICE_UNCHECKED 照常往下走，不当 OFFICE_OK 也不当 CHECK_ERROR
+    (_contract("OK", OK_REASON, "SKIPPED", UNCHECKED_DETAIL), 0, "OFFICE_UNCHECKED", UNCHECKED_DETAIL),
+    (_contract("OK", OK_REASON, "SKIPPED", None), 0, "OFFICE_UNCHECKED", NO_VERDICT.format("SKIPPED")),
+    (_contract("OK", OK_REASON, None, None), 0, "OFFICE_UNCHECKED", NO_VERDICT.format("空")),
+    (_contract("OK", OK_REASON, "FOO", "x"), 0, "OFFICE_UNCHECKED", NO_VERDICT.format("FOO")),
+    # 只有 WARN：OFFICE_OK_WARN（不阻断），原因 = WARN 明细
+    (_contract("OK", OK_REASON, "WARN", WARN_DETAIL), 0, "OFFICE_OK_WARN", WARN_DETAIL),
+    (_contract("OK", OK_REASON, "WARN", None), 0, "OFFICE_OK_WARN", "同族哨兵 WARN（没记明细）"),
     # 人工放行（--accept-sentinel T）：OFFICE_ACCEPTED，原因 = 带放行注记的哨兵明细，不中止
     (_contract("OK", OK_REASON, "ACCEPTED", ACCEPTED_DETAIL), 0, "OFFICE_ACCEPTED", ACCEPTED_DETAIL),
     (_contract("OK", OK_REASON, "ACCEPTED", None), 0,
@@ -537,7 +544,8 @@ def _skipped(status: str, reason: str) -> str:
     (_skipped("CHECK_ERROR", "2026-09-23：OperationalError: host=10.0.0.1 port=5432 failed"), 0,
      "OFFICE_CHECK_ERROR", "2026-09-23：OperationalError: host=10.0.0.1 port=5432 failed"),
     ("INPUTS_STATUS=LATE\n", 0, "OFFICE_LATE", "未记原因"),
-], ids=["ok", "late", "check-error", "ok-sentinel-skipped", "ok-sentinel-missing", "accepted",
+], ids=["ok", "late", "check-error", "unchecked", "unchecked-no-detail", "unchecked-missing", "unchecked-unknown",
+        "ok-warn", "ok-warn-no-detail", "accepted",
         "accepted-no-detail", "timeout-no-output",
         "crash", "exit0-no-output", "unknown-status", "last-group-wins", "reason-with-equals", "status-only"])
 def test_runner_office_mode_maps_wait_result(tmp_path, stub_out, stub_rc, status, reason):
@@ -556,11 +564,11 @@ def test_runner_office_mode_maps_wait_result(tmp_path, stub_out, stub_rc, status
 
 @pytest.mark.parametrize("status", ["OK", "LATE"])
 def test_runner_office_sentinel_critical_aborts_before_signals(tmp_path, status):
-    """同族哨兵 CRITICAL → OFFICE_SUSPECT，office_inputs_stage 返回 1 → fail "topup_audit(OFFICE_SUSPECT)"：
+    """同族哨兵 CRITICAL → OFFICE_SUSPECT，office_inputs_stage 返回 1 → fail "inputs_check(OFFICE_SUSPECT)"：
     在信号重算之前中止、交告警器（同 2026-08-24 起 topup 事后审计的口径）。只看哨兵行，不看 STATUS。"""
     out, got, argv = _run_step0(tmp_path, flag=True, stub_out=_contract(status, "x", "CRITICAL", CRIT_DETAIL))
     log = out.stdout + out.stderr
-    assert out.returncode == 1 and "FAIL_CALLED topup_audit(OFFICE_SUSPECT) 1" in log, log
+    assert out.returncode == 1 and "FAIL_CALLED inputs_check(OFFICE_SUSPECT) 1" in log, log
     assert (got["RESULT_STATUS"], got["RESULT_REASON"]) == ("OFFICE_SUSPECT", CRIT_DETAIL), log
     steps = json.loads(got["RESULT_STEPS"])
     assert [(s["step"], s["status"]) for s in steps] == [("topup", "OFFICE_SUSPECT")], steps
@@ -632,6 +640,32 @@ def test_runner_flag_wins_over_env_skip(tmp_path):
     out, got, argv = _run_step0(tmp_path, flag=True, stub_out=_contract("OK", "到齐"),
                                 env_extra={"STYLE_SIGNALS_SKIP_TOPUP": "1"})
     assert got["RESULT_STATUS"] == "OFFICE_OK" and argv[1].endswith(f"/{WAIT}"), out.stdout + out.stderr
+
+
+def test_runner_topup_mode_keeps_topup_audit_step_name(tmp_path):
+    """回退的 topup 模式：前置闸门放行、topup 调不起来（桩仓库里没有脚本 → DEGRADED）、事后审计判可疑 →
+    fail 的步骤名仍是 topup_audit(SUSPECT)；inputs_check(...) 只属于办公室模式。"""
+    out, got, _ = _run_step0(tmp_path, flag=False, stub_rc=0, env_extra={"STUB_AUDIT_RC": "1"})
+    log = out.stdout + out.stderr
+    assert out.returncode == 1 and "FAIL_CALLED topup_audit(SUSPECT) 1" in log, log
+    assert got["RESULT_STATUS"] == "SUSPECT"
+
+
+def test_runner_office_mode_sweeps_stale_result_copies(tmp_path):
+    """办公室分支开头清理 logs/ 下超过 60 分钟的 .inputs_wait.* 残留（链路中途被杀留下的）；新的、子目录里的不碰。"""
+    import time as _time
+    now = int(_time.time())
+    ages = {".inputs_wait.old123": 2 * 3600, ".inputs_wait.new456": 60, "other.log": 2 * 3600,
+            "sub/.inputs_wait.deep99": 2 * 3600}
+    # logs/ 由 _run_step0 建；残留文件在跑第 0 步之前（before 钩子里）建，时间戳用 touch -d 设
+    before = " && ".join(['mkdir -p "${LOG_DIR}/sub"'] +
+                         [f'touch -d @{now - age} "${{LOG_DIR}}/{name}"' for name, age in ages.items()])
+    logs_dir = tmp_path / "logs"
+    out, got, _ = _run_step0(tmp_path, flag=True, stub_out=_contract("OK", OK_REASON), before=before)
+    assert got["RESULT_STATUS"] == "OFFICE_OK", out.stdout + out.stderr
+    left = sorted(p.name for p in logs_dir.iterdir())
+    assert left == [".inputs_wait.new456", "other.log", "sub"], left
+    assert (logs_dir / "sub" / ".inputs_wait.deep99").exists()
 
 
 def test_runner_without_flag_takes_topup_path(tmp_path):
@@ -707,6 +741,7 @@ def test_alerter_explains_office_suspect(alerter):
     end = next(i for i in range(start, len(alerter)) if alerter[i].startswith("}"))
     assert any("OFFICE_SUSPECT" in line for line in alerter[start:end]), alerter[start:end]
     assert any("--accept-sentinel" in line for line in alerter[start:end]), alerter[start:end]
+    assert any("inputs_check(OFFICE_SUSPECT)" in line for line in alerter[start:end]), alerter[start:end]
 
 
 def test_alerter_time_budget(alerter):

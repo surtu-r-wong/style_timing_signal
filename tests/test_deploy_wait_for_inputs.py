@@ -61,7 +61,7 @@ _CAL_PROBE = ("09-18T 09-19. 09-20. 09-21T 09-22T 09-23T 09-24T 09-25. 09-26. 09
 CAL = {date.fromisoformat(f"2026-{tok[:5]}"): tok[5] == "T" for tok in _CAL_PROBE.split()}
 
 READY, DEADLINE = time(20, 0), time(21, 30)
-CLEAN_DETAIL = "2026-09-23 同族共动性：15 码日收益无 CRITICAL"
+CLEAN_DETAIL = "2026-09-23 同族共动性：15 码日收益无 CRITICAL / WARN"
 
 
 def test_calendar_fixture_is_the_probe():
@@ -496,18 +496,19 @@ def test_sentinel_critical_is_reported():
     assert res.sentinel_detail == f"2026-09-23：{CRIT}"
 
 
-def test_sentinel_warn_only_is_clean():
-    """WARN 不阻断（同 08-24 口径）：CLEAN，明细里照记。"""
+def test_sentinel_warn_only_is_warn_not_clean():
+    """有 WARN 没 CRITICAL：报 WARN（不阻断，同 08-24 口径），CLEAN 只留给零发现；明细 = WARN 明细。"""
     res, _ = run(Clock("2026-09-23 20:31:17"), Seq(ALL), check=sentinel(warn=[WARN]))
-    assert res.sentinel == "CLEAN"
-    assert res.sentinel_detail == f"{CLEAN_DETAIL}；WARN（不阻断）：{WARN}"
+    assert (res.status, res.sentinel, res.sentinel_detail) == ("OK", "WARN", f"2026-09-23：{WARN}")
 
 
-def test_sentinel_error_is_check_error_and_does_not_block():
-    res, _ = run(Clock("2026-09-23 20:31:17"), Seq(ALL), check=Seq(RuntimeError("boom")))
-    assert (res.status, res.sentinel) == ("CHECK_ERROR", "SKIPPED")
-    assert res.reason == "2026-09-23：同族哨兵出错 RuntimeError: boom（15 码已到齐，哨兵未判定，不阻断）"
-    assert res.sentinel_detail == "哨兵自身出错：RuntimeError: boom"
+def test_sentinel_error_after_arrival_is_unchecked_not_check_error():
+    """到齐了、哨兵没判成（出错 / T 算不出日收益）：到齐照报 OK，哨兵 SKIPPED + 没判成的原因——runner 记
+    OFFICE_UNCHECKED 照常往下走；CHECK_ERROR 只留给到齐检查本身出错。"""
+    res, logs = run(Clock("2026-09-23 20:31:17"), Seq(ALL), check=Seq(RuntimeError("boom")))
+    assert (res.status, res.reason, res.sentinel) == ("OK", "2026-09-23 15 码到齐（等 0 秒）", "SKIPPED")
+    assert res.sentinel_detail == "RuntimeError: boom（15 码已到齐，本日数据未经同族共动性检查）"
+    assert any("同族哨兵没判成" in line for line in logs)
 
 
 @pytest.mark.parametrize("fetch, detail", [
@@ -518,6 +519,20 @@ def test_sentinel_skipped_when_not_arrived(fetch, detail):
     check = sentinel(critical=[CRIT])
     res, _ = run(Clock("2026-09-23 21:30:00"), fetch, check=check)
     assert check.calls == [] and (res.sentinel, res.sentinel_detail) == ("SKIPPED", detail)
+
+
+@pytest.mark.parametrize("check, accept, sentinel_value, detail", [
+    (sentinel(critical=[CRIT]), None, "CRITICAL", f"2027-01-04：{CRIT}"),
+    (sentinel(critical=[CRIT]), date(2027, 1, 4), "ACCEPTED",
+     f"2027-01-04：{CRIT}（已按 --accept-sentinel 2027-01-04 人工放行）"),
+    (sentinel(warn=[WARN]), None, "WARN", f"2027-01-04：{WARN}"),
+    (Seq(RuntimeError("boom")), None, "SKIPPED", "RuntimeError: boom（15 码已到齐，本日数据未经同族共动性检查）"),
+], ids=["critical", "accepted", "warn", "unchecked"])
+def test_calendar_note_follows_sentinel_detail(check, accept, sentinel_value, detail):
+    """runner 拿哨兵明细当原因（OFFICE_SUSPECT / ACCEPTED / OK_WARN / UNCHECKED）：日历注记要跟在明细后面，别丢。"""
+    res, _ = run(Clock("2027-01-04 22:10:00"), Seq(ALL), check=check, accept=accept)
+    assert res.sentinel == sentinel_value
+    assert res.sentinel_detail == f"{detail}；日历缺 2027-01-04，按工作日推断"
 
 
 # ── 人工放行：--accept-sentinel <T>（只对那一天、只对 CRITICAL 生效）──────────────────────────
@@ -547,6 +562,13 @@ def test_accept_sentinel_unused_when_clean():
     assert (res.sentinel, res.sentinel_detail) == ("CLEAN", CLEAN_DETAIL)
     unused = [line for line in logs if "--accept-sentinel 2026-09-23" in line]
     assert len(unused) == 1 and "没用上" in unused[0]
+
+
+def test_accept_sentinel_unused_when_only_warn():
+    res, logs = run(Clock("2026-09-23 22:10:00"), Seq(ALL), check=sentinel(warn=[WARN]), accept=date(2026, 9, 23))
+    assert res.sentinel == "WARN"
+    unused = [line for line in logs if "--accept-sentinel 2026-09-23" in line]
+    assert len(unused) == 1 and "无 CRITICAL，无需放行" in unused[0]
 
 
 def test_accept_sentinel_unused_when_not_arrived():
@@ -622,6 +644,22 @@ def test_sentinel_check_needs_a_previous_day():
         _sentinel_check(only_t)
 
 
+def test_sentinel_check_does_not_round_closes():
+    """收盘价按库里的精度算日收益，不先舍入：100.0040 → 100.0010 是真实小波动，舍入到分就成了「逐位相等」的假冻结。"""
+    rows = _sentinel_rows()
+    rows = [(c, d, Decimal("100.0040") if (c, d) == ("CI005917.WI", date(2026, 9, 22)) else
+             Decimal("100.0010") if (c, d) == ("CI005917.WI", date(2026, 9, 23)) else v) for c, d, v in rows]
+    (critical, warn, judged), _ = _sentinel_check(rows)
+    assert (critical, warn, judged) == ([], [], 15)
+
+
+def test_sentinel_check_null_close_is_missing_not_zero():
+    """close 为 NULL 的行 = 那天没数，不是 0：当成 0 会算出 −100% 的日收益、把 2000 对打成 CRITICAL。"""
+    rows = [(c, d, None if (c, d) == ("932409.CSI", date(2026, 9, 23)) else v) for c, d, v in _sentinel_rows()]
+    (critical, warn, judged), _ = _sentinel_check(rows)
+    assert (critical, warn, judged) == ([], [], 14)
+
+
 def test_sentinel_query_reads_window_before_signal_day():
     _, calls = _sentinel_check(_sentinel_rows())
     (sql, params), = calls
@@ -683,6 +721,8 @@ def test_connection_is_read_only_with_timeouts_and_keepalives():
     assert "statement_timeout=60000" in opts and "default_transaction_read_only=on" in opts
     # 等数跨一个小时：中间网络设备掐断空闲连接时，libpq keepalive 让连接尽快报错而不是挂死
     assert (kw["keepalives"], kw["keepalives_idle"], kw["keepalives_interval"], kw["keepalives_count"]) == (1, 30, 10, 3)
+    # 已发出去的数据迟迟收不到确认（对端静默消失）时，70 秒内断开，与「连库 10 + 单句 60」的单次查询上限对齐
+    assert kw["tcp_user_timeout"] == 70000
 
 
 class FakeCursor:

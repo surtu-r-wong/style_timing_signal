@@ -28,10 +28,13 @@ keepalive），单次出错记下、下一轮再查，截止时仍出错 → CHE
 **同族共动性哨兵**（topup 事后审计的规则 5/6，2026-08-24 起；办公室模式下接回，判据与标定见
 `family_sentinel.py`）：到齐后只读取 T 前 `SENTINEL_LOOKBACK_DAYS` 个自然日到 T 的收盘价，用
 `family_sentinel.scan_findings(..., only_days={T})` 只判 T。只有 CRITICAL（对内价差 ≥8pp / 序列冻结）
-算数——runner 记 OFFICE_SUSPECT、在信号重算之前中止；WARN 只记不阻断（同旧口径）。判定范围是这 15 个
+算数——runner 记 OFFICE_SUSPECT、在信号重算之前中止；WARN 只提示不阻断（同旧口径，报 WARN，CLEAN 只留给
+零发现）。判定范围是这 15 个
 输入码：旧审计判新写入的那天时，纯风格 4 码要到 20:01 才由夜间作业写，审计时还不在库里，实际判的也是
 这 15 码；办公室处置 §2.1 还记着 932400.CSI 晚间会取到前一日值——把它纳入只会因为生产信号不用的码
-误拦生产。哨兵自身出错 → CHECK_ERROR（不阻断）。**不接回「历史被改写」审计**：办公室每晚重看会合法
+误拦生产。到齐后哨兵没判成（出错 / T 算不出日收益）→ 到齐照报 OK、哨兵报 SKIPPED 并写明原因，runner 记
+OFFICE_UNCHECKED 照常往下走：本链路不写库，数据归办公室负责、它自有重看与覆盖检查，哨兵只是只读复查，复查设施
+故障不该让当晚没信号。CHECK_ERROR 只留给到齐检查本身出错。**不接回「历史被改写」审计**：办公室每晚重看会合法
 改写 T-1..T-5，那条规则会天天误报。人工核实是真实行情后，`--accept-sentinel T` 只放行那一天的 CRITICAL
 （报 ACCEPTED，照常往下走）；日期不是 T 不生效，哨兵没判 CRITICAL 时用不上，两种情况都记一行日志。
 
@@ -42,9 +45,9 @@ keepalive），单次出错记下、下一轮再查，截止时仍出错 → CHE
     INPUTS_STATUS=OK|LATE|CHECK_ERROR
     INPUTS_DAY=YYYY-MM-DD
     INPUTS_REASON=<一行中文>
-    INPUTS_SENTINEL=CLEAN|CRITICAL|ACCEPTED|SKIPPED   （ACCEPTED = CRITICAL 已按 --accept-sentinel 人工放行；
-                                                  没到齐 / 检查出错 / 哨兵出错时 SKIPPED）
-    INPUTS_SENTINEL_DETAIL=<一行：CRITICAL / WARN 明细，或跳过的原因>
+    INPUTS_SENTINEL=CLEAN|WARN|CRITICAL|ACCEPTED|SKIPPED   （CLEAN = 零发现；ACCEPTED = CRITICAL 已按
+                                   --accept-sentinel 人工放行；没到齐 / 检查出错 / 哨兵没判成时 SKIPPED）
+    INPUTS_SENTINEL_DETAIL=<一行：CRITICAL / WARN 明细，或没判的原因；有日历注记就跟在后面>
 
 **退出码恒为 0**：三种结果链路都照常往下走（LATE / CHECK_ERROR 用库内已有数据照算），新鲜度由步骤 7
 护栏兜底；哨兵 CRITICAL 的阻断由 runner 做。参数写错、码表读不到等一切异常也转成 CHECK_ERROR 五行。
@@ -226,7 +229,7 @@ class Result:
     status: str                    # OK / LATE / CHECK_ERROR
     day: date                      # 期望信号日 T
     reason: str                    # 一行中文
-    sentinel: str = "SKIPPED"      # CLEAN / CRITICAL / ACCEPTED / SKIPPED
+    sentinel: str = "SKIPPED"      # CLEAN / WARN / CRITICAL / ACCEPTED / SKIPPED
     sentinel_detail: str = ""      # 一行：CRITICAL / WARN 明细，或跳过的原因
 
     def lines(self) -> list[str]:
@@ -253,28 +256,30 @@ def _mode(sd: SignalDay, today: date, once: bool, past_deadline: bool, interval:
 def _arrived(sd: SignalDay, codes: list[str], waited: int, note: str, check_sentinel, log,
              accept: date | None) -> Result:
     """到齐之后：同族共动性哨兵只判 T。CRITICAL → 报 CRITICAL（阻断由 runner 做）；若 accept == T（人工核实过的
-    放行）→ 报 ACCEPTED、明细注明放行；WARN 只记；哨兵出错 → CHECK_ERROR。"""
+    放行）→ 报 ACCEPTED、明细注明放行；只有 WARN → 报 WARN（不阻断）；零发现 → CLEAN；哨兵没判成（出错 /
+    T 算不出日收益）→ 到齐照报 OK、哨兵 SKIPPED 写明原因（runner 记 OFFICE_UNCHECKED，照常往下走）。
+    runner 拿哨兵明细当原因，所以日历注记也跟在明细后面。"""
     n = len(codes)
     reason = _with_note(f"{sd.day} {n} 码到齐（等 {waited} 秒）", note)
     try:
         critical, warn, judged = check_sentinel(sd.day, codes)
     except Exception as exc:
-        err = describe_error(exc)
-        log(f"{TAG} 同族哨兵出错 {err}：不阻断，记 CHECK_ERROR")
-        return Result("CHECK_ERROR", sd.day,
-                      _with_note(f"{sd.day}：同族哨兵出错 {err}（{n} 码已到齐，哨兵未判定，不阻断）", note),
-                      "SKIPPED", f"哨兵自身出错：{err}")
+        detail = f"{describe_error(exc)}（{n} 码已到齐，本日数据未经同族共动性检查）"
+        log(f"{TAG} 同族哨兵没判成：{detail}——不阻断，照常往下走")
+        return Result("OK", sd.day, reason, "SKIPPED", _with_note(detail, note))
     if critical:
         detail = f"{sd.day}：" + "；".join(critical)
         if accept == sd.day:
             detail += f"（已按 --accept-sentinel {sd.day} 人工放行）"
             log(f"{TAG} 同族哨兵 CRITICAL，人工放行：{detail}")
-            return Result("OK", sd.day, reason, "ACCEPTED", detail)
+            return Result("OK", sd.day, reason, "ACCEPTED", _with_note(detail, note))
         log(f"{TAG} 同族哨兵 CRITICAL：{detail}")
-        return Result("OK", sd.day, reason, "CRITICAL", detail)
-    detail = f"{sd.day} 同族共动性：{judged} 码日收益无 CRITICAL"
+        return Result("OK", sd.day, reason, "CRITICAL", _with_note(detail, note))
     if warn:
-        detail += "；WARN（不阻断）：" + "；".join(warn)
+        detail = f"{sd.day}：" + "；".join(warn)
+        log(f"{TAG} 同族哨兵 WARN（不阻断）：{detail}")
+        return Result("OK", sd.day, reason, "WARN", _with_note(detail, note))
+    detail = f"{sd.day} 同族共动性：{judged} 码日收益无 CRITICAL / WARN"
     log(f"{TAG} 同族哨兵 CLEAN：{detail}")
     return Result("OK", sd.day, reason, "CLEAN", detail)
 
@@ -290,7 +295,7 @@ def wait_for_inputs(codes: list[str], *, now_fn, sleep_fn, load_calendar, fetch_
     if accept_sentinel is not None and result.sentinel != "ACCEPTED":
         if result.sentinel == "CRITICAL":
             why = f"它不是本次信号日 {result.day}，不生效，仍按 CRITICAL 处理"
-        elif result.sentinel == "CLEAN":
+        elif result.sentinel in ("CLEAN", "WARN"):
             why = "同族哨兵无 CRITICAL，无需放行"
         else:
             why = f"同族哨兵没判定（{result.sentinel_detail}）"
@@ -383,7 +388,9 @@ def connect_kwargs(db: dict) -> dict:
     return {"host": db["host"], "port": db["port"], "dbname": db["name"], "user": db["user"],
             "password": db["password"], "connect_timeout": CONNECT_TIMEOUT_S,
             "options": f"-c statement_timeout={STATEMENT_TIMEOUT_S * 1000} -c default_transaction_read_only=on",
-            "keepalives": 1, "keepalives_idle": 30, "keepalives_interval": 10, "keepalives_count": 3}
+            "keepalives": 1, "keepalives_idle": 30, "keepalives_interval": 10, "keepalives_count": 3,
+            # 已发出的数据迟迟收不到确认（对端静默消失）时 70 秒内断开，与单次查询上限「连库 10 + 单句 60」对齐
+            "tcp_user_timeout": (CONNECT_TIMEOUT_S + STATEMENT_TIMEOUT_S) * 1000}
 
 
 def run_query(sql: str, params: tuple, *, connect=None, db_config: dict | None = None) -> list[tuple]:

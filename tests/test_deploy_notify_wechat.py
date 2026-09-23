@@ -165,6 +165,8 @@ OFFICE_LATE_REASON = "2026-09-22 截至 21:30 仍缺 1 码：000300.SH，按库�
 OFFICE_ERROR_REASON = "2026-09-22 到齐检查出错：OperationalError: timeout expired"
 OFFICE_ACCEPTED_REASON = ("2026-09-22：CRITICAL 2000pair 对内价差 9.10pp （932409.CSI +5.20% vs 932408.CSI -3.90%，"
                           "判据 ≥8pp）（已按 --accept-sentinel 2026-09-22 人工放行）")
+OFFICE_UNCHECKED_REASON = "OperationalError: timeout expired（15 码已到齐，本日数据未经同族共动性检查）"
+OFFICE_WARN_REASON = "2026-09-22：WARN 300pair 对内价差 6.50pp （判据 ≥6pp，需人工复核）"
 
 
 def test_office_ok_health_line_has_no_warning(tmp_path):
@@ -180,9 +182,11 @@ def test_office_ok_health_line_has_no_warning(tmp_path):
     ("OFFICE_CHECK_ERROR", OFFICE_ERROR_REASON, f"⚠ 输入到齐检查出错：{OFFICE_ERROR_REASON}"),
     ("OFFICE_LATE", None, "⚠ 输入未到齐：未记原因"),
     ("OFFICE_ACCEPTED", OFFICE_ACCEPTED_REASON, f"⚠ 输入哨兵 CRITICAL 已人工放行：{OFFICE_ACCEPTED_REASON}"),
+    ("OFFICE_UNCHECKED", OFFICE_UNCHECKED_REASON, f"⚠ 输入哨兵未判定：{OFFICE_UNCHECKED_REASON}"),
     ("TOPUP_SKIPPED", "环境变量 STYLE_SIGNALS_SKIP_TOPUP=1", "⚠ topup TOPUP_SKIPPED：环境变量 STYLE_SIGNALS_SKIP_TOPUP=1"),
     ("DEGRADED", "topup 调用失败 exit 1", "⚠ topup DEGRADED：topup 调用失败 exit 1"),
-], ids=["office-late", "office-check-error", "office-late-no-reason", "office-accepted", "topup-skipped",
+], ids=["office-late", "office-check-error", "office-late-no-reason", "office-accepted", "office-unchecked",
+        "topup-skipped",
         "degraded"])
 def test_input_problems_are_flagged(tmp_path, topup, reason, flagged):
     """办公室迟到 / 到齐检查出错各有一行 ⚠（照算的信号可能停在前一交易日，人要知道为什么）；
@@ -191,6 +195,16 @@ def test_input_problems_are_flagged(tmp_path, topup, reason, flagged):
     st["topup"], st["topup_reason"] = topup, reason
     _, _, lines = compose(tmp_path, status=st)
     assert lines[-2:] == ["护栏 OK（最大落后 0 交易日 · 缺口 0）", flagged]
+
+
+def test_office_ok_warn_is_an_info_line_not_a_warning(tmp_path):
+    """哨兵只有 WARN（不阻断）：体检行照常以「输入 办公室日更 ✓ ·」开头，下面一行 ℹ 提示人工看一眼，不带 ⚠。"""
+    st = make_tree(tmp_path)
+    st["topup"], st["topup_reason"] = "OFFICE_OK_WARN", OFFICE_WARN_REASON
+    text, _, lines = compose(tmp_path, status=st)
+    assert lines[-2:] == ["输入 办公室日更 ✓ · 护栏 OK（最大落后 0 交易日 · 缺口 0）",
+                          f"ℹ 输入哨兵 WARN（不阻断，建议人工看一眼）：{OFFICE_WARN_REASON}"]
+    assert "⚠" not in text
 
 
 def test_office_ok_keeps_upstream_gap_warning(tmp_path):
@@ -710,15 +724,17 @@ def test_alert_for_stale_lists_first_three_breaches():
     assert not any(l.startswith("systemd") for l in lines)
 
 
-def test_alert_skips_office_ok_topup_line():
-    """输入到齐（OFFICE_OK）是常态，失败通知里不提；失败原因在护栏行。"""
-    st = {"result": "STALE", "finished_at": "2026-09-23T20:31:05+08:00", "topup": "OFFICE_OK",
+@pytest.mark.parametrize("topup", ["OFFICE_OK", "OFFICE_OK_WARN"])
+def test_alert_skips_office_ok_topup_line(topup):
+    """输入到齐（OFFICE_OK，或只有不阻断的 WARN）是常态，失败通知里不提；失败原因在护栏行。"""
+    st = {"result": "STALE", "finished_at": "2026-09-23T20:31:05+08:00", "topup": topup,
           "topup_reason": "办公室日更 2026-09-23 15 码到齐（等 0 秒）", "breaches": ["b0"]}
     text = nw.build_alert(st, systemd_result="exit-code", now="2026-09-23 20:31:07")
     assert "topup" not in text and "办公室日更" not in text and "护栏：b0" in text
 
 
-@pytest.mark.parametrize("topup", ["OFFICE_LATE", "OFFICE_CHECK_ERROR", "OFFICE_SUSPECT", "OFFICE_ACCEPTED"])
+@pytest.mark.parametrize("topup", ["OFFICE_LATE", "OFFICE_CHECK_ERROR", "OFFICE_SUSPECT", "OFFICE_ACCEPTED",
+                                   "OFFICE_UNCHECKED"])
 def test_alert_keeps_office_problem_topup_line(topup):
     """办公室迟到 / 检查出错照旧出 topup 行：它多半就是护栏落后的原因；同族哨兵拦下的中止（OFFICE_SUSPECT）
     也出——那一行就是中止的原因。"""

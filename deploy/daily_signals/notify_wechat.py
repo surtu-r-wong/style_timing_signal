@@ -155,7 +155,7 @@ def describe(line: Line, as_of: str) -> str:
 #: 出问题时的 ⚠ 行措辞（OFFICE_ACCEPTED = 同族哨兵 CRITICAL 已按 --accept-sentinel 人工放行）；OFFICE_OK 是常态，
 #: 不出 ⚠ 行。
 OFFICE_WARNINGS = {"OFFICE_LATE": "输入未到齐", "OFFICE_CHECK_ERROR": "输入到齐检查出错",
-                   "OFFICE_ACCEPTED": "输入哨兵 CRITICAL 已人工放行"}
+                   "OFFICE_ACCEPTED": "输入哨兵 CRITICAL 已人工放行", "OFFICE_UNCHECKED": "输入哨兵未判定"}
 
 
 def health_lines(status: dict) -> list[str]:
@@ -169,6 +169,8 @@ def health_lines(status: dict) -> list[str]:
         out = [f"topup OK · {guard}"]
     elif topup == "OFFICE_OK":
         out = [f"输入 办公室日更 ✓ · {guard}"]
+    elif topup == "OFFICE_OK_WARN":   # 哨兵只有 WARN（不阻断）：不算出问题，只提示人工看一眼
+        out = [f"输入 办公室日更 ✓ · {guard}", f"ℹ 输入哨兵 WARN（不阻断，建议人工看一眼）：{reason}"]
     else:
         label = OFFICE_WARNINGS.get(topup)
         out = [guard, f"⚠ {label}：{reason}" if label else f"⚠ topup {_v(topup)}：{reason}"]
@@ -375,7 +377,7 @@ def build_alert(status: dict | None, *, systemd_result: str, now: str,
     else:
         lines.append(f"结果 {_v(status.get('result'))} · 失败步骤 {_v(status.get('failed_step'))}"
                      f" · 状态写于 {_v(finished)}")
-        if status.get("topup") not in (None, "OK", "OFFICE_OK"):   # 输入正常（含办公室日更到齐）不提
+        if status.get("topup") not in (None, "OK", "OFFICE_OK", "OFFICE_OK_WARN"):   # 输入正常（含办公室日更到齐）不提
             lines.append(f"topup {status.get('topup')}：{status.get('topup_reason') or '未记原因'}")
         lines += [f"护栏：{b}" for b in (status.get("breaches") or [])[:3]]
         if status.get("upstream_breach"):

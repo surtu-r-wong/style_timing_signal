@@ -7,8 +7,9 @@
 #      【办公室模式】标志文件在（2026-09-23 起的常态）：15 个输入指数由 data_manager 夜间作业
 #        （WSL2 20:00 起跑，约 20:02 结束）写入，本链路**只读、零写入**。跑 wait_for_inputs.py 等
 #        期望信号日的 15 码到齐（每 5 分钟查一次，最迟等到 21:30），到齐后过同族共动性哨兵；结果记
-#        OFFICE_OK / OFFICE_LATE / OFFICE_CHECK_ERROR（照常往下走，用库内已有数据照算，新鲜度由步骤 7
-#        护栏兜底），哨兵 CRITICAL 记 OFFICE_SUSPECT 并**在信号重算之前中止**；人工核实是真实行情后用
+#        OFFICE_OK / OFFICE_OK_WARN / OFFICE_UNCHECKED / OFFICE_LATE / OFFICE_CHECK_ERROR（照常往下走，新鲜度由
+#        步骤 7 护栏兜底），哨兵 CRITICAL 记 OFFICE_SUSPECT 并**在信号重算之前中止**（失败步骤
+#        inputs_check(OFFICE_SUSPECT)）；人工核实是真实行情后用
 #        STYLE_SIGNALS_INPUTS_ARGS="--accept-sentinel <信号日>" 重跑放行，记 OFFICE_ACCEPTED、照常往下走
 #      【topup 模式】标志文件不在（回退用；2026-09-23 前的做法）：保鲜上游 index_daily。
 #        三层保护，原则=不可信响应零写入：
@@ -162,11 +163,14 @@ fi
 # --max-wait 截住）；信号日不是今天（白天重跑、开机补跑、节假日）或已过截止只查一次。到齐后跑同族共动性
 # 哨兵（topup 事后审计的规则 5/6，2026-08-24 起的口径：只判 T、只有 CRITICAL 阻断）。
 # 它末尾的 INPUTS_STATUS / REASON / SENTINEL / SENTINEL_DETAIL 映射成：
-#   哨兵 CRITICAL              → OFFICE_SUSPECT，返回 1 → fail：在信号重算之前中止（数可能脏了），交告警器
-#   OK + 哨兵 CLEAN            → OFFICE_OK
+#   哨兵 CRITICAL              → OFFICE_SUSPECT，返回 1 → fail "inputs_check(...)"：在信号重算之前中止（数可能
+#                                脏了），交告警器
+#   OK + 哨兵 CLEAN（零发现）  → OFFICE_OK
+#   OK + 哨兵 WARN             → OFFICE_OK_WARN（不阻断，推送里一行 ℹ 提示人工看一眼）
 #   OK + 哨兵 ACCEPTED         → OFFICE_ACCEPTED（CRITICAL 已按 --accept-sentinel 人工放行），照常往下走
-#   OK 但缺哨兵结论            → OFFICE_CHECK_ERROR（不放过去当 OFFICE_OK）
-#   LATE / CHECK_ERROR         → OFFICE_LATE / OFFICE_CHECK_ERROR
+#   OK 但哨兵没判成（SKIPPED / 缺行 / 不认识）→ OFFICE_UNCHECKED，照常往下走：本链路不写库，数据归办公室负责、
+#                                它自有重看与覆盖检查；哨兵只是只读复查，复查设施故障不该让当晚没信号
+#   LATE / CHECK_ERROR         → OFFICE_LATE / OFFICE_CHECK_ERROR（CHECK_ERROR 只留给到齐检查本身出错）
 #   没结果 / 结果不认识        → OFFICE_CHECK_ERROR
 # 除 OFFICE_SUSPECT 外都照常往下走：迟到就用库内已有数据照算，新鲜度由步骤 7 护栏兜底，推送里带 ⚠ 行。
 # OFFICE_SUSPECT 的日志给出能照抄的放行命令（带信号日）；放行参数只对那一天生效。
@@ -178,6 +182,8 @@ fi
 office_inputs_stage() {
   local t0=${SECONDS} wait_rc=0 out status day reason sentinel detail
   log "▶ 输入等数（办公室模式；标志文件 SKIP_TOPUP：${OFFICE_FLAG_REASON:-未写原因}）: wait_for_inputs.py ${STYLE_SIGNALS_INPUTS_ARGS:-}"
+  # 链路中途被杀会留下结果副本：超过 60 分钟的清掉（本次运行的还没建；清不掉也不影响链路）
+  find "${LOG_DIR}" -maxdepth 1 -name '.inputs_wait.*' -mmin +60 -delete 2>/dev/null || true
   if ! out="$(mktemp -p "${LOG_DIR}" .inputs_wait.XXXXXX)"; then
     TOPUP_STATUS="OFFICE_CHECK_ERROR"
     TOPUP_REASON="建不了等数结果副本（mktemp -p ${LOG_DIR} 失败），没有等数"
@@ -209,16 +215,24 @@ office_inputs_stage() {
   fi
   case "${status}" in
     OK)
-      if [[ "${sentinel}" == "CLEAN" ]]; then
-        TOPUP_STATUS="OFFICE_OK"
-        TOPUP_REASON="${reason:-未记原因}"
-      elif [[ "${sentinel}" == "ACCEPTED" ]]; then
-        TOPUP_STATUS="OFFICE_ACCEPTED"
-        TOPUP_REASON="${detail:-同族哨兵 CRITICAL 已人工放行（没记明细）}"
-      else
-        TOPUP_STATUS="OFFICE_CHECK_ERROR"
-        TOPUP_REASON="${reason:-未记原因}；缺同族哨兵结论（INPUTS_SENTINEL=${sentinel:-空}）"
-      fi ;;
+      case "${sentinel}" in
+        CLEAN)
+          TOPUP_STATUS="OFFICE_OK"
+          TOPUP_REASON="${reason:-未记原因}" ;;
+        WARN)
+          TOPUP_STATUS="OFFICE_OK_WARN"
+          TOPUP_REASON="${detail:-同族哨兵 WARN（没记明细）}" ;;
+        ACCEPTED)
+          TOPUP_STATUS="OFFICE_ACCEPTED"
+          TOPUP_REASON="${detail:-同族哨兵 CRITICAL 已人工放行（没记明细）}" ;;
+        *)
+          TOPUP_STATUS="OFFICE_UNCHECKED"
+          if [[ "${sentinel}" == "SKIPPED" && -n "${detail}" ]]; then
+            TOPUP_REASON="${detail}"
+          else
+            TOPUP_REASON="等数结果没给出同族哨兵结论（INPUTS_SENTINEL=${sentinel:-空}）；${reason:-未记原因}，本日数据未经同族共动性检查"
+          fi ;;
+      esac ;;
     LATE|CHECK_ERROR)
       TOPUP_STATUS="OFFICE_${status}"
       TOPUP_REASON="${reason:-未记原因}" ;;
@@ -231,8 +245,12 @@ office_inputs_stage() {
   esac
   if [[ "${TOPUP_STATUS}" == "OFFICE_OK" ]]; then
     log "✔ 输入到齐：${TOPUP_REASON}（同族哨兵：${detail:-—}）"
+  elif [[ "${TOPUP_STATUS}" == "OFFICE_OK_WARN" ]]; then
+    log "✔ 输入到齐：${reason:-未记原因}；ℹ 同族哨兵 WARN（不阻断，建议人工看一眼）：${TOPUP_REASON}"
   elif [[ "${TOPUP_STATUS}" == "OFFICE_ACCEPTED" ]]; then
     log "⚠ OFFICE_ACCEPTED: ${TOPUP_REASON} —— 人工放行，照常重算信号"
+  elif [[ "${TOPUP_STATUS}" == "OFFICE_UNCHECKED" ]]; then
+    log "⚠ OFFICE_UNCHECKED: ${TOPUP_REASON} —— 不中止链路，照常重算信号"
   else
     log "⚠ ${TOPUP_STATUS}: ${TOPUP_REASON} —— 不中止链路，用 index_daily 库内已有数据照算；新鲜度由步骤 7 护栏兜底"
   fi
@@ -317,10 +335,11 @@ topup_stage() {
 topup_rc=0
 if [[ "${INPUTS_MODE}" == "office" ]]; then
   office_inputs_stage || topup_rc=$?
+  [[ ${topup_rc} -eq 0 ]] || fail "inputs_check(${TOPUP_STATUS})" 1
 else
   topup_stage || topup_rc=$?
+  [[ ${topup_rc} -eq 0 ]] || fail "topup_audit(${TOPUP_STATUS})" 1
 fi
-[[ ${topup_rc} -eq 0 ]] || fail "topup_audit(${TOPUP_STATUS})" 1
 
 # ── 步骤 1-6：四条信号线（slope20 2026-09-09 加入）+ 推荐持仓（均为全量重算覆写）────────────────────────
 run_step "hybrid20_growth_stability" \
