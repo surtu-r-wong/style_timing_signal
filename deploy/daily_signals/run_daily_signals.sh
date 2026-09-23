@@ -16,6 +16,7 @@
 #   3. signals/citic40d/generate_signal.py
 #   4. signals/equal_weight/generate_signal.py                    （变体A / 生产口径）
 #   5. signals/equal_weight/generate_signal.py --lookback 5 …     （变体B / 参考口径）
+#   5b. signals/slope20/generate_signal.py                        （2026-09-09 第四条生产线）
 #   6. python -m backtest.production        —— 各生产线推荐持仓（口径见 PRODUCTION_MAPPING）+ 参照/现货池文件
 #   7. deploy/daily_signals/check_freshness.py —— 新鲜度护栏 + 状态文件
 #   8. deploy/daily_signals/notify_wechat.py   —— 企业微信推送（护栏通过才推；失败 → 非零退出）
@@ -26,7 +27,7 @@
 #     步骤 1-8 任一失败即整链非零退出。
 #   * 步骤 8 失败（日志 NOTIFY_FAILED）时信号与护栏都已完成、只是没送达：状态文件 result
 #     仍是 OK，原因记在它的 notify 段；照样退出 1，交 OnFailure 告警器——没送达等于没人知道。
-#   * 四个生成脚本都是**全量重算覆写**（非追加），因此断更多日后直接跑即完成补跑。
+#   * 各生成脚本都是**全量重算覆写**（非追加），因此断更多日后直接跑即完成补跑。
 #   * flock 并发锁：已有实例在跑时直接退出 75（EX_TEMPFAIL），不排队；service 配了
 #     SuccessExitStatus=75，撞锁不触发告警（占锁的那个实例会推送）。75 只属于这里：
 #     步骤自己退出 75 时 fail() 改报 1，免得失败被记成成功。

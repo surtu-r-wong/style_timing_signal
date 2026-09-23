@@ -1,10 +1,9 @@
-"""把三条生产信号 + 三份 long-flat 推荐持仓合并导出成一份自包含的信号文件。
+"""把各生产线的信号值 + 推荐持仓合并导出成一份自包含的信号文件。
 
-**为什么要这个工具**：部署口径的信息本来散在六个 CSV 里（三条信号值 + 三份仓位），
-拿去用的时候要自己 join。这里按 `backtest.baseline.SIGNALS` 这份权威注册表把它们
-outer join 成一张宽表，列顺序按 long 段 Sharpe 从高到低（equal_weight 1.616 →
-hybrid20 1.227 → citic40d 1.121，依据 `backtest/output/baseline_metrics.csv` 的
-`kou_jing=blend, window=full, seg=long` 行）。
+**为什么要这个工具**：部署口径的信息本来散在每条生产线各自的信号 CSV 与推荐持仓 CSV 里，
+拿去用的时候要自己 join。这里按 `backtest.baseline.SIGNALS` 这份权威注册表取全部生产线的
+信号列、按 `backtest.production.RECOMMENDED_FILES`（口径见 `PRODUCTION_MAPPING`）取持仓列，
+outer join 成一张宽表。列顺序见下方 `ORDER`，来历写在它的注释里。
 
 **这是快照，不是日更产物**：日更链路（`deploy/daily_signals/run_daily_signals.sh`）
 不生成它，所以信号更新后它会过时。刷新就是重跑本脚本——纯本地读 committed CSV，
@@ -13,23 +12,28 @@ hybrid20 1.227 → citic40d 1.121，依据 `backtest/output/baseline_metrics.csv
     python3 tools/export_combined_signals.py
     python3 tools/export_combined_signals.py --output /path/to/somewhere.csv
 
-导出列（`*_signal` = 部署口径信号、`*_position` = long-flat 仓位 1 持多 / 0 空仓，
-另加两列部署口径之前的原始量，见 `UPSTREAM`）：
+导出列（`*_signal` = 部署口径信号；`*_position` = 该线推荐持仓，照搬 `RECOMMENDED_FILES`：
+对称线 equal_weight / slope20 取 −1 持空 / 0 空仓 / 1 持多，long-flat 线 hybrid20 / citic40d
+取 0 / 1；另加两列部署口径之前的原始量，见 `UPSTREAM`）：
 
     date, equal_weight_signal, equal_weight_signal_raw, equal_weight_position,
+          slope20_signal, slope20_position,
           hybrid20_signal, hybrid20_factor, hybrid20_position,
           citic40d_signal, citic40d_position
 
   * `equal_weight_signal_raw` = 四对等权平均后**未做 5 日平滑**的当天值。平滑会带
-    滞后：2026-08-14 raw +0.4419 vs 平滑后 +0.1970。**部署口径是平滑后那列**。
+    滞后：2026-08-14 raw +0.4666 vs 平滑后 +0.1928（2026-09-23 按 committed CSV 实测）。
+    **部署口径是平滑后那列**。
   * `hybrid20_factor` = 状态机离散化**之前**的连续 tanh(z)（z 窗口 250）。
-  * citic40d 无此类列——它的 `factor_20` 既无平滑也无离散化，本身就是最原始一层。
+  * citic40d / slope20 无此类列——它们的信号列既无平滑也无离散化，本身就是最原始一层。
 
-**三条线的 signal 取值域不同，不要混着比大小**：
+**各线的 signal 取值域不同，不要混着比大小**：
 
   * `equal_weight_signal` 连续 (−1,1)：四对「成长 vs 价值」（沪深300/中证500/1000/2000）
     各算 spread=ln_ret(成长,20)−ln_ret(价值,20) → z=(spread−mean40)/std40 → tanh(z)，
     四对等权平均后再取 **5 日简单移动平均**（变体 A = 生产口径 20/40/5）。
+  * `slope20_signal` 连续 (−1,1)：同样四对，每腿 20 日对数价格 OLS 斜率 → 成长减价值 →
+    z 窗口 120 → tanh(z/2) → 四对等权，**无平滑**（定义见 `signals/slope20/generate_signal.py`）。
   * `citic40d_signal` 连续 (−1,1)：五因子中信风格（成长vs稳定、周期vs消费、金融vs稳定、
     (成长+周期)vs(稳定+消费)、(成长+周期+金融)vs(稳定+消费)）同法 tanh(z) 等权平均，
     z 窗口 40，**无平滑**。
@@ -37,9 +41,9 @@ hybrid20 1.227 → citic40d 1.121，依据 `backtest/output/baseline_metrics.csv
     tanh(z) 先过非对称阈值状态机（开多 >0.35 / 平多 <0.1 / 开空 <−0.15 / 平空 >−0.1，
     带状态保持），再要求空头得到财务面不反对才成立。它不是连续因子值。
 
-三条线起点不同（citic40d 2010-04-02 / hybrid20 2011-04-18 / equal_weight
-2014-01-02，各自 warmup 长度不同），早于某条线起点的行该列留空——**留空是事实，
-不是缺失**，不要 ffill。
+各线起点不同（2026-09-23 按 committed CSV 实测首个非空日：citic40d 2010-04-02 /
+hybrid20 2011-04-18 / equal_weight 与 slope20 2014-01-02），早于某条线起点的行该列
+留空——**留空是事实，不是缺失**，不要 ffill。
 """
 from __future__ import annotations
 
@@ -54,18 +58,22 @@ sys.path.insert(0, str(ROOT))
 
 from backtest.baseline import SIGNALS  # noqa: E402  (需先设好 sys.path)
 
-# 按 long 段 Sharpe 降序（baseline_metrics.csv 的 blend/full/long 行）：
-#   equal_weight 1.6163 > hybrid20 1.2269 > citic40d 1.1213
-# 注意别按 full 段排——那会把 citic40d(0.783) 排到最后而 hybrid20(1.270) 靠前，
-# 名次虽同但判据不是部署口径；部署是 long-flat，故一律看 seg=long。
+# 列顺序只决定导出宽表里各线的排列，不参与任何计算。实际顺序与来历：
+#   * 原三条线（2026-08-17 f928d76 建本工具时）按 long 段 Sharpe 降序：equal_weight 1.6163 >
+#     hybrid20 1.2269 > citic40d 1.1213（`backtest/output/baseline_metrics.csv` 的 blend/full/long
+#     行，该文件最后一次提交是 2026-07-11 f7ad5b1）。当时的理由是「部署口径是 long-flat，故看 seg=long」，
+#     equal_weight 自 2026-09-09 起已是对称口径，这条理由对它不再成立。
+#   * slope20 于 2026-09-09 升线时（fb96394）插在 equal_weight 之后；该提交没写排序依据，
+#     baseline_metrics.csv 也没有 slope20 行，所以它的位置**不代表** Sharpe 名次。
 ORDER = ["equal_weight", "slope20", "hybrid20", "citic40d"]
 # 信号列本身就是整数的线（状态机离散化产物），见模块 docstring 的取值域说明。
 DISCRETE_SIGNALS = {"hybrid20"}
 
 # 每条线在「部署口径」之前的那一层原始量，一并导出方便看当天未加工的读数。
-# ⚠️ 只作参考：回测、Sharpe、long-flat 仓位全部建立在部署口径列上，这些原始列
+# ⚠️ 只作参考：回测、Sharpe、推荐持仓全部建立在部署口径列上，这些原始列
 # 没有经过同一套验证，别拿它们直接做决策。
-# citic40d 不在此列——它的 factor_20 既无平滑也无离散化，本身就是最原始的一层。
+# citic40d / slope20 不在此列——它们的信号列（factor_20 / factor_value）既无平滑也无离散化，
+# 本身就是最原始的一层。
 UPSTREAM = {
     "equal_weight": ("output/equal_weight/equal_weight_signal_20d40z.csv",
                      "factor_value_raw", "equal_weight_signal_raw"),
@@ -87,7 +95,7 @@ def build_combined() -> pd.DataFrame:
     if missing:
         raise RuntimeError(
             f"SIGNALS 注册表新增了 {missing}，但本脚本的 ORDER 没跟上——"
-            f"请补进 ORDER 并核对 long 段 Sharpe 排序")
+            f"请补进 ORDER，并在 ORDER 注释里写明放置位置的来历")
     cols: list[pd.Series] = []
     for name in ORDER:
         rel, column = SIGNALS[name]

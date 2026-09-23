@@ -31,7 +31,7 @@ python3 -m backtest.production
 
 - **① hybrid20 / ② citic40d**：默认 `--source pg`（读中信 5 风格 CI005917–21）。已验证 PG 与 CSV 输出**逐字节一致**。
 - **③ equal_weight**：默认 `--source pg`。已去掉创业板/科创两对（逻辑性存疑），收敛为 沪深300/中证500/中证1000/中证2000 **四对**（`config_4pairs`，起点 2014-01-02）；csv==pg 输出逐字节一致。旧 `config_5pairs`/`config_6pairs`（含创业板/科创）留档待定稿。
-- PG 由 Wind gateway 日更 topup 保鲜（`tools/topup_index_daily.sh`，wsd 额度恢复后接管）；本仓库**只读 PG**，从不直连 gateway。连接配置见 `config/settings.yaml`（gitignored，模板 `config/settings.example.yaml`）。
+- PG 由日更链路第一步 topup 保鲜（2026-08-12 起每工作日 18:30 自动跑）：`tools/topup_index_daily.sh` 调 stock_selector 的 backfill CLI，经 Wind gateway 取 15 个输入码、幂等写 `index_daily`（默认回看 14 天）；调用前由前置闸门 `deploy/daily_signals/topup_guard.py` 只读探网关 `/ping`、`/health`、`/quota` 并查库，存疑就不调用。这是链路里唯一的写库方，其余步骤都不写库（信号脚本与护栏只读 PG，推荐持仓读 committed 信号 CSV）。连接配置见 `config/settings.yaml`（gitignored，模板 `config/settings.example.yaml`，含 `wind_gateway` 段）。
 
 ## 运行（均在仓库根执行）
 
@@ -101,6 +101,7 @@ PG stock_selector.index_daily（默认源）
   ├── 中信5风格 CI005917–21 ──→ signals/hybrid20/  ──→ output/hybrid20/
   │                        └──→ signals/citic40d/ ──→ output/citic40d/
   └── 成长价值4对(300/500/1000/2000) ──→ signals/equal_weight/ ──→ output/equal_weight/
+                                    └──→ signals/slope20/      ──→ output/slope20/
 
 data/  (备份/审计口径，--source csv；不再逐日人工维护)
   ├── 中信风格合并.csv ────────────→ ①② 的 --source csv 回退

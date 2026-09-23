@@ -1,5 +1,5 @@
 [Unit]
-Description=style_timing_signal daily signal chain (3 signals + recommended positions)
+Description=style_timing_signal daily signal chain (signals + recommended positions + WeChat push)
 Documentation=file:///home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/README.md
 # 链路会在 topup 审计判可疑/无法验证时主动中止——中止只有被人知道才安全。
 OnFailure=style-signals-daily-alert.service

@@ -29,12 +29,13 @@ signals/hybrid20/update_confirmed_signal.py    # 步骤 2
 signals/citic40d/generate_signal.py            # 步骤 3
 signals/equal_weight/generate_signal.py        # 步骤 4（变体A / 生产口径 20d40z）
 signals/equal_weight/generate_signal.py …5d20z # 步骤 5（变体B / 参考口径）
-python -m backtest.production                  # 步骤 6 → output/recommended/（equal_weight 自 2026-09-09 起对称 → equal_weight_symmetric.csv；long-flat 文件作参照并行产出）
+signals/slope20/generate_signal.py             # 步骤 5b（2026-09-09 第四条生产线 → slope20_signal_L20zw120.csv）
+python -m backtest.production                  # 步骤 6 → output/recommended/（equal_weight 自 2026-09-09 起对称 → equal_weight_symmetric.csv；long-flat 文件作参照并行产出；slope20 对称 → slope20_symmetric.csv，另出 slope20_longflat.csv = 现货池）
 deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
 deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（护栏通过才推）
 ```
 
-四个生成脚本都是**全量重算覆写**（读 PG 全历史 → `to_csv` 覆盖），不是追加。因此：
+各生成脚本都是**全量重算覆写**（读 PG 全历史 → `to_csv` 覆盖），不是追加。因此：
 断更 N 天后直接跑一次就完成补跑，无需专门的补跑模式；反过来也意味着历史段每天都会被
 重算一遍，历史零变化是可验证的（见下「历史零篡改」）。
 
@@ -65,7 +66,7 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
   而末行仍是 08-14，当晚状态文件报 `max_lag: 0`、`breaches: []` 一片绿。08-13 恰是
   equal_weight 的换仓日（pos 0→1），缺它会让持仓序列错判换仓时点，不是完整性洁癖。
   日历随库内容浮动这点是**有意的**：库里没有的天，产出缺它不算产出的错，命题 2 只在
-  「库有而产出没有」时报警。处置 = 确认上游有数据后重跑本链路（四个生成脚本都是
+  「库有而产出没有」时报警。处置 = 确认上游有数据后重跑本链路（各生成脚本都是
   `--source pg` 全量重算覆写，跑一次即补齐）。
 - **PG 只读**：护栏与信号脚本都只读 `stock_selector.index_daily`；链路里唯一的写库方是
   步骤 0 的 `tools/topup_index_daily.sh`（stock_selector 的 backfill CLI，幂等 upsert）。
@@ -82,6 +83,16 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
   ```
 
   宁可长假多报一次假警（一条窗口登记即可消音），也不要在上游真冻结时保持沉默。
+
+  **「上游」有两个写入方**（2026-09-23 核实）：护栏日历 = `signals/common/index_codes.csv` 全部 19 码在
+  `index_daily` 里的 distinct trade_date（`check_freshness.py` 的 `load_calendar()`）。其中 15 码由本链路
+  topup 在 18:30 写；932400~932403 四个纯风格码 2026-09-21 起由数据管理办公室 20:00 夜间作业
+  （stock_selector `scripts/relay_backfill/nightly_wss.sh`）每晚约 20:01 写，此前靠不定期补录。两边取指数
+  都走网关的 wsd `/fetch/index_daily`，吃同一个 Wind WSD 额度池。所以「没取到数」有两种表现：
+  - 仅 topup 失败 → 日历照样被夜间作业推进，产出逐日落后；落后超过 `--max-lag`（默认 1，按 18:30
+    准点跑即连续失败的第 3 晚）报 `STALE`，不推 + 告警。
+  - 两边都没取到（WSD 额度耗尽 / 网关不可达）→ 日历冻结，「产出 vs 上游」恒为 0 落后，护栏照报 OK，
+    直到上游距今 > 7 个自然日才报 `UPSTREAM_STALE`。两种形态在群里的样子见下「失败形态」表。
 - **上游缺口（`UPSTREAM_GAP`，只 WARN 不参与退出码）**：上游冻结护栏只盯最新交易日，
   **库内中间缺天它也看不见**（这就是 08-12/13 的上游侧剧本，记忆里 collector 的
   「回填缝隙」模式）。所以再加一条：近 15 个工作日内、排除已知假期窗口后，
@@ -89,6 +100,9 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
   `upstream.gaps` 字段。**为什么这条不参与退出码**（与上一条不同）：按工作日推算必然把
   调休放假的工作日误判成缺口，且本项目对上游缺口没有处置权——08-12/13 就是上游自己
   在 08-17 11:25 回填补上的，我们能做的只是「看见」，并在下次重算时把产出补齐。
+  〔2026-09-23 现状注〕「没有处置权」已不确切：15 个输入码现由本链路 topup 自采、每晚回看 14 个自然日，
+  短缺口下一轮自愈，更早的缺口用 `tools/topup_index_daily.sh <start>` 补；纯风格 4 码由 20:00 夜间作业写。
+  只 WARN 不参与退出码的理由仍成立：按工作日推算会把调休日误判成缺口。
   回看窗口用 `--upstream-gap-lookback N` 调（`0` = 关闭）。
 - **失败告警**：主 service 的 `OnFailure=` 会拉起 `style-signals-daily-alert.service`，
   写 `logs/ALERT_daily_signals`（时间 + `status.json` 摘要（含 `notify` 段）+ 日志路径 + 处置指引），
@@ -254,7 +268,8 @@ runner 对推送调用限时 120 秒、再宽限 10 秒强杀（`timeout -k 10 1
 | 机器没开 | `Persistent=true` 开机补跑，照推；首行注明「今天 X」 |
 | 工作日休市（国庆等） | 链路照跑、信号日不变，照推并注明「今天 X」——静默不等于成功 |
 | topup 降级/跳过 | 照推，附 ⚠ topup 行 |
-| topup 失败（DEGRADED）且上游停更未超 7 天 | 护栏照报 OK、照推，但首行显示「信号日 X（今天 Y）」并带「⚠ topup DEGRADED」行——2026-09-14/15 Wind 日额度耗尽两晚就是这个形态，以前没人看得见（超过 7 天由上游冻结护栏判 `UPSTREAM_STALE`，转为不推 + 告警） |
+| 仅 topup 失败（DEGRADED），20:00 夜间作业照常写纯风格 4 码（2026-09-21 起的常态） | 日历仍被夜间作业推进，产出逐日落后：前两晚落后 0 / 1 个交易日，护栏照报 OK、照推，首行「信号日 X（今天 Y）」并带「⚠ topup DEGRADED」行；连续失败的第 3 晚落后 2 > `max_lag` 1 → `STALE`，**不推持仓** + `OnFailure` 告警（见上「上游冻结护栏」的两写入方说明） |
+| topup 与夜间作业都没取到（同一个 Wind WSD 额度池耗尽 / 网关不可达） | 日历冻结，护栏照报 OK、照推，但首行显示「信号日 X（今天 Y）」并带「⚠ topup DEGRADED」行——2026-09-14/15 Wind 日额度耗尽两晚就是这个形态（那时夜间作业还没写纯风格码），以前没人看得见（超过 7 天由上游冻结护栏判 `UPSTREAM_STALE`，转为不推 + 告警） |
 | 上游近窗缺口（只 WARN） | 照推，附 ⚠ 上游缺口行 |
 | 护栏未过 / 任一步失败 / 审计可疑 | **不推持仓**；`OnFailure` → 告警文件 + 失败通知 |
 | 推送对象未经护栏担保 | 拒推，exit 1 → `OnFailure` |
