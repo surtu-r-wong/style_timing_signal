@@ -2,11 +2,14 @@
 import http.client
 import importlib.util
 import json
+import os
+import re
 import ssl
 import subprocess
 import sys
 import threading
 import urllib.error
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -29,7 +32,25 @@ def _load():
 
 nw = _load()
 
-DATES = ["2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22"]
+
+@pytest.fixture(autouse=True)
+def _no_real_webhook(tmp_path, monkeypatch):
+    """隔离真实 webhook：默认 env 文件指向不存在的路径、清掉环境变量；要桩 URL 的用例在自身里再 setenv。"""
+    monkeypatch.setattr(nw, "DEFAULT_ENV_FILE", tmp_path / "no-such.env")
+    monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
+
+
+def test_env_file_default_is_read_at_call_time(tmp_path):
+    """--env-file 的默认值必须在调用时读 DEFAULT_ENV_FILE，上面的隔离 fixture 才真的生效。"""
+    assert nw.build_parser().parse_args([]).env_file == str(tmp_path / "no-such.env")
+
+
+def _today_iso() -> str:
+    """与 run_alert 同一个时钟：告警把「不是今天写的」状态文件当作上一次运行留下的。"""
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+DATES =["2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22"]
 # 推荐持仓（文件 → 5 天持仓）与信号值（信号线 → 末日值）；路径一律从映射取，不在测试里拼。
 POSITIONS = {
     ("equal_weight", "symmetric"): [-1, 1, 1, 1, 1],   # 期货池：09-17 起持多第 4 日
@@ -141,12 +162,105 @@ def test_refuses_file_changed_after_guard(tmp_path):
         nw.compose_message(tmp_path, st, today="2026-09-22")
 
 
+def test_refuses_file_rolled_back_after_guard(tmp_path):
+    """反方向：护栏核验时末行 09-22，推送时文件末行退回 09-21（被旧版本覆盖）。"""
+    st = make_tree(tmp_path, drop_last=("equal_weight", "symmetric"))
+    st["files"]["equal_weight_symmetric"]["last_date"] = "2026-09-22"
+    with pytest.raises(nw.Refused, match="末行 2026-09-21 与护栏核验时的 2026-09-22 不一致"):
+        nw.compose_message(tmp_path, st, today="2026-09-22")
+
+
+def test_refuses_reference_line_not_vouched(tmp_path):
+    """担保校验不只管两池：参考行同样必须是护栏对象。"""
+    st = make_tree(tmp_path)
+    st["files"]["citic40d_longflat"]["gated"] = False
+    with pytest.raises(nw.Refused, match="citic40d_longflat.csv 不是护栏对象"):
+        nw.compose_message(tmp_path, st, today="2026-09-22")
+
+
+def test_refuses_reference_line_changed_after_guard(tmp_path):
+    st = make_tree(tmp_path)
+    st["files"]["hybrid20_longflat"]["last_date"] = "2026-09-21"
+    with pytest.raises(nw.Refused, match="hybrid20_longflat.csv 末行 2026-09-22"):
+        nw.compose_message(tmp_path, st, today="2026-09-22")
+
+
+def test_fractional_position_is_not_truncated(tmp_path):
+    """分数仓位原样显示，不能被截成 0（int(float("-0.5")) == 0 会把持空报成空仓）。"""
+    st = make_tree(tmp_path)
+    rel = st["files"]["equal_weight_symmetric"]["path"]
+    _write_csv(tmp_path / rel, ["date", "position"],
+               [[d, p] for d, p in zip(DATES, [-1, 1, 1, -0.5, -0.5])])
+    _, _, lines = compose(tmp_path, status=st)
+    assert lines[1] == "【期货池】equal_weight 对称：持空 -0.5（09-21 起第 2 日）信号值 0.2784"
+
+
+def test_non_finite_position_is_refused(tmp_path):
+    """nan/inf 持仓拒推——既不能当成「空仓 0」发出去，也不能漏成裸异常。"""
+    st = make_tree(tmp_path)
+    rel = st["files"]["equal_weight_symmetric"]["path"]
+    _write_csv(tmp_path / rel, ["date", "position"],
+               [[d, p] for d, p in zip(DATES, [-1, 1, 1, 1, "nan"])])
+    with pytest.raises(nw.Refused, match="equal_weight_symmetric.csv"):
+        nw.compose_message(tmp_path, st, today="2026-09-22")
+
+
+def test_missing_signal_value_shows_dash(tmp_path):
+    st = make_tree(tmp_path)
+    from backtest.baseline import SIGNALS
+    rel, col = SIGNALS["citic40d"]
+    _write_csv(tmp_path / rel, ["date", col], [[d, "0.1"] for d in DATES[:-1]])   # 信号文件缺 09-22
+    _, _, lines = compose(tmp_path, status=st)
+    assert "  citic40d long-flat：持多 +1（09-16 起第 5 日）信号值 —" in lines
+
+
+def test_upstream_gaps_beyond_five_are_elided(tmp_path):
+    st = make_tree(tmp_path)
+    st["upstream"]["gaps"] = [f"2026-09-0{i}" for i in range(1, 8)]
+    _, _, lines = compose(tmp_path, status=st)
+    assert lines[-1] == "⚠ 上游缺 7 天：2026-09-01、2026-09-02、2026-09-03、2026-09-04、2026-09-05 等"
+
+
+def test_blank_trailing_rows_are_ignored(tmp_path):
+    """date 为空/纯空白的行跳过（与护栏 dates_of 口径一致），不能把末尾空白行当持仓。"""
+    from backtest.baseline import SIGNALS
+    st = make_tree(tmp_path)
+    for rel in (st["files"]["equal_weight_symmetric"]["path"], SIGNALS["equal_weight"][0]):
+        path = tmp_path / rel
+        path.write_text(path.read_text(encoding="utf-8") + "\n   \n", encoding="utf-8")
+    _, _, lines = compose(tmp_path, status=st)
+    assert lines[1] == "【期货池】equal_weight 对称：持多 +1（09-17 起第 4 日）信号值 0.2784"
+
+
+def test_missing_status_fields_show_dash_not_none(tmp_path):
+    st = make_tree(tmp_path)
+    del st["max_lag_trading_days"], st["output_gap_total"], st["topup"]
+    _, _, lines = compose(tmp_path, status=st)
+    assert lines[-2:] == ["护栏 OK（最大落后 — 交易日 · 缺口 —）", "⚠ topup —：未记原因"]
+
+
 def test_truncate_keeps_head_and_says_how_many_dropped():
-    text = "\n".join(["头一行"] + [f"第 {i} 行 " + "长" * 40 for i in range(60)])
-    out = nw.truncate_text(text, limit=2048, note="见日志")
+    src = ["头一行"] + [f"第 {i} 行 " + "长" * 40 for i in range(60)]
+    out = nw.truncate_text("\n".join(src), limit=2048, note="见日志")
     assert len(out.encode("utf-8")) <= 2048
     assert out.startswith("头一行\n第 0 行")
     assert out.endswith("行，见日志）") and "还有" in out
+    kept = out.split("\n")[:-1]
+    assert kept == src[:len(kept)]
+    assert re.search(r"还有 (\d+) 行", out).group(1) == str(len(src) - len(kept))
+
+
+def test_truncate_counts_bytes_not_characters():
+    text = "\n".join(["汉" * 100] * 8)          # 800 个汉字：2400+ 字节，却不到 2048 个字符
+    assert len(text) < 2048 < len(text.encode("utf-8"))
+    out = nw.truncate_text(text, limit=2048)
+    assert out != text and len(out.encode("utf-8")) <= 2048
+
+
+def test_truncate_leaves_exactly_limit_bytes_alone():
+    text = "汉" * 682 + "ab"                    # 2046 + 2 = 恰好 2048 字节
+    assert len(text.encode("utf-8")) == 2048
+    assert nw.truncate_text(text, limit=2048) == text
 
 
 def test_real_message_fits_wechat_limit(tmp_path):
@@ -178,6 +292,7 @@ def stub():
     state["url"] = f"http://127.0.0.1:{server.server_port}/cgi-bin/webhook/send?key=TESTKEY123"
     yield state
     server.shutdown()
+    server.server_close()
 
 
 def test_send_posts_text_message_and_bypasses_proxy(stub, monkeypatch):
@@ -269,6 +384,43 @@ def test_send_wraps_ssl_error_as_send_error():
     assert opener.calls == 2
 
 
+@pytest.mark.parametrize("reply", [{}, [], {"errmsg": "ok"}])
+def test_send_fails_closed_unless_errcode_is_zero(stub, reply):
+    """回包必须是对象且 errcode 恰为 0 才算送达；{} / 非对象 / 缺 errcode 一律当失败。"""
+    stub["reply"] = reply
+    with pytest.raises(nw.SendError):
+        nw.send_text(stub["url"], "x", wait=0)
+
+
+BAD_URL = "qyapi.example.invalid/cgi-bin/webhook/send?key=FAKEKEY9ZZ"   # 缺 scheme：Request() 抛 ValueError
+
+
+def test_send_rejects_invalid_url_without_leaking_or_retrying():
+    """URL 本身不合法：报错原文带整条 URL（含 key），必须收成抹过的 SendError，且不重试。"""
+    opener = _ScriptedOpener()
+    with pytest.raises(nw.SendError, match="webhook URL 无效") as exc:
+        nw.send_text(BAD_URL, "x", wait=0, opener=opener)
+    assert "FAKEKEY9ZZ" not in str(exc.value) and exc.value.__suppress_context__
+    assert opener.calls == 0
+
+
+def test_send_error_scrubs_key_from_http_client_messages():
+    """http.client 的报错只带「路径+查询串」而非整条 URL：靠抹 key 值兜住。"""
+    url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=SECRETKEY42"
+    err = http.client.InvalidURL("URL can't contain control characters. "
+                                 "'/cgi-bin/webhook/send?key=SECRETKEY42' (found at least ' ')")
+    opener = _ScriptedOpener(err, err)
+    with pytest.raises(nw.SendError) as exc:
+        nw.send_text(url, "x", wait=0, opener=opener)
+    assert "SECRETKEY42" not in str(exc.value) and opener.calls == 2
+
+
+def test_scrub_masks_key_params_even_without_url():
+    """url 为空（还没解析出来就出错）也要兜底抹掉任何 key=…。"""
+    assert (nw._scrub("x key=SECRETKEY42&y=1 'key=ABC' key=", "")
+            == "x key=<key>&y=1 'key=<key>' key=")
+
+
 def test_webhook_from_env_file_and_env_var_precedence(tmp_path, monkeypatch):
     env = tmp_path / "alert.env"
     env.write_text("# 注释\n\nexport OTHER=1\nALERT_WEBHOOK_URL='https://example.invalid/x?key=abc'\n",
@@ -312,18 +464,59 @@ def test_dry_run_prints_sends_nothing_and_leaves_status_alone(tmp_path, monkeypa
     p = _status_file(tmp_path, make_tree(tmp_path))
     before = p.read_bytes()
     assert nw.main(_argv(tmp_path, p, "--dry-run")) == 0
-    assert "风格择时 信号日 2026-09-22｜链路 OK" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "风格择时 信号日 2026-09-22｜链路 OK" in out
+    assert out.rstrip("\n").endswith("（--dry-run：未发送，未写状态文件；webhook 未配置）")
     assert p.read_bytes() == before
+
+
+def test_dry_run_reports_webhook_configured_without_leaking(tmp_path, monkeypatch, stub, capsys):
+    """dry-run 只报「已配置/未配置」这个布尔，便于核对配置而不暴露密钥。"""
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
+    p = _status_file(tmp_path, make_tree(tmp_path))
+    assert nw.main(_argv(tmp_path, p, "--dry-run")) == 0
+    out = capsys.readouterr().out
+    assert "（--dry-run：未发送，未写状态文件；webhook 已配置）" in out
+    assert "TESTKEY123" not in out and stub["bodies"] == []
 
 
 def test_push_sends_and_records_notify_block(tmp_path, monkeypatch, stub):
     monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
     p = _status_file(tmp_path, make_tree(tmp_path))
     assert nw.main(_argv(tmp_path, p)) == 0
-    assert stub["bodies"][0]["text"]["content"].startswith("风格择时 信号日 2026-09-22")
+    content = stub["bodies"][0]["text"]["content"]
+    assert content.startswith("风格择时 信号日 2026-09-22")
     st = json.loads(p.read_text(encoding="utf-8"))
     assert st["notify"]["sent"] is True and st["notify"]["as_of"] == "2026-09-22"
     assert st["notify"]["error"] is None and st["result"] == "OK" and "files" in st
+    assert st["notify"]["bytes"] == len(content.encode("utf-8"))
+
+
+def test_push_with_schemeless_webhook_never_leaks_key(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", BAD_URL)
+    p = _status_file(tmp_path, make_tree(tmp_path))
+    assert nw.main(_argv(tmp_path, p)) == 1
+    out, err = capsys.readouterr()
+    assert "FAKEKEY9ZZ" not in out + err and "SEND_FAILED: webhook URL 无效" in err
+    assert "FAKEKEY9ZZ" not in p.read_text(encoding="utf-8")
+    assert "webhook URL 无效" in json.loads(p.read_text(encoding="utf-8"))["notify"]["error"]
+
+
+def test_record_notify_uses_hidden_temp_and_cleans_up_on_failure(tmp_path, monkeypatch):
+    p = _status_file(tmp_path, {"result": "OK"})
+    before = p.read_bytes()
+    seen = []
+
+    def failing_replace(src, dst):
+        seen.append(Path(src).name)
+        raise OSError("disk full")
+
+    monkeypatch.setattr(nw.os, "replace", failing_replace)
+    with pytest.raises(OSError):
+        nw.record_notify(p, {"sent": True})
+    assert seen == [".daily_signals_status.json.tmp"]
+    assert [x.name for x in p.parent.iterdir()] == ["daily_signals_status.json"]
+    assert p.read_bytes() == before
 
 
 def test_push_without_webhook_fails_and_records(tmp_path, monkeypatch):
@@ -365,8 +558,8 @@ def test_push_refused_by_vouching_is_recorded(tmp_path, monkeypatch, stub):
     assert stub["bodies"] == []
 
 
-def test_push_unexpected_error_is_recorded_scrubbed_and_reraised(tmp_path, monkeypatch, stub):
-    """Refused/SendError 以外的异常：照样记账（类型名 + 抹掉 URL），然后原样抛出。"""
+def test_push_unexpected_error_is_recorded_and_traceback_scrubbed(tmp_path, monkeypatch, stub, capsys):
+    """Refused/SendError 以外的异常：记账（类型名 + 抹掉 URL）；main 打出抹过密钥的堆栈并返回 1。"""
     monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
 
     def boom(url, text, **kw):
@@ -374,8 +567,9 @@ def test_push_unexpected_error_is_recorded_scrubbed_and_reraised(tmp_path, monke
 
     monkeypatch.setattr(nw, "send_text", boom)
     p = _status_file(tmp_path, make_tree(tmp_path))
-    with pytest.raises(ValueError):
-        nw.main(_argv(tmp_path, p))
+    assert nw.main(_argv(tmp_path, p)) == 1
+    err = capsys.readouterr().err
+    assert "Traceback" in err and "ValueError: boom <webhook>" in err and "TESTKEY123" not in err
     notify = json.loads(p.read_text(encoding="utf-8"))["notify"]
     assert notify["sent"] is False and notify["error"] == "ValueError: boom <webhook>"
     assert stub["bodies"] == []
@@ -435,21 +629,83 @@ def test_alert_reports_notify_error_instead():
     assert "状态文件没记下失败原因" not in text
 
 
+def test_alert_shows_upstream_breach_and_check_error():
+    upstream = {"result": "UPSTREAM_STALE", "finished_at": "2026-09-23T18:31:05+08:00", "topup": "OK",
+                "upstream_breach": "上游 index_daily 最新交易日 2026-09-10 距今 13 个自然日 > 7"}
+    lines = nw.build_alert(upstream, systemd_result="exit-code", now=NOW).split("\n")
+    assert "上游：上游 index_daily 最新交易日 2026-09-10 距今 13 个自然日 > 7" in lines
+    check_error = {"result": "CHECK_ERROR", "finished_at": "2026-09-23T18:31:05+08:00",
+                   "topup": "OK", "error": "OperationalError: could not connect"}
+    lines = nw.build_alert(check_error, systemd_result="exit-code", now=NOW).split("\n")
+    assert "检查出错：OperationalError: could not connect" in lines
+
+
+def test_alert_does_not_blame_stale_status_file():
+    """状态文件不是今天写的 = 上一次运行留下的：只说这一句，不把旧原因安到这次头上。"""
+    st = {"result": "STALE", "failed_step": "citic40d", "finished_at": "2026-09-22T18:31:05+08:00",
+          "topup": "SUSPECT", "topup_reason": "旧原因", "breaches": ["旧 breach"],
+          "upstream_breach": "旧上游", "error": "旧错误", "notify": {"sent": False, "error": "旧推送错误"}}
+    text = nw.build_alert(st, systemd_result="timeout", now=NOW)
+    assert text.split("\n") == [
+        "⚠ 风格择时日更链失败｜2026-09-23 18:31:07",
+        "状态文件停在 2026-09-22T18:31:05+08:00，不是本次运行写的——本次在写状态前就死了（看 systemd Result）",
+        "systemd Result=timeout",
+        "持仓未更新/未送达，以上一次推送为准；处置见 logs/ALERT_daily_signals",
+    ]
+
+
+def test_alert_missing_fields_show_dash_not_none():
+    text = nw.build_alert({"failed_step": "citic40d"}, systemd_result="", now=NOW)
+    assert "结果 — · 失败步骤 citic40d · 状态写于 —" in text and "None" not in text
+
+
 def test_alert_cli_sends(tmp_path, monkeypatch, stub):
     monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
-    p = _status_file(tmp_path, {"result": "STALE", "finished_at": "x", "topup": "OK",
+    p = _status_file(tmp_path, {"result": "STALE", "finished_at": _today_iso(), "topup": "OK",
                                 "breaches": ["recommended_slope20 落后 2 交易日"]})
     assert nw.main(["--alert", "--status-file", str(p), "--env-file", str(tmp_path / "x.env"),
                     "--systemd-result", "exit-code"]) == 0
     assert "护栏：recommended_slope20 落后 2 交易日" in stub["bodies"][0]["text"]["content"]
 
 
+def test_alert_with_schemeless_webhook_never_leaks_key(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", BAD_URL)
+    p = _status_file(tmp_path, {"result": "FAILED", "failed_step": "citic40d", "finished_at": _today_iso()})
+    before = p.read_bytes()
+    assert nw.main(["--alert", "--status-file", str(p), "--systemd-result", "exit-code"]) == 1
+    out, err = capsys.readouterr()
+    assert "FAKEKEY9ZZ" not in out + err and "SEND_FAILED: webhook URL 无效" in err
+    assert p.read_bytes() == before                      # 告警模式从不写状态文件
+
+
+def test_alert_without_webhook_fails(tmp_path, capsys):
+    p = _status_file(tmp_path, {"result": "FAILED", "failed_step": "citic40d", "finished_at": _today_iso()})
+    assert nw.main(["--alert", "--status-file", str(p)]) == 1
+    assert "REFUSED" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("content", ['{"result": "OK", "fil', "null", "[]"])
+def test_alert_dry_run_survives_broken_status_file(tmp_path, capsys, content):
+    """告警器的职责是永远能报：截断的 JSON、合法但不是对象的 JSON 都按「无法解析」报出去。"""
+    p = tmp_path / "status.json"
+    p.write_text(content, encoding="utf-8")
+    assert nw.main(["--alert", "--dry-run", "--status-file", str(p)]) == 0
+    out = capsys.readouterr().out
+    assert "状态文件缺失或无法解析" in out
+    assert out.rstrip("\n").endswith("（--dry-run：未发送，未写状态文件；webhook 未配置）")
+
+
 def test_alert_mode_never_imports_pandas(tmp_path):
-    """科学栈坏了也得能报警：把 pandas 设成不可导入，--alert 仍须跑通。"""
+    """科学栈坏了也得能报警：pandas / numpy / backtest 都不可导入，--alert 仍须跑通。
+    子进程与真实 webhook 隔离：--env-file 指向不存在的文件，环境里去掉 ALERT_WEBHOOK_URL、HOME 指到 tmp。"""
     p = _status_file(tmp_path, {"result": "FAILED", "failed_step": "citic40d"})
-    code = ("import sys, runpy; sys.modules['pandas'] = None; "
-            f"sys.argv = ['notify_wechat.py', '--alert', '--dry-run', '--status-file', {str(p)!r}]; "
+    code = ("import sys, runpy; "
+            "sys.modules['pandas'] = None; sys.modules['numpy'] = None; sys.modules['backtest'] = None; "
+            f"sys.argv = ['notify_wechat.py', '--alert', '--dry-run', '--status-file', {str(p)!r}, "
+            f"'--env-file', {str(tmp_path / 'none.env')!r}]; "
             f"runpy.run_path({str(NOTIFY_PATH)!r}, run_name='__main__')")
-    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    env = {k: v for k, v in os.environ.items() if k != "ALERT_WEBHOOK_URL"}
+    env["HOME"] = str(tmp_path)
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
     assert proc.returncode == 0, proc.stderr
-    assert "失败步骤 citic40d" in proc.stdout
+    assert "失败步骤 citic40d" in proc.stdout and "webhook 未配置" in proc.stdout

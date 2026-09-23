@@ -22,10 +22,12 @@ import argparse
 import csv
 import http.client
 import json
+import math
 import os
 import re
 import sys
 import time
+import traceback
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -37,7 +39,6 @@ sys.path.insert(0, str(ROOT))
 
 #: 企业微信 text 消息超过这么多 UTF-8 字节会被整条拒收，不是截断。
 WECHAT_TEXT_LIMIT = 2048
-POSITION_LABELS = {1: "持多 +1", 0: "空仓 0", -1: "持空 -1"}
 MAPPING_LABELS = {"symmetric": "对称", "longflat": "long-flat"}
 LOG_NOTE = "全文见当日运行日志"
 WEBHOOK_ENV = "ALERT_WEBHOOK_URL"
@@ -51,28 +52,47 @@ class Refused(RuntimeError):
     """不该推（护栏未过 / 推送对象未经护栏担保 / 没配 webhook）。"""
 
 
+def _v(value) -> str:
+    """状态文件缺字段（None / 空串）时显示「—」，不显示 None。"""
+    return "—" if value is None or value == "" else str(value)
+
+
+def position_label(v: float) -> str:
+    """持仓标签：1.0→持多 +1、-1.0→持空 -1、-0.5→持空 -0.5、0→空仓 0（分数仓位原样，不截断）。"""
+    if v > 0:
+        return f"持多 {v:+g}"
+    if v < 0:
+        return f"持空 {v:+g}"
+    return "空仓 0"
+
+
 @dataclass
 class Line:
     name: str          # 信号线
     mapping: str       # symmetric / longflat
     rel_path: str      # 推荐持仓文件（仓库相对路径）
     last_date: str
-    position: int
+    position: float
     run_start: str     # 当前这段持仓的起始日
     run_days: int
-    prev: int | None   # 上一段持仓；序列从头就是这一段时为 None
+    prev: float | None  # 上一段持仓；序列从头就是这一段时为 None
     value: str | None  # 信号值（SIGNALS 的列，信号日当天，原样字符串）
 
 
 def _read_column(path: Path, col: str) -> list[tuple[str, str]]:
+    """(date, 列值) 逐行；date 为空或纯空白的行跳过（与护栏 dates_of 的口径一致）。"""
     with path.open(encoding="utf-8", newline="") as fh:
-        return [(row["date"], row[col]) for row in csv.DictReader(fh)]
+        return [(row["date"].strip(), row[col]) for row in csv.DictReader(fh)
+                if (row.get("date") or "").strip()]
 
 
 def _load_line(root: Path, name: str, mapping: str, rel_path: str, signals: dict) -> Line:
-    rows = [(d, int(float(v))) for d, v in _read_column(root / rel_path, "position")]
+    rows = [(d, float(v)) for d, v in _read_column(root / rel_path, "position")]
     if not rows:
         raise Refused(f"{rel_path} 是空文件")
+    bad = next(((d, p) for d, p in rows if not math.isfinite(p)), None)
+    if bad:
+        raise Refused(f"{rel_path} 在 {bad[0]} 的持仓是 {bad[1]}，不是有限数，不推")
     last_date, pos = rows[-1]
     i = len(rows) - 1
     while i > 0 and rows[i - 1][1] == pos:
@@ -98,7 +118,7 @@ def collect_lines(root: Path) -> tuple[list[tuple[str, Line]], list[Line]]:
 def check_vouched(status: dict, lines: list[Line]) -> None:
     """只推护栏担保过的东西：result=OK，且每份文件 gated 且末行与护栏核验时一致。"""
     if status.get("result") != "OK":
-        raise Refused(f"护栏结果是 {status.get('result')}，不推持仓")
+        raise Refused(f"护栏结果是 {_v(status.get('result'))}，不推持仓")
     vouched = {f.get("path"): f.get("last_date")
                for f in (status.get("files") or {}).values() if f.get("gated")}
     for line in lines:
@@ -106,7 +126,7 @@ def check_vouched(status: dict, lines: list[Line]) -> None:
             raise Refused(f"{line.rel_path} 不是护栏对象，不推")
         if vouched[line.rel_path] != line.last_date:
             raise Refused(f"{line.rel_path} 末行 {line.last_date} 与护栏核验时的 "
-                          f"{vouched[line.rel_path]} 不一致（护栏之后文件又被改过），不推")
+                          f"{_v(vouched[line.rel_path])} 不一致（护栏之后文件又被改过），不推")
 
 
 def _short(day: str, ref: str) -> str:
@@ -114,9 +134,9 @@ def _short(day: str, ref: str) -> str:
 
 
 def describe(line: Line, as_of: str) -> str:
-    pos = POSITION_LABELS.get(line.position, str(line.position))
+    pos = position_label(line.position)
     if line.run_days == 1 and line.prev is not None:
-        body = f"⚡翻仓 {POSITION_LABELS.get(line.prev, str(line.prev))} → {pos}"
+        body = f"⚡翻仓 {position_label(line.prev)} → {pos}"
     else:
         body = f"{pos}（{_short(line.run_start, as_of)} 起第 {line.run_days} 日）"
     lag = f"（末行 {_short(line.last_date, as_of)}）" if line.last_date != as_of else ""
@@ -127,12 +147,12 @@ def describe(line: Line, as_of: str) -> str:
 
 
 def health_lines(status: dict) -> list[str]:
-    guard = (f"护栏 OK（最大落后 {status.get('max_lag_trading_days')} 交易日 · "
-             f"缺口 {status.get('output_gap_total')}）")
+    guard = (f"护栏 OK（最大落后 {_v(status.get('max_lag_trading_days'))} 交易日 · "
+             f"缺口 {_v(status.get('output_gap_total'))}）")
     topup = status.get("topup")
     out = [f"topup OK · {guard}" if topup == "OK" else guard]
     if topup != "OK":
-        out.append(f"⚠ topup {topup}：{status.get('topup_reason') or '未记原因'}")
+        out.append(f"⚠ topup {_v(topup)}：{status.get('topup_reason') or '未记原因'}")
     gaps = (status.get("upstream") or {}).get("gaps") or []
     if gaps:
         more = " 等" if len(gaps) > 5 else ""
@@ -211,21 +231,36 @@ def resolve_webhook(env_file: Path) -> str:
     return os.environ.get(WEBHOOK_ENV) or load_env_file(env_file).get(WEBHOOK_ENV, "")
 
 
-def _scrub(text: str, url: str) -> str:
-    """报错文本里抹掉 URL 与 key——它们会进日志、告警文件和状态文件。"""
-    out = text.replace(url, "<webhook>")
-    key = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query).get("key", [""])[0]
-    return out.replace(key, "<key>") if key else out
+_KEY_PARAM = re.compile(r"key=[^&\s'\"]+")
+
+
+def _scrub(text: str, url: str = "") -> str:
+    """报错文本里抹掉 URL 与 key——它们会进日志、告警文件和状态文件。
+
+    先替换整条 URL 与 key 值；再兜底抹掉任何 `key=<值>`——url 为空（还没解析出来就出错），
+    或报错只带「路径+查询串」而非整条 URL（http.client 的 InvalidURL 等）时也生效。
+    """
+    out = text
+    if url:
+        out = out.replace(url, "<webhook>")
+        key = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query).get("key", [""])[0]
+        if key:
+            out = out.replace(key, "<key>")
+    return _KEY_PARAM.sub("key=<key>", out)
 
 
 def send_text(url: str, text: str, *, timeout: float = SEND_TIMEOUT, retries: int = 1,
               wait: float = RETRY_WAIT, opener=None) -> None:
-    """发一条 text 消息。显式绕代理；网络层错误重试 retries 次；errcode≠0 不重试。"""
+    """发一条 text 消息。显式绕代理；网络层错误重试 retries 次；URL 无效与 errcode≠0 不重试。"""
     body = json.dumps({"msgtype": "text", "text": {"content": text}},
                       ensure_ascii=False).encode("utf-8")
     opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    for attempt in range(retries + 1):
+    try:
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    except ValueError as exc:
+        # URL 本身不合法（如缺 scheme）：报错原文带整条 URL（含 key）；属配置问题，不重试
+        raise SendError(f"webhook URL 无效：{_scrub(str(exc), url)}") from None
+    for attempt in range(retries + 1):
         try:
             with opener.open(req, timeout=timeout) as resp:
                 raw = resp.read()
@@ -240,38 +275,56 @@ def send_text(url: str, text: str, *, timeout: float = SEND_TIMEOUT, retries: in
         reply = json.loads(raw.decode("utf-8"))
     except ValueError:
         raise SendError(f"回包不是 JSON：{_scrub(raw[:200].decode('utf-8', 'replace'), url)}") from None
-    if reply.get("errcode", 0) != 0:
-        raise SendError(_scrub(f"企业微信拒收：errcode={reply.get('errcode')} "
-                               f"{reply.get('errmsg')}", url))
+    # fail-closed：回包必须是对象且 errcode 恰为 0 才算送达（{} / 缺 errcode / 非对象一律失败）
+    if not isinstance(reply, dict) or reply.get("errcode") != 0:
+        detail = (f"errcode={_v(reply.get('errcode'))} {_v(reply.get('errmsg'))}"
+                  if isinstance(reply, dict) else f"回包不是对象：{str(reply)[:200]}")
+        raise SendError(_scrub(f"企业微信拒收：{detail}", url))
 
 
 def load_status(path: Path) -> dict:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        status = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise Refused(f"读不了状态文件 {path}：{type(exc).__name__}") from None
+    if not isinstance(status, dict):
+        raise Refused(f"状态文件 {path} 不是 JSON 对象")
+    return status
 
 
 def record_notify(status_path: Path, notify: dict) -> None:
-    """把推送结果写回状态文件的 notify 段：重读再写 + 原子替换，其他字段原样保留。"""
+    """把推送结果写回状态文件的 notify 段：重读再写 + 原子替换，其他字段原样保留。
+    临时文件用隐藏名；写或替换失败就删掉它，不在 logs/ 里留半截文件。"""
     status = load_status(status_path)
     status["notify"] = notify
-    tmp = status_path.with_name(status_path.name + ".tmp")
-    tmp.write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp, status_path)
+    tmp = status_path.with_name(f".{status_path.name}.tmp")
+    try:
+        tmp.write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.replace(tmp, status_path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 ALERT_FILE_NOTE = "处置见 logs/ALERT_daily_signals"
 
 
 def build_alert(status: dict | None, *, systemd_result: str, now: str) -> str:
-    """失败通知：只用状态文件里的字段，不碰产出文件、不 import pandas。"""
+    """失败通知：只用状态文件里的字段，不碰产出文件、不 import pandas。
+
+    状态文件不是今天写的（finished_at 的日期 ≠ now 的日期）= 上一次运行留下的：只说这一句，
+    不引用其中的旧 result / topup / breaches / notify.error，免得把旧原因安到这次头上。
+    finished_at 缺失时无从比较，照常报各字段（缺的显示「—」）。
+    """
     lines = [f"⚠ 风格择时日更链失败｜{now}"]
+    finished = status.get("finished_at") if status is not None else None
     if status is None:
         lines.append("状态文件缺失或无法解析——链路可能在写状态之前就死了")
+    elif finished and str(finished)[:10] != now[:10]:
+        lines.append(f"状态文件停在 {finished}，不是本次运行写的——本次在写状态前就死了（看 systemd Result）")
     else:
-        lines.append(f"结果 {status.get('result')} · 失败步骤 {status.get('failed_step') or '—'}"
-                     f" · 状态写于 {status.get('finished_at')}")
+        lines.append(f"结果 {_v(status.get('result'))} · 失败步骤 {_v(status.get('failed_step'))}"
+                     f" · 状态写于 {_v(finished)}")
         if status.get("topup") not in (None, "OK"):
             lines.append(f"topup {status.get('topup')}：{status.get('topup_reason') or '未记原因'}")
         lines += [f"护栏：{b}" for b in (status.get("breaches") or [])[:3]]
@@ -290,17 +343,22 @@ def build_alert(status: dict | None, *, systemd_result: str, now: str) -> str:
     return truncate_text("\n".join(lines), limit=WECHAT_TEXT_LIMIT, note=ALERT_FILE_NOTE)
 
 
-def run_alert(args) -> int:
+def _dry_run_note(url: str) -> str:
+    """dry-run 结尾一句：只报 webhook 配没配（布尔），便于核对配置而不暴露密钥。"""
+    return f"（--dry-run：未发送，未写状态文件；webhook {'已配置' if url else '未配置'}）"
+
+
+def run_alert(args, url: str) -> int:
     try:
-        status = json.loads(Path(args.status_file).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        status = load_status(Path(args.status_file))
+    except Refused:
         status = None
     text = build_alert(status, systemd_result=args.systemd_result,
                        now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     print(text)
     if args.dry_run:
+        print(_dry_run_note(url))
         return 0
-    url = resolve_webhook(Path(args.env_file))
     if not url:
         raise Refused(f"没有 {WEBHOOK_ENV}，失败通知只进告警文件")
     send_text(url, text)
@@ -308,23 +366,22 @@ def run_alert(args) -> int:
     return 0
 
 
-def run_push(args) -> int:
+def run_push(args, url: str) -> int:
     """推送阶段的任何失败（拒推 / 没配 webhook / 发送失败 / 意外异常）都记进 notify 段再抛出，
-    告警器才能如实报原因；--dry-run 永远不写状态文件。状态文件本身读不了就没法记账，照旧拒推。"""
+    告警器才能如实报原因；--dry-run 永远不写状态文件。状态文件本身读不了就没法记账，照旧拒推。
+    url 由 main 解析好传进来（main 靠它统一抹掉报错与堆栈里的密钥）。"""
     status_path = Path(args.status_file)
     status = load_status(status_path)
     notify = {"sent": False, "at": datetime.now().astimezone().isoformat(timespec="seconds"),
               "as_of": None, "bytes": None, "error": None}
-    url = ""
     try:
         text, as_of = compose_message(Path(args.root), status,
                                       today=args.today or date.today().isoformat())
         notify["as_of"], notify["bytes"] = as_of, len(text.encode("utf-8"))
         print(text)
         if args.dry_run:
-            print("（--dry-run：未发送，未写状态文件）")
+            print(_dry_run_note(url))
             return 0
-        url = resolve_webhook(Path(args.env_file))
         if not url:
             raise Refused(f"没有 {WEBHOOK_ENV}（环境变量或 {args.env_file}），拒绝静默；"
                           f"预览用 --dry-run")
@@ -332,7 +389,7 @@ def run_push(args) -> int:
         notify["sent"] = True
     except Exception as exc:
         error = str(exc) if isinstance(exc, (Refused, SendError)) else f"{type(exc).__name__}: {exc}"
-        notify["error"] = _scrub(error, url) if url else error
+        notify["error"] = _scrub(error, url)
         raise
     finally:
         if not args.dry_run:
@@ -355,12 +412,21 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """输出到 stderr 的一切（含意外异常的堆栈）都先过 _scrub：它们会进 runner 日志与告警文件。"""
     args = build_parser().parse_args(argv)
+    url = ""
     try:
-        return run_alert(args) if args.alert else run_push(args)
-    except (Refused, SendError) as exc:
-        print(f"REFUSED: {exc}" if isinstance(exc, Refused) else f"SEND_FAILED: {exc}",
-              file=sys.stderr)
+        url = resolve_webhook(Path(args.env_file))
+        return run_alert(args, url) if args.alert else run_push(args, url)
+    except Refused as exc:
+        print(_scrub(f"REFUSED: {exc}", url), file=sys.stderr)
+        return 1
+    except SendError as exc:
+        print(_scrub(f"SEND_FAILED: {exc}", url), file=sys.stderr)
+        return 1
+    except Exception:
+        # 意外异常：保留堆栈便于排查，但抹掉 webhook 与 key
+        print(_scrub(traceback.format_exc(), url), file=sys.stderr)
         return 1
 
 
