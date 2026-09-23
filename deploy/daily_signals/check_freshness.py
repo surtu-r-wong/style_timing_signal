@@ -40,7 +40,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-# 硬护栏对象：三条生产信号（backtest.baseline.SIGNALS 的三个路径）+ 三份推荐持仓。
+# 硬护栏对象：四条生产信号（backtest.baseline.SIGNALS）+ 四份推荐持仓 + 两池文件（backtest.production.POOL_FILES）。
 GATED = {
     "hybrid20_confirmed": "output/hybrid20/confirmed_signal.csv",
     "citic40d": "output/citic40d/citic_style_signal_40d.csv",
@@ -50,13 +50,13 @@ GATED = {
     "recommended_citic40d": "output/recommended/citic40d_longflat.csv",
     "recommended_equal_weight": "output/recommended/equal_weight_symmetric.csv",   # 2026-09-09 切对称
     "recommended_slope20": "output/recommended/slope20_symmetric.csv",
+    "recommended_slope20_longflat": "output/recommended/slope20_longflat.csv",   # 现货池；2026-09-23 推送上线由「参考」升护栏
 }
 # 只报告不拦截：中间产物与非生产口径的参数变体。
 INFORMATIONAL = {
     "hybrid20_growth_stability": "output/hybrid20/growth_stability_signal.csv",
     "equal_weight_5d20z": "output/equal_weight/equal_weight_signal_5d20z.csv",
     "recommended_equal_weight_longflat_ref": "output/recommended/equal_weight_longflat.csv",   # 参照口径，2026-09-09 起非现役
-    "recommended_slope20_longflat_ref": "output/recommended/slope20_longflat.csv",   # 2026-09-10 两池分信号：现货池（只多）用此文件
 }
 
 # 上游冻结护栏：本项目产出与 index_daily 是同步的，上游一旦不动，

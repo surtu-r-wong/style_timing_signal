@@ -403,3 +403,7 @@ def test_gated_set_matches_production_signals():
         assert RECOMMENDED_FILES[name] in gated_paths, f"推荐持仓 {RECOMMENDED_FILES[name]} 不在护栏清单里"
     # 2026-09-09 现役切对称后，long-flat 参照文件只报不拦
     assert "output/recommended/equal_weight_longflat.csv" in set(guard.INFORMATIONAL.values())
+    # 2026-09-23 企业微信推送上线：推送把两池文件当可行动持仓发出去，两池文件必须是护栏对象。
+    from backtest.production import POOL_FILES
+    for pool, path in POOL_FILES.items():
+        assert path in gated_paths, f"{pool} 文件 {path} 不在护栏清单里"
