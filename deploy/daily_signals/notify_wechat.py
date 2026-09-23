@@ -13,7 +13,7 @@ qyapi.weixin.qq.com 是国内端点，本机 Clash 代理会让它失败 → 显
 用法：
     python3 deploy/daily_signals/notify_wechat.py --dry-run     # 只打印，不发、不写状态文件
     python3 deploy/daily_signals/notify_wechat.py               # 发送，并把 notify 段写回状态文件
-    python3 deploy/daily_signals/notify_wechat.py --alert --systemd-result exit-code
+    python3 deploy/daily_signals/notify_wechat.py --alert --systemd-result exit-code --run-started @1790073050
 设计：docs/plans/2026-09-23-wechat-signal-push-design.md
 """
 from __future__ import annotations
@@ -76,7 +76,7 @@ class Line:
     run_start: str     # 当前这段持仓的起始日
     run_days: int
     prev: float | None  # 上一段持仓；序列从头就是这一段时为 None
-    value: str | None  # 信号值（SIGNALS 的列，信号日当天，原样字符串）
+    value: str | None  # 信号值（SIGNALS 的列，取本行持仓文件末行日期当天的值，原样字符串）
 
 
 def _read_column(path: Path, col: str) -> list[tuple[str, str]]:
@@ -87,7 +87,12 @@ def _read_column(path: Path, col: str) -> list[tuple[str, str]]:
 
 
 def _load_line(root: Path, name: str, mapping: str, rel_path: str, signals: dict) -> Line:
-    rows = [(d, float(v)) for d, v in _read_column(root / rel_path, "position")]
+    rows = []
+    for d, v in _read_column(root / rel_path, "position"):
+        try:
+            rows.append((d, float(v)))
+        except (TypeError, ValueError):   # pandas 把 NaN 写成空串 / 混进非数字 / 行里缺这一列
+            raise Refused(f"{rel_path} 在 {d} 的持仓 {v!r} 不是数") from None
     if not rows:
         raise Refused(f"{rel_path} 是空文件")
     bad = next(((d, p) for d, p in rows if not math.isfinite(p)), None)
@@ -203,7 +208,8 @@ def load_env_file(path: Path) -> dict[str, str]:
     `KEY=a#b` 的 # 在词中间、不是注释）；加引号的值取引号内原样（# 不动），闭引号之后的注释丢掉。
     """
     try:
-        text = path.read_text(encoding="utf-8")
+        # errors="replace"：注释行被 PowerShell 写成 GBK 之类的非 UTF-8 字节时，不能让 main 在分派前崩掉
+        text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return {}
     out = {}
@@ -309,18 +315,48 @@ def record_notify(status_path: Path, notify: dict) -> None:
 ALERT_FILE_NOTE = "处置见 logs/ALERT_daily_signals"
 
 
-def build_alert(status: dict | None, *, systemd_result: str, now: str) -> str:
+def parse_run_started(raw: str | None) -> float | None:
+    """本次 unit 启动时刻（unix 秒）。吃 `systemctl show -p ExecMainStartTimestamp --value
+    --timestamp=unix` 的原样输出（如 `@1790073050`）；空串 / None / 解析不了 → None
+    （退回「日期不同」判定——告警器不能因为这个参数坏了就不报）。"""
+    text = (raw or "").strip().removeprefix("@")
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    return value if math.isfinite(value) else None
+
+
+def _status_is_stale(finished, now: str, run_started: float | None) -> bool:
+    """状态文件是不是上一次运行留下的。
+
+    给了 run_started：当且仅当 finished_at 能解析且早于本次 unit 启动才算陈旧，解析不了视为不陈旧；
+    没给：退回「finished_at 的日期 ≠ now 的日期」。finished_at 缺失时无从比较，一律不陈旧。
+    """
+    if not finished:
+        return False
+    if run_started is None:
+        return str(finished)[:10] != now[:10]
+    try:
+        return datetime.fromisoformat(str(finished)).timestamp() < run_started
+    except (ValueError, OverflowError, OSError):
+        return False
+
+
+def build_alert(status: dict | None, *, systemd_result: str, now: str,
+                run_started: float | None = None) -> str:
     """失败通知：只用状态文件里的字段，不碰产出文件、不 import pandas。
 
-    状态文件不是今天写的（finished_at 的日期 ≠ now 的日期）= 上一次运行留下的：只说这一句，
-    不引用其中的旧 result / topup / breaches / notify.error，免得把旧原因安到这次头上。
-    finished_at 缺失时无从比较，照常报各字段（缺的显示「—」）。
+    状态文件是上一次运行留下的（判定见 _status_is_stale）：只说这一句，不引用其中的旧 result /
+    topup / breaches / notify.error，免得把旧原因安到这次头上。字段缺失时显示「—」。
     """
     lines = [f"⚠ 风格择时日更链失败｜{now}"]
     finished = status.get("finished_at") if status is not None else None
     if status is None:
         lines.append("状态文件缺失或无法解析——链路可能在写状态之前就死了")
-    elif finished and str(finished)[:10] != now[:10]:
+    elif _status_is_stale(finished, now, run_started):
         lines.append(f"状态文件停在 {finished}，不是本次运行写的——本次在写状态前就死了（看 systemd Result）")
     else:
         lines.append(f"结果 {_v(status.get('result'))} · 失败步骤 {_v(status.get('failed_step'))}"
@@ -354,7 +390,8 @@ def run_alert(args, url: str) -> int:
     except Refused:
         status = None
     text = build_alert(status, systemd_result=args.systemd_result,
-                       now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                       now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                       run_started=parse_run_started(args.run_started))
     print(text)
     if args.dry_run:
         print(_dry_run_note(url))
@@ -407,6 +444,10 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--dry-run", action="store_true", help="只打印消息：不发送、不写状态文件")
     ap.add_argument("--alert", action="store_true", help="失败通知模式（由 alert_on_failure.sh 调用）")
     ap.add_argument("--systemd-result", default="", help="--alert 用：主 service 的 systemd Result")
+    ap.add_argument("--run-started", default="",
+                    help="--alert 用：本次 unit 启动的 unix 秒，可带前导 @（即 systemctl show -p "
+                         "ExecMainStartTimestamp --value --timestamp=unix 的输出）；用来判断状态文件"
+                         "是不是本次运行写的，空串 = 没给（退回按日期判断）")
     ap.add_argument("--today", default=None, help="YYYY-MM-DD，默认今天（测试用）")
     return ap
 

@@ -35,9 +35,11 @@ nw = _load()
 
 @pytest.fixture(autouse=True)
 def _no_real_webhook(tmp_path, monkeypatch):
-    """隔离真实 webhook：默认 env 文件指向不存在的路径、清掉环境变量；要桩 URL 的用例在自身里再 setenv。"""
+    """隔离真实 webhook：默认 env 文件指向不存在的路径、清掉环境变量、HOME 指到 tmp（子进程也随之隔离）；
+    要桩 URL 的用例在自身里再 setenv。"""
     monkeypatch.setattr(nw, "DEFAULT_ENV_FILE", tmp_path / "no-such.env")
     monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
 
 
 def test_env_file_default_is_read_at_call_time(tmp_path):
@@ -50,7 +52,24 @@ def _today_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-DATES =["2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22"]
+# 假 key 一律用 UUID 形态（真实企业微信 key 就是 UUID）：只抹到第一个连字符这类半截抹除也能抓住。
+KEY_STUB = "0f8c2d4e-9a1b-4c3d-8e7f-a1b2c3d4e5f6"
+KEY_SECRET = "5b7e9c1a-2d3f-4a6b-8c9d-0e1f2a3b4c5d"
+KEY_FAKE = "9d8c7b6a-5f4e-4d3c-8b1a-0f9e8d7c6b5a"
+
+
+def _leaked(text: str, key: str) -> bool:
+    """整条 key 或它的首段/尾段出现在文本里都算泄漏。"""
+    first, *_, last = key.split("-")
+    return key in text or first in text or last in text
+
+
+# systemctl show -p ExecMainStartTimestamp --value --timestamp=unix 的输出形如 @1790073050
+# （= 2026-09-22 18:30:50 +08:00，本次 unit 启动时刻）
+RUN_STARTED = 1790073050
+
+
+DATES = ["2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22"]
 # 推荐持仓（文件 → 5 天持仓）与信号值（信号线 → 末日值）；路径一律从映射取，不在测试里拼。
 POSITIONS = {
     ("equal_weight", "symmetric"): [-1, 1, 1, 1, 1],   # 期货池：09-17 起持多第 4 日
@@ -205,6 +224,18 @@ def test_non_finite_position_is_refused(tmp_path):
         nw.compose_message(tmp_path, st, today="2026-09-22")
 
 
+@pytest.mark.parametrize("bad", ["", "abc"])
+def test_unparseable_position_is_refused(tmp_path, bad):
+    """pandas 把 NaN 写成空串、或混进非数字：与 nan/inf 走同一条友好拒推路径，不漏成裸异常。"""
+    st = make_tree(tmp_path)
+    rel = st["files"]["equal_weight_symmetric"]["path"]
+    _write_csv(tmp_path / rel, ["date", "position"],
+               [[d, p] for d, p in zip(DATES, [-1, 1, 1, 1, bad])])
+    with pytest.raises(nw.Refused) as exc:
+        nw.compose_message(tmp_path, st, today="2026-09-22")
+    assert str(exc.value) == f"{rel} 在 2026-09-22 的持仓 {bad!r} 不是数"
+
+
 def test_missing_signal_value_shows_dash(tmp_path):
     st = make_tree(tmp_path)
     from backtest.baseline import SIGNALS
@@ -289,7 +320,7 @@ def stub():
 
     server = HTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    state["url"] = f"http://127.0.0.1:{server.server_port}/cgi-bin/webhook/send?key=TESTKEY123"
+    state["url"] = f"http://127.0.0.1:{server.server_port}/cgi-bin/webhook/send?key={KEY_STUB}"
     yield state
     server.shutdown()
     server.server_close()
@@ -338,19 +369,19 @@ class _Resp:
 
 
 def test_send_retries_network_error_once():
-    url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=SECRETKEY42"
+    url = f"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={KEY_SECRET}"
     opener = _FlakyOpener(1, url)
     nw.send_text(url, "x", wait=0, opener=opener)
     assert opener.calls == 2
 
 
 def test_send_error_never_leaks_webhook_key():
-    url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=SECRETKEY42"
+    url = f"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={KEY_SECRET}"
     opener = _FlakyOpener(5, url)
     with pytest.raises(nw.SendError) as exc:
         nw.send_text(url, "x", wait=0, opener=opener)
     assert opener.calls == 2
-    assert "SECRETKEY42" not in str(exc.value) and exc.value.__cause__ is None
+    assert not _leaked(str(exc.value), KEY_SECRET) and exc.value.__cause__ is None
     # `from None` 的真实效果：隐式 __context__（带完整 URL 的原异常）不会随 traceback 打出来
     assert exc.value.__suppress_context__
 
@@ -392,7 +423,7 @@ def test_send_fails_closed_unless_errcode_is_zero(stub, reply):
         nw.send_text(stub["url"], "x", wait=0)
 
 
-BAD_URL = "qyapi.example.invalid/cgi-bin/webhook/send?key=FAKEKEY9ZZ"   # 缺 scheme：Request() 抛 ValueError
+BAD_URL = f"qyapi.example.invalid/cgi-bin/webhook/send?key={KEY_FAKE}"   # 缺 scheme：Request() 抛 ValueError
 
 
 def test_send_rejects_invalid_url_without_leaking_or_retrying():
@@ -400,25 +431,31 @@ def test_send_rejects_invalid_url_without_leaking_or_retrying():
     opener = _ScriptedOpener()
     with pytest.raises(nw.SendError, match="webhook URL 无效") as exc:
         nw.send_text(BAD_URL, "x", wait=0, opener=opener)
-    assert "FAKEKEY9ZZ" not in str(exc.value) and exc.value.__suppress_context__
+    assert not _leaked(str(exc.value), KEY_FAKE) and exc.value.__suppress_context__
     assert opener.calls == 0
 
 
 def test_send_error_scrubs_key_from_http_client_messages():
     """http.client 的报错只带「路径+查询串」而非整条 URL：靠抹 key 值兜住。"""
-    url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=SECRETKEY42"
+    url = f"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={KEY_SECRET}"
     err = http.client.InvalidURL("URL can't contain control characters. "
-                                 "'/cgi-bin/webhook/send?key=SECRETKEY42' (found at least ' ')")
+                                 f"'/cgi-bin/webhook/send?key={KEY_SECRET}' (found at least ' ')")
     opener = _ScriptedOpener(err, err)
     with pytest.raises(nw.SendError) as exc:
         nw.send_text(url, "x", wait=0, opener=opener)
-    assert "SECRETKEY42" not in str(exc.value) and opener.calls == 2
+    assert not _leaked(str(exc.value), KEY_SECRET) and opener.calls == 2
 
 
 def test_scrub_masks_key_params_even_without_url():
     """url 为空（还没解析出来就出错）也要兜底抹掉任何 key=…。"""
-    assert (nw._scrub("x key=SECRETKEY42&y=1 'key=ABC' key=", "")
+    assert (nw._scrub(f"x key={KEY_SECRET}&y=1 'key={KEY_FAKE}' key=", "")
             == "x key=<key>&y=1 'key=<key>' key=")
+
+
+def test_scrub_masks_bare_key_value_when_url_known():
+    """报错里只有裸 key 值、不带 key=（如服务端回显）：url 已知就按值抹掉，不能只靠 key= 正则。"""
+    url = f"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={KEY_SECRET}"
+    assert nw._scrub(f"token {KEY_SECRET} 无效", url) == "token <key> 无效"
 
 
 def test_webhook_from_env_file_and_env_var_precedence(tmp_path, monkeypatch):
@@ -445,6 +482,28 @@ def test_env_file_inline_comment_follows_bash_semantics(tmp_path):
     assert got["HASH_IN_WORD"] == "a#b"                   # 词中间的 # 不是注释
     assert got["QUOTED"] == "x#y # 不是注释"
     assert got["QUOTED_THEN_COMMENT"] == "abc"
+
+
+def _non_utf8_env(tmp_path, url) -> Path:
+    """注释行被 PowerShell 写成 GBK 的 env 文件：一行非 UTF-8 字节 + 一行合法的 webhook。"""
+    env = tmp_path / "alert.env"
+    env.write_bytes(b"# \xff\xfe " + "坏注释".encode("gbk") + b"\n"
+                    + f"ALERT_WEBHOOK_URL={url}\n".encode("utf-8"))
+    return env
+
+
+def test_env_file_with_non_utf8_bytes_still_resolves(tmp_path, stub):
+    assert nw.resolve_webhook(_non_utf8_env(tmp_path, stub["url"])) == stub["url"]
+
+
+def test_alert_dry_run_survives_non_utf8_env_file(tmp_path, stub, capsys):
+    """env 文件编码坏了，main 也不能在分派前崩掉——告警正文照样打出来。"""
+    env = _non_utf8_env(tmp_path, stub["url"])
+    p = _status_file(tmp_path, {"result": "FAILED", "failed_step": "citic40d"})
+    assert nw.main(["--alert", "--dry-run", "--status-file", str(p), "--env-file", str(env)]) == 0
+    out = capsys.readouterr().out
+    assert "⚠ 风格择时日更链失败" in out and "失败步骤 citic40d" in out
+    assert "webhook 已配置" in out and not _leaked(out, KEY_STUB) and stub["bodies"] == []
 
 
 def _status_file(tmp_path, status):
@@ -477,7 +536,7 @@ def test_dry_run_reports_webhook_configured_without_leaking(tmp_path, monkeypatc
     assert nw.main(_argv(tmp_path, p, "--dry-run")) == 0
     out = capsys.readouterr().out
     assert "（--dry-run：未发送，未写状态文件；webhook 已配置）" in out
-    assert "TESTKEY123" not in out and stub["bodies"] == []
+    assert not _leaked(out, KEY_STUB) and stub["bodies"] == []
 
 
 def test_push_sends_and_records_notify_block(tmp_path, monkeypatch, stub):
@@ -497,8 +556,8 @@ def test_push_with_schemeless_webhook_never_leaks_key(tmp_path, monkeypatch, cap
     p = _status_file(tmp_path, make_tree(tmp_path))
     assert nw.main(_argv(tmp_path, p)) == 1
     out, err = capsys.readouterr()
-    assert "FAKEKEY9ZZ" not in out + err and "SEND_FAILED: webhook URL 无效" in err
-    assert "FAKEKEY9ZZ" not in p.read_text(encoding="utf-8")
+    assert not _leaked(out + err, KEY_FAKE) and "SEND_FAILED: webhook URL 无效" in err
+    assert not _leaked(p.read_text(encoding="utf-8"), KEY_FAKE)
     assert "webhook URL 无效" in json.loads(p.read_text(encoding="utf-8"))["notify"]["error"]
 
 
@@ -534,7 +593,7 @@ def test_push_rejected_by_wechat_records_error(tmp_path, monkeypatch, stub):
     assert nw.main(_argv(tmp_path, p)) == 1
     notify = json.loads(p.read_text(encoding="utf-8"))["notify"]
     assert notify["sent"] is False and "45009" in notify["error"]
-    assert "TESTKEY123" not in json.dumps(notify)
+    assert not _leaked(json.dumps(notify), KEY_STUB)
 
 
 def test_push_refused_when_guard_not_ok(tmp_path, monkeypatch, stub, capsys):
@@ -569,7 +628,7 @@ def test_push_unexpected_error_is_recorded_and_traceback_scrubbed(tmp_path, monk
     p = _status_file(tmp_path, make_tree(tmp_path))
     assert nw.main(_argv(tmp_path, p)) == 1
     err = capsys.readouterr().err
-    assert "Traceback" in err and "ValueError: boom <webhook>" in err and "TESTKEY123" not in err
+    assert "Traceback" in err and "ValueError: boom <webhook>" in err and not _leaked(err, KEY_STUB)
     notify = json.loads(p.read_text(encoding="utf-8"))["notify"]
     assert notify["sent"] is False and notify["error"] == "ValueError: boom <webhook>"
     assert stub["bodies"] == []
@@ -659,12 +718,57 @@ def test_alert_missing_fields_show_dash_not_none():
     assert "结果 — · 失败步骤 citic40d · 状态写于 —" in text and "None" not in text
 
 
+STALE_LINE = "状态文件停在 {}，不是本次运行写的——本次在写状态前就死了（看 systemd Result）"
+
+
+def test_alert_stale_when_status_written_before_this_run_started():
+    """(a) 同日但早于本次 unit 启动 = 上一次运行留下的：日期判定看不出来，run_started 看得出来。"""
+    st = {"result": "STALE", "finished_at": "2026-09-22T18:10:00+08:00", "topup": "OK",
+          "breaches": ["旧 breach"]}
+    text = nw.build_alert(st, systemd_result="timeout", now="2026-09-22 18:40:00", run_started=RUN_STARTED)
+    assert text.split("\n")[1] == STALE_LINE.format("2026-09-22T18:10:00+08:00")
+    assert "旧 breach" not in text
+    # (d) 不给 run_started：退回「日期不同」判定——同日即照常引用（正是 run_started 要补的盲区）
+    assert "护栏：旧 breach" in nw.build_alert(st, systemd_result="timeout", now="2026-09-22 18:40:00")
+
+
+def test_alert_not_stale_across_midnight_when_written_after_start():
+    """(b) 23:59 启动、23:59:30 写状态、00:00 才告警：日期不同但确是本次写的 → 照常报字段。"""
+    start = datetime.fromisoformat("2026-09-22T23:59:00+08:00").timestamp()
+    st = {"result": "STALE", "finished_at": "2026-09-22T23:59:30+08:00", "topup": "OK", "breaches": ["b0"]}
+    lines = nw.build_alert(st, systemd_result="", now="2026-09-23 00:00:10", run_started=start).split("\n")
+    assert lines[1] == "结果 STALE · 失败步骤 — · 状态写于 2026-09-22T23:59:30+08:00" and "护栏：b0" in lines
+    # (d) 不给 run_started：退回「日期不同」判定 → 陈旧（既有行为不变）
+    assert "不是本次运行写的" in nw.build_alert(st, systemd_result="", now="2026-09-23 00:00:10")
+
+
+def test_alert_unparseable_finished_at_is_not_stale_with_run_started():
+    """给了 run_started 但 finished_at 解析不了：视为不陈旧，照常报字段。"""
+    st = {"result": "FAILED", "failed_step": "citic40d", "finished_at": "昨天晚上", "topup": "OK"}
+    text = nw.build_alert(st, systemd_result="", now="2026-09-22 18:40:00", run_started=RUN_STARTED)
+    assert "结果 FAILED · 失败步骤 citic40d · 状态写于 昨天晚上" in text
+
+
+def test_run_started_accepts_systemctl_unix_forms():
+    """(c) `@<unix 秒>`（systemctl --timestamp=unix 的原样输出）与裸秒数等价；空串 = 没给。"""
+    assert nw.parse_run_started(f"@{RUN_STARTED}") == nw.parse_run_started(str(RUN_STARTED)) == RUN_STARTED
+    assert nw.parse_run_started("") is None and nw.parse_run_started(None) is None
+    assert nw.parse_run_started("n/a") is None          # 解析不了：退回日期判定，告警器不能因此失败
+
+
+def test_alert_cli_takes_run_started(tmp_path, capsys):
+    p = _status_file(tmp_path, {"result": "STALE", "finished_at": "2026-09-22T18:10:00+08:00", "topup": "OK"})
+    assert nw.main(["--alert", "--dry-run", "--status-file", str(p), "--run-started", f"@{RUN_STARTED}"]) == 0
+    assert STALE_LINE.format("2026-09-22T18:10:00+08:00") in capsys.readouterr().out
+
+
 def test_alert_cli_sends(tmp_path, monkeypatch, stub):
+    """不依赖当天日期：状态写于 18:31:05，晚于本次 unit 启动（18:30:50）→ 确是本次写的。"""
     monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
-    p = _status_file(tmp_path, {"result": "STALE", "finished_at": _today_iso(), "topup": "OK",
+    p = _status_file(tmp_path, {"result": "STALE", "finished_at": "2026-09-22T18:31:05+08:00", "topup": "OK",
                                 "breaches": ["recommended_slope20 落后 2 交易日"]})
     assert nw.main(["--alert", "--status-file", str(p), "--env-file", str(tmp_path / "x.env"),
-                    "--systemd-result", "exit-code"]) == 0
+                    "--systemd-result", "exit-code", "--run-started", str(RUN_STARTED)]) == 0
     assert "护栏：recommended_slope20 落后 2 交易日" in stub["bodies"][0]["text"]["content"]
 
 
@@ -674,7 +778,7 @@ def test_alert_with_schemeless_webhook_never_leaks_key(tmp_path, monkeypatch, ca
     before = p.read_bytes()
     assert nw.main(["--alert", "--status-file", str(p), "--systemd-result", "exit-code"]) == 1
     out, err = capsys.readouterr()
-    assert "FAKEKEY9ZZ" not in out + err and "SEND_FAILED: webhook URL 无效" in err
+    assert not _leaked(out + err, KEY_FAKE) and "SEND_FAILED: webhook URL 无效" in err
     assert p.read_bytes() == before                      # 告警模式从不写状态文件
 
 

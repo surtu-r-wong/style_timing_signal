@@ -34,8 +34,8 @@
    `files` 里以 `gated: true` 出现，且其 `last_date` 与文件当前末行一致——否则拒推（exit 1）。
    这条把「推送对象 ⊆ 护栏对象」钉成运行期不变式，而不是只靠两份清单碰巧对齐。
 2. **映射只有一个入口**：新增 `backtest/production.py::POOLS`（池 → (信号线, 口径)）与 `POOL_FILES`；
-   其余生产线取 `PRODUCTION_MAPPING` 中不属于任何池的条目；因子值按 `backtest.baseline.SIGNALS` 的
-   `(path, col)` 取信号日当天值。不在推送脚本里另拼文件名。
+   其余生产线取 `PRODUCTION_MAPPING` 中不属于任何池的条目；信号值取该行持仓文件末行日期当天的值。
+   不在推送脚本里另拼文件名。
 3. **组消息**（≤ 2048 字节，超长从末尾整行删并注明删了几行，池子两行永远在最前）。
 4. **发送**：`msgtype=text`；显式 `ProxyHandler({})` 绕代理；超时 10 秒；**网络层错误重试 1 次**
    （errcode≠0 属配置/限流问题，不重试）；`errcode≠0` 即失败。URL 含 key，**任何输出都不打印它**。
