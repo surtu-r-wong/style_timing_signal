@@ -1,34 +1,51 @@
-"""等办公室把当日输入指数写齐（只读 PG）—— run_daily_signals.sh 第 0 步（办公室模式）。
+"""等办公室把当日输入指数写齐、再过同族共动性哨兵（只读 PG）—— run_daily_signals.sh 第 0 步（办公室模式）。
 
 2026-09-23 起本项目 15 个输入指数（同目录 `input_codes.txt`）由 data_manager 夜间作业（WSL2
 `dbm-daily-wss`，20:00 起跑、约 20:02 结束；补数前先重看前 5 个交易日纠错）写入
 `stock_selector.index_daily`，本链路只读。依据：`data_manager/requests/2026-09-23-style-timing-signal-
-index-daily-takeover/`（处置 + 回函 01 §7.3/§7.4）。本脚本只回答一件事：**期望信号日 T 的 15 码到齐没有**。
+index-daily-takeover/`（处置 + 回函 01 §7.3/§7.4）。本脚本回答两件事：**期望信号日 T 的 15 码到齐没有**；
+到齐了，**T 这天的数过不过同族共动性哨兵**。
 
 **期望信号日 T**：今天是 CN 交易日、且已过 `--ready-from`（默认 20:00，夜间作业起跑）→ 今天；
 否则 = 严格早于今天的最近一个 CN 交易日。日历取 `data_manager.business_calendar`（`calendar_id='CN'`，
 库内实测覆盖 2000-01-01..2026-12-31）。某天不在表里（如 2027 还没装载）→ 那天按周一至周五推断，
-结果里注明「日历缺 <日期>，按工作日推断」；日历整个读不到 → 同样按工作日推断并注明，下一轮再读。
-不用 `topup_guard.expected_last_trading_day`：它只看工作日 + 15:30、不认节假日（docstring 自承「节假日
-会高估一天」），拿来等数会在国庆每晚白等到截止。
+结果里注明「日历缺 <日期>，按工作日推断」；日历整个读不到 → 同样按工作日推断并注明，下一轮再读
+（重试也不会好的错误就不再读）。不用 `topup_guard.expected_last_trading_day`：它只看工作日 + 15:30、
+不认节假日（docstring 自承「节假日会高估一天」），拿来等数会在国庆每晚白等到截止。
 
 **到齐判据**（回函 01 §7.3 原样）：T 日、这 15 码、`close` 非空的行数 = 码数。不看 `backfill_job`：
 码都已在库的那天补数整天跳过、不写 job 行；纠错那步的账挂在同一个表名下，`last_cursor` 记的是 T-1。
 纠错排在补数之前，所以 T 日一到齐，同一轮对 T-1..T-5 的改写也已做完。
 
-**轮询**：只在「T 就是今天、且还没到 `--deadline`（默认 21:30）」时每 `--interval`（默认 300）秒查一次，
-最后一轮恰在截止时刻；开跑已过截止、`--once`、或 T 是过去某天（白天手工重跑、开机补跑、节假日照跑——
-那一晚的夜间作业早已跑完，等也等不来）→ 只查一次。每次查询新建连接（跨一个小时的长连接会被中间网络
-设备掐断），会话只读；单次出错记下、下一轮再查，截止时仍出错 → CHECK_ERROR。每轮打印一行进度。
+**轮询**：只在「T 就是今天、且还没到截止」时每 `--interval`（默认 300）秒查一次，最后一轮恰在截止时刻。
+截止 = min(当天 `--deadline`（默认 21:30），开跑时刻 + `--max-wait`（默认 4240 秒，来历见常量处））：
+定时器 20:30 起跑时由 21:30 管着；20:00~20:15 手工起跑时由 max-wait 管着——到点报 LATE，不被 runner 的
+兜底 timeout 杀掉（被杀就没有结果）。开跑已过截止、`--once`、或 T 是过去某天（白天手工重跑、开机补跑、
+节假日照跑——那一晚的夜间作业早已跑完，等也等不来）→ 只查一次。每次查询新建连接（会话只读，带 libpq
+keepalive），单次出错记下、下一轮再查，截止时仍出错 → CHECK_ERROR；**重试也不会好的错误**（依赖缺失、
+数据库配置读不到、SQL 被拒——表不存在 / 无权限）立即 CHECK_ERROR，不空等到截止。每轮打印一行进度。
 
-**输出契约**（最后三行，runner 靠它解析；人读的进度行在前）：
+**同族共动性哨兵**（topup 事后审计的规则 5/6，2026-08-24 起；办公室模式下接回，判据与标定见
+`family_sentinel.py`）：到齐后只读取 T 前 `SENTINEL_LOOKBACK_DAYS` 个自然日到 T 的收盘价，用
+`family_sentinel.scan_findings(..., only_days={T})` 只判 T。只有 CRITICAL（对内价差 ≥8pp / 序列冻结）
+算数——runner 记 OFFICE_SUSPECT、在信号重算之前中止；WARN 只记不阻断（同旧口径）。判定范围是这 15 个
+输入码：旧审计判新写入的那天时，纯风格 4 码要到 20:01 才由夜间作业写，审计时还不在库里，实际判的也是
+这 15 码；办公室处置 §2.1 还记着 932400.CSI 晚间会取到前一日值——把它纳入只会因为生产信号不用的码
+误拦生产。哨兵自身出错 → CHECK_ERROR（不阻断）。**不接回「历史被改写」审计**：办公室每晚重看会合法
+改写 T-1..T-5，那条规则会天天误报。
+
+**当前时刻**取 Asia/Shanghai（定时器按 Asia/Shanghai 触发，截止也按北京时间算），与本机时区设置无关。
+
+**输出契约**（最后五行，runner 靠它解析；人读的进度行在前）：
 
     INPUTS_STATUS=OK|LATE|CHECK_ERROR
     INPUTS_DAY=YYYY-MM-DD
     INPUTS_REASON=<一行中文>
+    INPUTS_SENTINEL=CLEAN|CRITICAL|SKIPPED      （没到齐 / 检查出错 / 哨兵出错时 SKIPPED）
+    INPUTS_SENTINEL_DETAIL=<一行：CRITICAL / WARN 明细，或跳过的原因>
 
 **退出码恒为 0**：三种结果链路都照常往下走（LATE / CHECK_ERROR 用库内已有数据照算），新鲜度由步骤 7
-护栏兜底；参数写错、码表读不到等一切异常也转成 CHECK_ERROR 三行。
+护栏兜底；哨兵 CRITICAL 的阻断由 runner 做。参数写错、码表读不到等一切异常也转成 CHECK_ERROR 五行。
 
 用法：
     python3 deploy/daily_signals/wait_for_inputs.py           # 链路里的用法（runner 外包 timeout 4500）
@@ -43,16 +60,25 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from datetime import time as dtime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+SHANGHAI = ZoneInfo("Asia/Shanghai")
 CODES_FILE = Path(__file__).resolve().with_name("input_codes.txt")
 CALENDAR_ID = "CN"
 CALENDAR_LOOKBACK_DAYS = 40   # 日历取 [今天 - 40, 今天]：最长连休（春节 + 两头周末）也就十来天
+SENTINEL_LOOKBACK_DAYS = 30   # 哨兵取 [T - 30, T] 的收盘价：够找到 T 的前一交易日来算 T 的日收益
 DEFAULT_READY_FROM = "20:00"  # 办公室夜间作业起跑
 DEFAULT_DEADLINE = "21:30"    # 回函 01 §7.4：21:30 还不齐就用已有数据照算
 DEFAULT_INTERVAL = 300        # 回函 01 §7.4：每 5 分钟查一次
+CONNECT_TIMEOUT_S = 10        # 连库超时
+STATEMENT_TIMEOUT_S = 60      # 单句超时
+QUERIES_PER_ROUND_MAX = 3     # 一轮最多三次查询：重读日历（还没读到时）+ 到齐 + 同族哨兵（到齐那一轮）
+# 等数时间上限 = runner 兜底 timeout 4500 − 截止那一轮最坏耗时 3 ×（连库 10 + 单句 60）− 余量 50。
+# 到点报 LATE，不被兜底杀掉；这条不等式由 tests/test_deploy_daily_wiring.py 钉住。
+DEFAULT_MAX_WAIT = 4240
 MAX_ERROR_CHARS = 200         # 报错原文截断：原因会进状态文件与推送（企业微信超 2048 字节整条拒收）
 TAG = "[wait_for_inputs]"
 
@@ -61,10 +87,17 @@ PRESENT_SQL = ("SELECT index_code FROM {schema}.index_daily "
                "WHERE trade_date = %s AND index_code = ANY(%s) AND close IS NOT NULL")
 CALENDAR_SQL = ("SELECT calendar_date, is_business_day FROM data_manager.business_calendar "
                 "WHERE calendar_id = %s AND calendar_date BETWEEN %s AND %s")
+# 同 family_sentinel.load_closes 的取数形状，窗口只到 T。
+SENTINEL_SQL = ("SELECT index_code, trade_date, close FROM {schema}.index_daily "
+                "WHERE index_code = ANY(%s) AND trade_date BETWEEN %s AND %s")
 
 
 class UsageError(ValueError):
     """参数写错（argparse 已把 usage 打到 stderr）。"""
+
+
+class ConfigError(RuntimeError):
+    """数据库配置读不到（settings.yaml 缺失 / 缺字段 / 格式坏了）：重试也不会好。"""
 
 
 def one_line(text: str) -> str:
@@ -76,6 +109,21 @@ def describe_error(exc: BaseException) -> str:
     msg = one_line(str(exc))
     text = f"{type(exc).__name__}: {msg}" if msg else type(exc).__name__
     return text if len(text) <= MAX_ERROR_CHARS else text[:MAX_ERROR_CHARS - 1] + "…"
+
+
+def is_permanent(exc: BaseException) -> bool:
+    """重试到截止也不会好的错误：依赖缺失（ImportError）、数据库配置读不到（ConfigError）、SQL 被拒
+    （psycopg2.ProgrammingError：表不存在、无权限等）。连接类（OperationalError：连不上、超时、断线，
+    含单句超时）不算，下一轮再查。psycopg2 若没加载过，异常就不可能是它的。"""
+    if isinstance(exc, (ImportError, ConfigError)):
+        return True
+    psycopg2 = sys.modules.get("psycopg2")
+    return psycopg2 is not None and isinstance(exc, psycopg2.ProgrammingError)
+
+
+def shanghai_now() -> datetime:
+    """当前北京时间（不带时区）：定时器按 Asia/Shanghai 触发、截止按北京时间算，与本机时区设置无关。"""
+    return datetime.now(SHANGHAI).replace(tzinfo=None)
 
 
 # ── 码表与参数 ─────────────────────────────────────────────────────────────────
@@ -163,13 +211,16 @@ def calendar_note(signal_day: SignalDay, calendar_error: str | None) -> str:
 
 @dataclass(frozen=True)
 class Result:
-    status: str      # OK / LATE / CHECK_ERROR
-    day: date        # 期望信号日 T
-    reason: str      # 一行中文
+    status: str                    # OK / LATE / CHECK_ERROR
+    day: date                      # 期望信号日 T
+    reason: str                    # 一行中文
+    sentinel: str = "SKIPPED"      # CLEAN / CRITICAL / SKIPPED
+    sentinel_detail: str = ""      # 一行：CRITICAL / WARN 明细，或跳过的原因
 
     def lines(self) -> list[str]:
         return [f"INPUTS_STATUS={self.status}", f"INPUTS_DAY={self.day.isoformat()}",
-                f"INPUTS_REASON={one_line(self.reason)}"]
+                f"INPUTS_REASON={one_line(self.reason)}", f"INPUTS_SENTINEL={self.sentinel}",
+                f"INPUTS_SENTINEL_DETAIL={one_line(self.sentinel_detail)}"]
 
 
 def _with_note(text: str, note: str) -> str:
@@ -177,70 +228,102 @@ def _with_note(text: str, note: str) -> str:
 
 
 def _mode(sd: SignalDay, today: date, once: bool, past_deadline: bool, interval: int,
-          deadline: dtime) -> str:
+          until: str) -> str:
     if once:
         return "只查一次（--once）"
     if sd.day != today:
         return "只查一次（信号日不是今天：那一晚的夜间作业早已跑完，等也等不来）"
     if past_deadline:
-        return f"只查一次（已过截止 {deadline:%H:%M}）"
-    return f"每 {interval} 秒查一次，最迟等到 {deadline:%H:%M}"
+        return f"只查一次（已过截止 {until}）"
+    return f"每 {interval} 秒查一次，最迟等到 {until}"
 
 
-def wait_for_inputs(codes: list[str], *, now_fn, sleep_fn, load_calendar, fetch_present,
-                    ready_from: dtime, deadline: dtime, interval: int, once: bool, log) -> Result:
-    """轮询到齐（时钟、sleep、日历加载、到齐查询全部注入，单测不连库）。返回结果，不打印契约三行。
+def _arrived(sd: SignalDay, codes: list[str], waited: int, note: str, check_sentinel, log) -> Result:
+    """到齐之后：同族共动性哨兵只判 T。CRITICAL → 报 CRITICAL（阻断由 runner 做）；WARN 只记；哨兵出错 → CHECK_ERROR。"""
+    n = len(codes)
+    reason = _with_note(f"{sd.day} {n} 码到齐（等 {waited} 秒）", note)
+    try:
+        critical, warn, judged = check_sentinel(sd.day, codes)
+    except Exception as exc:
+        err = describe_error(exc)
+        log(f"{TAG} 同族哨兵出错 {err}：不阻断，记 CHECK_ERROR")
+        return Result("CHECK_ERROR", sd.day,
+                      _with_note(f"{sd.day}：同族哨兵出错 {err}（{n} 码已到齐，哨兵未判定，不阻断）", note),
+                      "SKIPPED", f"哨兵自身出错：{err}")
+    if critical:
+        detail = f"{sd.day}：" + "；".join(critical)
+        log(f"{TAG} 同族哨兵 CRITICAL：{detail}")
+        return Result("OK", sd.day, reason, "CRITICAL", detail)
+    detail = f"{sd.day} 同族共动性：{judged} 码日收益无 CRITICAL"
+    if warn:
+        detail += "；WARN（不阻断）：" + "；".join(warn)
+    log(f"{TAG} 同族哨兵 CLEAN：{detail}")
+    return Result("OK", sd.day, reason, "CLEAN", detail)
 
-    load_calendar(start, end) -> {日期: 是否交易日}；fetch_present(T, codes) -> 已到的码。
-    日历读到为止每轮都读，读到之前按工作日推断 T；T 固定按开跑时刻算（日历读到后可能被改正）。
+
+def wait_for_inputs(codes: list[str], *, now_fn, sleep_fn, load_calendar, fetch_present, check_sentinel,
+                    ready_from: dtime, deadline: dtime, interval: int, max_wait: int, once: bool,
+                    log) -> Result:
+    """轮询到齐、再跑哨兵（时钟、sleep、日历、到齐查询、哨兵全部注入，单测不连库）。返回结果，不打印契约五行。
+
+    load_calendar(start, end) -> {日期: 是否交易日}；fetch_present(T, codes) -> 已到的码；
+    check_sentinel(T, codes) -> (CRITICAL 明细, WARN 明细, T 有日收益的码数)。
+    日历读到为止每轮都读（重试也不会好的错误就不再读），读到之前按工作日推断 T；T 固定按开跑时刻算
+    （日历读到后可能被改正）。截止 = min(当天 deadline, 开跑 + max_wait)。
     """
     start = now_fn()
     today = start.date()
-    deadline_at = datetime.combine(today, deadline)
+    day_deadline = datetime.combine(today, deadline)
+    deadline_at = min(day_deadline, start + timedelta(seconds=max_wait))
+    capped = deadline_at < day_deadline
+    until = f"{deadline_at:%H:%M:%S}（--max-wait {max_wait} 秒）" if capped else f"{deadline:%H:%M}"
     n = len(codes)
     calendar: dict[date, bool] | None = None
+    cal_error: str | None = None
+    cal_given_up = False
     shown: date | None = None
     rnd = 0
     while True:
         rnd += 1
         parts: list[str] = []
-        cal_error = None
-        if calendar is None:
+        if calendar is None and not cal_given_up:
             try:
                 calendar = load_calendar(today - timedelta(days=CALENDAR_LOOKBACK_DAYS), today)
+                cal_error = None
             except Exception as exc:
-                cal_error = describe_error(exc)
-                parts.append(f"日历读取失败（{cal_error}），按工作日推断")
+                cal_error, cal_given_up = describe_error(exc), is_permanent(exc)
+                parts.append(f"日历读取失败（{cal_error}），按工作日推断"
+                             + ("，不再重读" if cal_given_up else ""))
         sd = expected_signal_day(start, ready_from, calendar if calendar is not None else {})
         note = calendar_note(sd, cal_error)
         polling = not once and sd.day == today
         if sd.day != shown:
             head = f"{TAG} {start:%F %T} 起：" if shown is None else f"{TAG} 日历读到了，"
-            mode = _mode(sd, today, once, start >= deadline_at, interval, deadline)
+            mode = _mode(sd, today, once, start >= deadline_at, interval, until)
             log(f"{head}期望信号日 {sd.day}（{sd.why}）；{n} 码；{mode}")
             shown = sd.day
 
-        error = None
+        error, permanent = None, False
         arrived, missing = [], list(codes)
         try:
             present = fetch_present(sd.day, codes)
             arrived = [c for c in codes if c in present]
             missing = [c for c in codes if c not in present]
         except Exception as exc:
-            error = describe_error(exc)
+            error, permanent = describe_error(exc), is_permanent(exc)
         now = now_fn()
         stamp = f"{TAG} {now:%H:%M:%S} 第 {rnd} 轮："
         if error is None and len(arrived) == n:
             log(stamp + "；".join([*parts, f"{sd.day} {n}/{n} 到齐"]))
-            waited = int((now - start).total_seconds())
-            return Result("OK", sd.day, _with_note(f"办公室日更 {sd.day} {n} 码到齐（等 {waited} 秒）", note))
+            return _arrived(sd, codes, int((now - start).total_seconds()), note, check_sentinel, log)
 
         parts.append(f"查询出错 {error}" if error is not None
                      else f"{sd.day} 已到 {len(arrived)}/{n}，缺 {'、'.join(missing)}")
         remaining = (deadline_at - now).total_seconds()
-        if not polling or remaining <= 0:
-            stop = ("只查一次" if once else "信号日不是今天" if sd.day != today
-                    else f"已到截止 {deadline:%H:%M}")
+        if permanent or not polling or remaining <= 0:
+            stop = ("不可重试的错误" if permanent else "只查一次" if once
+                    else "信号日不是今天" if sd.day != today
+                    else f"已等满 --max-wait {max_wait} 秒" if capped else f"已到截止 {deadline:%H:%M}")
             log(stamp + "；".join([*parts, f"不再等（{stop}）"]))
             break
         wait = min(interval, remaining)
@@ -248,26 +331,34 @@ def wait_for_inputs(codes: list[str], *, now_fn, sleep_fn, load_calendar, fetch_
         sleep_fn(wait)
 
     if error is not None:
-        return Result("CHECK_ERROR", sd.day, _with_note(f"{sd.day} 到齐检查出错：{error}", note))
+        text = f"{sd.day}：{error}" + ("（不可重试的错误）" if permanent else "")
+        return Result("CHECK_ERROR", sd.day, _with_note(text, note), "SKIPPED", "到齐检查出错，未做同族哨兵")
     return Result("LATE", sd.day, _with_note(
-        f"{sd.day} 截至 {now:%H:%M} 仍缺 {len(missing)} 码：{'、'.join(missing)}，按库内已有数据照算", note))
+        f"{sd.day} 截至 {now:%H:%M} 仍缺 {len(missing)} 码：{'、'.join(missing)}，按库内已有数据照算", note),
+        "SKIPPED", "输入未到齐，未做同族哨兵")
 
 
 # ── 取数（只读 PG）────────────────────────────────────────────────────────────
 
 def connect_kwargs(db: dict) -> dict:
-    """psycopg2.connect 的参数：连库 10 秒、单句 60 秒超时；会话只读——本链路只读，写不进去才放心。"""
+    """psycopg2.connect 的参数：连库 10 秒、单句 60 秒超时；会话只读——本链路只读，写不进去才放心；
+    libpq keepalive——等数跨一个小时，中间网络设备掐断连接时尽快报错，不挂死到超时。"""
     return {"host": db["host"], "port": db["port"], "dbname": db["name"], "user": db["user"],
-            "password": db["password"], "connect_timeout": 10,
-            "options": "-c statement_timeout=60000 -c default_transaction_read_only=on"}
+            "password": db["password"], "connect_timeout": CONNECT_TIMEOUT_S,
+            "options": f"-c statement_timeout={STATEMENT_TIMEOUT_S * 1000} -c default_transaction_read_only=on",
+            "keepalives": 1, "keepalives_idle": 30, "keepalives_interval": 10, "keepalives_count": 3}
 
 
 def run_query(sql: str, params: tuple, *, connect=None, db_config: dict | None = None) -> list[tuple]:
-    """每次新建连接、查完即关（等数跨一个小时，长连接会被中间网络设备掐断）。
-    `{schema}` 换成 settings.yaml 的 schema（同 check_freshness / topup_guard 的写法）。"""
+    """每次新建连接、查完即关（等数跨一个小时，不留长连接）。
+    `{schema}` 换成 settings.yaml 的 schema（同 check_freshness / topup_guard 的写法）。
+    配置读不到包成 ConfigError（重试也不会好）；import 失败原样抛 ImportError（同上）。"""
     if db_config is None:
         from signals.common.config import load_db_config
-        db_config = load_db_config()
+        try:
+            db_config = load_db_config()
+        except Exception as exc:
+            raise ConfigError(f"读不到数据库配置：{describe_error(exc)}") from exc
     if connect is None:
         import psycopg2
         connect = psycopg2.connect
@@ -290,16 +381,40 @@ def fetch_present_codes(day: date, codes: list[str], *, query=run_query) -> set[
     return {row[0] for row in query(PRESENT_SQL, (day, list(codes)))}
 
 
+def sentinel_check(day: date, codes: list[str], *, query=run_query) -> tuple[list[str], list[str], int]:
+    """同族共动性哨兵只判 T → (CRITICAL 明细, WARN 明细, T 有日收益的码数)。
+
+    判定复用 `family_sentinel.scan_findings(closes, only_days={T})`（topup 事后审计同一套判据）；取数是
+    本脚本的只读连接（10 秒 / 60 秒超时 + keepalive），窗口 [T - SENTINEL_LOOKBACK_DAYS, T]。
+    T 一个日收益都算不出（窗口里没有前一交易日）= 什么都没判，报错而不是报 CLEAN。
+    """
+    from deploy.daily_signals.family_sentinel import returns_by_day, scan_findings
+
+    rows = query(SENTINEL_SQL, (list(codes), day - timedelta(days=SENTINEL_LOOKBACK_DAYS), day))
+    closes: dict[str, dict[str, float | None]] = {}
+    for code, trade_date, close in rows:
+        closes.setdefault(code, {})[trade_date.isoformat()] = None if close is None else float(close)
+    key = day.isoformat()
+    judged = len(returns_by_day(closes).get(key, {}))
+    if judged == 0:
+        raise RuntimeError(f"算不出 {key} 的日收益（前 {SENTINEL_LOOKBACK_DAYS} 天内没有可比的前一交易日收盘价）")
+    found = scan_findings(closes, only_days={key}).get(key, [])
+    return ([f for f in found if f.startswith("CRITICAL")],
+            [f for f in found if not f.startswith("CRITICAL")], judged)
+
+
 # ── 入口 ──────────────────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
-        description="等办公室把当日输入指数写齐（只读 PG）；最后三行 INPUTS_* 是给 runner 的结果")
+        description="等办公室把当日输入指数写齐、再过同族共动性哨兵（只读 PG）；最后五行 INPUTS_* 是给 runner 的结果")
     ap.add_argument("--once", action="store_true", help="只查一次、不等（手工重跑 / 冒烟）")
     ap.add_argument("--interval", type=positive_int, default=DEFAULT_INTERVAL,
                     help=f"轮询间隔秒数，默认 {DEFAULT_INTERVAL}")
     ap.add_argument("--deadline", type=parse_hhmm, default=parse_hhmm(DEFAULT_DEADLINE),
                     help=f"当天截止时刻 HH:MM，默认 {DEFAULT_DEADLINE}；到点仍不齐 → LATE，照算")
+    ap.add_argument("--max-wait", type=positive_int, default=DEFAULT_MAX_WAIT,
+                    help=f"从开跑算起最多等多少秒，默认 {DEFAULT_MAX_WAIT}（截止取它与 --deadline 中早的那个）")
     ap.add_argument("--ready-from", type=parse_hhmm, default=parse_hhmm(DEFAULT_READY_FROM),
                     help=f"今天从几点起算作信号日 HH:MM，默认 {DEFAULT_READY_FROM}（办公室夜间作业起跑）")
     ap.add_argument("--codes-file", default=str(CODES_FILE), help="码表，默认同目录 input_codes.txt")
@@ -310,9 +425,10 @@ def _print(line: str) -> None:
     print(line, flush=True)
 
 
-def main(argv: list[str] | None = None, *, now_fn=datetime.now, sleep_fn=time.sleep,
-         load_calendar=load_business_calendar, fetch_present=fetch_present_codes) -> int:
-    """退出码恒为 0：任何异常（含参数写错）都转成 CHECK_ERROR 三行；--help 照常打印后退出。"""
+def main(argv: list[str] | None = None, *, now_fn=shanghai_now, sleep_fn=time.sleep,
+         load_calendar=load_business_calendar, fetch_present=fetch_present_codes,
+         check_sentinel=sentinel_check) -> int:
+    """退出码恒为 0：任何异常（含参数写错）都转成 CHECK_ERROR 五行；--help 照常打印后退出。"""
     start = now_fn()
     try:
         try:
@@ -323,12 +439,13 @@ def main(argv: list[str] | None = None, *, now_fn=datetime.now, sleep_fn=time.sl
             raise UsageError(f"参数错误（exit {exc.code}），见上方 usage") from None
         result = wait_for_inputs(
             load_codes(Path(args.codes_file)), now_fn=now_fn, sleep_fn=sleep_fn,
-            load_calendar=load_calendar, fetch_present=fetch_present, ready_from=args.ready_from,
-            deadline=args.deadline, interval=args.interval, once=args.once, log=_print)
+            load_calendar=load_calendar, fetch_present=fetch_present, check_sentinel=check_sentinel,
+            ready_from=args.ready_from, deadline=args.deadline, interval=args.interval,
+            max_wait=args.max_wait, once=args.once, log=_print)
     except Exception as exc:
         day = expected_signal_day(start, parse_hhmm(DEFAULT_READY_FROM), {}).day
-        result = Result("CHECK_ERROR", day,
-                        f"{day} 到齐检查出错：{describe_error(exc)}；信号日按工作日推断")
+        result = Result("CHECK_ERROR", day, f"{day}：{describe_error(exc)}；信号日按工作日推断",
+                        "SKIPPED", "等数脚本出错，未做同族哨兵")
     print("\n".join(result.lines()), flush=True)
     return 0
 
