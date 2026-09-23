@@ -1,6 +1,6 @@
 """deploy/daily_signals/check_freshness.py 的新鲜度护栏单测（不连库）。
 
-护栏的命题：三条生产信号 + 三份推荐持仓的末行日期，距 index_daily 最新交易日
+护栏的命题：各生产信号 + 推荐持仓（GATED）的末行日期，距 index_daily 最新交易日
 不得超过 max_lag 个交易日。这里用合成交易日历 + tmp_path 下的 output 树副本，
 把 evaluate() 当纯函数测——PG 只在 load_calendar() 里用，本文件不触碰。
 """
@@ -392,7 +392,7 @@ def test_output_gap_flips_exit_code(tmp_path, monkeypatch):
 
 
 def test_gated_set_matches_production_signals():
-    """护栏必须覆盖 backtest.baseline.SIGNALS 的三条生产信号 + 三份推荐持仓（文件名以 backtest.production.RECOMMENDED_FILES 为准）。"""
+    """护栏必须覆盖 backtest.baseline.SIGNALS 的全部生产信号 + 各自推荐持仓（文件名以 backtest.production.RECOMMENDED_FILES 为准）+ 两池文件。"""
     from backtest.baseline import SIGNALS
     from backtest.production import RECOMMENDED_FILES
 

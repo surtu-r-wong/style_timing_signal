@@ -1,6 +1,6 @@
 """推荐 production 持仓生成器 —— 逐线映射口径见 PRODUCTION_MAPPING。
 
-把三条信号线的产出映射到推荐持仓，写 output/recommended/<name>_<mapping>.csv。
+把各生产信号线的产出映射到推荐持仓，写 output/recommended/<name>_<mapping>.csv。
 - hybrid20 / citic40d：long-flat（Phase 3 v1 采纳，方向A；空头腿 Sharpe 0.49 / 0.05）。
 - equal_weight：**对称**（2026-09-09 用户裁决"部署空头"，决策记录
   docs/plans/2026-09-09-deploy-symmetric-equal-weight-decision.md）。long-flat 文件继续并行产出作参照。

@@ -98,7 +98,7 @@ def _load_factor(name: str) -> pd.Series:
 
 
 def build_yearly_report(cost_bps: float = 3.0, db=None, kou_jing: str = "blend"):
-    """三条线 × (long-flat / 对称 / buy&hold) → (逐年表, 集中度摘要表)。"""
+    """各生产线（SIGNALS）× (long-flat / 对称 / buy&hold) → (逐年表, 集中度摘要表)。"""
     und_all = load_underlying_returns(kou_jing, db=db)
     car_all = load_carry(kou_jing, db=db)
 

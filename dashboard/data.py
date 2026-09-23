@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 OUT = ROOT / "output"
 BT_OUT = ROOT / "backtest" / "output"
 
-# 状态条三线：(名称, 信号 CSV, 因子列)；推荐持仓文件由 backtest.production.RECOMMENDED_FILES 决定（equal_weight 2026-09-09 起对称）
+# 状态条各生产线：(名称, 信号 CSV, 因子列)；推荐持仓文件由 backtest.production.RECOMMENDED_FILES 决定（equal_weight 2026-09-09 起对称）
 SIGNALS = (
     ("equal_weight", OUT / "equal_weight/equal_weight_signal_20d40z.csv", "factor_value"),
     ("slope20", OUT / "slope20/slope20_signal_L20zw120.csv", "factor_value"),   # 2026-09-09 第四条线

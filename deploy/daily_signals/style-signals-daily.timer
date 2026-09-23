@@ -3,7 +3,8 @@ Description=Run style_timing_signal daily signal chain (weekdays 18:30 Asia/Shan
 Documentation=file:///home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/README.md
 
 [Timer]
-# 上游 stock_selector 的 daily_index 在工作日 17:30 抓 index_daily，这里晚一小时。
+# 18:30 = 收盘、中证指数收盘值发布之后。输入指数由链路第一步 topup 自己经 Wind 网关取、
+# 写 index_daily，不等别的采集作业（stock_selector 17:30 的 daily_index 自 2026-08-14 起改手动，不再自动跑）。
 OnCalendar=Mon-Fri 18:30 Asia/Shanghai
 AccuracySec=1min
 RandomizedDelaySec=2min

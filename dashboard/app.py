@@ -25,7 +25,7 @@ _SIG_LABEL = {"equal_weight": "equal_weight（生产主信号）", "slope20": "s
 
 
 def status_bar(signals: list[dict], fresh: dict) -> list:
-    """① 状态条：三线 chip（因子值 + 推荐持仓 + 截止日）+ 数据新鲜度行。equal_weight 自 2026-09-09 起对称（可为 −1）。"""
+    """① 状态条：每条生产线一个 chip（因子值 + 推荐持仓 + 截止日）+ 数据新鲜度行。equal_weight 自 2026-09-09 起对称（可为 −1）。"""
     chips = []
     for sig in signals:
         long = sig["position"] == 1

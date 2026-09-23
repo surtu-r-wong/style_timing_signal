@@ -1,4 +1,4 @@
-"""基线编排器：三条信号线 × 三口径 × 分段窗口 × (整段/多头段/空头段) → 指标表。
+"""基线编排器：各生产信号线（SIGNALS）× 三口径 × 分段窗口 × (整段/多头段/空头段) → 指标表。
 
 CLI: python3 -m backtest.baseline [--source pg] [--mode discrete|proportional]
      [--bootstrap N]
@@ -84,7 +84,7 @@ def load_signal(name, mode="discrete", signals=None):
 
 def build_report(mode="discrete", bootstrap_n=500, seed=0, cost_bps=3.0, db=None,
                  signals=None, positions=None) -> pd.DataFrame:
-    """signals: {name: (path, col)}，默认三条生产线；positions: 直接传已映射仓位
+    """signals: {name: (path, col)}，默认 SIGNALS 全部生产线；positions: 直接传已映射仓位
     dict（跳过文件加载，供外部信号同秤评估）。两者都给时 positions 优先。"""
     und_all = {kj: load_underlying_returns(kj, db=db) for kj in KOU_JING}
     car_all = {kj: load_carry(kj, db=db) for kj in KOU_JING}
@@ -115,7 +115,7 @@ def build_report(mode="discrete", bootstrap_n=500, seed=0, cost_bps=3.0, db=None
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Phase2 修秤：三条线真实基线")
+    ap = argparse.ArgumentParser(description="Phase2 修秤：各生产线真实基线")
     ap.add_argument("--source", default="pg", choices=["pg"])
     ap.add_argument("--mode", default="discrete", choices=["discrete", "proportional"])
     ap.add_argument("--bootstrap", type=int, default=500)

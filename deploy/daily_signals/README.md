@@ -10,7 +10,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `run_daily_signals.sh` | 链路 runner：topup → 三条信号 → 推荐持仓 → 护栏 → 企业微信推送；带 flock、分步计时、日志、状态文件 |
+| `run_daily_signals.sh` | 链路 runner：topup → 各信号线 → 推荐持仓 → 护栏 → 企业微信推送；带 flock、分步计时、日志、状态文件 |
 | `check_freshness.py` | 产出护栏（只读 PG）：末行不落后 + 区间无缺口，兼状态 JSON 写入器 |
 | `topup_guard.py` | topup 写库护栏：前置闸门（只读 gateway+PG）+ 事后审计（只读 PG） |
 | `notify_wechat.py` | 企业微信推送（步骤 8）：护栏通过后推当日持仓；`--alert` 由告警器调用推失败通知；`--dry-run` 只打印。见下「企业微信推送」 |
@@ -53,7 +53,8 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
   service 配 `SuccessExitStatus=75`，锁冲突不触发告警——占锁的那个实例会推送；不配的话，
   接上企业微信后每次撞锁都是一条假告警。
 - **产出护栏（两条命题，任一不过 → 日志打大写 `STALE` + 退出 1 + `"result": "STALE"`）**：
-  对象都是三条生产信号 CSV + 三份推荐持仓，交易日历取自 `index_daily` 本身（避开周末/长假误报）。
+  对象是各生产信号 CSV + 各推荐持仓 + 现货池文件（清单即 `check_freshness.py::GATED`），
+  交易日历取自 `index_daily` 本身（避开周末/长假误报）。
   1. **不落后**：末行日期距 `index_daily` 最新交易日不超过 1 个**交易日**。
   2. **无缺口**：每份产出在自己的 `[首行, 末行]` 区间内覆盖日历上**每一个**交易日，
      且不出现日历外日期。缺口明细进 `files[label].gap_dates`（截断 10 条，计数是全量），
@@ -68,7 +69,7 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
   `--source pg` 全量重算覆写，跑一次即补齐）。
 - **PG 只读**：护栏与信号脚本都只读 `stock_selector.index_daily`；链路里唯一的写库方是
   步骤 0 的 `tools/topup_index_daily.sh`（stock_selector 的 backfill CLI，幂等 upsert）。
-- **上游冻结护栏**：三条产出是从 `index_daily` 算出来的，上游一冻结，「产出 vs 上游」
+- **上游冻结护栏**：各份产出都是从 `index_daily` 算出来的，上游一冻结，「产出 vs 上游」
   恒为 0 落后、恒报 OK —— 正是本项目停更 35 天没被发现的那种盲区。所以还单独盯上游：
   `index_daily` 最新交易日距今 > 7 个自然日且不在已知假期窗口 → `result: UPSTREAM_STALE`
   + 非零退出。固定日期长假（元旦/劳动节/国庆）内置放宽到 15 天；**春节等农历假期日期
@@ -162,7 +163,7 @@ git commit -m "..." deploy/daily_signals/SKIP_TOPUP    # ← 必须一起提交�
 
 置上后日志会出现 `TOPUP_SKIPPED(标志文件 …: <原因>)`，`status.json` 里
 `"topup": "TOPUP_SKIPPED"` + `"topup_reason": "..."`。**信号侧零损失**：额度耗尽当天本就
-取不到可信新数据，三条信号照常用 `index_daily` 库内数据重算，新鲜度护栏仍以库内
+取不到可信新数据，各信号线照常用 `index_daily` 库内数据重算，新鲜度护栏仍以库内
 `max(trade_date)` 为基准比对，结果照样 `OK`。
 
 ### 第二天如何恢复
@@ -370,13 +371,13 @@ deploy/daily_signals/run_daily_signals.sh               # 不经 systemd 直接�
 ## 历史零篡改
 
 因为是全量重算覆写，每次运行都可以用 `git diff --stat output/` 直接验证：正常情况下
-只应看到尾部新增行，历史段字节不变。补跑/改动前建议先备份三条信号 CSV 与
+只应看到尾部新增行，历史段字节不变。补跑/改动前建议先备份各信号线 CSV 与
 `output/recommended/`（2026-08-12 首次补跑的备份在 `~/backups/style_timing_signal/`）。
 
-**一个例外必须知道：补一个中间缺口会合法修订缺口之后那些行的值。** 三条信号都是
-滚动窗口（citic40d 40 日 z、equal_weight 20 日 lookback×40 日 z、hybrid20 同族），
-缺口被补上后窗口成员变化，**缺口之后、窗口长度之内的行会重算出不同的值**。
-2026-08-17 补 08-12/13 两天时实测：逐日比对回填前后，3974/3066/3724 个共同日期里
+**一个例外必须知道：补一个中间缺口会合法修订缺口之后那些行的值。** 各信号线都是
+滚动窗口（citic40d 40 日 z、equal_weight 20 日 lookback×40 日 z、slope20 20 日斜率×120 日 z、
+hybrid20 同族），缺口被补上后窗口成员变化，**缺口之后、窗口长度之内的行会重算出不同的值**。
+2026-08-17 补 08-12/13 两天时实测（slope20 当时尚未进日更链路）：逐日比对回填前后，3974/3066/3724 个共同日期里
 **各只有 08-14 一行变**（更早历史逐位不变），但那一行两条线的仓位直接翻了 ——
 
     citic40d      signal -0.0642 → +0.2880    仓位 0 → 1

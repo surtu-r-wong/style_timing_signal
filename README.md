@@ -63,10 +63,12 @@ python3 -m dashboard.app        # → http://127.0.0.1:8060
 
 ### 日更自动化（2026-08-12 起）⭐
 
-上面这些命令**不再需要人手跑**：`deploy/daily_signals/` 把 topup → 三条信号 → 推荐持仓
-串成一条链，由 systemd user timer 在**工作日 18:30**（Asia/Shanghai，晚于上游 17:30 抓数）
-自动触发，`Persistent=true` 会补跑关机错过的触发。链路末尾有**新鲜度护栏**：三条生产信号
-与三份推荐持仓落后 `index_daily` 最新交易日超过 1 个交易日即失败退出并打 `STALE`
+上面这些命令**不再需要人手跑**：`deploy/daily_signals/` 把 topup → 各信号线 → 推荐持仓
+串成一条链，由 systemd user timer 在**工作日 18:30**（Asia/Shanghai，收盘、中证指数收盘值发布之后）
+自动触发，`Persistent=true` 会补跑关机错过的触发。输入指数由链路第一步 topup 自己经 Wind 网关取、
+写 `index_daily`，没有别的自动采集方（stock_selector 17:30 的 daily_index 自 2026-08-14 起改手动）。
+链路末尾有**新鲜度护栏**：各生产信号与推荐持仓（含现货池文件）落后 `index_daily` 最新交易日
+超过 1 个交易日即失败退出并打 `STALE`
 （本仓库此前零自动化、停更 35 天无人发现，见 `docs/plans/2026-08-12-project-review-and-priorities.md`）。
 
 ```bash
@@ -80,7 +82,7 @@ cat logs/daily_signals_status.json                       # 最近一次运行的
 ## 风格仪表盘（dashboard/）
 
 五轴空头研究收官后的产品化产出（设计 `docs/plans/2026-07-08-style-dashboard-design.md`）：
-一屏回答"今天市场在哪"。五区 = ① 三线生产信号状态条（最新因子值 + long-flat
+一屏回答"今天市场在哪"。五区 = ① 各生产线信号状态条（最新因子值 + 生产口径
 推荐持仓 + 各源截止日）② 风格测量仪（U2 行业中性纯风格价差 + 信号化位置）
 ③ 涨停温度计（占比/炸板率/溢价 + 250d 分位）④ 杠杆（两融余额/占成交比，读
 PG `edb_daily`，不可达自动降级）⑤ 能量+广度（成交额分位 + %>MA + 新高新低差）。
@@ -106,11 +108,11 @@ data/  (备份/审计口径，--source csv；不再逐日人工维护)
   └── 沪深300.csv 、 指数.xlsx（研究/备查）
 ```
 
-日常更新流程：三线输入均读 PG（`tools/topup_index_daily.sh` 保鲜后直接跑命令即可）；2026-08-12 起这一串由 `deploy/daily_signals/` 的 systemd timer 每工作日 18:30 自动执行，无需人工介入。CSV 不再需要逐日人工维护，仅作 `--source csv` 备份/审计口径。
+日常更新流程：各生产线输入均读 PG（`tools/topup_index_daily.sh` 保鲜后直接跑命令即可）；2026-08-12 起这一串由 `deploy/daily_signals/` 的 systemd timer 每工作日 18:30 自动执行，无需人工介入。CSV 不再需要逐日人工维护，仅作 `--source csv` 备份/审计口径。
 
 ## 目录说明
 
-- `signals/` — 三条信号线脚本，各目录有 README 说明计算逻辑
+- `signals/` — 生产信号线脚本（每线一个子目录，见上「四条信号线」表）+ `common/` 共用件 + `style_basket/` 研究篮子；计算逻辑见各目录 README 或脚本头注释
 - `data/` — 全部输入数据（`data/README.md` 记录每个文件的来源、格式、更新方式）
 - `output/` — 运行产物，脚本自动写入
 - `archive/` — 旧版系统（对比/）、被合并的旧脚本、旧数据快照、2026 年 3-6 月回测研究输出（`archive/README.md` 有索引）

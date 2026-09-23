@@ -16,7 +16,7 @@
 #   3. signals/citic40d/generate_signal.py
 #   4. signals/equal_weight/generate_signal.py                    （变体A / 生产口径）
 #   5. signals/equal_weight/generate_signal.py --lookback 5 …     （变体B / 参考口径）
-#   6. python -m backtest.production        —— 三条线的 long-flat 推荐持仓
+#   6. python -m backtest.production        —— 各生产线推荐持仓（口径见 PRODUCTION_MAPPING）+ 参照/现货池文件
 #   7. deploy/daily_signals/check_freshness.py —— 新鲜度护栏 + 状态文件
 #   8. deploy/daily_signals/notify_wechat.py   —— 企业微信推送（护栏通过才推；失败 → 非零退出）
 #

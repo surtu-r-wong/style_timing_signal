@@ -2,7 +2,7 @@
 
 **两条独立命题**（任一不过 → 非零退出 + 状态 JSON `result: "STALE"`）：
 
-1. **不落后**：三条生产信号 CSV 与三份推荐持仓的末行日期，距 `index_daily` 最新交易日
+1. **不落后**：`GATED` 里各生产信号 CSV 与推荐持仓（含现货池文件）的末行日期，距 `index_daily` 最新交易日
    不得超过 `--max-lag` 个**交易日**（默认 1）。这条存在的理由是 2026-07-09~08-12 停更
    35 天无人发现（见 docs/plans/2026-08-12-project-review-and-priorities.md §3.1）。
 2. **无缺口**：每份产出在自己的 `[首行, 末行]` 区间内，必须覆盖交易日历上的**每一个**
@@ -355,12 +355,14 @@ def print_report(report: dict, ok: bool) -> None:
         print("UPSTREAM_STALE: 上游自己冻结了 ——")
         print(f"  UPSTREAM_STALE  {report['upstream_breach']}")
         print("  UPSTREAM_STALE  本项目产出与上游同步，上游不动则「产出 vs 上游」恒为 0 落后，")
-        print("  UPSTREAM_STALE  只盯那一项会永远报 OK；处置 = 查 stock_selector 的 daily_index 调度器。")
+        print("  UPSTREAM_STALE  只盯那一项会永远报 OK；处置 = 查本链路 topup 为何没取到数"
+              "（日志 DEGRADED / TOPUP_SKIPPED 行，多半是 Wind 额度 / 网关）。")
         print("  UPSTREAM_STALE  若确属长假，用 --holiday-window 或 "
               "STYLE_SIGNALS_HOLIDAY_WINDOWS 登记该窗口消音。")
     elif up["calendar_days_behind_today"] > 4:
         print(f"WARN: 上游 index_daily 已 {up['calendar_days_behind_today']} 个自然日未更新"
-              f"（长假期间属正常；否则检查 stock_selector 的 daily_index 调度器）")
+              "（长假期间属正常；否则查本链路 topup 为何没取到数：日志 DEGRADED / TOPUP_SKIPPED 行，"
+              "多半是 Wind 额度 / 网关）")
     if report["breaches"]:
         print("STALE: 产出护栏未通过 —— 下列产出没有追平上游（落后 / 中间缺交易日）：")
         for b in report["breaches"]:
