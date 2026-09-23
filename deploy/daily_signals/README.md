@@ -10,10 +10,11 @@
 
 | 文件 | 作用 |
 |---|---|
-| `run_daily_signals.sh` | 链路 runner：topup → 三条信号 → 推荐持仓 → 护栏；带 flock、分步计时、日志、状态文件 |
+| `run_daily_signals.sh` | 链路 runner：topup → 三条信号 → 推荐持仓 → 护栏 → 企业微信推送；带 flock、分步计时、日志、状态文件 |
 | `check_freshness.py` | 产出护栏（只读 PG）：末行不落后 + 区间无缺口，兼状态 JSON 写入器 |
 | `topup_guard.py` | topup 写库护栏：前置闸门（只读 gateway+PG）+ 事后审计（只读 PG） |
-| `alert_on_failure.sh` | 失败告警器：写 `logs/ALERT_daily_signals` + best-effort `notify-send` |
+| `notify_wechat.py` | 企业微信推送（步骤 8）：护栏通过后推当日持仓；`--alert` 由告警器调用推失败通知；`--dry-run` 只打印。见下「企业微信推送」 |
+| `alert_on_failure.sh` | 失败告警器：写告警文件 `logs/ALERT_daily_signals` + best-effort 企业微信失败通知 + `notify-send` |
 | `style-signals-daily-alert.service` | 告警单元，由主 service 的 `OnFailure=` 拉起 |
 | `SKIP_TOPUP`（可选） | 存在即跳过 topup，文件第一行是原因；见下「Wind wsd 额度耗尽时怎么办」 |
 | `style-signals-daily.service` | systemd user service（oneshot），单元副本 |
@@ -30,6 +31,7 @@ signals/equal_weight/generate_signal.py        # 步骤 4（变体A / 生产口�
 signals/equal_weight/generate_signal.py …5d20z # 步骤 5（变体B / 参考口径）
 python -m backtest.production                  # 步骤 6 → output/recommended/（equal_weight 自 2026-09-09 起对称 → equal_weight_symmetric.csv；long-flat 文件作参照并行产出）
 deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
+deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（护栏通过才推）
 ```
 
 四个生成脚本都是**全量重算覆写**（读 PG 全历史 → `to_csv` 覆盖），不是追加。因此：
@@ -42,8 +44,13 @@ deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
   改用 `index_daily` 库内现有数据继续，日志与状态文件记 `DEGRADED` / `TOPUP_SKIPPED`，
   新鲜度由步骤 7 兜底。唯一例外是事后审计不过（`TOPUP_SUSPECT`）——那说明库可能已脏，
   必须停在信号重算之前。
-- **步骤 1–7 硬失败**：任一步非零退出即整链非零退出，状态文件记 `FAILED` + 失败步骤名。
+- **步骤 1–8 硬失败**：任一步非零退出即整链非零退出，状态文件记 `FAILED` + 失败步骤名。
+  步骤 8（企业微信推送）只在记账上不同：它失败时信号与护栏都已完成、只是没送达——日志打
+  `NOTIFY_FAILED`，状态文件 `result` 仍是 `OK`，原因记在 `notify.error`；但照样退出 1 交告警器，
+  因为没送达就等于没人知道。
 - **并发锁**：`logs/.daily_signals.lock` 上的 `flock -n`；已有实例在跑时立即退出 75。
+  service 配 `SuccessExitStatus=75`，锁冲突不触发告警——占锁的那个实例会推送；不配的话，
+  接上企业微信后每次撞锁都是一条假告警。
 - **产出护栏（两条命题，任一不过 → 日志打大写 `STALE` + 退出 1 + `"result": "STALE"`）**：
   对象都是三条生产信号 CSV + 三份推荐持仓，交易日历取自 `index_daily` 本身（避开周末/长假误报）。
   1. **不落后**：末行日期距 `index_daily` 最新交易日不超过 1 个**交易日**。
@@ -82,8 +89,12 @@ deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
   在 08-17 11:25 回填补上的，我们能做的只是「看见」，并在下次重算时把产出补齐。
   回看窗口用 `--upstream-gap-lookback N` 调（`0` = 关闭）。
 - **失败告警**：主 service 的 `OnFailure=` 会拉起 `style-signals-daily-alert.service`，
-  写 `logs/ALERT_daily_signals`（时间 + `status.json` 摘要 + 日志路径 + 处置指引）并
-  best-effort 弹 `notify-send`。链路会在 topup 审计判可疑/无法验证时**主动中止**——
+  写 `logs/ALERT_daily_signals`（时间 + `status.json` 摘要 + 日志路径 + 处置指引），
+  再 best-effort 推一条企业微信失败通知（`notify_wechat.py --alert`，外包 `timeout 30`、后跟 `||`：
+  推不出去只把原因追加进告警文件，告警器自己绝不失败），最后 best-effort 弹 `notify-send`。
+  告警器把主 service 本次的启动时刻（`ExecMainStartTimestamp`）经 `--run-started` 传给失败通知，
+  用来判断状态文件是不是本次运行写的（见下「企业微信推送」的陈旧告警句）。
+  链路会在 topup 审计判可疑/无法验证时**主动中止**——
   中止只有被人知道才安全，否则又是一次无人发现的停摆。
   **告警文件不自动清除**（下次成功也不清），处置完手动 `rm logs/ALERT_daily_signals`，
   免得夜里失败、白天自愈、没人看见。
@@ -175,12 +186,112 @@ git commit -m "..." deploy/daily_signals/SKIP_TOPUP    # ← 必须一起提交�
 5. 恢复后确认：`cat logs/daily_signals_status.json` 应看到 `"topup": "OK"`，
    且 `upstream.max_trade_date` 已推进。
 
+## 企业微信推送
+
+2026-09-23 上线（设计 `docs/plans/2026-09-23-wechat-signal-push-design.md`）。此前链路成功时
+什么都不发、失败时只写告警文件 + 桌面通知，人不在电脑前就不知道。现在**每个工作日都推**，
+不做「持仓变了才推」——静默才不会被误读成成功。
+
+**何时推**：链路步骤 8，护栏通过之后（定时器 18:30 + ≤2 分钟随机延迟起跑，整链十几秒，约 18:31 到）。
+护栏未过或任一步失败都**不推持仓**，改由告警器推失败通知。
+
+**推什么**：两池置顶，其余生产线作参考，末尾一行链路体检。池子映射只有一个入口
+`backtest/production.py::POOLS`（期货池 = equal_weight 对称、现货池 = slope20 long-flat，
+2026-09-10 裁决 `063c322`）；信号值取该持仓文件末行那天的值。2026-09-22 收盘的真实产出：
+
+```
+风格择时 信号日 2026-09-22｜链路 OK
+【期货池】equal_weight 对称：持多 +1（08-13 起第 29 日）信号值 0.2784
+【现货池】slope20 long-flat：持多 +1（09-21 起第 2 日）信号值 0.0461
+【其余生产线·参考】
+  hybrid20 long-flat：空仓 0（09-02 起第 15 日）信号值 0
+  citic40d long-flat：持多 +1（08-14 起第 28 日）信号值 0.4318
+  slope20 对称：持多 +1（09-21 起第 2 日）信号值 0.0461
+topup OK · 护栏 OK（最大落后 0 交易日 · 缺口 0）
+```
+
+- 翻仓当日：`【现货池】slope20 long-flat：⚡翻仓 空仓 0 → 持多 +1 信号值 0.0122`
+- 信号日不是今天（假日照跑 / 关机后补跑 / topup 没取到新数据）：首行 `风格择时 信号日 2026-09-30（今天 10-01）｜链路 OK`
+- 某条线末行落后于信号日（护栏允许落后 1 个交易日）：该行附 `（末行 09-29）`
+- topup 降级/跳过：体检行不再以 `topup OK ·` 开头，另起一行 `⚠ topup <状态>：<原因>`；
+  上游近窗缺口：加 `⚠ 上游缺 N 天：…`
+- 超过 2048 字节（企业微信是整条拒收，不是截断）：从末尾整行删并注明删了几行，池子两行永远在最前
+
+失败通知（链路任一环失败时由告警器推；格式样例，首行是告警器运行时刻）：
+
+```
+⚠ 风格择时日更链失败｜2026-09-23 18:31:07
+结果 FAILED · 失败步骤 topup_audit(SUSPECT) · 状态写于 2026-09-23T18:31:05+08:00
+topup SUSPECT：事后审计判定写入可疑（exit 1）
+systemd Result=exit-code
+持仓未更新/未送达，以上一次推送为准；处置见 logs/ALERT_daily_signals
+```
+
+**只推护栏担保过的文件**：状态文件 `result` 必须是 `OK`，要推的每份持仓文件都必须以
+`gated: true` 出现在状态文件 `files` 里、且末行日期与护栏核验时一致——否则拒推（`REFUSED`，
+exit 1 → 告警）。这把「推送对象 ⊆ 护栏对象」钉成运行期不变式，而不是靠两份清单碰巧对齐；
+现货池文件 `slope20_longflat.csv` 正是为此由「参考」升为护栏对象。
+
+**webhook**：`~/.config/market-monitor/alert.env` 里的 `ALERT_WEBHOOK_URL`（600 权限、在所有仓
+之外，与 bs-toolkit、数据管理办公室是同一个机器人）；环境变量 `ALERT_WEBHOOK_URL` 优先。
+`qyapi.weixin.qq.com` 是国内端点，本机 Clash 代理会让它失败或变慢，所以代码里显式绕代理，
+不依赖单元文件清环境变量。URL 里带 key，**任何输出都抹掉它**（报错、堆栈、状态文件
+`notify.error`、告警文件）。网络层错误重试 1 次；`errcode≠0` 属配置/限流问题，不重试。
+
+### 失败形态
+
+失败的形态常常和成功长得一样，下表是每种异常在群里的样子：
+
+| 形态 | 表现 |
+|---|---|
+| 机器没开 | `Persistent=true` 开机补跑，照推；首行注明「今天 X」 |
+| 工作日休市（国庆等） | 链路照跑、信号日不变，照推并注明「今天 X」——静默不等于成功 |
+| topup 降级/跳过 | 照推，附 ⚠ topup 行 |
+| topup 失败（DEGRADED）且上游停更未超 7 天 | 护栏照报 OK、照推，但首行显示「信号日 X（今天 Y）」并带「⚠ topup DEGRADED」行——2026-09-14/15 Wind 日额度耗尽两晚就是这个形态，以前没人看得见（超过 7 天由上游冻结护栏判 `UPSTREAM_STALE`，转为不推 + 告警） |
+| 上游近窗缺口（只 WARN） | 照推，附 ⚠ 上游缺口行 |
+| 护栏未过 / 任一步失败 / 审计可疑 | **不推持仓**；`OnFailure` → 告警文件 + 失败通知 |
+| 推送对象未经护栏担保 | 拒推，exit 1 → `OnFailure` |
+| webhook 失败 | 重试 1 次仍败 → `notify.error` 记账、exit 1 → `OnFailure`（告警器再推失败通知；webhook 本身坏了时它多半也送不到，只留在告警文件与桌面通知里） |
+| 没配 webhook | exit 1 → `OnFailure`（拒绝静默；`--dry-run` 可预览） |
+| 锁冲突（75） | `SuccessExitStatus=75`，不告警——占锁的那个实例会推 |
+| 定时器被删 / user manager 没起 | 既有盲区；接上推送后表现为「当天没收到消息」，人能察觉 |
+
+09-14 那晚按当晚产出与护栏读数重放（日志实录：`DEGRADED … exit 1`、`FRESHNESS OK … 上游距今 3 自然日`、
+链路「成功」），群里会看到：
+
+```
+风格择时 信号日 2026-09-11（今天 09-14）｜链路 OK
+【期货池】equal_weight 对称：持多 +1（08-13 起第 22 日）信号值 0.1146
+…
+护栏 OK（最大落后 0 交易日 · 缺口 0）
+⚠ topup DEGRADED：topup 调用失败 exit 1（gateway 不可达 / wsd 额度耗尽 / Wind 报错）
+```
+
+**陈旧告警句**：失败通知第二行若是「状态文件停在 …，不是本次运行写的——本次在写状态前就死了
+（看 systemd Result）」，说明本次运行在写状态文件之前就被杀了（超时、OOM 等），文件里还是上一次的
+内容。判据是告警器传入的 `--run-started`（主 service 本次的 `ExecMainStartTimestamp`，`@unix 秒`）：
+`finished_at` 早于它即陈旧；取不到时退回「`finished_at` 的日期 ≠ 今天」。这时通知只说这一句加
+systemd `Result`，**不引用**文件里旧的 result / topup / breaches——免得把上一次的原因安到这次头上。
+同类兜底句还有「状态文件缺失或无法解析」，以及结果是 `OK` 却触发了告警、又没有推送错误记录时的
+「状态文件没记下失败原因——可能在写状态前就被杀了」。
+
+### 手动命令
+
+```bash
+python3 deploy/daily_signals/notify_wechat.py --dry-run          # 预览：只打印，不发、不写状态文件；结尾报 webhook 是否已配置
+python3 deploy/daily_signals/notify_wechat.py                    # 补发：发送并把 notify 段写回状态文件
+python3 deploy/daily_signals/notify_wechat.py --alert --dry-run  # 告警演练：按当前状态文件拼失败通知，不发
+```
+
+补发照样只推护栏担保过的文件：护栏之后产出又被改过（如手工重跑了某条信号），会拒推——那就重跑
+整条链路。`--dry-run` 永远不写状态文件：白天手动预览不能覆盖掉当晚「已送达」的记录。
+
 ## 产物
 
 | 产物 | 说明 |
 |---|---|
 | `logs/daily_signals_YYYYMMDD.log` | 按日滚动的运行日志（同时进 journal） |
-| `logs/daily_signals_status.json` | 最新一次运行的状态：结果、失败步骤、各步耗时、topup 结果与原因、上游最新交易日与是否冻结、每份产出的末行日期与落后交易日数 |
+| `logs/daily_signals_status.json` | 最新一次运行的状态：结果、失败步骤、各步耗时、topup 结果与原因、上游最新交易日与是否冻结、每份产出的末行日期与落后交易日数；`notify` 段：推送结果 `sent / at / as_of / bytes / error`（步骤 8 写，`--dry-run` 不写） |
 | `logs/ALERT_daily_signals` | 失败告警文件（只在失败时出现，**不自动清除**，处置完手动 `rm`） |
 | `logs/.topup_pre_snapshot.json` | topup 调用前的 PG 快照，供事后审计比对 |
 | `logs/.daily_signals.lock` | flock 锁文件 |
@@ -208,6 +319,16 @@ systemctl --user list-timers style-signals-daily.timer
 单元文件里的路径是绝对路径（本机 `/home/elfbob/claude-code/style_timing_signal`）；
 换机器部署需同步改 `WorkingDirectory` 与 `ExecStart`。
 
+**改了单元文件要重装**：systemd 跑的是 `~/.config/systemd/user/` 下那份副本，不是仓库里这份。
+改了 `.service` / `.timer` 之后要重新 `cp` 过去并 `daemon-reload`，否则不生效（如 2026-09-23 给主
+service 加的 `SuccessExitStatus=75`）。脚本（`.sh` / `.py`）则由单元按仓库绝对路径直接执行，
+改了下次运行即生效，不用重装。
+
+```bash
+cp deploy/daily_signals/style-signals-daily.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+```
+
 ## 手动操作
 
 ```bash
@@ -226,6 +347,7 @@ deploy/daily_signals/run_daily_signals.sh               # 不经 systemd 直接�
 | `STYLE_SIGNALS_SKIP_TOPUP` | `0` | `1` = 跳过步骤 0（不写库，只用库内现有数据） |
 | `STYLE_SIGNALS_MAX_LAG` | `1` | 护栏允许落后的交易日数 |
 | `STYLE_SIGNALS_TOPUP_TIMEOUT` | `900` | 步骤 0 超时秒数 |
+| `STYLE_SIGNALS_NOTIFY_ARGS` | 空 | runner 与告警器都透传给 `notify_wechat.py`，如 `--dry-run`（只打印不发、不写状态文件）。告警器是另一个单元，在主 service 里设的值传不到它 |
 
 ## 历史零篡改
 
