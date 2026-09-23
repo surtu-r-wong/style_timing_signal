@@ -151,13 +151,25 @@ def describe(line: Line, as_of: str) -> str:
     return f"{text}{'' if text.endswith('）') else ' '}信号值 {value}"
 
 
+#: 第 0 步办公室模式（2026-09-23 起常态：输入由 data_manager 夜间作业写入，状态文件 topup 字段记 OFFICE_*）
+#: 出问题时的 ⚠ 行措辞；OFFICE_OK 是常态，不出 ⚠ 行。
+OFFICE_WARNINGS = {"OFFICE_LATE": "输入未到齐", "OFFICE_CHECK_ERROR": "输入到齐检查出错"}
+
+
 def health_lines(status: dict) -> list[str]:
+    """链路体检行：输入（topup 字段）+ 护栏，末尾是 ⚠ 行（输入有问题 / 上游近窗缺口）。
+    输入正常时并进护栏行：topup 模式 OK →「topup OK · 护栏 …」，办公室模式 OFFICE_OK →「输入 办公室日更 ✓ · 护栏 …」。"""
     guard = (f"护栏 OK（最大落后 {_v(status.get('max_lag_trading_days'))} 交易日 · "
              f"缺口 {_v(status.get('output_gap_total'))}）")
     topup = status.get("topup")
-    out = [f"topup OK · {guard}" if topup == "OK" else guard]
-    if topup != "OK":
-        out.append(f"⚠ topup {_v(topup)}：{status.get('topup_reason') or '未记原因'}")
+    reason = status.get("topup_reason") or "未记原因"
+    if topup == "OK":
+        out = [f"topup OK · {guard}"]
+    elif topup == "OFFICE_OK":
+        out = [f"输入 办公室日更 ✓ · {guard}"]
+    else:
+        label = OFFICE_WARNINGS.get(topup)
+        out = [guard, f"⚠ {label}：{reason}" if label else f"⚠ topup {_v(topup)}：{reason}"]
     gaps = (status.get("upstream") or {}).get("gaps") or []
     if gaps:
         more = " 等" if len(gaps) > 5 else ""
@@ -361,7 +373,7 @@ def build_alert(status: dict | None, *, systemd_result: str, now: str,
     else:
         lines.append(f"结果 {_v(status.get('result'))} · 失败步骤 {_v(status.get('failed_step'))}"
                      f" · 状态写于 {_v(finished)}")
-        if status.get("topup") not in (None, "OK"):
+        if status.get("topup") not in (None, "OK", "OFFICE_OK"):   # 输入正常（含办公室日更到齐）不提
             lines.append(f"topup {status.get('topup')}：{status.get('topup_reason') or '未记原因'}")
         lines += [f"护栏：{b}" for b in (status.get("breaches") or [])[:3]]
         if status.get("upstream_breach"):
