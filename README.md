@@ -31,7 +31,8 @@ python3 -m backtest.production
 
 - **① hybrid20 / ② citic40d**：默认 `--source pg`（读中信 5 风格 CI005917–21）。已验证 PG 与 CSV 输出**逐字节一致**。
 - **③ equal_weight**：默认 `--source pg`。已去掉创业板/科创两对（逻辑性存疑），收敛为 沪深300/中证500/中证1000/中证2000 **四对**（`config_4pairs`，起点 2014-01-02）；csv==pg 输出逐字节一致。旧 `config_5pairs`/`config_6pairs`（含创业板/科创）留档待定稿。
-- PG 由日更链路第一步 topup 保鲜（2026-08-12 起每工作日 18:30 自动跑）：`tools/topup_index_daily.sh` 调 stock_selector 的 backfill CLI，经 Wind gateway 取 15 个输入码、幂等写 `index_daily`（默认回看 14 天）；调用前由前置闸门 `deploy/daily_signals/topup_guard.py` 只读探网关 `/ping`、`/health`、`/quota` 并查库，存疑就不调用。这是链路里唯一的写库方，其余步骤都不写库（信号脚本与护栏只读 PG，推荐持仓读 committed 信号 CSV）。连接配置见 `config/settings.yaml`（gitignored，模板 `config/settings.example.yaml`，含 `wind_gateway` 段）。
+- **2026-09-23 起 15 个输入码由 data_manager 办公室的夜间作业写入 `index_daily`**（WSL2 每晚 20:00 起跑、约 20:02 结束，每晚补数前重看前 5 个交易日纠错；请求函与处置见 `data_manager/requests/2026-09-23-style-timing-signal-index-daily-takeover/`），**本链路只读、完全不写库**：日更链路第一步只等当日 15 码到齐（`deploy/daily_signals/wait_for_inputs.py`，最迟等到 21:30），信号脚本与护栏只读 PG，推荐持仓读 committed 信号 CSV。连接配置见 `config/settings.yaml`（gitignored，模板 `config/settings.example.yaml`）。
+- 〔回退用，2026-08-12~09-22 的做法〕PG 由日更链路第一步 topup 保鲜：`tools/topup_index_daily.sh` 调 stock_selector 的 backfill CLI，经 Wind gateway 取 15 个输入码、幂等写 `index_daily`（默认回看 14 天）；调用前由前置闸门 `deploy/daily_signals/topup_guard.py` 只读探网关 `/ping`、`/health`、`/quota` 并查库，存疑就不调用（网关地址与 token 在 `config/settings.yaml` 的 `wind_gateway` 段）。删掉标志文件 `deploy/daily_signals/SKIP_TOPUP` 即回到这种模式，见 `deploy/daily_signals/README.md`。
 
 ## 运行（均在仓库根执行）
 
@@ -63,10 +64,12 @@ python3 -m dashboard.app        # → http://127.0.0.1:8060
 
 ### 日更自动化（2026-08-12 起）⭐
 
-上面这些命令**不再需要人手跑**：`deploy/daily_signals/` 把 topup → 各信号线 → 推荐持仓
-串成一条链，由 systemd user timer 在**工作日 18:30**（Asia/Shanghai，收盘、中证指数收盘值发布之后）
-自动触发，`Persistent=true` 会补跑关机错过的触发。输入指数由链路第一步 topup 自己经 Wind 网关取、
-写 `index_daily`，没有别的自动采集方（stock_selector 17:30 的 daily_index 自 2026-08-14 起改手动）。
+上面这些命令**不再需要人手跑**：`deploy/daily_signals/` 把输入 → 各信号线 → 推荐持仓 → 护栏 → 企业微信推送
+串成一条链，由 systemd user timer 在**工作日 20:30**（Asia/Shanghai；2026-09-23 前是 18:30）自动触发，
+`Persistent=true` 会补跑关机错过的触发。输入指数 2026-09-23 起由 data_manager 办公室的夜间作业（20:00 起跑、
+约 20:02 结束）写 `index_daily`，链路第一步只读等当日 15 码到齐（最迟等到 21:30，没齐就用库内已有数据照算、
+推送里标明）；此前由链路第一步 topup 自己经 Wind 网关取（stock_selector 17:30 的 daily_index 自 2026-08-14 起
+改手动），topup 留作回退。
 链路末尾有**新鲜度护栏**：各生产信号与推荐持仓（含现货池文件）落后 `index_daily` 最新交易日
 超过 1 个交易日即失败退出并打 `STALE`
 （本仓库此前零自动化、停更 35 天无人发现，见 `docs/plans/2026-08-12-project-review-and-priorities.md`）。
@@ -109,7 +112,7 @@ data/  (备份/审计口径，--source csv；不再逐日人工维护)
   └── 沪深300.csv 、 指数.xlsx（研究/备查）
 ```
 
-日常更新流程：各生产线输入均读 PG（`tools/topup_index_daily.sh` 保鲜后直接跑命令即可）；2026-08-12 起这一串由 `deploy/daily_signals/` 的 systemd timer 每工作日 18:30 自动执行，无需人工介入。CSV 不再需要逐日人工维护，仅作 `--source csv` 备份/审计口径。
+日常更新流程：各生产线输入均读 PG（2026-09-23 起由 data_manager 办公室的夜间作业写入，此前由 `tools/topup_index_daily.sh` 保鲜）；这一串由 `deploy/daily_signals/` 的 systemd timer 每工作日 20:30 自动执行（2026-08-12 起自动化，2026-09-23 前是 18:30），无需人工介入。CSV 不再需要逐日人工维护，仅作 `--source csv` 备份/审计口径。
 
 ## 目录说明
 

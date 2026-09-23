@@ -22,19 +22,24 @@
   * 近窗内缺工作日 → `UPSTREAM_GAP`，**只 WARN 不参与退出码**——按工作日推算必然把
     调休放假的工作日误判成缺口，且本项目对上游缺口没有处置权（08-12/13 就是上游
     自己回填补上的）。详见 `upstream_calendar_gaps`。
-    〔2026-09-23 现状注〕15 个输入码现由本链路 topup 自采、每晚回看 14 个自然日，短缺口
-    下一轮自愈，更早的缺口用 `tools/topup_index_daily.sh <start>` 补；纯风格 4 码由 20:00
-    夜间作业写。只 WARN 不参与退出码的理由仍成立：按工作日推算会把调休日误判成缺口。
+    〔2026-09-23 现状注〕19 码 2026-09-23 起全部由 data_manager 夜间作业写入（每晚回看 11 天补缺、
+    补数前重看前 5 个交易日纠错），本链路只读，缺口归办公室补——两条理由都成立。此前一段 15 个
+    输入码由本链路 topup 自采、每晚回看 14 个自然日，更早的缺口用 `tools/topup_index_daily.sh <start>`
+    补；回退到 topup 模式（删标志文件 SKIP_TOPUP）时仍是这样。
 
-「上游」有两个写入方（2026-09-23 核实）：日历 = `signals/common/index_codes.csv` 全部 19 码
-（`load_calendar()`），其中 15 码由本链路 topup 在 18:30 写，932400~932403 四个纯风格码
-2026-09-21 起由数据管理办公室 20:00 夜间作业（stock_selector
-`scripts/relay_backfill/nightly_wss.sh`）每晚约 20:01 写。两边取指数都走网关的 wsd
-`/fetch/index_daily`，吃同一个 Wind WSD 额度池。所以「没取到数」在护栏上有两种表现：
-  * 仅 topup 失败 → 日历照样被夜间作业推进，产出逐日落后；落后超过 `--max-lag`
-    （默认 1，按 18:30 准点跑即连续失败的第 3 晚）报 `STALE`。
-  * 两边都没取到（WSD 额度耗尽 / 网关不可达）→ 日历冻结，「产出 vs 上游」恒为 0 落后，
-    护栏照报 OK，直到上游距今超过 7 个自然日才报 `UPSTREAM_STALE`。
+「上游」的写入方（2026-09-23 起为单一写入方）：日历 = `signals/common/index_codes.csv` 全部 19 码
+（`load_calendar()`），19 码全部由 data_manager 夜间作业（WSL2 20:00 起跑、约 20:02 结束，stock_selector
+`scripts/relay_backfill/nightly_wss.sh`）写入：932400~932403 四个纯风格码 2026-09-21 起，15 个输入码
+2026-09-23 起。本链路第 0 步（`wait_for_inputs.py`）先等当日 15 码到齐（最迟 21:30）再算。所以
+「没取到数」在护栏上有两种表现，处置相同——办公室会收到它自己的告警，看 data_manager 状态；本链路只读：
+  * 夜间作业整晚没写成（WSD 额度耗尽 / 周日 Wind 掉登录 / WSL2 没开）→ 19 码一起停，日历冻结，
+    「产出 vs 上游」恒为 0 落后，护栏照报 OK（第 0 步记 OFFICE_LATE，推送带「⚠ 输入未到齐」行），
+    直到上游距今超过 7 个自然日才报 `UPSTREAM_STALE`。
+  * 只缺本项目输入码、别的码有数把日历推进了 → 产出逐日落后；落后超过 `--max-lag`（默认 1，
+    连续缺的第 3 晚）报 `STALE`。
+〔2026-09-23 之前是两个写入方〕15 码由本链路 topup 在 18:30 写、4 个纯风格码由夜间作业写，两边都走
+网关 wsd `/fetch/index_daily`、吃同一个 Wind WSD 额度池：仅 topup 失败 = 上面第二种，两边都没取到 =
+第一种。回退到 topup 模式时仍是这样。
 
 用法（由 run_daily_signals.sh 调用，也可手工跑）：
     python3 deploy/daily_signals/check_freshness.py            # 只检查，打印结论
@@ -78,7 +83,8 @@ INFORMATIONAL = {
 UPSTREAM_MAX_LAG_DAYS = 7          # 自然日；平日 A 股最长连休（含调休）也到不了
 UPSTREAM_HOLIDAY_MAX_LAG_DAYS = 15  # 已知长假窗口内放宽
 UPSTREAM_GAP_LOOKBACK_WORKDAYS = 15  # 上游缺口只查近窗；更早的缺口属历史，归上游
-#   〔2026-09-23 现状注〕15 个输入码的上游就是本链路 topup，更早的缺口用 tools/topup_index_daily.sh <start> 补。
+#   〔2026-09-23 起〕19 码全部由 data_manager 夜间作业写入，缺口归办公室补（本链路只读）；
+#   回退到 topup 模式时才用 tools/topup_index_daily.sh <start> 自己补。
 GAP_SAMPLE = 10                     # 缺口明细进状态文件/日志的条数上限（别把状态文件撑爆）
 # 固定日期的长假（月, 日）→（月, 日），含首尾。春节等农历假期日期逐年变，
 # 由 --holiday-window / STYLE_SIGNALS_HOLIDAY_WINDOWS 显式补进来。
@@ -241,9 +247,10 @@ def upstream_calendar_gaps(
         `in_holiday_window` 消音，边缘调休日每年还剩几天，硬失败就是几次假警报；
       * 本项目对上游缺口**没有处置权**：2026-08-12/13 这次就是上游自己在 08-17 11:25
         回填补上的，我们能做的只是「看见」并在下次重算时把产出补齐。
-        〔2026-09-23 现状注〕这条已不确切：15 个输入码现由本链路 topup 自采、每晚回看
-        14 个自然日，短缺口下一轮自愈，更早的缺口用 `tools/topup_index_daily.sh <start>`
-        补；纯风格 4 码由 20:00 夜间作业写。上一条（调休误判）仍足以支撑只 WARN。
+        〔2026-09-23 现状注〕15 个输入码由本链路 topup 自采的那段时间里这条不确切（topup 每晚回看
+        14 个自然日自己补缺口）；2026-09-23 起 19 码全部由 data_manager 夜间作业写入、本链路只读，
+        这条重新成立——缺口归办公室补。回退到 topup 模式时又不成立（用
+        `tools/topup_index_daily.sh <start>` 补）。上一条（调休误判）始终足以支撑只 WARN。
 
     上沿钉在 `min(库内最新交易日, 今天)`：比库内最新还新的日子属于「还没落库」，
     那是 `check_upstream_freeze`（冻结）的辖区，不是「中间缺口」。
@@ -365,25 +372,26 @@ def print_report(report: dict, ok: bool) -> None:
               f"有 {len(up_gaps)} 天库里没有任何本项目输入码的数据 ——")
         print(f"  UPSTREAM_GAP  {'、'.join(up_gaps[:GAP_SAMPLE])}")
         print("  UPSTREAM_GAP  只 WARN 不参与退出码（本项目对上游缺口无处置权）。"
-              "\n  UPSTREAM_GAP  〔2026-09-23 现状注〕15 个输入码现由本链路 topup 自采、每晚回看 14 个自然日，"
-              "\n  UPSTREAM_GAP  短缺口下一轮自愈，更早的用 tools/topup_index_daily.sh <start> 补；纯风格 4 码由 20:00 夜间作业写。"
-              "\n  UPSTREAM_GAP  只 WARN 的理由仍成立：按工作日推算会把调休日误判成缺口。")
+              "\n  UPSTREAM_GAP  〔2026-09-23 起〕19 码全部由 data_manager 夜间作业写入（每晚回看 11 天补缺），"
+              "本链路只读——缺口归办公室补。")
         print("  UPSTREAM_GAP  若确属调休/农历假期 → --holiday-window 登记该日消音；")
-        print("  UPSTREAM_GAP  若确属上游漏采 → 上游补齐后本链路下次重算即自动补上产出，")
+        print("  UPSTREAM_GAP  若确属上游漏采 → 看 data_manager 状态（办公室会收到它自己的告警）；"
+              "上游补齐后本链路下次重算即自动补上产出，")
         print("  UPSTREAM_GAP  在此之前产出会一直缺这几天（2026-08-12/13 就是这个剧本）。")
     if report.get("upstream_breach"):
         print("UPSTREAM_STALE: 上游自己冻结了 ——")
         print(f"  UPSTREAM_STALE  {report['upstream_breach']}")
         print("  UPSTREAM_STALE  本项目产出与上游同步，上游不动则「产出 vs 上游」恒为 0 落后，")
-        print("  UPSTREAM_STALE  只盯那一项会永远报 OK。上游冻结 = topup（15 码）与 20:00 夜间作业"
-              "（4 个纯风格码）都没取到数；"
-              "\n  UPSTREAM_STALE  处置 = 先查本链路 topup 日志的 DEGRADED / TOPUP_SKIPPED 行（多半 Wind 额度 / 网关）。")
+        print("  UPSTREAM_STALE  只盯那一项会永远报 OK。上游冻结 = 办公室夜间作业没写进来"
+              "（2026-09-23 起 19 码全部由它写；办公室会收到它自己的告警）——"
+              "\n  UPSTREAM_STALE  处置 = 看 data_manager 状态（data_manager/scripts/office_status.py）；本链路只读。"
+              "\n  UPSTREAM_STALE  〔回退到 topup 模式时〕先查本链路 topup 日志的 DEGRADED / TOPUP_SKIPPED 行"
+              "（多半 Wind 额度 / 网关）。")
         print("  UPSTREAM_STALE  若确属长假，用 --holiday-window 或 "
               "STYLE_SIGNALS_HOLIDAY_WINDOWS 登记该窗口消音。")
     elif up["calendar_days_behind_today"] > 4:
         print(f"WARN: 上游 index_daily 已 {up['calendar_days_behind_today']} 个自然日未更新"
-              "（长假期间属正常；否则 topup 与 20:00 夜间作业都没取到数——先查本链路 topup 日志的"
-              " DEGRADED / TOPUP_SKIPPED 行，多半 Wind 额度 / 网关）")
+              "（长假期间属正常；否则办公室夜间作业没写进来——看 data_manager 状态，本链路只读）")
     if report["breaches"]:
         print("STALE: 产出护栏未通过 —— 下列产出没有追平上游（落后 / 中间缺交易日）：")
         for b in report["breaches"]:
@@ -419,9 +427,10 @@ def main() -> int:
     ap.add_argument("--run-log", default=None, help="本次运行日志路径（记入状态文件）")
     ap.add_argument("--started-at", default=None, help="运行开始时间 ISO 串")
     ap.add_argument("--topup", default="UNKNOWN",
-                    help="topup 步骤结果 OK/DEGRADED/TOPUP_SKIPPED/SUSPECT")
+                    help="步骤 0 结果：办公室模式 OFFICE_OK/OFFICE_LATE/OFFICE_CHECK_ERROR；"
+                         "topup 模式 OK/DEGRADED/TOPUP_SKIPPED/SUSPECT/TOPUP_VERIFY_FAILED")
     ap.add_argument("--topup-reason", default="",
-                    help="topup 被跳过/降级/存疑的原因，原样记入状态文件")
+                    help="步骤 0 的原因（等数结果 / topup 被跳过、降级、存疑的原因），原样记入状态文件")
     ap.add_argument("--holiday-window", action="append", default=None,
                     metavar="YYYY-MM-DD:YYYY-MM-DD",
                     help="已知假期窗口（可重复）；农历假期如春节须在此登记，"
