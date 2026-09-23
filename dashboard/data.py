@@ -142,7 +142,7 @@ def load_breadth() -> pd.DataFrame:
 
 
 def load_signals_status() -> list[dict]:
-    """① 状态条：三线最新因子值 + long-flat 推荐持仓 + 各自截止日。"""
+    """① 状态条：各生产线最新因子值 + 推荐持仓（口径见 backtest.production.PRODUCTION_MAPPING）+ 各自截止日。"""
     rows = []
     for name, path, col in SIGNALS:
         fac = (pd.read_csv(path, parse_dates=["date"]).set_index("date")

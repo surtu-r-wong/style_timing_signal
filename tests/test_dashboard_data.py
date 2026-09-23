@@ -76,13 +76,20 @@ def test_load_turnover_and_breadth_contract():
     assert {"pct_above_ma20", "pct_above_ma60", "hi_lo_diff20"} <= set(br.columns)
 
 
-def test_load_signals_status_three_lines():
-    """状态条：三线各出 name/factor/date/position，position∈{0,1}。"""
+def test_load_signals_status_matches_production_lines():
+    """状态条覆盖全部生产线，position 取值随 PRODUCTION_MAPPING 口径：对称 {-1,0,1}、long-flat {0,1}。"""
+    from backtest.production import PRODUCTION_MAPPING
+    allowed = {"symmetric": {-1, 0, 1}, "longflat": {0, 1}}
     rows = load_signals_status()
-    assert [r["name"] for r in rows] == ["equal_weight", "hybrid20", "citic40d"]
+    names = [r["name"] for r in rows]
+    assert names == ["equal_weight", "slope20", "hybrid20", "citic40d"]
+    assert set(names) == set(PRODUCTION_MAPPING), (
+        "仪表盘状态条与 PRODUCTION_MAPPING 不一致：新增/撤下生产线要同步 dashboard/data.py::SIGNALS")
     for r in rows:
+        mode = PRODUCTION_MAPPING[r["name"]]
         assert np.isfinite(r["factor"])
-        assert r["position"] in (0, 1)
+        assert r["position"] in allowed[mode], (
+            f"{r['name']}（{mode}）末日持仓 {r['position']} 不在 {sorted(allowed[mode])}")
         assert isinstance(r["date"], pd.Timestamp)
 
 
