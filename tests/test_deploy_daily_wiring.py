@@ -6,6 +6,7 @@
 
 * 推送必须在护栏**通过之后**：「推送对象 ⊆ 护栏对象」的前提是护栏先跑完、通过、写好状态文件；
 * 推送失败 runner 必须非零退出：否则 OnFailure 不触发，没送达也没人知道；
+* 推送调用必须限时：DNS 解析不受 socket 超时约束，卡住会一直占锁到 TimeoutStartSec=3600；
 * 告警器调推送必须 best-effort（外包 timeout、后跟 ||、末尾 exit 0）：告警器自己绝不能成为新的失败源；
 * 锁冲突的 75 不算失败（SuccessExitStatus=75）：否则接上微信后每次撞锁都是一条假告警。
 """
@@ -55,6 +56,28 @@ def _only(indices: list[int], what: str) -> int:
 def _guard_call(lines: list[str]) -> int:
     """步骤 7 的护栏调用（带 --max-lag 的那次；fail() 里那次只记账、不做检查）。"""
     return _only([i for i in _calls(lines, '"${GUARD}"') if "--max-lag" in lines[i]], "步骤 7 护栏调用")
+
+
+def _matching_fi(lines: list[str], start: int) -> int:
+    """lines[start] 是多行 `if …; then`：返回与它配对的 fi（跳过嵌套 if；单行 `if …; fi` 不计层）。"""
+    depth = 0
+    for i in range(start, len(lines)):
+        if re.match(r"if\s", lines[i]) and not re.search(r";\s*fi$", lines[i]):
+            depth += 1
+        elif lines[i] == "fi":
+            depth -= 1
+            if depth == 0:
+                return i
+    raise AssertionError(f"逻辑行 {start} 的 if 没有配对的 fi")
+
+
+def _push_failure_branch(lines: list[str]) -> tuple[int, str, int, int]:
+    """-> (推送调用行, 接退出码的变量名, 失败分支 `if` 行, 与之配对的 `fi` 行)。"""
+    push = _only(_calls(lines, NOTIFY), "runner 的推送调用")
+    m = re.search(r"\|\|\s*(\w+)=\$\?$", lines[push])
+    assert m, f"推送调用须以 `|| <rc>=$?` 接住退出码（set -e 下不接就直接崩出去，没有 NOTIFY_FAILED）：{lines[push]}"
+    start = lines.index(f"if [[ ${{{m.group(1)}}} -ne 0 ]]; then", push)
+    return push, m.group(1), start, _matching_fi(lines, start)
 
 
 def _arg_source(lines: list[str], call: str, flag: str) -> str:
@@ -125,17 +148,29 @@ def test_runner_push_args(runner):
 
 
 def test_runner_push_failure_exits_nonzero(runner):
-    """推送失败 → 日志 NOTIFY_FAILED + exit 1 → OnFailure 告警器；「成功」收尾只在失败分支之后。"""
-    push = _only(_calls(runner, NOTIFY), "runner 的推送调用")
-    m = re.search(r"\|\|\s*(\w+)=\$\?$", runner[push])
-    assert m, f"推送调用须以 `|| <rc>=$?` 接住退出码（set -e 下不接就直接崩出去，没有 NOTIFY_FAILED）：{runner[push]}"
-    start = runner.index(f"if [[ ${{{m.group(1)}}} -ne 0 ]]; then", push)
-    end = runner.index("fi", start)
+    """推送失败 → 日志 NOTIFY_FAILED + exit 1 → OnFailure 告警器（超时与否都是 exit 1）；
+    「成功」收尾只在失败分支之后。"""
+    _, _, start, end = _push_failure_branch(runner)
     branch = runner[start + 1:end]
     assert any(line.startswith("log ") and "NOTIFY_FAILED" in line for line in branch), branch
-    assert "exit 1" in branch, branch
+    exits = [line for line in branch if re.match(r"exit\b", line)]
+    assert exits and set(exits) == {"exit 1"} and branch[-1] == "exit 1", exits
     success = [i for i, line in enumerate(runner) if "日更信号链结束：成功" in line]
     assert success and min(success) > end
+
+
+def test_runner_push_is_time_limited(runner):
+    """推送调用外包 timeout：send_text 自身最坏约 25s，但 DNS 解析不受 socket 超时约束，卡住会一直
+    占锁到 TimeoutStartSec=3600。timeout 杀进程退出 124——日志要写明是超时（进程被杀，notify 段
+    来不及写，原因只在日志里），秒数与调用前缀一致。"""
+    push, rc, start, end = _push_failure_branch(runner)
+    m = re.match(r"timeout (\d+) ", runner[push])
+    assert m, f"推送调用须外包 timeout <秒数>：{runner[push]}"
+    t = runner.index(f"if [[ ${{{rc}}} -eq 124 ]]; then", start, end)
+    then_end = next(i for i in range(t + 1, end)
+                    if runner[i] in ("else", "fi") or runner[i].startswith("elif "))
+    logs = [line for line in runner[t + 1:then_end] if line.startswith("log ") and "NOTIFY_FAILED" in line]
+    assert any(f"推送超时（{m.group(1)}s" in line for line in logs), logs
 
 
 # ── 告警器：失败通知 ──────────────────────────────────────────────────────────
@@ -191,7 +226,7 @@ def test_service_lock_conflict_is_success(runner):
     codes = [value for key, value in _unit(SERVICE).get("Service", []) if key == "SuccessExitStatus"]
     assert any("75" in value.split() for value in codes), codes
     start = next(i for i, line in enumerate(runner) if re.match(r"if ! flock -n\b", line))
-    assert "exit 75" in runner[start + 1:runner.index("fi", start)]
+    assert "exit 75" in runner[start + 1:_matching_fi(runner, start)]
 
 
 def test_service_keeps_onfailure_and_no_install():

@@ -252,13 +252,20 @@ fi
 log "✔ freshness_guard 通过，用时 ${guard_dt}s"
 
 # ── 步骤 8：企业微信推送（护栏通过才推；推送失败 → 非零退出，交 OnFailure 告警器）──────
+# 限时 120s：send_text 自身最坏约 25s（socket 超时 10s × 2 次 + 间隔 5s），但 DNS 解析不受
+# socket 超时约束，卡住会一直占锁到 TimeoutStartSec=3600。超时由 timeout 杀进程（退出 124），
+# 来不及写状态文件的 notify 段，原因只在本日志里。
 log "▶ notify_wechat: notify_wechat.py ${STYLE_SIGNALS_NOTIFY_ARGS:-}"
 notify_rc=0
 # shellcheck disable=SC2086
-"${PYTHON}" "${SCRIPT_DIR}/notify_wechat.py" --status-file "${STATUS_FILE}" \
+timeout 120 "${PYTHON}" "${SCRIPT_DIR}/notify_wechat.py" --status-file "${STATUS_FILE}" \
     ${STYLE_SIGNALS_NOTIFY_ARGS:-} || notify_rc=$?
 if [[ ${notify_rc} -ne 0 ]]; then
-  log "NOTIFY_FAILED: 企业微信推送失败（exit ${notify_rc}）——信号与护栏均已完成，只是没送达；见 ${STATUS_FILE} 的 notify 段"
+  if [[ ${notify_rc} -eq 124 ]]; then
+    log "NOTIFY_FAILED: 企业微信推送超时（120s，多半卡在 DNS/网络）——信号与护栏均已完成，只是没送达；进程被杀，状态文件 notify 段来不及写"
+  else
+    log "NOTIFY_FAILED: 企业微信推送失败（exit ${notify_rc}）——信号与护栏均已完成，只是没送达；见 ${STATUS_FILE} 的 notify 段"
+  fi
   log "════════ 日更信号链结束：推送失败，总耗时 $((SECONDS - START_TS))s ════════"
   exit 1
 fi
