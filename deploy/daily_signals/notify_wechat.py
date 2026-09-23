@@ -19,7 +19,13 @@ qyapi.weixin.qq.com 是国内端点，本机 Clash 代理会让它失败 → 显
 from __future__ import annotations
 
 import csv
+import json
+import os
 import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +37,10 @@ WECHAT_TEXT_LIMIT = 2048
 POSITION_LABELS = {1: "持多 +1", 0: "空仓 0", -1: "持空 -1"}
 MAPPING_LABELS = {"symmetric": "对称", "longflat": "long-flat"}
 LOG_NOTE = "全文见当日运行日志"
+WEBHOOK_ENV = "ALERT_WEBHOOK_URL"
+DEFAULT_ENV_FILE = Path.home() / ".config" / "market-monitor" / "alert.env"
+SEND_TIMEOUT = 10.0
+RETRY_WAIT = 5.0
 
 
 class Refused(RuntimeError):
@@ -156,3 +166,66 @@ def compose_message(root: Path, status: dict, *, today: str) -> tuple[str, str]:
     lines += [f"  {describe(line, as_of)}" for line in others]
     lines += health_lines(status)
     return truncate_text("\n".join(lines), limit=WECHAT_TEXT_LIMIT, note=LOG_NOTE), as_of
+
+
+class SendError(RuntimeError):
+    """企业微信没收下（网络错误重试后仍失败 / errcode≠0 / 回包不是 JSON）。"""
+
+
+def load_env_file(path: Path) -> dict[str, str]:
+    """极简 dotenv：KEY=VALUE、export 前缀、成对引号、# 注释；读不到就当空。"""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    out = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+            value = value[1:-1]
+        out[key.strip()] = value
+    return out
+
+
+def resolve_webhook(env_file: Path) -> str:
+    return os.environ.get(WEBHOOK_ENV) or load_env_file(env_file).get(WEBHOOK_ENV, "")
+
+
+def _scrub(text: str, url: str) -> str:
+    """报错文本里抹掉 URL 与 key——它们会进日志、告警文件和状态文件。"""
+    out = text.replace(url, "<webhook>")
+    key = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query).get("key", [""])[0]
+    return out.replace(key, "<key>") if key else out
+
+
+def send_text(url: str, text: str, *, timeout: float = SEND_TIMEOUT, retries: int = 1,
+              wait: float = RETRY_WAIT, opener=None) -> None:
+    """发一条 text 消息。显式绕代理；网络层错误重试 retries 次；errcode≠0 不重试。"""
+    body = json.dumps({"msgtype": "text", "text": {"content": text}},
+                      ensure_ascii=False).encode("utf-8")
+    opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        try:
+            with opener.open(req, timeout=timeout) as resp:
+                raw = resp.read()
+            break
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            if attempt >= retries:
+                raise SendError(f"网络错误（共试 {retries + 1} 次）：{_scrub(str(exc), url)}") from None
+            time.sleep(wait)
+    try:
+        reply = json.loads(raw.decode("utf-8"))
+    except ValueError:
+        raise SendError(f"回包不是 JSON：{_scrub(raw[:200].decode('utf-8', 'replace'), url)}") from None
+    if reply.get("errcode", 0) != 0:
+        raise SendError(_scrub(f"企业微信拒收：errcode={reply.get('errcode')} "
+                               f"{reply.get('errmsg')}", url))

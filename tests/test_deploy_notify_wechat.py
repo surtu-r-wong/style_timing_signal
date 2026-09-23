@@ -146,3 +146,103 @@ def test_truncate_keeps_head_and_says_how_many_dropped():
 def test_real_message_fits_wechat_limit(tmp_path):
     text, _, _ = compose(tmp_path)
     assert len(text.encode("utf-8")) <= nw.WECHAT_TEXT_LIMIT
+
+
+import threading
+import urllib.error
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+
+@pytest.fixture
+def stub():
+    """本地 webhook 桩：记录收到的 JSON；reply 可改成非 0 errcode。"""
+    state = {"bodies": [], "reply": {"errcode": 0, "errmsg": "ok"}}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            n = int(self.headers["Content-Length"])
+            state["bodies"].append(json.loads(self.rfile.read(n).decode("utf-8")))
+            data = json.dumps(state["reply"]).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    state["url"] = f"http://127.0.0.1:{server.server_port}/cgi-bin/webhook/send?key=TESTKEY123"
+    yield state
+    server.shutdown()
+
+
+def test_send_posts_text_message_and_bypasses_proxy(stub, monkeypatch):
+    # 代理指向一个必死端口：若 send_text 走环境代理，这次请求必然失败。
+    for var in ("NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("http_proxy", "http://127.0.0.1:9")
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
+    nw.send_text(stub["url"], "你好\n第二行", wait=0)
+    assert stub["bodies"] == [{"msgtype": "text", "text": {"content": "你好\n第二行"}}]
+
+
+def test_send_raises_on_nonzero_errcode(stub):
+    stub["reply"] = {"errcode": 93000, "errmsg": "invalid webhook url"}
+    with pytest.raises(nw.SendError, match="93000"):
+        nw.send_text(stub["url"], "x", wait=0)
+    assert len(stub["bodies"]) == 1          # errcode 是配置问题，不重试
+
+
+class _FlakyOpener:
+    def __init__(self, fail_times, url):
+        self.calls, self.fail_times, self.url = 0, fail_times, url
+
+    def open(self, req, timeout):
+        self.calls += 1
+        if self.calls <= self.fail_times:
+            raise urllib.error.URLError(f"boom while calling {self.url}")
+        return _Resp(b'{"errcode": 0, "errmsg": "ok"}')
+
+
+class _Resp:
+    def __init__(self, data):
+        self.data = data
+
+    def read(self):
+        return self.data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def test_send_retries_network_error_once():
+    url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=SECRETKEY42"
+    opener = _FlakyOpener(1, url)
+    nw.send_text(url, "x", wait=0, opener=opener)
+    assert opener.calls == 2
+
+
+def test_send_error_never_leaks_webhook_key():
+    url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=SECRETKEY42"
+    opener = _FlakyOpener(5, url)
+    with pytest.raises(nw.SendError) as exc:
+        nw.send_text(url, "x", wait=0, opener=opener)
+    assert opener.calls == 2
+    assert "SECRETKEY42" not in str(exc.value) and exc.value.__cause__ is None
+
+
+def test_webhook_from_env_file_and_env_var_precedence(tmp_path, monkeypatch):
+    env = tmp_path / "alert.env"
+    env.write_text("# 注释\n\nexport OTHER=1\nALERT_WEBHOOK_URL='https://example.invalid/x?key=abc'\n",
+                   encoding="utf-8")
+    monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
+    assert nw.resolve_webhook(env) == "https://example.invalid/x?key=abc"
+    assert nw.resolve_webhook(tmp_path / "missing.env") == ""
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", "https://example.invalid/y?key=def")
+    assert nw.resolve_webhook(env) == "https://example.invalid/y?key=def"
