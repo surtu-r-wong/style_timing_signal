@@ -1,0 +1,20 @@
+# 本项目日更输入指数（15 码），一行一个；# 开头为注释，空行忽略。
+# 2026-09-23 起由 data_manager 夜间作业（WSL2 dbm-daily-wss，20:00 起跑）写入 stock_selector.index_daily，
+# 本链路只读：deploy/daily_signals/wait_for_inputs.py 按这张表判断当日是否到齐。
+# tools/topup_index_daily.sh（已停用，留作回退）仍用它自己的 CODES；两边顺序与内容由
+# tests/test_deploy_wait_for_inputs.py 钉成一致——改一边必须同步改另一边。
+CI005917.WI
+CI005918.WI
+CI005919.WI
+CI005920.WI
+CI005921.WI
+000918.CSI
+000919.CSI
+H30351.CSI
+H30352.CSI
+932406.CSI
+932407.CSI
+932408.CSI
+932409.CSI
+932000.CSI
+000300.SH
