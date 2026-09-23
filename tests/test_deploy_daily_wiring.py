@@ -104,23 +104,42 @@ def _duration(text: str) -> float:
     return float(m.group(1)) * {"": 1, "s": 1, "m": 60, "h": 3600, "d": 86400}[m.group(2)]
 
 
+_TIMEOUT_LONG_OPTS = ("--foreground", "--kill-after", "--preserve-status", "--signal", "--verbose")
+
+
 def _split_timeout(tokens: list[str]) -> tuple[float | None, float, list[str]]:
-    """shlex 切好的命令若以 timeout 开头 → (时长秒, kill-after 秒, 被限时的命令)；否则 (None, 0, 原样)。"""
+    """shlex 切好的命令若以 timeout 开头 → (时长秒, kill-after 秒, 被限时的命令)；否则 (None, 0, 原样)。
+
+    长选项按 getopt 规则认无歧义前缀（`--kill 10` = `--kill-after 10`）。--preserve-status / --foreground
+    直接判失败：前者让超时的退出码变成被杀命令自己的（如 143），后者不限时命令的子进程——
+    runner 的 124/137 超时分支就走不到了。"""
     if not tokens or tokens[0] != "timeout":
         return None, 0.0, tokens
     i, kill = 1, 0.0
     while tokens[i].startswith("-"):
         opt = tokens[i]
-        if opt in ("-k", "--kill-after", "-s", "--signal"):
-            if opt in ("-k", "--kill-after"):
-                kill = _duration(tokens[i + 1])
-            i += 2
-            continue
-        if opt.startswith("--kill-after="):
-            kill = _duration(opt.split("=", 1)[1])
+        if opt == "--":
+            i += 1
+            break
+        if opt.startswith("--"):
+            name, eq, value = opt.partition("=")
+            full = [n for n in _TIMEOUT_LONG_OPTS if n.startswith(name)]
+            assert len(full) == 1, f"timeout 选项不认识或有歧义：{opt}"
+            assert full[0] not in ("--preserve-status", "--foreground"), (
+                f"timeout 不许带 {opt}：它改变超时语义（--preserve-status 让退出码变成被杀命令自己的，"
+                f"124/137 分支走不到；--foreground 不限时命令的子进程）")
+            if full[0] in ("--kill-after", "--signal") and not eq:
+                i += 1
+                value = tokens[i]
+            if full[0] == "--kill-after":
+                kill = _duration(value)
+        elif opt in ("-k", "-s"):
+            i += 1
+            if opt == "-k":
+                kill = _duration(tokens[i])
         elif opt.startswith("-k"):
             kill = _duration(opt[2:])
-        i += 1   # --foreground / --preserve-status / -v / --signal=X / -sX
+        i += 1   # -v / -sX 以及上面各分支吃掉的选项本身
     return _duration(tokens[i]), kill, tokens[i + 1:]
 
 
@@ -287,11 +306,17 @@ exit "${STUB_RC}"
 '''
 
 
+@pytest.mark.parametrize("notify_args", [None, "--dry-run --status-file /elsewhere/status.json"],
+                         ids=["args-unset", "args-override"])
 @pytest.mark.parametrize("stub_rc", [0, 1, 124, 137])
-def test_runner_step8_runtime(tmp_path, runner, stub_rc):
+def test_runner_step8_runtime(tmp_path, runner, stub_rc, notify_args):
     """runner 从「# ── 步骤 8」到文件末尾的原文 + 桩解释器：0 → 成功收尾 rc 0；1 → 通用 NOTIFY_FAILED
     rc 1；124 / 137（超时 / 宽限后强杀）→ 超时文案 rc 1。能抓住静态断言看不见的东西，比如删掉
-    notify_rc=0（set -u 下推送成功反而崩出去）。顺带核对实际 argv：-u、透传在前、固定参数在后。"""
+    notify_rc=0（set -u 下推送成功反而崩出去）。
+
+    两种透传：**未设**（从子进程 env 里删掉，不是设空串）= 生产默认路径，systemd 单元里就没有这个
+    变量，set -u 下任何一处写成 ${STYLE_SIGNALS_NOTIFY_ARGS}（不带 :-）都会当场崩；带同名
+    --status-file 的覆盖尝试 = 固定参数必须排在最后才生效。"""
     text = RUNNER.read_text(encoding="utf-8")
     stub = tmp_path / "python_stub"
     stub.write_text(_STUB, encoding="utf-8")
@@ -307,8 +332,10 @@ def test_runner_step8_runtime(tmp_path, runner, stub_rc):
         f"PYTHON={shlex.quote(str(stub))}",
     ]) + "\n" + text[text.index("# ── 步骤 8"):], encoding="utf-8")
     argv_file = tmp_path / "argv"
-    env = {**os.environ, "STUB_RC": str(stub_rc), "STUB_ARGV": str(argv_file),
-           "STYLE_SIGNALS_NOTIFY_ARGS": "--dry-run --status-file /elsewhere/status.json"}
+    env = {**os.environ, "STUB_RC": str(stub_rc), "STUB_ARGV": str(argv_file)}
+    env.pop("STYLE_SIGNALS_NOTIFY_ARGS", None)
+    if notify_args is not None:
+        env["STYLE_SIGNALS_NOTIFY_ARGS"] = notify_args
     out = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, timeout=60)
     log = out.stdout + out.stderr
     failed = [line for line in log.splitlines() if line.startswith("NOTIFY_FAILED")]
@@ -326,9 +353,11 @@ def test_runner_step8_runtime(tmp_path, runner, stub_rc):
             assert timed_out not in failed[0] and f"exit {stub_rc}" in failed[0], failed
             assert "见上方输出" in failed[0], failed
     argv = argv_file.read_text(encoding="utf-8").splitlines()
-    assert argv[:2] == ["-u", str(script_dir / NOTIFY)], argv
-    assert argv[-2:] == ["--status-file", str(status)], argv
-    assert "--dry-run" in argv
+    head, fixed = ["-u", str(script_dir / NOTIFY)], ["--status-file", str(status)]
+    if notify_args is None:
+        assert argv == head + fixed, argv
+    else:
+        assert argv == head + notify_args.split() + fixed, argv
 
 
 @pytest.mark.parametrize("code, expected", [(75, 1), (1, 1), (2, 2), (3, 3)])
@@ -405,9 +434,16 @@ def test_alerter_summary_shows_notify():
     assert re.search(r"notify\s*=\s*\{d\.get\(['\"]notify['\"]\)\}", ALERTER.read_text(encoding="utf-8"))
 
 
-def test_alerter_echo_has_no_backticks(alerter):
-    """echo "…" 里的反引号是命令替换：处置指引写成 `命令` 会在告警时被当场执行。"""
-    bad = [line for line in alerter if re.match(r"echo\b", line) and "`" in line]
+def test_alerter_text_runs_no_commands(alerter):
+    """告警文本里的命令是写给人照抄的，不能在告警时被执行：echo / printf 行里的反引号是命令替换；
+    【处置】段再禁 $(…)——写成 $(python3 …) 会在告警时当场补发。摘要段的 $(date …) 是有意取值，
+    不在此列。"""
+    shown = [i for i, line in enumerate(alerter) if re.match(r"(echo|printf)\b", line)]
+    assert not [alerter[i] for i in shown if "`" in alerter[i]]
+    start = _only([i for i, line in enumerate(alerter) if re.fullmatch(r'echo\s+"\[处置\]"', line)],
+                  "【处置】段标题")
+    end = next(i for i in range(start, len(alerter)) if alerter[i].startswith("}"))
+    bad = [alerter[i] for i in shown if start < i < end and re.search(r"`|\$\(", alerter[i])]
     assert not bad, bad
 
 
