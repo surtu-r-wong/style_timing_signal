@@ -304,3 +304,67 @@ def test_push_refused_when_guard_not_ok(tmp_path, monkeypatch, stub, capsys):
     p = _status_file(tmp_path, st)
     assert nw.main(_argv(tmp_path, p)) == 1
     assert stub["bodies"] == [] and "REFUSED" in capsys.readouterr().err
+
+
+import subprocess
+
+NOW = "2026-09-23 18:31:07"
+
+
+def test_alert_for_failed_step():
+    st = {"result": "FAILED", "failed_step": "topup_audit(SUSPECT)",
+          "finished_at": "2026-09-23T18:31:05+08:00", "topup": "SUSPECT",
+          "topup_reason": "事后审计判定写入可疑（exit 1）"}
+    lines = nw.build_alert(st, systemd_result="exit-code", now=NOW).split("\n")
+    assert lines[0] == "⚠ 风格择时日更链失败｜2026-09-23 18:31:07"
+    assert lines[1] == "结果 FAILED · 失败步骤 topup_audit(SUSPECT) · 状态写于 2026-09-23T18:31:05+08:00"
+    assert "topup SUSPECT：事后审计判定写入可疑（exit 1）" in lines
+    assert "systemd Result=exit-code" in lines
+    assert lines[-1] == "持仓未更新/未送达，以上一次推送为准；处置见 logs/ALERT_daily_signals"
+
+
+def test_alert_for_stale_lists_first_three_breaches():
+    st = {"result": "STALE", "finished_at": "2026-09-23T18:31:05+08:00", "topup": "OK",
+          "breaches": [f"b{i}" for i in range(5)]}
+    lines = nw.build_alert(st, systemd_result="", now=NOW).split("\n")
+    assert [l for l in lines if l.startswith("护栏：")] == ["护栏：b0", "护栏：b1", "护栏：b2"]
+    assert not any(l.startswith("systemd") for l in lines)
+
+
+def test_alert_when_status_missing():
+    text = nw.build_alert(None, systemd_result="timeout", now=NOW)
+    assert "状态文件缺失或无法解析" in text and "systemd Result=timeout" in text
+
+
+def test_alert_when_status_ok_but_unit_failed():
+    st = {"result": "OK", "finished_at": "2026-09-23T18:31:05+08:00", "topup": "OK"}
+    text = nw.build_alert(st, systemd_result="timeout", now=NOW)
+    assert "状态文件没记下失败原因" in text
+
+
+def test_alert_reports_notify_error_instead():
+    st = {"result": "OK", "finished_at": "2026-09-23T18:31:05+08:00", "topup": "OK",
+          "notify": {"sent": False, "error": "网络错误（共试 2 次）：timed out"}}
+    text = nw.build_alert(st, systemd_result="exit-code", now=NOW)
+    assert "推送失败：网络错误（共试 2 次）：timed out" in text
+    assert "状态文件没记下失败原因" not in text
+
+
+def test_alert_cli_sends(tmp_path, monkeypatch, stub):
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
+    p = _status_file(tmp_path, {"result": "STALE", "finished_at": "x", "topup": "OK",
+                                "breaches": ["recommended_slope20 落后 2 交易日"]})
+    assert nw.main(["--alert", "--status-file", str(p), "--env-file", str(tmp_path / "x.env"),
+                    "--systemd-result", "exit-code"]) == 0
+    assert "护栏：recommended_slope20 落后 2 交易日" in stub["bodies"][0]["text"]["content"]
+
+
+def test_alert_mode_never_imports_pandas(tmp_path):
+    """科学栈坏了也得能报警：把 pandas 设成不可导入，--alert 仍须跑通。"""
+    p = _status_file(tmp_path, {"result": "FAILED", "failed_step": "citic40d"})
+    code = ("import sys, runpy; sys.modules['pandas'] = None; "
+            f"sys.argv = ['notify_wechat.py', '--alert', '--dry-run', '--status-file', {str(p)!r}]; "
+            f"runpy.run_path({str(NOTIFY_PATH)!r}, run_name='__main__')")
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr
+    assert "失败步骤 citic40d" in proc.stdout

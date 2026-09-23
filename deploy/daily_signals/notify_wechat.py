@@ -250,6 +250,53 @@ def record_notify(status_path: Path, notify: dict) -> None:
     os.replace(tmp, status_path)
 
 
+ALERT_FILE_NOTE = "处置见 logs/ALERT_daily_signals"
+
+
+def build_alert(status: dict | None, *, systemd_result: str, now: str) -> str:
+    """失败通知：只用状态文件里的字段，不碰产出文件、不 import pandas。"""
+    lines = [f"⚠ 风格择时日更链失败｜{now}"]
+    if status is None:
+        lines.append("状态文件缺失或无法解析——链路可能在写状态之前就死了")
+    else:
+        lines.append(f"结果 {status.get('result')} · 失败步骤 {status.get('failed_step') or '—'}"
+                     f" · 状态写于 {status.get('finished_at')}")
+        if status.get("topup") not in (None, "OK"):
+            lines.append(f"topup {status.get('topup')}：{status.get('topup_reason') or '未记原因'}")
+        lines += [f"护栏：{b}" for b in (status.get("breaches") or [])[:3]]
+        if status.get("upstream_breach"):
+            lines.append(f"上游：{status['upstream_breach']}")
+        if status.get("error"):
+            lines.append(f"检查出错：{status['error']}")
+        notify_error = (status.get("notify") or {}).get("error")
+        if notify_error:
+            lines.append(f"推送失败：{notify_error}")
+        elif status.get("result") == "OK":
+            lines.append("状态文件没记下失败原因——可能在写状态前就被杀了（看 systemd Result）")
+    if systemd_result:
+        lines.append(f"systemd Result={systemd_result}")
+    lines.append(f"持仓未更新/未送达，以上一次推送为准；{ALERT_FILE_NOTE}")
+    return truncate_text("\n".join(lines), limit=WECHAT_TEXT_LIMIT, note=ALERT_FILE_NOTE)
+
+
+def run_alert(args) -> int:
+    try:
+        status = json.loads(Path(args.status_file).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        status = None
+    text = build_alert(status, systemd_result=args.systemd_result,
+                       now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    print(text)
+    if args.dry_run:
+        return 0
+    url = resolve_webhook(Path(args.env_file))
+    if not url:
+        raise Refused(f"没有 {WEBHOOK_ENV}，失败通知只进告警文件")
+    send_text(url, text)
+    print("已推送失败通知")
+    return 0
+
+
 def run_push(args) -> int:
     status_path = Path(args.status_file)
     status = load_status(status_path)
@@ -293,7 +340,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        return run_push(args)
+        return run_alert(args) if args.alert else run_push(args)
     except (Refused, SendError) as exc:
         print(f"REFUSED: {exc}" if isinstance(exc, Refused) else f"SEND_FAILED: {exc}",
               file=sys.stderr)
