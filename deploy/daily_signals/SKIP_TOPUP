@@ -1,0 +1,1 @@
+2026-09-23 起 15 个输入指数由 data_manager 夜间作业（WSL2 dbm-daily-wss 20:00）统一写入，本链路只读；切换日由用户裁定为 2026-09-23。见 data_manager/requests/2026-09-23-style-timing-signal-index-daily-takeover/
