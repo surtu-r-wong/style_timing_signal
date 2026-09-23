@@ -1,16 +1,21 @@
-"""deploy/daily_signals 的接线静态判例：runner 步骤 8 推送、告警器失败通知、service 锁冲突（2026-09-23 立）。
+"""deploy/daily_signals 的接线判例：runner 步骤 8 推送、告警器失败通知、service 锁冲突（2026-09-23 立）。
 
-只读文本 + `bash -n`，**不执行脚本、不调 systemctl**：runner 会写共享库表 index_daily，告警器会
-真发企业微信。推送脚本本身的行为归 tests/test_deploy_notify_wechat.py；这里只钉「接在哪、带什么
-参数、失败怎么传播」——这几件一接错就**静默失效**，推送脚本自己的单测看不出来：
+静态部分只读文本 + `bash -n`；运行期部分只把 runner 的**片段**（步骤 8 到文件末尾、fail()）抽出来，
+配桩解释器用 bash 跑。**不执行整个脚本、不调 systemctl**：runner 会写共享库表 index_daily，告警器会
+真发企业微信。推送脚本本身的行为归 tests/test_deploy_notify_wechat.py；这里只钉「接在哪、带什么参数、
+失败怎么传播」——这几件一接错就**静默失效**，推送脚本自己的单测看不出来：
 
 * 推送必须在护栏**通过之后**：「推送对象 ⊆ 护栏对象」的前提是护栏先跑完、通过、写好状态文件；
 * 推送失败 runner 必须非零退出：否则 OnFailure 不触发，没送达也没人知道；
-* 推送调用必须限时：DNS 解析不受 socket 超时约束，卡住会一直占锁到 TimeoutStartSec=3600；
-* 告警器调推送必须 best-effort（外包 timeout、后跟 ||、末尾 exit 0）：告警器自己绝不能成为新的失败源；
-* 锁冲突的 75 不算失败（SuccessExitStatus=75）：否则接上微信后每次撞锁都是一条假告警。
+* 推送调用必须限时：socket 超时只管单次阻塞操作、总时长不封顶（DNS 根本不受它管），卡住会一直
+  占锁到 TimeoutStartSec；
+* 告警器调推送必须 best-effort（限时、后跟 ||、末尾 exit 0）：告警器自己绝不能成为新的失败源；
+* 75 只属于 flock 跳过：service 的 SuccessExitStatus=75 把它记成功，步骤自己退出 75 若原样透传，
+  失败就被吞成了成功。
 """
+import os
 import re
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -21,11 +26,17 @@ DEPLOY = ROOT / "deploy" / "daily_signals"
 RUNNER = DEPLOY / "run_daily_signals.sh"
 ALERTER = DEPLOY / "alert_on_failure.sh"
 SERVICE = DEPLOY / "style-signals-daily.service"
+ALERT_SERVICE = DEPLOY / "style-signals-daily-alert.service"
 NOTIFY = "notify_wechat.py"
 MAIN_UNIT = "style-signals-daily.service"
-# 不加引号才会按词拆开（如 --dry-run）；加了引号，变量为空时会多传一个空串参数，argparse 直接 exit 2
-NOTIFY_ARGS = re.compile(r'(?<!")\$\{STYLE_SIGNALS_NOTIFY_ARGS:-\}(?!")')
+# 不加引号才会按词拆开（如 --dry-run）；加了引号，变量为空时会多传一个空串参数，argparse 直接 exit 2。
+# ${VAR:-} 与 ${VAR-} 在 set -u 下都安全，都认。
+NOTIFY_ARGS = re.compile(r'(?<!")\$\{STYLE_SIGNALS_NOTIFY_ARGS:?-\}(?!")')
+NOTIFY_ARGS_WORD = re.compile(r"\$\{STYLE_SIGNALS_NOTIFY_ARGS:?-\}")
+ALERT_BUDGET_MARGIN = 10   # 秒：告警单元 TimeoutStartSec 里留给告警文件摘要与 systemctl 查询的余量
 
+
+# ── 文本解析 ───────────────────────────────────────────────────────────────────
 
 def _logical_lines(path: Path) -> list[str]:
     """逻辑行：去掉整行注释，反斜杠续行拼成一行，首尾空白去掉。"""
@@ -53,9 +64,11 @@ def _only(indices: list[int], what: str) -> int:
     return indices[0]
 
 
-def _guard_call(lines: list[str]) -> int:
-    """步骤 7 的护栏调用（带 --max-lag 的那次；fail() 里那次只记账、不做检查）。"""
-    return _only([i for i in _calls(lines, '"${GUARD}"') if "--max-lag" in lines[i]], "步骤 7 护栏调用")
+def _find(lines: list[str], pattern: str, start: int = 0) -> int:
+    """start 起第一条完全匹配 pattern 的逻辑行。"""
+    hits = [i for i in range(start, len(lines)) if re.fullmatch(pattern, lines[i])]
+    assert hits, f"找不到完全匹配 {pattern!r} 的行"
+    return hits[0]
 
 
 def _matching_fi(lines: list[str], start: int) -> int:
@@ -71,13 +84,64 @@ def _matching_fi(lines: list[str], start: int) -> int:
     raise AssertionError(f"逻辑行 {start} 的 if 没有配对的 fi")
 
 
-def _push_failure_branch(lines: list[str]) -> tuple[int, str, int, int]:
-    """-> (推送调用行, 接退出码的变量名, 失败分支 `if` 行, 与之配对的 `fi` 行)。"""
-    push = _only(_calls(lines, NOTIFY), "runner 的推送调用")
-    m = re.search(r"\|\|\s*(\w+)=\$\?$", lines[push])
-    assert m, f"推送调用须以 `|| <rc>=$?` 接住退出码（set -e 下不接就直接崩出去，没有 NOTIFY_FAILED）：{lines[push]}"
-    start = lines.index(f"if [[ ${{{m.group(1)}}} -ne 0 ]]; then", push)
-    return push, m.group(1), start, _matching_fi(lines, start)
+def _rc_branch(lines: list[str], call: int) -> tuple[str, int, int]:
+    """调用行以 `|| <rc>=$?` 收住退出码 → (变量名, 其后失败分支的 if 行, 配对的 fi 行)。"""
+    m = re.search(r"\|\|\s*(\w+)=\$\?$", lines[call])
+    assert m, f"调用须以 `|| <rc>=$?` 接住退出码（set -e 下不接就直接崩出去）：{lines[call]}"
+    start = _find(lines, rf"if \[\[\s*\$\{{{m.group(1)}\}}\s+-ne\s+0\s*\]\];\s*then", call + 1)
+    return m.group(1), start, _matching_fi(lines, start)
+
+
+def _guard_call(lines: list[str]) -> int:
+    """步骤 7 的护栏调用（带 --max-lag 的那次；fail() 里那次只记账、不做检查）。"""
+    return _only([i for i in _calls(lines, '"${GUARD}"') if "--max-lag" in lines[i]], "步骤 7 护栏调用")
+
+
+def _duration(text: str) -> float:
+    """coreutils timeout 的时长：数字 + 可选 s/m/h/d 后缀。"""
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)([smhd]?)", text)
+    assert m, f"timeout 时长写法不认识：{text!r}"
+    return float(m.group(1)) * {"": 1, "s": 1, "m": 60, "h": 3600, "d": 86400}[m.group(2)]
+
+
+def _split_timeout(tokens: list[str]) -> tuple[float | None, float, list[str]]:
+    """shlex 切好的命令若以 timeout 开头 → (时长秒, kill-after 秒, 被限时的命令)；否则 (None, 0, 原样)。"""
+    if not tokens or tokens[0] != "timeout":
+        return None, 0.0, tokens
+    i, kill = 1, 0.0
+    while tokens[i].startswith("-"):
+        opt = tokens[i]
+        if opt in ("-k", "--kill-after", "-s", "--signal"):
+            if opt in ("-k", "--kill-after"):
+                kill = _duration(tokens[i + 1])
+            i += 2
+            continue
+        if opt.startswith("--kill-after="):
+            kill = _duration(opt.split("=", 1)[1])
+        elif opt.startswith("-k"):
+            kill = _duration(opt[2:])
+        i += 1   # --foreground / --preserve-status / -v / --signal=X / -sX
+    return _duration(tokens[i]), kill, tokens[i + 1:]
+
+
+def _notify_call(lines: list[str], what: str) -> tuple[int, float | None, float, list[str]]:
+    """唯一一处推送调用 → (逻辑行, 限时秒, kill-after 秒, 被限时的命令 tokens)。"""
+    i = _only(_calls(lines, NOTIFY), what)
+    return (i, *_split_timeout(shlex.split(lines[i])))
+
+
+def _check_push_argv(cmd: list[str], fixed: list[str]) -> list[str]:
+    """被限时的推送命令须是「解释器 -u 脚本 透传参数 固定参数…」，返回脚本之后的参数。
+    -u：不缓冲，报错行与消息正文在日志里按真实顺序交错；透传参数排在固定参数之前：argparse 对
+    同名参数取最后一个，固定参数（--status-file 等）永远生效。"""
+    assert len(cmd) > 3 and re.fullmatch(r"-[A-Za-z]*u[A-Za-z]*", cmd[1]), f"解释器后须紧跟 -u：{cmd}"
+    assert cmd[2].endswith(f"/{NOTIFY}"), cmd
+    args = cmd[3:cmd.index("||")] if "||" in cmd else cmd[3:]
+    assert args and NOTIFY_ARGS_WORD.fullmatch(args[0]), f"透传参数须紧跟脚本、排在固定参数之前：{args}"
+    missing = [flag for flag in fixed if flag not in args[1:]]
+    assert not missing, f"缺固定参数 {missing}：{args}"
+    assert "--dry-run" not in args
+    return args
 
 
 def _arg_source(lines: list[str], call: str, flag: str) -> str:
@@ -91,20 +155,56 @@ def _arg_source(lines: list[str], call: str, flag: str) -> str:
                        f"{var.group(1)} 的赋值")]
 
 
-def _unit(path: Path) -> dict[str, list[tuple[str, str]]]:
-    """systemd 单元文件 → {节: [(键, 值)]}；同一个键可重复出现，故不用 configparser。"""
-    sections: dict[str, list[tuple[str, str]]] = {}
-    current: list[tuple[str, str]] = []
+def _sets_errexit(line: str) -> bool:
+    """`set …` 是否打开 errexit：-e 可与别的短选项合写（-eu / -u -e / -uo pipefail -e），也可 -o errexit。"""
+    if not re.match(r"set\s", line):
+        return False
+    tokens = shlex.split(line)
+    for prev, tok in zip(tokens, tokens[1:]):
+        if re.fullmatch(r"-[A-Za-z]*o", prev) and tok == "errexit":
+            return True
+        if re.fullmatch(r"-[A-Za-z]+", tok) and "e" in tok[1:]:
+            return True
+    return False
+
+
+def _unit(path: Path) -> dict[str, dict[str, list[str]]]:
+    """systemd 单元文件 → {节: {键: [值…]}}，按 systemd 语义：同一键多次赋值累加，空赋值（`Key=`）
+    清空此前的值——`SuccessExitStatus=` 写在 75 之后，75 就作废了。标量键取最后一个值。"""
+    sections: dict[str, dict[str, list[str]]] = {}
+    current: dict[str, list[str]] = {}
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith(("#", ";")):
             continue
         if line.startswith("[") and line.endswith("]"):
-            current = sections.setdefault(line[1:-1], [])
+            current = sections.setdefault(line[1:-1], {})
             continue
         key, _, value = line.partition("=")
-        current.append((key.strip(), value.strip()))
+        key, value = key.strip(), value.strip()
+        if value:
+            current.setdefault(key, []).append(value)
+        else:
+            current[key] = []
     return sections
+
+
+def _timespan(text: str) -> float:
+    """systemd 时间跨度（TimeoutStartSec 等）：纯数字按秒；认 s/sec/m/min/h/hr 组合，如 `1min 30s`。"""
+    units = {"": 1, "s": 1, "sec": 1, "m": 60, "min": 60, "h": 3600, "hr": 3600}
+    parts = re.findall(r"(\d+)\s*([a-z]*)", text)
+    assert parts and "".join(n + u for n, u in parts) == re.sub(r"\s+", "", text), f"时间跨度写法不认识：{text!r}"
+    return sum(int(n) * units[u] for n, u in parts)
+
+
+def _timeout_start_sec(path: Path) -> float:
+    return _timespan(_unit(path)["Service"]["TimeoutStartSec"][-1])
+
+
+def _function(text: str, name: str) -> str:
+    """bash 函数定义原文：从 `name() {` 到顶格的 `}`。"""
+    start = text.index(f"\n{name}() {{") + 1
+    return text[start:text.index("\n}\n", start) + 2]
 
 
 @pytest.fixture(scope="module")
@@ -124,7 +224,7 @@ def test_bash_syntax(script):
     assert (out.returncode, out.stderr) == (0, "")
 
 
-# ── runner：步骤 8 ─────────────────────────────────────────────────────────────
+# ── runner：步骤 7/8（静态）──────────────────────────────────────────────────────
 
 def test_runner_pushes_only_after_guard_passed(runner):
     """推送排在护栏调用与「✔ freshness_guard 通过」之后，且全文只此一处——
@@ -137,20 +237,27 @@ def test_runner_pushes_only_after_guard_passed(runner):
     assert guard < passed < push
 
 
+def test_runner_guard_failure_branch_ends_with_exit(runner):
+    """护栏未过的分支必须以 exit 收尾，否则落进步骤 8 把没过护栏的持仓推出去——推送脚本虽会因
+    result≠OK 拒推，但那是第二道闸，第一道不能形同虚设。"""
+    _, start, end = _rc_branch(runner, _guard_call(runner))
+    assert re.match(r"exit\b", runner[end - 1]), runner[start:end + 1]
+
+
 def test_runner_push_args(runner):
-    """推送读护栏刚写的那份状态文件；附加参数只经 STYLE_SIGNALS_NOTIFY_ARGS 透传——
-    写死 --dry-run（演练完忘删）= 从此只打印不发，而链路照样报成功。"""
-    push = runner[_only(_calls(runner, NOTIFY), "runner 的推送调用")]
-    assert '--status-file "${STATUS_FILE}"' in push
-    assert '--status-file "${STATUS_FILE}"' in runner[_guard_call(runner)]
-    assert NOTIFY_ARGS.search(push), f"须不加引号透传 ${{STYLE_SIGNALS_NOTIFY_ARGS:-}}：{push}"
-    assert "--dry-run" not in push and "--alert" not in push
+    """推送读护栏刚写的那份状态文件；附加参数只经 STYLE_SIGNALS_NOTIFY_ARGS 透传——写死 --dry-run
+    （演练完忘删）= 从此只打印不发，而链路照样报成功。"""
+    i, _, _, cmd = _notify_call(runner, "runner 的推送调用")
+    assert NOTIFY_ARGS.search(runner[i]), f"须不加引号透传 STYLE_SIGNALS_NOTIFY_ARGS：{runner[i]}"
+    args = _check_push_argv(cmd, ["--status-file"])
+    assert args[args.index("--status-file") + 1] == "${STATUS_FILE}" and "--alert" not in args
+    assert re.search(r'--status-file\s+"\$\{STATUS_FILE\}"', runner[_guard_call(runner)])
 
 
 def test_runner_push_failure_exits_nonzero(runner):
     """推送失败 → 日志 NOTIFY_FAILED + exit 1 → OnFailure 告警器（超时与否都是 exit 1）；
     「成功」收尾只在失败分支之后。"""
-    _, _, start, end = _push_failure_branch(runner)
+    _, start, end = _rc_branch(runner, _only(_calls(runner, NOTIFY), "runner 的推送调用"))
     branch = runner[start + 1:end]
     assert any(line.startswith("log ") and "NOTIFY_FAILED" in line for line in branch), branch
     exits = [line for line in branch if re.match(r"exit\b", line)]
@@ -160,61 +267,166 @@ def test_runner_push_failure_exits_nonzero(runner):
 
 
 def test_runner_push_is_time_limited(runner):
-    """推送调用外包 timeout：send_text 自身最坏约 25s，但 DNS 解析不受 socket 超时约束，卡住会一直
-    占锁到 TimeoutStartSec=3600。timeout 杀进程退出 124——日志要写明是超时（进程被杀，notify 段
-    来不及写，原因只在日志里），秒数与调用前缀一致。"""
-    push, rc, start, end = _push_failure_branch(runner)
-    m = re.match(r"timeout (\d+) ", runner[push])
-    assert m, f"推送调用须外包 timeout <秒数>：{runner[push]}"
-    t = runner.index(f"if [[ ${{{rc}}} -eq 124 ]]; then", start, end)
-    then_end = next(i for i in range(t + 1, end)
-                    if runner[i] in ("else", "fi") or runner[i].startswith("elif "))
-    logs = [line for line in runner[t + 1:then_end] if line.startswith("log ") and "NOTIFY_FAILED" in line]
-    assert any(f"推送超时（{m.group(1)}s" in line for line in logs), logs
+    """推送调用外包 timeout 且带 -k：socket 超时只管单次阻塞操作、总时长不封顶（DNS 根本不受它管，
+    慢回包 / TLS 也能一段段拖），真正封顶的是这层限时；SIGTERM 杀不掉时 -k 兜底强杀。
+    限时（含宽限）不超过主 service TimeoutStartSec 的一半——否则还是 systemd 先动手。"""
+    i, duration, kill, _ = _notify_call(runner, "runner 的推送调用")
+    assert duration is not None, f"推送调用须外包 timeout：{runner[i]}"
+    assert kill > 0, f"timeout 须带 -k（SIGTERM 杀不掉时强杀）：{runner[i]}"
+    limit = _timeout_start_sec(SERVICE)
+    assert duration + kill <= limit / 2, (duration, kill, limit)
+
+
+# ── runner：运行期判例（只跑抽出来的片段 + 桩解释器）─────────────────────────────
+
+_STUB = r'''#!/usr/bin/env bash
+# 冒充解释器：记下 argv，按 STUB_RC 立即退出（124/137 冒充 timeout 的退出码，不真等）
+printf '%s\n' "$@" > "${STUB_ARGV}"
+echo "stub：推送脚本的输出"
+exit "${STUB_RC}"
+'''
+
+
+@pytest.mark.parametrize("stub_rc", [0, 1, 124, 137])
+def test_runner_step8_runtime(tmp_path, runner, stub_rc):
+    """runner 从「# ── 步骤 8」到文件末尾的原文 + 桩解释器：0 → 成功收尾 rc 0；1 → 通用 NOTIFY_FAILED
+    rc 1；124 / 137（超时 / 宽限后强杀）→ 超时文案 rc 1。能抓住静态断言看不见的东西，比如删掉
+    notify_rc=0（set -u 下推送成功反而崩出去）。顺带核对实际 argv：-u、透传在前、固定参数在后。"""
+    text = RUNNER.read_text(encoding="utf-8")
+    stub = tmp_path / "python_stub"
+    stub.write_text(_STUB, encoding="utf-8")
+    stub.chmod(0o755)
+    status, script_dir = tmp_path / "status.json", tmp_path / "deploy"
+    script = tmp_path / "step8.sh"
+    script.write_text("\n".join([
+        "set -euo pipefail",
+        'log() { echo "$*"; }',
+        "START_TS=$SECONDS",
+        f"STATUS_FILE={shlex.quote(str(status))}",
+        f"SCRIPT_DIR={shlex.quote(str(script_dir))}",
+        f"PYTHON={shlex.quote(str(stub))}",
+    ]) + "\n" + text[text.index("# ── 步骤 8"):], encoding="utf-8")
+    argv_file = tmp_path / "argv"
+    env = {**os.environ, "STUB_RC": str(stub_rc), "STUB_ARGV": str(argv_file),
+           "STYLE_SIGNALS_NOTIFY_ARGS": "--dry-run --status-file /elsewhere/status.json"}
+    out = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, timeout=60)
+    log = out.stdout + out.stderr
+    failed = [line for line in log.splitlines() if line.startswith("NOTIFY_FAILED")]
+    _, duration, _, _ = _notify_call(runner, "runner 的推送调用")
+    timed_out = f"推送超时（{duration:g}s"
+    if stub_rc == 0:
+        assert (out.returncode, failed) == (0, []), log
+        assert "日更信号链结束：成功" in log, log
+    else:
+        assert out.returncode == 1 and len(failed) == 1, log
+        assert "日更信号链结束：推送失败" in log, log
+        if stub_rc in (124, 137):
+            assert timed_out in failed[0], failed
+        else:
+            assert timed_out not in failed[0] and f"exit {stub_rc}" in failed[0], failed
+            assert "见上方输出" in failed[0], failed
+    argv = argv_file.read_text(encoding="utf-8").splitlines()
+    assert argv[:2] == ["-u", str(script_dir / NOTIFY)], argv
+    assert argv[-2:] == ["--status-file", str(status)], argv
+    assert "--dry-run" in argv
+
+
+@pytest.mark.parametrize("code, expected", [(75, 1), (1, 1), (2, 2), (3, 3)])
+def test_runner_fail_never_exits_75(tmp_path, code, expected):
+    """75 只属于 flock 跳过：service 的 SuccessExitStatus=75 会把它记成功、不触发告警。步骤自己退出
+    75 经 fail() 原样透传就会被当成功吞掉——fail() 须把 75 改成 1，日志照记原始退出码；其余原样。"""
+    script = tmp_path / "fail.sh"
+    script.write_text("\n".join([
+        "set -euo pipefail",
+        'log() { echo "$*"; }',
+        "steps_json() { echo '[]'; }",
+        "PYTHON=true GUARD=guard STATUS_FILE=s LOG_FILE=l STARTED_AT=t TOPUP_STATUS=OK TOPUP_REASON=",
+        "START_TS=$SECONDS",
+        _function(RUNNER.read_text(encoding="utf-8"), "fail"),
+        f"fail some_step {code}",
+        'echo "fail() 没有退出"',
+    ]) + "\n", encoding="utf-8")
+    out = subprocess.run(["bash", str(script)], capture_output=True, text=True, timeout=30)
+    assert out.returncode == expected, out.stdout + out.stderr
+    assert f"（exit {code}）" in out.stdout, out.stdout
+    assert "fail() 没有退出" not in out.stdout
+
+
+def test_runner_exit_75_only_for_lock_conflict(runner):
+    """全文字面 exit 75 只有 flock 跳过那一处。"""
+    start = _find(runner, r"if ! flock -n\b.*")
+    end = _matching_fi(runner, start)
+    hits = [i for i in _calls(runner, "exit") if re.search(r'\bexit\s+"?75\b', runner[i])]
+    assert len(hits) == 1 and start < hits[0] < end, [runner[i] for i in hits]
 
 
 # ── 告警器：失败通知 ──────────────────────────────────────────────────────────
 
 def test_alerter_push_is_best_effort(alerter):
-    """告警器调 notify_wechat.py --alert：外包 timeout、后跟 ||——推不出去只记进告警文件，不传播。"""
-    call = alerter[_only(_calls(alerter, NOTIFY), "告警器的推送调用")]
-    assert re.match(r"timeout \d+ ", call), f"须外包 timeout：{call}"
-    assert "||" in call.split(NOTIFY, 1)[1], f"须后跟 ||（告警器自己绝不失败）：{call}"
-    assert re.search(r"(^|\s)--alert(\s|$)", call), call
-    assert '--status-file "${STATUS_FILE}"' in call
-    assert NOTIFY_ARGS.search(call), f"须不加引号透传 ${{STYLE_SIGNALS_NOTIFY_ARGS:-}}：{call}"
-    assert "--dry-run" not in call
+    """告警器调 notify_wechat.py --alert：限时（带 -k）、后跟 ||——推不出去只记进告警文件，不传播。"""
+    i, duration, kill, cmd = _notify_call(alerter, "告警器的推送调用")
+    assert duration is not None and kill > 0, f"须外包 timeout -k：{alerter[i]}"
+    assert "||" in cmd, f"须后跟 ||（告警器自己绝不失败）：{alerter[i]}"
+    assert NOTIFY_ARGS.search(alerter[i]), f"须不加引号透传 STYLE_SIGNALS_NOTIFY_ARGS：{alerter[i]}"
+    args = _check_push_argv(cmd, ["--alert", "--status-file", "--systemd-result", "--run-started"])
+    assert args[args.index("--status-file") + 1] == "${STATUS_FILE}"
     # 与 runner 写的是同一份状态文件
     status = [line for line in alerter if line.startswith("STATUS_FILE=")]
-    assert status == [line for line in _logical_lines(RUNNER) if line.startswith("STATUS_FILE=")]
+    assert status and status == [line for line in _logical_lines(RUNNER) if line.startswith("STATUS_FILE=")]
 
 
 def test_alerter_passes_main_service_result_and_start(alerter):
-    """--systemd-result / --run-started 取自**主** service：查成告警单元自己的启动时刻，
-    每份状态文件都会被判成「上一次运行留下的」。--timestamp=unix 给出 @秒，推送脚本才解析得了；
-    少了它退回人类可读时间，解析失败会静默退回按日期判断。"""
+    """--systemd-result / --run-started 取自**主** service：查成告警单元自己的启动时刻，每份状态文件都会
+    被判成「上一次运行留下的」。属性名带边界（ExecMainStartTimestampMonotonic 是另一个量）；
+    --timestamp=unix 给出 @秒，推送脚本才解析得了，少了它会静默退回按日期判断。"""
     call = alerter[_only(_calls(alerter, NOTIFY), "告警器的推送调用")]
+    unit = rf"(?<![\w.-]){re.escape(MAIN_UNIT)}(?![\w.-])"
     result = _arg_source(alerter, call, "--systemd-result")
-    assert MAIN_UNIT in result and "-p Result" in result and "--value" in result, result
+    for pattern in (unit, r"-p\s*Result\b", r"(?<!\S)--value(?!\S)"):
+        assert re.search(pattern, result), f"{pattern}：{result}"
     started = _arg_source(alerter, call, "--run-started")
-    for part in (MAIN_UNIT, "-p ExecMainStartTimestamp", "--value", "--timestamp=unix"):
-        assert part in started, f"缺 {part}：{started}"
+    for pattern in (unit, r"-p\s*ExecMainStartTimestamp\b", r"(?<!\S)--value(?!\S)", r"--timestamp=unix\b"):
+        assert re.search(pattern, started), f"{pattern}：{started}"
 
 
 def test_alerter_appends_push_output_to_alert_file(alerter):
     """推送输出（含 REFUSED / SEND_FAILED）追加进告警文件留底，且在告警文件写好之后——
     顺序反了会被后面的 > 冲掉。"""
-    write = _only([i for i, line in enumerate(alerter) if line.startswith('} > "${ALERT_FILE}"')],
+    write = _only([i for i, line in enumerate(alerter) if re.match(r'\}\s*>\s*"\$\{ALERT_FILE\}"', line)],
                   "告警文件的首次写入")
     push = _only(_calls(alerter, NOTIFY), "告警器的推送调用")
     close = next(i for i in range(push, len(alerter)) if alerter[i].startswith("}"))
     assert write < push
-    assert alerter[close] == '} >> "${ALERT_FILE}" 2>&1'
+    assert re.fullmatch(r'\}\s*>>\s*"\$\{ALERT_FILE\}"\s+2>&1', alerter[close]), alerter[close]
+
+
+def test_alerter_summary_shows_notify():
+    """告警文件的状态摘要打印 notify 段：推送失败的原因（拒推理由 / 企业微信回的 errcode）记在那里。"""
+    assert re.search(r"notify\s*=\s*\{d\.get\(['\"]notify['\"]\)\}", ALERTER.read_text(encoding="utf-8"))
+
+
+def test_alerter_echo_has_no_backticks(alerter):
+    """echo "…" 里的反引号是命令替换：处置指引写成 `命令` 会在告警时被当场执行。"""
+    bad = [line for line in alerter if re.match(r"echo\b", line) and "`" in line]
+    assert not bad, bad
+
+
+def test_alerter_time_budget(alerter):
+    """告警器里会卡住的外部调用（推送、notify-send）都限时，合计（含宽限）给告警单元 TimeoutStartSec
+    留出余量——超了 systemd 会把告警器整个杀掉，排在后面的通知全丢。"""
+    sends = [i for i, line in enumerate(alerter) if re.match(r"(timeout(\s+\S+)+?\s+)?notify-send\b", line)]
+    i = _only(sends, "notify-send 调用")
+    d_send, k_send, cmd_send = _split_timeout(shlex.split(alerter[i]))
+    assert d_send is not None, f"notify-send 须限时：{alerter[i]}"
+    assert cmd_send[-2:] == ["||", "true"], f"notify-send 须后跟 || true：{alerter[i]}"
+    _, d_push, k_push, _ = _notify_call(alerter, "告警器的推送调用")
+    limit = _timeout_start_sec(ALERT_SERVICE)
+    assert d_push + k_push + d_send + k_send <= limit - ALERT_BUDGET_MARGIN, (d_push, k_push, d_send, k_send, limit)
 
 
 def test_alerter_never_fails(alerter):
     """不开 errexit、末尾 exit 0：告警器自己绝不能成为新的失败源。"""
-    assert not any(re.match(r"set\s+(-\w*e|.*-o\s+errexit)", line) for line in alerter)
+    assert not [line for line in alerter if _sets_errexit(line)]
     assert [line for line in alerter if line][-1] == "exit 0"
 
 
@@ -222,15 +434,15 @@ def test_alerter_never_fails(alerter):
 
 def test_service_lock_conflict_is_success(runner):
     """runner 撞锁退出 75（另一实例在跑，由它推送）：service 须把 75 记成功，否则 OnFailure 发假告警。
-    两边的 75 要对得上，这条配置才不是空的。"""
-    codes = [value for key, value in _unit(SERVICE).get("Service", []) if key == "SuccessExitStatus"]
-    assert any("75" in value.split() for value in codes), codes
-    start = next(i for i, line in enumerate(runner) if re.match(r"if ! flock -n\b", line))
-    assert "exit 75" in runner[start + 1:_matching_fi(runner, start)]
+    按 systemd 语义取生效值（空赋值清空）；两边的 75 要对得上，这条配置才不是空的。"""
+    codes = " ".join(_unit(SERVICE).get("Service", {}).get("SuccessExitStatus", [])).split()
+    assert "75" in codes, codes
+    start = _find(runner, r"if ! flock -n\b.*")
+    assert any(re.fullmatch(r'exit\s+"?75"?', line) for line in runner[start + 1:_matching_fi(runner, start)])
 
 
 def test_service_keeps_onfailure_and_no_install():
     """OnFailure 仍接告警单元；无 [Install]（由 timer 拉起，enable 了会每次登录双跑）。"""
     unit = _unit(SERVICE)
-    assert ("OnFailure", "style-signals-daily-alert.service") in unit["Unit"]
+    assert "style-signals-daily-alert.service" in " ".join(unit["Unit"].get("OnFailure", [])).split()
     assert "Install" not in unit

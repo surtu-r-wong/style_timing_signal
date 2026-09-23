@@ -28,7 +28,8 @@
 #     仍是 OK，原因记在它的 notify 段；照样退出 1，交 OnFailure 告警器——没送达等于没人知道。
 #   * 四个生成脚本都是**全量重算覆写**（非追加），因此断更多日后直接跑即完成补跑。
 #   * flock 并发锁：已有实例在跑时直接退出 75（EX_TEMPFAIL），不排队；service 配了
-#     SuccessExitStatus=75，撞锁不触发告警（占锁的那个实例会推送）。
+#     SuccessExitStatus=75，撞锁不触发告警（占锁的那个实例会推送）。75 只属于这里：
+#     步骤自己退出 75 时 fail() 改报 1，免得失败被记成成功。
 #   * 护栏未过 → 退出 1 并在日志里打大写 STALE；这是「停更无人知」的直接对策。
 #
 # 环境变量：
@@ -106,6 +107,9 @@ fail() {  # step_name exit_code
       --topup-reason "${TOPUP_REASON}" \
       --steps "$(steps_json)" --failed-step "${step}" || true
   log "本次运行结束（失败），耗时 $((SECONDS - START_TS))s"
+  # 75 只属于 flock 跳过：service 配了 SuccessExitStatus=75，步骤自己退出 75 若原样透传，
+  # 失败就被记成成功、不触发告警。上面的日志照记原始退出码，退出时改报 1。
+  if [[ ${code} -eq 75 ]]; then code=1; fi
   exit "${code}"
 }
 
@@ -252,19 +256,23 @@ fi
 log "✔ freshness_guard 通过，用时 ${guard_dt}s"
 
 # ── 步骤 8：企业微信推送（护栏通过才推；推送失败 → 非零退出，交 OnFailure 告警器）──────
-# 限时 120s：send_text 自身最坏约 25s（socket 超时 10s × 2 次 + 间隔 5s），但 DNS 解析不受
-# socket 超时约束，卡住会一直占锁到 TimeoutStartSec=3600。超时由 timeout 杀进程（退出 124），
-# 来不及写状态文件的 notify 段，原因只在本日志里。
+# 限时 120s、再宽限 10s 强杀：send_text 的 10s socket 超时只管单次阻塞操作，总时长并不封顶——
+# DNS 解析根本不受它管，慢回包 / TLS 握手也能一段段拖下去；真正封顶的是这层限时，否则卡住会
+# 一直占锁到 TimeoutStartSec=3600。超时由 timeout 杀进程（124；SIGTERM 后 10s 仍不退则 SIGKILL，
+# 137——被别的 SIGKILL 如 OOM 杀掉也是 137，一并按超时报），来不及写状态文件的 notify 段，
+# 原因只在本日志里。
+# 透传参数放在固定参数之前：argparse 同名参数取最后一个，--status-file 永远是护栏刚写的那份。
+# -u：不缓冲，报错行（stderr）与消息正文（stdout）在日志里按真实顺序交错。
 log "▶ notify_wechat: notify_wechat.py ${STYLE_SIGNALS_NOTIFY_ARGS:-}"
 notify_rc=0
 # shellcheck disable=SC2086
-timeout 120 "${PYTHON}" "${SCRIPT_DIR}/notify_wechat.py" --status-file "${STATUS_FILE}" \
-    ${STYLE_SIGNALS_NOTIFY_ARGS:-} || notify_rc=$?
+timeout -k 10 120 "${PYTHON}" -u "${SCRIPT_DIR}/notify_wechat.py" ${STYLE_SIGNALS_NOTIFY_ARGS:-} \
+    --status-file "${STATUS_FILE}" || notify_rc=$?
 if [[ ${notify_rc} -ne 0 ]]; then
-  if [[ ${notify_rc} -eq 124 ]]; then
-    log "NOTIFY_FAILED: 企业微信推送超时（120s，多半卡在 DNS/网络）——信号与护栏均已完成，只是没送达；进程被杀，状态文件 notify 段来不及写"
+  if [[ ${notify_rc} -eq 124 || ${notify_rc} -eq 137 ]]; then
+    log "NOTIFY_FAILED: 企业微信推送超时（120s，多半卡在 DNS/网络；exit ${notify_rc}）——信号与护栏均已完成，只是没送达；进程被杀，状态文件 notify 段来不及写"
   else
-    log "NOTIFY_FAILED: 企业微信推送失败（exit ${notify_rc}）——信号与护栏均已完成，只是没送达；见 ${STATUS_FILE} 的 notify 段"
+    log "NOTIFY_FAILED: 企业微信推送失败（exit ${notify_rc}）——信号与护栏均已完成，只是没送达；见上方输出与 ${STATUS_FILE} 的 notify 段"
   fi
   log "════════ 日更信号链结束：推送失败，总耗时 $((SECONDS - START_TS))s ════════"
   exit 1
