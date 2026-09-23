@@ -11,8 +11,13 @@
   占锁到 TimeoutStartSec；
 * 告警器调推送必须 best-effort（限时、后跟 ||、末尾 exit 0）：告警器自己绝不能成为新的失败源；
 * 75 只属于 flock 跳过：service 的 SuccessExitStatus=75 把它记成功，步骤自己退出 75 若原样透传，
-  失败就被吞成了成功。
+  失败就被吞成了成功；
+* 步骤 0 办公室模式（2026-09-23 起，标志文件 SKIP_TOPUP 在）：调等数脚本 wait_for_inputs.py（限时、-u、
+  输出经 tee 实时进日志），按它最后三行映射 OFFICE_OK / OFFICE_LATE / OFFICE_CHECK_ERROR，没结果也记
+  OFFICE_CHECK_ERROR，**三种都不中止链路**；只有环境变量 STYLE_SIGNALS_SKIP_TOPUP=1 时仍是旧的 TOPUP_SKIPPED
+  （不等）；标志文件不在时走原 topup 路径（回退用）。service 的 TimeoutStartSec 要装得下等数兜底 + 推送限时。
 """
+import json
 import os
 import re
 import shlex
@@ -34,6 +39,10 @@ MAIN_UNIT = "style-signals-daily.service"
 NOTIFY_ARGS = re.compile(r'(?<!")\$\{STYLE_SIGNALS_NOTIFY_ARGS:?-\}(?!")')
 NOTIFY_ARGS_WORD = re.compile(r"\$\{STYLE_SIGNALS_NOTIFY_ARGS:?-\}")
 ALERT_BUDGET_MARGIN = 10   # 秒：告警单元 TimeoutStartSec 里留给告警文件摘要与 systemctl 查询的余量
+WAIT = "wait_for_inputs.py"
+INPUTS_ARGS = re.compile(r'(?<!")\$\{STYLE_SIGNALS_INPUTS_ARGS:?-\}(?!")')
+INPUTS_ARGS_WORD = re.compile(r"\$\{STYLE_SIGNALS_INPUTS_ARGS:?-\}")
+SERVICE_BUDGET_MARGIN = 600   # 秒：主 service TimeoutStartSec 里留给链路本身（约 20 秒）与抖动的余量
 
 
 # ── 文本解析 ───────────────────────────────────────────────────────────────────
@@ -146,6 +155,12 @@ def _split_timeout(tokens: list[str]) -> tuple[float | None, float, list[str]]:
 def _notify_call(lines: list[str], what: str) -> tuple[int, float | None, float, list[str]]:
     """唯一一处推送调用 → (逻辑行, 限时秒, kill-after 秒, 被限时的命令 tokens)。"""
     i = _only(_calls(lines, NOTIFY), what)
+    return (i, *_split_timeout(shlex.split(lines[i])))
+
+
+def _wait_call(lines: list[str]) -> tuple[int, float | None, float, list[str]]:
+    """唯一一处等数调用 → (逻辑行, 限时秒, kill-after 秒, 被限时的命令 tokens)。"""
+    i = _only(_calls(lines, WAIT), "runner 的等数调用")
     return (i, *_split_timeout(shlex.split(lines[i])))
 
 
@@ -389,6 +404,149 @@ def test_runner_exit_75_only_for_lock_conflict(runner):
     assert len(hits) == 1 and start < hits[0] < end, [runner[i] for i in hits]
 
 
+# ── runner：步骤 0 办公室模式（等数）───────────────────────────────────────────────
+
+def test_runner_wait_call_shape(runner):
+    """等数调用：外包 timeout 且带 -k（一路等到截止也有硬上限，SIGTERM 杀不掉时强杀）；解释器后紧跟 -u
+    （进度行实时进日志）；透传参数不加引号、紧跟脚本（排在任何固定参数之前）；输出经 tee 落一份副本
+    供解析（边等边看，而不是等完才一次性吐出来）；退出码用 || 接住（set -e 下不接就崩出去）。"""
+    i, duration, kill, cmd = _wait_call(runner)
+    assert duration is not None and kill > 0, f"等数调用须外包 timeout -k：{runner[i]}"
+    assert re.fullmatch(r"-[A-Za-z]*u[A-Za-z]*", cmd[1]), f"解释器后须紧跟 -u：{cmd}"
+    assert cmd[2].endswith(f"/{WAIT}"), cmd
+    assert INPUTS_ARGS_WORD.fullmatch(cmd[3]), f"透传参数须紧跟脚本：{cmd}"
+    assert INPUTS_ARGS.search(runner[i]), f"须不加引号透传 STYLE_SIGNALS_INPUTS_ARGS：{runner[i]}"
+    assert "|" in cmd and cmd[cmd.index("|") + 1] == "tee", f"输出须经 tee 实时进日志：{runner[i]}"
+    assert re.search(r"\|\|\s*\w+=\$\?$", runner[i]), f"须以 || <rc>=$? 接住退出码：{runner[i]}"
+    assert "--once" not in cmd, "写死 --once = 从此不等，办公室晚到几分钟就照旧数据算"
+
+
+_STEP0_STUB = r'''#!/usr/bin/env bash
+# 冒充解释器：记下 argv，照 STUB_OUT 原样打印（冒充等数脚本 / 前置闸门的输出），按 STUB_RC 退出
+printf '%s\n' "$@" > "${STUB_ARGV}"
+printf '%s' "${STUB_OUT:-}"
+exit "${STUB_RC:-0}"
+'''
+
+
+def _run_step0(tmp_path, *, flag: bool, stub_out: str = "", stub_rc: int = 0, env_extra: dict | None = None,
+               before: str = ""):
+    """runner 从「# ── 步骤 0」到「# ── 步骤 1-6」之前的原文 + 桩解释器，跑完打印 TOPUP_STATUS / TOPUP_REASON /
+    steps JSON。record_step 用 runner 原文；fail 换成打印后退出 1。-> (bash 结果, 结果字典, 桩 argv 或 None)。"""
+    text = RUNNER.read_text(encoding="utf-8")
+    stub = tmp_path / "python_stub"
+    stub.write_text(_STEP0_STUB, encoding="utf-8")
+    stub.chmod(0o755)
+    script_dir, log_dir = tmp_path / "deploy", tmp_path / "logs"
+    script_dir.mkdir()
+    log_dir.mkdir()
+    if flag:
+        (script_dir / "SKIP_TOPUP").write_text("2026-09-23 起输入由办公室写入\n", encoding="utf-8")
+    script = tmp_path / "step0.sh"
+    script.write_text("\n".join([
+        "set -euo pipefail",
+        'log() { echo "LOG $*"; }',
+        _function(text, "record_step"),
+        'steps_json() { echo "[${STEPS_JSON}]"; }',
+        'fail() { echo "FAIL_CALLED $*"; exit 1; }',
+        f"PYTHON={shlex.quote(str(stub))}",
+        f"SCRIPT_DIR={shlex.quote(str(script_dir))}",
+        f"LOG_DIR={shlex.quote(str(log_dir))}",
+        f"REPO={shlex.quote(str(tmp_path / 'repo'))}",
+        f"TOPUP_GUARD={shlex.quote(str(script_dir / 'topup_guard.py'))}",
+        f"TOPUP_SNAPSHOT={shlex.quote(str(log_dir / '.topup_pre_snapshot.json'))}",
+        "TOPUP_TIMEOUT=900 TOPUP_STATUS=UNKNOWN TOPUP_REASON= STEPS_JSON=",
+        before,
+    ]) + "\n" + text[text.index("# ── 步骤 0"):text.index("# ── 步骤 1-6")] + "\n".join([
+        'echo "RESULT_STATUS=${TOPUP_STATUS}"',
+        'echo "RESULT_REASON=${TOPUP_REASON}"',
+        'echo "RESULT_STEPS=$(steps_json)"',
+    ]) + "\n", encoding="utf-8")
+    argv_file = tmp_path / "argv"
+    env = {**os.environ, "STUB_OUT": stub_out, "STUB_RC": str(stub_rc), "STUB_ARGV": str(argv_file)}
+    for var in ("STYLE_SIGNALS_INPUTS_ARGS", "STYLE_SIGNALS_SKIP_TOPUP"):
+        env.pop(var, None)
+    env.update(env_extra or {})
+    out = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, timeout=60)
+    got = dict(line.split("=", 1) for line in out.stdout.splitlines() if line.startswith("RESULT_"))
+    argv = argv_file.read_text(encoding="utf-8").splitlines() if argv_file.exists() else None
+    return out, got, argv
+
+
+def _contract(status: str, reason: str) -> str:
+    return (f"[wait_for_inputs] 20:31:17 第 1 轮：进度行\n"
+            f"INPUTS_STATUS={status}\nINPUTS_DAY=2026-09-23\nINPUTS_REASON={reason}\n")
+
+
+@pytest.mark.parametrize("stub_out, stub_rc, status, reason", [
+    (_contract("OK", "办公室日更 2026-09-23 15 码到齐（等 0 秒）"), 0,
+     "OFFICE_OK", "办公室日更 2026-09-23 15 码到齐（等 0 秒）"),
+    (_contract("LATE", "2026-09-23 截至 21:30 仍缺 1 码：000300.SH，按库内已有数据照算"), 0,
+     "OFFICE_LATE", "2026-09-23 截至 21:30 仍缺 1 码：000300.SH，按库内已有数据照算"),
+    (_contract("CHECK_ERROR", "2026-09-23 到齐检查出错：OperationalError: timeout expired"), 0,
+     "OFFICE_CHECK_ERROR", "2026-09-23 到齐检查出错：OperationalError: timeout expired"),
+    ("", 124, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 124）"),          # 超时被杀，什么都没打
+    ("Traceback …\n", 1, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 1）"),  # 崩了
+    ("", 0, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 0）"),              # 退 0 但没给结果
+], ids=["ok", "late", "check-error", "timeout-no-output", "crash", "exit0-no-output"])
+def test_runner_office_mode_maps_wait_result(tmp_path, stub_out, stub_rc, status, reason):
+    """标志文件在 → 跑等数脚本，按最后三行映射；没解析到结果一律 OFFICE_CHECK_ERROR。三种都不中止链路，
+    状态文件字段名仍叫 topup（告警器与推送按它读）。"""
+    out, got, argv = _run_step0(tmp_path, flag=True, stub_out=stub_out, stub_rc=stub_rc)
+    log = out.stdout + out.stderr
+    assert out.returncode == 0 and "FAIL_CALLED" not in log, log
+    assert (got["RESULT_STATUS"], got["RESULT_REASON"]) == (status, reason), log
+    steps = json.loads(got["RESULT_STEPS"])
+    assert [(s["step"], s["status"]) for s in steps] == [("topup", status)], steps
+    assert argv is not None and argv[1].endswith(f"/{WAIT}"), argv   # 真的调了等数脚本
+    if stub_out.startswith("[wait_for_inputs]"):
+        assert "第 1 轮：进度行" in out.stdout, log                     # 经 tee 实时进日志
+
+
+@pytest.mark.parametrize("inputs_args", [None, "--once", "--once --interval 60"],
+                         ids=["args-unset", "once", "two-args"])
+def test_runner_office_mode_argv(tmp_path, inputs_args):
+    """桩看到的 argv = -u 脚本 [透传参数…]。未设（从子进程 env 里删掉，不是设空串）= 生产默认路径，
+    set -u 下写成 ${STYLE_SIGNALS_INPUTS_ARGS}（不带 :-）会当场崩。"""
+    env = {} if inputs_args is None else {"STYLE_SIGNALS_INPUTS_ARGS": inputs_args}
+    out, got, argv = _run_step0(tmp_path, flag=True, stub_out=_contract("OK", "到齐"), env_extra=env)
+    assert got["RESULT_STATUS"] == "OFFICE_OK", out.stdout + out.stderr
+    head = ["-u", str(tmp_path / "deploy" / WAIT)]
+    assert argv == head + ([] if inputs_args is None else inputs_args.split()), argv
+
+
+def test_runner_office_mode_does_not_parse_stale_result(tmp_path):
+    """上一次的结果副本删不掉重写（例如被别的用户留成只读）时，不能把它当成这一次的结果。"""
+    stale = "INPUTS_STATUS=OK\nINPUTS_DAY=2026-09-22\nINPUTS_REASON=昨天的结果\n"
+    before = ("mkdir -p \"${LOG_DIR}\" && printf '%s' " + shlex.quote(stale)
+              + " > \"${LOG_DIR}/.inputs_wait.out\" && chmod 444 \"${LOG_DIR}/.inputs_wait.out\"")
+    out, got, _ = _run_step0(tmp_path, flag=True, stub_out="", stub_rc=124, before=before)
+    assert got["RESULT_STATUS"] == "OFFICE_CHECK_ERROR", out.stdout + out.stderr
+    assert got["RESULT_REASON"] == "wait_for_inputs 无结果（exit 124）"
+
+
+def test_runner_env_skip_without_flag_keeps_old_behaviour(tmp_path):
+    """只有环境变量 STYLE_SIGNALS_SKIP_TOPUP=1、没有标志文件：旧行为 TOPUP_SKIPPED，不等数、不调任何脚本。"""
+    out, got, argv = _run_step0(tmp_path, flag=False, env_extra={"STYLE_SIGNALS_SKIP_TOPUP": "1"})
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert (got["RESULT_STATUS"], got["RESULT_REASON"]) == ("TOPUP_SKIPPED", "环境变量 STYLE_SIGNALS_SKIP_TOPUP=1")
+    assert argv is None
+
+
+def test_runner_flag_wins_over_env_skip(tmp_path):
+    out, got, argv = _run_step0(tmp_path, flag=True, stub_out=_contract("OK", "到齐"),
+                                env_extra={"STYLE_SIGNALS_SKIP_TOPUP": "1"})
+    assert got["RESULT_STATUS"] == "OFFICE_OK" and argv[1].endswith(f"/{WAIT}"), out.stdout + out.stderr
+
+
+def test_runner_without_flag_takes_topup_path(tmp_path):
+    """标志文件不在：原 topup 路径（回退用）——先跑前置闸门；闸门说 SKIP 就 TOPUP_SKIPPED，不等数。"""
+    out, got, argv = _run_step0(tmp_path, flag=False, stub_out="SKIP_REASON=测试：闸门不放行\n", stub_rc=10)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert (got["RESULT_STATUS"], got["RESULT_REASON"]) == ("TOPUP_SKIPPED", "测试：闸门不放行")
+    assert argv[:3] == [str(tmp_path / "deploy" / "topup_guard.py"), "--mode", "preflight"], argv
+
+
 # ── 告警器：失败通知 ──────────────────────────────────────────────────────────
 
 def test_alerter_push_is_best_effort(alerter):
@@ -475,6 +633,15 @@ def test_service_lock_conflict_is_success(runner):
     assert "75" in codes, codes
     start = _find(runner, r"if ! flock -n\b.*")
     assert any(re.fullmatch(r'exit\s+"?75"?', line) for line in runner[start + 1:_matching_fi(runner, start)])
+
+
+def test_service_timeout_covers_wait_and_push(runner):
+    """主 service 的 TimeoutStartSec 要装得下「等数兜底 + 推送限时」（都含宽限）再留 600 秒：否则办公室迟到
+    那晚还在等数，systemd 就先把整条链杀了——信号不算、不推，只剩一条 timeout 告警。"""
+    _, d_wait, k_wait, _ = _wait_call(runner)
+    _, d_push, k_push, _ = _notify_call(runner, "runner 的推送调用")
+    limit = _timeout_start_sec(SERVICE)
+    assert d_wait + k_wait + d_push + k_push + SERVICE_BUDGET_MARGIN <= limit, (d_wait, k_wait, d_push, k_push, limit)
 
 
 def test_service_keeps_onfailure_and_no_install():

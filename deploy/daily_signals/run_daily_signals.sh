@@ -3,9 +3,14 @@
 # style_timing_signal 日更信号链 runner
 #
 # 链路（顺序即 README「运行」段的顺序）：
-#   0. topup 阶段 —— 保鲜上游 index_daily。三层保护，原则=不可信响应零写入：
-#        0a 标志文件 deploy/daily_signals/SKIP_TOPUP（或 STYLE_SIGNALS_SKIP_TOPUP=1）
-#           存在即跳过，理由记进日志与 status.json（运维权威，最高优先级）
+#   0. 输入指数 —— 两种模式，由标志文件 deploy/daily_signals/SKIP_TOPUP 切换：
+#      【办公室模式】标志文件在（2026-09-23 起的常态）：15 个输入指数由 data_manager 夜间作业
+#        （WSL2 20:00 起跑，约 20:02 结束）写入，本链路**只读、零写入**。跑 wait_for_inputs.py 等
+#        期望信号日的 15 码到齐（每 5 分钟查一次，最迟等到 21:30），结果记 OFFICE_OK / OFFICE_LATE /
+#        OFFICE_CHECK_ERROR；三种都照常往下走（用库内已有数据照算），新鲜度由步骤 7 护栏兜底
+#      【topup 模式】标志文件不在（回退用；2026-09-23 前的做法）：保鲜上游 index_daily。
+#        三层保护，原则=不可信响应零写入：
+#        0a 环境变量 STYLE_SIGNALS_SKIP_TOPUP=1 即跳过（不等数），理由记进日志与 status.json
 #        0b 前置闸门 topup_guard.py --mode preflight（只读 gateway + PG）：
 #           不过就**不调用** topup —— 不调用即零写入，链路降级继续
 #        0c tools/topup_index_daily.sh（唯一可能写 index_daily 的地方）
@@ -22,8 +27,9 @@
 #   8. deploy/daily_signals/notify_wechat.py   —— 企业微信推送（护栏通过才推；失败 → 非零退出）
 #
 # 语义要点：
-#   * 步骤 0 允许失败/跳过（记 DEGRADED / TOPUP_SKIPPED，用库内现有数据继续）；
-#     唯一例外是事后审计不过（TOPUP_SUSPECT）——那说明库可能已脏，必须停在信号之前。
+#   * 步骤 0 允许失败/跳过/迟到（记 OFFICE_LATE / OFFICE_CHECK_ERROR / DEGRADED / TOPUP_SKIPPED，
+#     用库内现有数据继续）；唯一例外是 topup 模式下事后审计不过（TOPUP_SUSPECT）——那说明库可能
+#     已脏，必须停在信号之前。状态文件里步骤 0 的字段仍叫 topup（告警器与推送按它读）。
 #     步骤 1-8 任一失败即整链非零退出。
 #   * 步骤 8 失败（日志 NOTIFY_FAILED）时信号与护栏都已完成、只是没送达：状态文件 result
 #     仍是 OK，原因记在它的 notify 段；照样退出 1，交 OnFailure 告警器——没送达等于没人知道。
@@ -35,9 +41,10 @@
 #
 # 环境变量：
 #   STYLE_SIGNALS_PYTHON      python 解释器绝对路径（默认自动探测）
-#   STYLE_SIGNALS_SKIP_TOPUP  =1 跳过步骤 0（等价于置 SKIP_TOPUP 标志文件）
+#   STYLE_SIGNALS_INPUTS_ARGS 办公室模式：透传给 wait_for_inputs.py（如 --once：只查一次、不等）
+#   STYLE_SIGNALS_SKIP_TOPUP  topup 模式：=1 跳过步骤 0（TOPUP_SKIPPED，不等数）；标志文件在时不看它
 #   STYLE_SIGNALS_MAX_LAG     护栏允许落后的交易日数（默认 1）
-#   STYLE_SIGNALS_TOPUP_TIMEOUT  步骤 0 超时秒数（默认 900）
+#   STYLE_SIGNALS_TOPUP_TIMEOUT  topup 模式步骤 0 超时秒数（默认 900）
 #   STYLE_SIGNALS_NOTIFY_ARGS 透传给 notify_wechat.py（如 --dry-run：只打印不发）
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -132,20 +139,62 @@ cd "${REPO}"
 log "════════ 日更信号链开始 ════════"
 log "repo=${REPO} python=${PYTHON} log=${LOG_FILE}"
 
-# ── 步骤 0：上游保鲜（允许降级）──────────────────────────────────────────────
+# ── 步骤 0：输入指数（允许降级）──────────────────────────────────────────────
+# 标志文件 SKIP_TOPUP 在 = 办公室模式（office_inputs_stage，只读等数）；不在 = topup 模式
+# （topup_stage，回退用，原样保留）。标志文件是版本控制文件，置上/解除见 README。
 SKIP_FLAG_FILE="${SCRIPT_DIR}/SKIP_TOPUP"
+INPUTS_OUT="${LOG_DIR}/.inputs_wait.out"
+INPUTS_MODE="topup"
+OFFICE_FLAG_REASON=""
 TOPUP_REASON=""
 if [[ -f "${SKIP_FLAG_FILE}" ]]; then
-  TOPUP_REASON="$(head -1 "${SKIP_FLAG_FILE}" | tr -d '\r')"
-  TOPUP_REASON="标志文件 deploy/daily_signals/SKIP_TOPUP: ${TOPUP_REASON:-未写原因}"
+  INPUTS_MODE="office"
+  OFFICE_FLAG_REASON="$(head -1 "${SKIP_FLAG_FILE}" | tr -d '\r')"
 elif [[ "${STYLE_SIGNALS_SKIP_TOPUP:-0}" == "1" ]]; then
   TOPUP_REASON="环境变量 STYLE_SIGNALS_SKIP_TOPUP=1"
 fi
 
+# 办公室模式：15 个输入指数由 data_manager 夜间作业（WSL2 20:00 起跑，约 20:02 结束；补数前先重看
+# 前 5 个交易日纠错）写入，本链路零写入。wait_for_inputs.py 查期望信号日的 15 码是否到齐（判据 =
+# 办公室回函 01 §7.3：T 日 close 非空的行数 = 码数），没齐每 5 分钟再查、最迟等到 21:30；信号日不是
+# 今天（白天重跑、开机补跑、节假日）或已过截止只查一次。它的最后三行 INPUTS_STATUS/DAY/REASON 映射成
+# OFFICE_OK / OFFICE_LATE / OFFICE_CHECK_ERROR（没解析到 = OFFICE_CHECK_ERROR），三种都照常往下走：
+# 迟到就用库内已有数据照算，新鲜度由步骤 7 护栏兜底，推送里带 ⚠ 行。
+# 限时 4500s、再宽限 10s 强杀：定时器 20:30（+≤2min 随机）起跑、等到 21:30 截止约 61 分钟，这层是硬兜底
+# （service 的 TimeoutStartSec 按「等数兜底 + 推送限时 + 600s」留足，判例钉住）。
+# -u + tee：进度行边等边进日志（一小时里每 5 分钟一行，而不是等完才一次吐出）；落盘副本只为解析末尾
+# 三行，先删旧的——副本若删不掉重写（如被别的用户留成只读），宁可「无结果」也不能读到上一次的结果。
+# 透传参数不加引号，按词拆开（如 --once）；排在任何固定参数之前。
+office_inputs_stage() {
+  local t0=${SECONDS} wait_rc=0 status reason
+  log "▶ 输入等数（办公室模式；标志文件 SKIP_TOPUP：${OFFICE_FLAG_REASON:-未写原因}）: wait_for_inputs.py ${STYLE_SIGNALS_INPUTS_ARGS:-}"
+  rm -f "${INPUTS_OUT}"
+  # shellcheck disable=SC2086
+  timeout -k 10 4500 "${PYTHON}" -u "${SCRIPT_DIR}/wait_for_inputs.py" ${STYLE_SIGNALS_INPUTS_ARGS:-} 2>&1 \
+      | tee "${INPUTS_OUT}" || wait_rc=$?
+  status="$(grep '^INPUTS_STATUS=' "${INPUTS_OUT}" 2>/dev/null | tail -n 1 | cut -d= -f2-)" || true
+  reason="$(grep '^INPUTS_REASON=' "${INPUTS_OUT}" 2>/dev/null | tail -n 1 | cut -d= -f2-)" || true
+  case "${status}" in
+    OK|LATE|CHECK_ERROR)
+      TOPUP_STATUS="OFFICE_${status}"
+      TOPUP_REASON="${reason:-未记原因}" ;;
+    *)
+      TOPUP_STATUS="OFFICE_CHECK_ERROR"
+      TOPUP_REASON="wait_for_inputs 无结果（exit ${wait_rc}）" ;;
+  esac
+  if [[ "${TOPUP_STATUS}" == "OFFICE_OK" ]]; then
+    log "✔ 输入到齐：${TOPUP_REASON}"
+  else
+    log "⚠ ${TOPUP_STATUS}: ${TOPUP_REASON} —— 不中止链路，用 index_daily 库内已有数据照算；新鲜度由步骤 7 护栏兜底"
+  fi
+  record_step "topup" "${TOPUP_STATUS}" "$((SECONDS - t0))"
+  return 0
+}
+
 topup_stage() {
   local t0=${SECONDS} rc=0 dt
 
-  # 0a. 显式跳过（标志文件 / 环境变量）——运维权威，最高优先级
+  # 0a. 显式跳过（环境变量；标志文件已改走办公室模式，见上）——运维权威，最高优先级
   if [[ -n "${TOPUP_REASON}" ]]; then
     log "⏭ TOPUP_SKIPPED(${TOPUP_REASON}) —— 零写入，改用 index_daily 库内现有数据"
     TOPUP_STATUS="TOPUP_SKIPPED"
@@ -217,7 +266,11 @@ topup_stage() {
 }
 
 topup_rc=0
-topup_stage || topup_rc=$?
+if [[ "${INPUTS_MODE}" == "office" ]]; then
+  office_inputs_stage || topup_rc=$?
+else
+  topup_stage || topup_rc=$?
+fi
 [[ ${topup_rc} -eq 0 ]] || fail "topup_audit(${TOPUP_STATUS})" 1
 
 # ── 步骤 1-6：四条信号线（slope20 2026-09-09 加入）+ 推荐持仓（均为全量重算覆写）────────────────────────
@@ -259,7 +312,7 @@ log "✔ freshness_guard 通过，用时 ${guard_dt}s"
 # ── 步骤 8：企业微信推送（护栏通过才推；推送失败 → 非零退出，交 OnFailure 告警器）──────
 # 限时 120s、再宽限 10s 强杀：send_text 的 10s socket 超时只管单次阻塞操作，总时长并不封顶——
 # DNS 解析根本不受它管，慢回包 / TLS 握手也能一段段拖下去；真正封顶的是这层限时，否则卡住会
-# 一直占锁到 TimeoutStartSec=3600。超时由 timeout 杀进程（124；SIGTERM 后 10s 仍不退则 SIGKILL，
+# 一直占锁到 service 的 TimeoutStartSec（5400）。超时由 timeout 杀进程（124；SIGTERM 后 10s 仍不退则 SIGKILL，
 # 137——被别的 SIGKILL 如 OOM 杀掉也是 137，一并按超时报），来不及写状态文件的 notify 段，
 # 原因只在本日志里。
 # 透传参数放在固定参数之前：argparse 同名参数取最后一个，--status-file 永远是护栏刚写的那份。

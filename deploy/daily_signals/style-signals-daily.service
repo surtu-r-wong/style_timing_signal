@@ -12,8 +12,10 @@ ExecStart=/home/elfbob/claude-code/style_timing_signal/deploy/daily_signals/run_
 Environment=PYTHONIOENCODING=utf-8
 Environment=PYTHONUTF8=1
 Environment=LC_ALL=C.UTF-8
-# 整链正常 <1min；给 topup（Wind gateway 拉数）留足余量后仍设上限，避免挂死占锁。
-TimeoutStartSec=3600
+# 仍设上限，避免挂死占锁。预算（2026-09-23 起办公室模式）：第 0 步等办公室日更最多约 61 分钟
+# （20:30 起跑、21:30 截止），外包硬兜底 timeout -k 10 4500；链路本身约 20 秒；推送 timeout -k 10 120。
+# 4510 + 130 + 600 余量 ≤ 5400（tests/test_deploy_daily_wiring.py 钉住）。此前是 3600（topup 模式）。
+TimeoutStartSec=5400
 # 本链路只处理 4000×15 量级的小表；2G 是宽裕上限，兼作跑飞护栏。
 MemoryMax=2G
 Nice=5
