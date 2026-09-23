@@ -20,11 +20,12 @@ from __future__ import annotations
 
 import argparse
 import csv
+import http.client
 import json
 import os
+import re
 import sys
 import time
-import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -176,7 +177,11 @@ class SendError(RuntimeError):
 
 
 def load_env_file(path: Path) -> dict[str, str]:
-    """极简 dotenv：KEY=VALUE、export 前缀、成对引号、# 注释；读不到就当空。"""
+    """极简 dotenv：KEY=VALUE、export 前缀、成对引号、# 注释；读不到就当空。
+
+    行内注释按 bash 语义：未加引号的值里「空白 + #」起为注释（`KEY=abc  # 说明` → abc，
+    `KEY=a#b` 的 # 在词中间、不是注释）；加引号的值取引号内原样（# 不动），闭引号之后的注释丢掉。
+    """
     try:
         text = path.read_text(encoding="utf-8")
     except OSError:
@@ -191,9 +196,13 @@ def load_env_file(path: Path) -> dict[str, str]:
         key, sep, value = line.partition("=")
         if not sep:
             continue
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
-            value = value[1:-1]
+        stripped = value.strip()
+        quote = stripped[:1]
+        close = stripped.find(quote, 1) if quote in ("'", '"') else -1
+        if close > 0:
+            value = stripped[1:close]
+        else:
+            value = re.split(r"\s#", value, maxsplit=1)[0].strip()
         out[key.strip()] = value
     return out
 
@@ -221,7 +230,9 @@ def send_text(url: str, text: str, *, timeout: float = SEND_TIMEOUT, retries: in
             with opener.open(req, timeout=timeout) as resp:
                 raw = resp.read()
             break
-        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+        # OSError 覆盖 URLError/TimeoutError/ConnectionError/ssl.SSLError；
+        # HTTPException 覆盖读回包时的 IncompleteRead/BadStatusLine（它们不是 OSError）。
+        except (OSError, http.client.HTTPException) as exc:
             if attempt >= retries:
                 raise SendError(f"网络错误（共试 {retries + 1} 次）：{_scrub(str(exc), url)}") from None
             time.sleep(wait)
@@ -298,29 +309,35 @@ def run_alert(args) -> int:
 
 
 def run_push(args) -> int:
+    """推送阶段的任何失败（拒推 / 没配 webhook / 发送失败 / 意外异常）都记进 notify 段再抛出，
+    告警器才能如实报原因；--dry-run 永远不写状态文件。状态文件本身读不了就没法记账，照旧拒推。"""
     status_path = Path(args.status_file)
     status = load_status(status_path)
-    text, as_of = compose_message(Path(args.root), status,
-                                  today=args.today or date.today().isoformat())
-    print(text)
-    if args.dry_run:
-        print("（--dry-run：未发送，未写状态文件）")
-        return 0
     notify = {"sent": False, "at": datetime.now().astimezone().isoformat(timespec="seconds"),
-              "as_of": as_of, "bytes": len(text.encode("utf-8")), "error": None}
-    url = resolve_webhook(Path(args.env_file))
+              "as_of": None, "bytes": None, "error": None}
+    url = ""
     try:
+        text, as_of = compose_message(Path(args.root), status,
+                                      today=args.today or date.today().isoformat())
+        notify["as_of"], notify["bytes"] = as_of, len(text.encode("utf-8"))
+        print(text)
+        if args.dry_run:
+            print("（--dry-run：未发送，未写状态文件）")
+            return 0
+        url = resolve_webhook(Path(args.env_file))
         if not url:
             raise Refused(f"没有 {WEBHOOK_ENV}（环境变量或 {args.env_file}），拒绝静默；"
                           f"预览用 --dry-run")
         send_text(url, text)
         notify["sent"] = True
-    except (Refused, SendError) as exc:
-        notify["error"] = str(exc)
+    except Exception as exc:
+        error = str(exc) if isinstance(exc, (Refused, SendError)) else f"{type(exc).__name__}: {exc}"
+        notify["error"] = _scrub(error, url) if url else error
         raise
     finally:
-        record_notify(status_path, notify)
-    print(f"已推送企业微信（信号日 {as_of}，{notify['bytes']} 字节）")
+        if not args.dry_run:
+            record_notify(status_path, notify)
+    print(f"已推送企业微信（信号日 {notify['as_of']}，{notify['bytes']} 字节）")
     return 0
 
 

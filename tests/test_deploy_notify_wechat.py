@@ -1,7 +1,13 @@
 """deploy/daily_signals/notify_wechat.py 单测（不连库、不连外网：发送一律打本地 HTTP 桩）。"""
+import http.client
 import importlib.util
 import json
+import ssl
+import subprocess
 import sys
+import threading
+import urllib.error
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest
@@ -148,11 +154,6 @@ def test_real_message_fits_wechat_limit(tmp_path):
     assert len(text.encode("utf-8")) <= nw.WECHAT_TEXT_LIMIT
 
 
-import threading
-import urllib.error
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
-
 @pytest.fixture
 def stub():
     """本地 webhook 桩：记录收到的 JSON；reply 可改成非 0 errcode。"""
@@ -235,6 +236,37 @@ def test_send_error_never_leaks_webhook_key():
         nw.send_text(url, "x", wait=0, opener=opener)
     assert opener.calls == 2
     assert "SECRETKEY42" not in str(exc.value) and exc.value.__cause__ is None
+    # `from None` 的真实效果：隐式 __context__（带完整 URL 的原异常）不会随 traceback 打出来
+    assert exc.value.__suppress_context__
+
+
+class _ScriptedOpener:
+    """按剧本逐次抛出给定异常，剧本用完后回 errcode 0。"""
+
+    def __init__(self, *errors):
+        self.errors, self.calls = list(errors), 0
+
+    def open(self, req, timeout):
+        self.calls += 1
+        if self.errors:
+            raise self.errors.pop(0)
+        return _Resp(b'{"errcode": 0, "errmsg": "ok"}')
+
+
+def test_send_retries_http_protocol_error_once():
+    """读回包时断流：IncompleteRead 属 http.client.HTTPException（不是 OSError），同样重试一次。"""
+    opener = _ScriptedOpener(http.client.IncompleteRead(b""))
+    nw.send_text("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=K", "x", wait=0, opener=opener)
+    assert opener.calls == 2
+
+
+def test_send_wraps_ssl_error_as_send_error():
+    """ssl.SSLError 是 OSError 但不是 ConnectionError：两次都抛也要收成 SendError，不能漏成裸异常。"""
+    opener = _ScriptedOpener(ssl.SSLError("x"), ssl.SSLError("x"))
+    with pytest.raises(nw.SendError):
+        nw.send_text("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=K", "x", wait=0,
+                     opener=opener)
+    assert opener.calls == 2
 
 
 def test_webhook_from_env_file_and_env_var_precedence(tmp_path, monkeypatch):
@@ -242,10 +274,25 @@ def test_webhook_from_env_file_and_env_var_precedence(tmp_path, monkeypatch):
     env.write_text("# 注释\n\nexport OTHER=1\nALERT_WEBHOOK_URL='https://example.invalid/x?key=abc'\n",
                    encoding="utf-8")
     monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
+    assert nw.load_env_file(env)["OTHER"] == "1"          # export 前缀
     assert nw.resolve_webhook(env) == "https://example.invalid/x?key=abc"
     assert nw.resolve_webhook(tmp_path / "missing.env") == ""
     monkeypatch.setenv("ALERT_WEBHOOK_URL", "https://example.invalid/y?key=def")
     assert nw.resolve_webhook(env) == "https://example.invalid/y?key=def"
+
+
+def test_env_file_inline_comment_follows_bash_semantics(tmp_path):
+    """未加引号：空白之后的 # 起为行内注释（bash 语义）；加引号：引号内原样，# 不动。"""
+    env = tmp_path / "alert.env"
+    env.write_text("PLAIN=abc  # 说明\n"
+                   "HASH_IN_WORD=a#b\n"
+                   "QUOTED='x#y # 不是注释'\n"
+                   "QUOTED_THEN_COMMENT=\"abc\"  # 说明\n", encoding="utf-8")
+    got = nw.load_env_file(env)
+    assert got["PLAIN"] == "abc"
+    assert got["HASH_IN_WORD"] == "a#b"                   # 词中间的 # 不是注释
+    assert got["QUOTED"] == "x#y # 不是注释"
+    assert got["QUOTED_THEN_COMMENT"] == "abc"
 
 
 def _status_file(tmp_path, status):
@@ -306,7 +353,45 @@ def test_push_refused_when_guard_not_ok(tmp_path, monkeypatch, stub, capsys):
     assert stub["bodies"] == [] and "REFUSED" in capsys.readouterr().err
 
 
-import subprocess
+def test_push_refused_by_vouching_is_recorded(tmp_path, monkeypatch, stub):
+    """拒推（推送对象未经护栏担保）也要记进 notify 段——否则告警器会误报「状态文件没记下失败原因」。"""
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
+    st = make_tree(tmp_path)
+    st["files"]["slope20_longflat"]["gated"] = False
+    p = _status_file(tmp_path, st)
+    assert nw.main(_argv(tmp_path, p)) == 1
+    notify = json.loads(p.read_text(encoding="utf-8"))["notify"]
+    assert notify["sent"] is False and "不是护栏对象" in notify["error"]
+    assert stub["bodies"] == []
+
+
+def test_push_unexpected_error_is_recorded_scrubbed_and_reraised(tmp_path, monkeypatch, stub):
+    """Refused/SendError 以外的异常：照样记账（类型名 + 抹掉 URL），然后原样抛出。"""
+    monkeypatch.setenv("ALERT_WEBHOOK_URL", stub["url"])
+
+    def boom(url, text, **kw):
+        raise ValueError(f"boom {url}")
+
+    monkeypatch.setattr(nw, "send_text", boom)
+    p = _status_file(tmp_path, make_tree(tmp_path))
+    with pytest.raises(ValueError):
+        nw.main(_argv(tmp_path, p))
+    notify = json.loads(p.read_text(encoding="utf-8"))["notify"]
+    assert notify["sent"] is False and notify["error"] == "ValueError: boom <webhook>"
+    assert stub["bodies"] == []
+
+
+def test_dry_run_refusal_leaves_status_alone(tmp_path, monkeypatch, capsys):
+    """--dry-run 永远不写状态文件，拒推时也一样（白天预览不能覆盖当晚的记账）。"""
+    monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
+    st = make_tree(tmp_path)
+    st["files"]["slope20_longflat"]["gated"] = False
+    p = _status_file(tmp_path, st)
+    before = p.read_bytes()
+    assert nw.main(_argv(tmp_path, p, "--dry-run")) == 1
+    assert "REFUSED" in capsys.readouterr().err
+    assert p.read_bytes() == before
+
 
 NOW = "2026-09-23 18:31:07"
 
