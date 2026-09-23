@@ -75,7 +75,7 @@ def test_defaults_follow_office_recommendation():
     assert (wfi.DEFAULT_READY_FROM, wfi.DEFAULT_DEADLINE, wfi.DEFAULT_INTERVAL) == ("20:00", "21:30", 300)
     args = wfi.build_parser().parse_args([])
     assert (args.ready_from, args.deadline, args.interval) == (time(20, 0), time(21, 30), 300)
-    assert args.max_wait == wfi.DEFAULT_MAX_WAIT and not args.once
+    assert args.max_wait == wfi.DEFAULT_MAX_WAIT and not args.once and args.accept_sentinel is None
 
 
 # ── 码表 ──────────────────────────────────────────────────────────────────────
@@ -224,7 +224,7 @@ def sentinel(critical=(), warn=(), judged=15):
 
 
 def run(clock, fetch, *, calendar=None, once=False, interval=300, deadline=DEADLINE, max_wait=None,
-        check=None):
+        check=None, accept=None):
     logs: list[str] = []
 
     def log(line):
@@ -236,7 +236,8 @@ def run(clock, fetch, *, calendar=None, once=False, interval=300, deadline=DEADL
         load_calendar=calendar if calendar is not None else RangeLoader(CAL),
         fetch_present=fetch, check_sentinel=check if check is not None else sentinel(),
         ready_from=READY, deadline=deadline, interval=interval,
-        max_wait=wfi.DEFAULT_MAX_WAIT if max_wait is None else max_wait, once=once, log=log)
+        max_wait=wfi.DEFAULT_MAX_WAIT if max_wait is None else max_wait, once=once,
+        accept_sentinel=accept, log=log)
     return result, logs
 
 
@@ -519,6 +520,47 @@ def test_sentinel_skipped_when_not_arrived(fetch, detail):
     assert check.calls == [] and (res.sentinel, res.sentinel_detail) == ("SKIPPED", detail)
 
 
+# ── 人工放行：--accept-sentinel <T>（只对那一天、只对 CRITICAL 生效）──────────────────────────
+
+ACCEPTED_DETAIL = f"2026-09-23：{CRIT}（已按 --accept-sentinel 2026-09-23 人工放行）"
+
+
+def test_accept_sentinel_releases_critical_on_signal_day():
+    """人工核实是真实行情后放行：日期 = T、哨兵 CRITICAL → ACCEPTED，明细 = 原 CRITICAL 明细 + 放行注记，照常往下走。"""
+    res, logs = run(Clock("2026-09-23 22:10:00"), Seq(ALL), check=sentinel(critical=[CRIT]),
+                    accept=date(2026, 9, 23))
+    assert (res.status, res.sentinel, res.sentinel_detail) == ("OK", "ACCEPTED", ACCEPTED_DETAIL)
+    assert sum("人工放行" in line for line in logs) == 1
+
+
+def test_accept_sentinel_for_another_day_does_not_release():
+    """放行日期不是本次信号日：不生效，仍按 CRITICAL（放的是哪一天必须说清，别让旧的放行参数一路放下去）。"""
+    res, logs = run(Clock("2026-09-23 22:10:00"), Seq(ALL), check=sentinel(critical=[CRIT]),
+                    accept=date(2026, 9, 22))
+    assert (res.sentinel, res.sentinel_detail) == ("CRITICAL", f"2026-09-23：{CRIT}")
+    unused = [line for line in logs if "--accept-sentinel 2026-09-22" in line]
+    assert len(unused) == 1 and "不是本次信号日 2026-09-23" in unused[0] and "仍按 CRITICAL 处理" in unused[0]
+
+
+def test_accept_sentinel_unused_when_clean():
+    res, logs = run(Clock("2026-09-23 22:10:00"), Seq(ALL), accept=date(2026, 9, 23))
+    assert (res.sentinel, res.sentinel_detail) == ("CLEAN", CLEAN_DETAIL)
+    unused = [line for line in logs if "--accept-sentinel 2026-09-23" in line]
+    assert len(unused) == 1 and "没用上" in unused[0]
+
+
+def test_accept_sentinel_unused_when_not_arrived():
+    check = sentinel(critical=[CRIT])
+    res, logs = run(Clock("2026-09-23 22:10:00"), Seq(set()), check=check, accept=date(2026, 9, 23))
+    assert (res.status, res.sentinel) == ("LATE", "SKIPPED") and check.calls == []
+    assert sum("--accept-sentinel 2026-09-23" in line and "没用上" in line for line in logs) == 1
+
+
+def test_no_accept_means_no_accept_log():
+    _, logs = run(Clock("2026-09-23 22:10:00"), Seq(ALL), check=sentinel(critical=[CRIT]))
+    assert not any("--accept-sentinel" in line for line in logs)
+
+
 def _sentinel_rows(returns=None, *, day=date(2026, 9, 23), prev=date(2026, 9, 22)):
     """15 码在 prev 收 100、在 day 收 100×(1+r)（Decimal，同真库）；r 缺省 = 同族齐涨 1%，r=0 → 与前值逐位相等。"""
     rows = []
@@ -777,6 +819,14 @@ def test_main_reports_sentinel_critical(capsys):
     assert got["INPUTS_SENTINEL_DETAIL"] == f"2026-09-23：{CRIT}"
 
 
+def test_main_passes_accept_sentinel_through(capsys):
+    rc = _main(["--once", "--accept-sentinel", "2026-09-23"], Clock("2026-09-23 22:10:00"), Seq(ALL),
+               check=sentinel(critical=[CRIT]))
+    got = _contract(capsys.readouterr().out.splitlines())
+    assert rc == 0 and (got["INPUTS_STATUS"], got["INPUTS_SENTINEL"]) == ("OK", "ACCEPTED")
+    assert got["INPUTS_SENTINEL_DETAIL"] == ACCEPTED_DETAIL
+
+
 @pytest.mark.parametrize("fetch, expected", [
     (Seq(set()), "LATE"),
     (Seq(OSError("x")), "CHECK_ERROR"),
@@ -833,7 +883,8 @@ def test_main_turns_runtime_error_into_check_error(capsys):
 
 
 @pytest.mark.parametrize("argv", [["--bogus"], ["--deadline", "25:99"], ["--ready-from", "8pm"],
-                                  ["--interval", "0"], ["--interval", "abc"], ["--max-wait", "0"]])
+                                  ["--interval", "0"], ["--interval", "abc"], ["--max-wait", "0"],
+                                  ["--accept-sentinel", "2026/09/23"], ["--accept-sentinel", "yesterday"]])
 def test_main_turns_bad_arguments_into_check_error(capsys, argv):
     """透传参数写错（STYLE_SIGNALS_INPUTS_ARGS）也照打五行、退出码 0：链路照常往下走。"""
     rc = _main(argv, Clock("2026-09-23 20:31:17"), Seq(ALL))

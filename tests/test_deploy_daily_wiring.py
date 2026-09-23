@@ -498,6 +498,7 @@ OK_REASON = "2026-09-23 15 码到齐（等 0 秒）"
 LATE_REASON = "2026-09-23 截至 21:30 仍缺 1 码：000300.SH，按库内已有数据照算"
 ERR_REASON = "2026-09-23：OperationalError: timeout expired"
 CRIT_DETAIL = "2026-09-23：CRITICAL 2000pair 对内价差 27.07pp （932409.CSI +16.02% vs 932408.CSI -11.05%，判据 ≥8pp）"
+ACCEPTED_DETAIL = f"{CRIT_DETAIL}（已按 --accept-sentinel 2026-09-23 人工放行）"
 
 
 def _contract(status: str, reason: str, sentinel: str | None = "CLEAN", detail: str | None = CLEAN_DETAIL) -> str:
@@ -522,6 +523,10 @@ def _skipped(status: str, reason: str) -> str:
      "OFFICE_CHECK_ERROR", f"{OK_REASON}；缺同族哨兵结论（INPUTS_SENTINEL=SKIPPED）"),
     (_contract("OK", OK_REASON, None, None), 0,
      "OFFICE_CHECK_ERROR", f"{OK_REASON}；缺同族哨兵结论（INPUTS_SENTINEL=空）"),
+    # 人工放行（--accept-sentinel T）：OFFICE_ACCEPTED，原因 = 带放行注记的哨兵明细，不中止
+    (_contract("OK", OK_REASON, "ACCEPTED", ACCEPTED_DETAIL), 0, "OFFICE_ACCEPTED", ACCEPTED_DETAIL),
+    (_contract("OK", OK_REASON, "ACCEPTED", None), 0,
+     "OFFICE_ACCEPTED", "同族哨兵 CRITICAL 已人工放行（没记明细）"),
     ("", 124, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 124）"),          # 超时被杀，什么都没打
     ("Traceback …\n", 1, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 1）"),  # 崩了
     ("", 0, "OFFICE_CHECK_ERROR", "wait_for_inputs 无结果（exit 0）"),              # 退 0 但没给结果
@@ -532,7 +537,8 @@ def _skipped(status: str, reason: str) -> str:
     (_skipped("CHECK_ERROR", "2026-09-23：OperationalError: host=10.0.0.1 port=5432 failed"), 0,
      "OFFICE_CHECK_ERROR", "2026-09-23：OperationalError: host=10.0.0.1 port=5432 failed"),
     ("INPUTS_STATUS=LATE\n", 0, "OFFICE_LATE", "未记原因"),
-], ids=["ok", "late", "check-error", "ok-sentinel-skipped", "ok-sentinel-missing", "timeout-no-output",
+], ids=["ok", "late", "check-error", "ok-sentinel-skipped", "ok-sentinel-missing", "accepted",
+        "accepted-no-detail", "timeout-no-output",
         "crash", "exit0-no-output", "unknown-status", "last-group-wins", "reason-with-equals", "status-only"])
 def test_runner_office_mode_maps_wait_result(tmp_path, stub_out, stub_rc, status, reason):
     """标志文件在 → 跑等数脚本，按末尾的 INPUTS_* 映射；没解析到结果一律 OFFICE_CHECK_ERROR。这几种都不中止
@@ -558,7 +564,10 @@ def test_runner_office_sentinel_critical_aborts_before_signals(tmp_path, status)
     assert (got["RESULT_STATUS"], got["RESULT_REASON"]) == ("OFFICE_SUSPECT", CRIT_DETAIL), log
     steps = json.loads(got["RESULT_STEPS"])
     assert [(s["step"], s["status"]) for s in steps] == [("topup", "OFFICE_SUSPECT")], steps
-    assert any(line.startswith("LOG OFFICE_SUSPECT:") for line in out.stdout.splitlines()), log
+    suspect = [line for line in out.stdout.splitlines() if line.startswith("LOG OFFICE_SUSPECT:")]
+    assert suspect, log
+    # 处置里给出能照抄的放行命令，日期就是这次的信号日
+    assert any('STYLE_SIGNALS_INPUTS_ARGS="--accept-sentinel 2026-09-23"' in line for line in suspect), suspect
 
 
 def test_runner_office_sentinel_critical_without_detail(tmp_path):
@@ -589,8 +598,8 @@ def test_runner_office_mode_mktemp_failure(tmp_path):
     assert got["RESULT_REASON"].startswith("建不了等数结果副本"), got
 
 
-@pytest.mark.parametrize("inputs_args", [None, "--once", "--once --interval 60"],
-                         ids=["args-unset", "once", "two-args"])
+@pytest.mark.parametrize("inputs_args", [None, "--once", "--once --interval 60", "--accept-sentinel 2026-09-24"],
+                         ids=["args-unset", "once", "two-args", "accept-sentinel"])
 def test_runner_office_mode_argv(tmp_path, inputs_args):
     """桩看到的 argv = -u 脚本 [透传参数…]。未设（从子进程 env 里删掉，不是设空串）= 生产默认路径，
     set -u 下写成 ${STYLE_SIGNALS_INPUTS_ARGS}（不带 :-）会当场崩。"""
@@ -697,6 +706,7 @@ def test_alerter_explains_office_suspect(alerter):
     start = _only([i for i, line in enumerate(alerter) if re.fullmatch(r'echo\s+"\[处置\]"', line)], "【处置】段标题")
     end = next(i for i in range(start, len(alerter)) if alerter[i].startswith("}"))
     assert any("OFFICE_SUSPECT" in line for line in alerter[start:end]), alerter[start:end]
+    assert any("--accept-sentinel" in line for line in alerter[start:end]), alerter[start:end]
 
 
 def test_alerter_time_budget(alerter):

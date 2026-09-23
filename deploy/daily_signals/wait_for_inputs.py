@@ -32,7 +32,8 @@ keepalive），单次出错记下、下一轮再查，截止时仍出错 → CHE
 输入码：旧审计判新写入的那天时，纯风格 4 码要到 20:01 才由夜间作业写，审计时还不在库里，实际判的也是
 这 15 码；办公室处置 §2.1 还记着 932400.CSI 晚间会取到前一日值——把它纳入只会因为生产信号不用的码
 误拦生产。哨兵自身出错 → CHECK_ERROR（不阻断）。**不接回「历史被改写」审计**：办公室每晚重看会合法
-改写 T-1..T-5，那条规则会天天误报。
+改写 T-1..T-5，那条规则会天天误报。人工核实是真实行情后，`--accept-sentinel T` 只放行那一天的 CRITICAL
+（报 ACCEPTED，照常往下走）；日期不是 T 不生效，哨兵没判 CRITICAL 时用不上，两种情况都记一行日志。
 
 **当前时刻**取 Asia/Shanghai（定时器按 Asia/Shanghai 触发，截止也按北京时间算），与本机时区设置无关。
 
@@ -41,7 +42,8 @@ keepalive），单次出错记下、下一轮再查，截止时仍出错 → CHE
     INPUTS_STATUS=OK|LATE|CHECK_ERROR
     INPUTS_DAY=YYYY-MM-DD
     INPUTS_REASON=<一行中文>
-    INPUTS_SENTINEL=CLEAN|CRITICAL|SKIPPED      （没到齐 / 检查出错 / 哨兵出错时 SKIPPED）
+    INPUTS_SENTINEL=CLEAN|CRITICAL|ACCEPTED|SKIPPED   （ACCEPTED = CRITICAL 已按 --accept-sentinel 人工放行；
+                                                  没到齐 / 检查出错 / 哨兵出错时 SKIPPED）
     INPUTS_SENTINEL_DETAIL=<一行：CRITICAL / WARN 明细，或跳过的原因>
 
 **退出码恒为 0**：三种结果链路都照常往下走（LATE / CHECK_ERROR 用库内已有数据照算），新鲜度由步骤 7
@@ -50,6 +52,8 @@ keepalive），单次出错记下、下一轮再查，截止时仍出错 → CHE
 用法：
     python3 deploy/daily_signals/wait_for_inputs.py           # 链路里的用法（runner 外包 timeout 4500）
     python3 deploy/daily_signals/wait_for_inputs.py --once    # 只查一次（手工重跑 / 只读冒烟）
+    # 人工核实 2026-09-24 的 CRITICAL 是真实行情后放行重跑（经 runner 透传）：
+    STYLE_SIGNALS_INPUTS_ARGS="--accept-sentinel 2026-09-24" deploy/daily_signals/run_daily_signals.sh
 """
 from __future__ import annotations
 
@@ -150,6 +154,14 @@ def parse_hhmm(text: str) -> dtime:
         raise argparse.ArgumentTypeError(f"时刻应为 HH:MM，收到 {text!r}") from None
 
 
+def iso_date(text: str) -> date:
+    """'2026-09-24' → date。兼作 argparse 的 type=：写错了报参数错误。"""
+    try:
+        return datetime.strptime(text.strip(), "%Y-%m-%d").date()
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"日期应为 YYYY-MM-DD，收到 {text!r}") from None
+
+
 def positive_int(text: str) -> int:
     try:
         value = int(text)
@@ -214,7 +226,7 @@ class Result:
     status: str                    # OK / LATE / CHECK_ERROR
     day: date                      # 期望信号日 T
     reason: str                    # 一行中文
-    sentinel: str = "SKIPPED"      # CLEAN / CRITICAL / SKIPPED
+    sentinel: str = "SKIPPED"      # CLEAN / CRITICAL / ACCEPTED / SKIPPED
     sentinel_detail: str = ""      # 一行：CRITICAL / WARN 明细，或跳过的原因
 
     def lines(self) -> list[str]:
@@ -238,8 +250,10 @@ def _mode(sd: SignalDay, today: date, once: bool, past_deadline: bool, interval:
     return f"每 {interval} 秒查一次，最迟等到 {until}"
 
 
-def _arrived(sd: SignalDay, codes: list[str], waited: int, note: str, check_sentinel, log) -> Result:
-    """到齐之后：同族共动性哨兵只判 T。CRITICAL → 报 CRITICAL（阻断由 runner 做）；WARN 只记；哨兵出错 → CHECK_ERROR。"""
+def _arrived(sd: SignalDay, codes: list[str], waited: int, note: str, check_sentinel, log,
+             accept: date | None) -> Result:
+    """到齐之后：同族共动性哨兵只判 T。CRITICAL → 报 CRITICAL（阻断由 runner 做）；若 accept == T（人工核实过的
+    放行）→ 报 ACCEPTED、明细注明放行；WARN 只记；哨兵出错 → CHECK_ERROR。"""
     n = len(codes)
     reason = _with_note(f"{sd.day} {n} 码到齐（等 {waited} 秒）", note)
     try:
@@ -252,6 +266,10 @@ def _arrived(sd: SignalDay, codes: list[str], waited: int, note: str, check_sent
                       "SKIPPED", f"哨兵自身出错：{err}")
     if critical:
         detail = f"{sd.day}：" + "；".join(critical)
+        if accept == sd.day:
+            detail += f"（已按 --accept-sentinel {sd.day} 人工放行）"
+            log(f"{TAG} 同族哨兵 CRITICAL，人工放行：{detail}")
+            return Result("OK", sd.day, reason, "ACCEPTED", detail)
         log(f"{TAG} 同族哨兵 CRITICAL：{detail}")
         return Result("OK", sd.day, reason, "CRITICAL", detail)
     detail = f"{sd.day} 同族共动性：{judged} 码日收益无 CRITICAL"
@@ -263,7 +281,26 @@ def _arrived(sd: SignalDay, codes: list[str], waited: int, note: str, check_sent
 
 def wait_for_inputs(codes: list[str], *, now_fn, sleep_fn, load_calendar, fetch_present, check_sentinel,
                     ready_from: dtime, deadline: dtime, interval: int, max_wait: int, once: bool,
-                    log) -> Result:
+                    log, accept_sentinel: date | None = None) -> Result:
+    """轮询到齐、再跑哨兵；给了 accept_sentinel（人工放行日）而没用上时记一行日志说明为什么。"""
+    result = _poll(codes, now_fn=now_fn, sleep_fn=sleep_fn, load_calendar=load_calendar,
+                   fetch_present=fetch_present, check_sentinel=check_sentinel, ready_from=ready_from,
+                   deadline=deadline, interval=interval, max_wait=max_wait, once=once, log=log,
+                   accept=accept_sentinel)
+    if accept_sentinel is not None and result.sentinel != "ACCEPTED":
+        if result.sentinel == "CRITICAL":
+            why = f"它不是本次信号日 {result.day}，不生效，仍按 CRITICAL 处理"
+        elif result.sentinel == "CLEAN":
+            why = "同族哨兵无 CRITICAL，无需放行"
+        else:
+            why = f"同族哨兵没判定（{result.sentinel_detail}）"
+        log(f"{TAG} --accept-sentinel {accept_sentinel} 没用上：{why}")
+    return result
+
+
+def _poll(codes: list[str], *, now_fn, sleep_fn, load_calendar, fetch_present, check_sentinel,
+          ready_from: dtime, deadline: dtime, interval: int, max_wait: int, once: bool,
+          log, accept: date | None) -> Result:
     """轮询到齐、再跑哨兵（时钟、sleep、日历、到齐查询、哨兵全部注入，单测不连库）。返回结果，不打印契约五行。
 
     load_calendar(start, end) -> {日期: 是否交易日}；fetch_present(T, codes) -> 已到的码；
@@ -315,7 +352,7 @@ def wait_for_inputs(codes: list[str], *, now_fn, sleep_fn, load_calendar, fetch_
         stamp = f"{TAG} {now:%H:%M:%S} 第 {rnd} 轮："
         if error is None and len(arrived) == n:
             log(stamp + "；".join([*parts, f"{sd.day} {n}/{n} 到齐"]))
-            return _arrived(sd, codes, int((now - start).total_seconds()), note, check_sentinel, log)
+            return _arrived(sd, codes, int((now - start).total_seconds()), note, check_sentinel, log, accept)
 
         parts.append(f"查询出错 {error}" if error is not None
                      else f"{sd.day} 已到 {len(arrived)}/{n}，缺 {'、'.join(missing)}")
@@ -417,6 +454,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help=f"从开跑算起最多等多少秒，默认 {DEFAULT_MAX_WAIT}（截止取它与 --deadline 中早的那个）")
     ap.add_argument("--ready-from", type=parse_hhmm, default=parse_hhmm(DEFAULT_READY_FROM),
                     help=f"今天从几点起算作信号日 HH:MM，默认 {DEFAULT_READY_FROM}（办公室夜间作业起跑）")
+    ap.add_argument("--accept-sentinel", type=iso_date, default=None, metavar="YYYY-MM-DD",
+                    help="人工核实该信号日的同族哨兵 CRITICAL 是真实行情后放行（只对这一天生效，报 ACCEPTED）")
     ap.add_argument("--codes-file", default=str(CODES_FILE), help="码表，默认同目录 input_codes.txt")
     return ap
 
@@ -441,7 +480,7 @@ def main(argv: list[str] | None = None, *, now_fn=shanghai_now, sleep_fn=time.sl
             load_codes(Path(args.codes_file)), now_fn=now_fn, sleep_fn=sleep_fn,
             load_calendar=load_calendar, fetch_present=fetch_present, check_sentinel=check_sentinel,
             ready_from=args.ready_from, deadline=args.deadline, interval=args.interval,
-            max_wait=args.max_wait, once=args.once, log=_print)
+            max_wait=args.max_wait, once=args.once, log=_print, accept_sentinel=args.accept_sentinel)
     except Exception as exc:
         day = expected_signal_day(start, parse_hhmm(DEFAULT_READY_FROM), {}).day
         result = Result("CHECK_ERROR", day, f"{day}：{describe_error(exc)}；信号日按工作日推断",

@@ -152,8 +152,10 @@ def describe(line: Line, as_of: str) -> str:
 
 
 #: 第 0 步办公室模式（2026-09-23 起常态：输入由 data_manager 夜间作业写入，状态文件 topup 字段记 OFFICE_*）
-#: 出问题时的 ⚠ 行措辞；OFFICE_OK 是常态，不出 ⚠ 行。
-OFFICE_WARNINGS = {"OFFICE_LATE": "输入未到齐", "OFFICE_CHECK_ERROR": "输入到齐检查出错"}
+#: 出问题时的 ⚠ 行措辞（OFFICE_ACCEPTED = 同族哨兵 CRITICAL 已按 --accept-sentinel 人工放行）；OFFICE_OK 是常态，
+#: 不出 ⚠ 行。
+OFFICE_WARNINGS = {"OFFICE_LATE": "输入未到齐", "OFFICE_CHECK_ERROR": "输入到齐检查出错",
+                   "OFFICE_ACCEPTED": "输入哨兵 CRITICAL 已人工放行"}
 
 
 def health_lines(status: dict) -> list[str]:

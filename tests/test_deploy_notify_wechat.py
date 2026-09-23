@@ -163,6 +163,8 @@ def test_degraded_topup_and_upstream_gaps_are_flagged(tmp_path):
 # 2026-09-23 起输入由办公室写入（标志文件 SKIP_TOPUP 常驻），第 0 步记 OFFICE_*：到齐是常态，不该天天挂 ⚠。
 OFFICE_LATE_REASON = "2026-09-22 截至 21:30 仍缺 1 码：000300.SH，按库内已有数据照算"
 OFFICE_ERROR_REASON = "2026-09-22 到齐检查出错：OperationalError: timeout expired"
+OFFICE_ACCEPTED_REASON = ("2026-09-22：CRITICAL 2000pair 对内价差 9.10pp （932409.CSI +5.20% vs 932408.CSI -3.90%，"
+                          "判据 ≥8pp）（已按 --accept-sentinel 2026-09-22 人工放行）")
 
 
 def test_office_ok_health_line_has_no_warning(tmp_path):
@@ -177,9 +179,11 @@ def test_office_ok_health_line_has_no_warning(tmp_path):
     ("OFFICE_LATE", OFFICE_LATE_REASON, f"⚠ 输入未到齐：{OFFICE_LATE_REASON}"),
     ("OFFICE_CHECK_ERROR", OFFICE_ERROR_REASON, f"⚠ 输入到齐检查出错：{OFFICE_ERROR_REASON}"),
     ("OFFICE_LATE", None, "⚠ 输入未到齐：未记原因"),
+    ("OFFICE_ACCEPTED", OFFICE_ACCEPTED_REASON, f"⚠ 输入哨兵 CRITICAL 已人工放行：{OFFICE_ACCEPTED_REASON}"),
     ("TOPUP_SKIPPED", "环境变量 STYLE_SIGNALS_SKIP_TOPUP=1", "⚠ topup TOPUP_SKIPPED：环境变量 STYLE_SIGNALS_SKIP_TOPUP=1"),
     ("DEGRADED", "topup 调用失败 exit 1", "⚠ topup DEGRADED：topup 调用失败 exit 1"),
-], ids=["office-late", "office-check-error", "office-late-no-reason", "topup-skipped", "degraded"])
+], ids=["office-late", "office-check-error", "office-late-no-reason", "office-accepted", "topup-skipped",
+        "degraded"])
 def test_input_problems_are_flagged(tmp_path, topup, reason, flagged):
     """办公室迟到 / 到齐检查出错各有一行 ⚠（照算的信号可能停在前一交易日，人要知道为什么）；
     topup 模式（回退）的各状态仍是原来的「⚠ topup <状态>」。"""
@@ -714,7 +718,7 @@ def test_alert_skips_office_ok_topup_line():
     assert "topup" not in text and "办公室日更" not in text and "护栏：b0" in text
 
 
-@pytest.mark.parametrize("topup", ["OFFICE_LATE", "OFFICE_CHECK_ERROR", "OFFICE_SUSPECT"])
+@pytest.mark.parametrize("topup", ["OFFICE_LATE", "OFFICE_CHECK_ERROR", "OFFICE_SUSPECT", "OFFICE_ACCEPTED"])
 def test_alert_keeps_office_problem_topup_line(topup):
     """办公室迟到 / 检查出错照旧出 topup 行：它多半就是护栏落后的原因；同族哨兵拦下的中止（OFFICE_SUSPECT）
     也出——那一行就是中止的原因。"""
