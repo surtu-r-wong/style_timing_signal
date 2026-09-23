@@ -24,8 +24,15 @@ from backtest.positions import production_position, symmetric_position  # noqa: 
 
 PRODUCTION_MAPPING = {"hybrid20": "longflat", "citic40d": "longflat", "equal_weight": "symmetric", "slope20": "symmetric"}   # slope20 2026-09-09 上线，空头腿 0.62 同形态
 MAPPERS = {"longflat": production_position, "symmetric": symmetric_position}
-# 下游（仪表盘 / 新鲜度护栏 / 合并导出）一律从这里取推荐持仓文件，不要自己拼文件名。
-RECOMMENDED_FILES = {name: f"output/recommended/{name}_{m}.csv" for name, m in PRODUCTION_MAPPING.items()}
+
+
+def recommended_file(name: str, mapping: str) -> str:
+    """推荐持仓文件的仓库相对路径（生产口径与参照口径同一命名规则）。"""
+    return f"output/recommended/{name}_{mapping}.csv"
+
+
+# 下游（仪表盘 / 新鲜度护栏 / 合并导出 / 推送）一律从这里取推荐持仓文件，不要自己拼文件名。
+RECOMMENDED_FILES = {name: recommended_file(name, m) for name, m in PRODUCTION_MAPPING.items()}
 # 参照产出：非现役口径也照常写，便于对照与回滚（equal_weight 的 long-flat）。
 REFERENCE_OUTPUTS = {
     "equal_weight": "longflat",
@@ -33,6 +40,9 @@ REFERENCE_OUTPUTS = {
     # 现货池文件 = 本参照产出；决策记录 docs/plans/2026-09-10-two-pool-signal-assignment-decision.md。
     "slope20": "longflat",
 }
+# 实盘两池 → (信号线, 持仓口径)，2026-09-10 用户裁决（063c322）。企业微信推送按这里置顶两池。
+POOLS = {"期货池": ("equal_weight", "symmetric"), "现货池": ("slope20", "longflat")}
+POOL_FILES = {pool: recommended_file(name, m) for pool, (name, m) in POOLS.items()}
 
 
 def recommended_position_frame(name: str, threshold: float = 0.0, mapping: str | None = None) -> pd.DataFrame:

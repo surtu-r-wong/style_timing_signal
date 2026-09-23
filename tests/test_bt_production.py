@@ -58,3 +58,20 @@ def test_recommended_frame_other_two_signals_stay_long_flat():
         df = recommended_position_frame(name)
         assert df["position"].isin([0, 1]).all(), f"{name} 应为 long-flat {{0,1}}"
         assert len(df) > 100
+
+
+def test_pools_map_to_files_actually_written():
+    """2026-09-10 两池裁决：期货池=equal_weight 对称、现货池=slope20 long-flat。
+    推送/展示从 POOLS/POOL_FILES 取；每个池文件必须是 write_recommended_positions 真写出来的那份。"""
+    import tempfile
+    from backtest.production import (POOL_FILES, POOLS, PRODUCTION_MAPPING, RECOMMENDED_FILES,
+                                     REFERENCE_OUTPUTS, recommended_file, write_recommended_positions)
+    assert POOLS == {"期货池": ("equal_weight", "symmetric"), "现货池": ("slope20", "longflat")}
+    assert POOL_FILES == {"期货池": "output/recommended/equal_weight_symmetric.csv",
+                          "现货池": "output/recommended/slope20_longflat.csv"}
+    for name, m in POOLS.values():
+        assert PRODUCTION_MAPPING.get(name) == m or REFERENCE_OUTPUTS.get(name) == m
+    assert all(RECOMMENDED_FILES[n] == recommended_file(n, m) for n, m in PRODUCTION_MAPPING.items())
+    with tempfile.TemporaryDirectory() as d:
+        written = {p.name for p in write_recommended_positions(Path(d)).values()}
+    assert {Path(p).name for p in POOL_FILES.values()} <= written
