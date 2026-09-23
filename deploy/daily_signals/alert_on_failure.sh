@@ -7,7 +7,8 @@
 #
 # 动作（都不许失败传播，告警器自己绝不能成为新的失败源）：
 #   1. 写显眼告警文件 logs/ALERT_daily_signals（含时间 + status.json 摘要 + 日志路径）
-#   2. best-effort 桌面通知 notify-send（无图形会话时静默跳过）
+#   2. best-effort 企业微信失败通知（notify_wechat.py --alert；推了什么/为何没推追加进告警文件）
+#   3. best-effort 桌面通知 notify-send（无图形会话时静默跳过）
 #
 # 告警文件不会自动清除，下一次成功运行也不清——留给人处置后手动 rm，
 # 免得夜里失败、白天自愈、没人看见。
@@ -65,8 +66,33 @@ PY
   echo "  1. 看上面的 result / failed_step 定位"
   echo "  2. TOPUP_VERIFY_FAILED = 写入无法验证，重跑审计即可"
   echo "  3. SUSPECT = 先判是否上游合法回溯修订，再决定是否置 SKIP_TOPUP"
-  echo "  4. 处理完手动删除本文件: rm ${ALERT_FILE}"
+  echo "  4. 推送失败（日志 NOTIFY_FAILED）= 信号与护栏都已完成、只是没送达：看状态文件 notify 段，"
+  echo "     修好网络/webhook 后 python3 deploy/daily_signals/notify_wechat.py 补发"
+  echo "  5. 处理完手动删除本文件: rm ${ALERT_FILE}"
 } > "${ALERT_FILE}" 2>&1
+
+# 企业微信失败通知：best-effort。拼消息与发送都在 notify_wechat.py --alert（只读状态文件、
+# 不 import pandas——科学栈坏了也要能报警）；输出追加进告警文件，留底推了什么、为何没推。
+# --run-started 是主 service 本次的启动时刻（@unix 秒）：状态文件的 finished_at 早于它，
+# 就是上一次运行留下的（本次在写状态前就死了，如超时/OOM），通知不会把旧原因安到这次头上。
+# STYLE_SIGNALS_NOTIFY_ARGS 与 runner 同一个变量，手工演练告警器时可带 --dry-run。
+PYTHON="${STYLE_SIGNALS_PYTHON:-}"
+if [[ -z "${PYTHON}" ]]; then
+  for cand in "${REPO}/.venv/bin/python3" /home/elfbob/miniconda3/bin/python3; do
+    [[ -x "${cand}" ]] && { PYTHON="${cand}"; break; }
+  done
+fi
+SYSTEMD_RESULT="$(systemctl --user show style-signals-daily.service -p Result --value 2>/dev/null || true)"
+RUN_STARTED="$(systemctl --user show style-signals-daily.service -p ExecMainStartTimestamp --value --timestamp=unix 2>/dev/null || true)"
+{
+  echo
+  echo "[企业微信失败通知]"
+  # shellcheck disable=SC2086
+  timeout 30 "${PYTHON:-python3}" "${SCRIPT_DIR}/notify_wechat.py" --alert \
+      --status-file "${STATUS_FILE}" --systemd-result "${SYSTEMD_RESULT}" \
+      --run-started "${RUN_STARTED}" ${STYLE_SIGNALS_NOTIFY_ARGS:-} \
+      || echo "  (未送达，exit $?)"
+} >> "${ALERT_FILE}" 2>&1
 
 # 桌面通知：best-effort，没有图形会话就算了
 if command -v notify-send >/dev/null 2>&1; then

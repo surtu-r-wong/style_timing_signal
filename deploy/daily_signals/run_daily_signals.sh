@@ -18,13 +18,17 @@
 #   5. signals/equal_weight/generate_signal.py --lookback 5 …     （变体B / 参考口径）
 #   6. python -m backtest.production        —— 三条线的 long-flat 推荐持仓
 #   7. deploy/daily_signals/check_freshness.py —— 新鲜度护栏 + 状态文件
+#   8. deploy/daily_signals/notify_wechat.py   —— 企业微信推送（护栏通过才推；失败 → 非零退出）
 #
 # 语义要点：
 #   * 步骤 0 允许失败/跳过（记 DEGRADED / TOPUP_SKIPPED，用库内现有数据继续）；
 #     唯一例外是事后审计不过（TOPUP_SUSPECT）——那说明库可能已脏，必须停在信号之前。
-#     步骤 1-7 任一失败即整链非零退出。
+#     步骤 1-8 任一失败即整链非零退出。
+#   * 步骤 8 失败（日志 NOTIFY_FAILED）时信号与护栏都已完成、只是没送达：状态文件 result
+#     仍是 OK，原因记在它的 notify 段；照样退出 1，交 OnFailure 告警器——没送达等于没人知道。
 #   * 四个生成脚本都是**全量重算覆写**（非追加），因此断更多日后直接跑即完成补跑。
-#   * flock 并发锁：已有实例在跑时直接退出 75（EX_TEMPFAIL），不排队。
+#   * flock 并发锁：已有实例在跑时直接退出 75（EX_TEMPFAIL），不排队；service 配了
+#     SuccessExitStatus=75，撞锁不触发告警（占锁的那个实例会推送）。
 #   * 护栏未过 → 退出 1 并在日志里打大写 STALE；这是「停更无人知」的直接对策。
 #
 # 环境变量：
@@ -32,6 +36,7 @@
 #   STYLE_SIGNALS_SKIP_TOPUP  =1 跳过步骤 0（等价于置 SKIP_TOPUP 标志文件）
 #   STYLE_SIGNALS_MAX_LAG     护栏允许落后的交易日数（默认 1）
 #   STYLE_SIGNALS_TOPUP_TIMEOUT  步骤 0 超时秒数（默认 900）
+#   STYLE_SIGNALS_NOTIFY_ARGS 透传给 notify_wechat.py（如 --dry-run：只打印不发）
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -239,11 +244,22 @@ guard_t0=${SECONDS}; guard_rc=0
     || guard_rc=$?
 guard_dt=$((SECONDS - guard_t0))
 
-TOTAL=$((SECONDS - START_TS))
 if [[ ${guard_rc} -ne 0 ]]; then
   log "STALE/CHECK_ERROR: 新鲜度护栏未通过（exit ${guard_rc}）——见上方 STALE 行与 ${STATUS_FILE}"
-  log "════════ 日更信号链结束：失败，总耗时 ${TOTAL}s ════════"
+  log "════════ 日更信号链结束：失败，总耗时 $((SECONDS - START_TS))s ════════"
   exit "${guard_rc}"
 fi
 log "✔ freshness_guard 通过，用时 ${guard_dt}s"
-log "════════ 日更信号链结束：成功，总耗时 ${TOTAL}s ════════"
+
+# ── 步骤 8：企业微信推送（护栏通过才推；推送失败 → 非零退出，交 OnFailure 告警器）──────
+log "▶ notify_wechat: notify_wechat.py ${STYLE_SIGNALS_NOTIFY_ARGS:-}"
+notify_rc=0
+# shellcheck disable=SC2086
+"${PYTHON}" "${SCRIPT_DIR}/notify_wechat.py" --status-file "${STATUS_FILE}" \
+    ${STYLE_SIGNALS_NOTIFY_ARGS:-} || notify_rc=$?
+if [[ ${notify_rc} -ne 0 ]]; then
+  log "NOTIFY_FAILED: 企业微信推送失败（exit ${notify_rc}）——信号与护栏均已完成，只是没送达；见 ${STATUS_FILE} 的 notify 段"
+  log "════════ 日更信号链结束：推送失败，总耗时 $((SECONDS - START_TS))s ════════"
+  exit 1
+fi
+log "════════ 日更信号链结束：成功，总耗时 $((SECONDS - START_TS))s ════════"

@@ -17,6 +17,8 @@ TimeoutStartSec=3600
 # 本链路只处理 4000×15 量级的小表；2G 是宽裕上限，兼作跑飞护栏。
 MemoryMax=2G
 Nice=5
+# 75 = runner 的 flock 跳过（已有实例在跑，那个实例会推送），不是失败——别触发 OnFailure 假告警。
+SuccessExitStatus=75
 
 # 无 [Install]：本单元由 style-signals-daily.timer 拉起。若再 enable 成
 # default.target 的 wants，每次登录都会额外跑一次（双跑），故意不给 [Install]。
