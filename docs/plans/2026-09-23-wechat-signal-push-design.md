@@ -51,6 +51,13 @@
 breaches / upstream_breach / notify.error` 拼一条短通知。状态文件缺失，或结果是 `OK` 却触发了告警
 （在写状态前就被杀，如超时/OOM），都如实写出来，并附 systemd `Result`。
 
+**实现增补（2026-09-23）**：告警器另传 `--run-started`（主 service 本次的 `ExecMainStartTimestamp`，
+`--timestamp=unix` 取 `@unix 秒`）：状态文件的 `finished_at` 早于它，即判为上一次运行留下的，通知只说
+这一句、不引用旧原因；取不到时退回按日期判断。告警器的实际调用是
+`timeout -k 5 30 … notify_wechat.py … --alert … || echo …`（输出追加进告警文件，`notify-send` 另限时
+10 秒）。runner 步骤 8 的推送调用外包 `timeout -k 10 120`——socket 超时只管单次阻塞操作、总时长不封顶
+（DNS 根本不受它管）；超时按推送失败处理（`NOTIFY_FAILED`，推送调用退出码 124 / 137，链路 exit 1）。
+
 ### 2.3 消息样式
 
 ```
@@ -72,7 +79,7 @@ topup OK · 护栏 OK（最大落后 0 交易日 · 缺口 0）
 失败通知：
 
 ```
-⚠ 风格择时日更链失败｜2026-09-23 18:31
+⚠ 风格择时日更链失败｜2026-09-23 18:31:07
 结果 FAILED · 失败步骤 topup_audit(SUSPECT) · 状态写于 2026-09-23T18:31:05+08:00
 topup SUSPECT：事后审计判定写入可疑（exit 1）
 systemd Result=exit-code

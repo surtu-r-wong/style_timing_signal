@@ -44,7 +44,8 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
   改用 `index_daily` 库内现有数据继续，日志与状态文件记 `DEGRADED` / `TOPUP_SKIPPED`，
   新鲜度由步骤 7 兜底。唯一例外是事后审计不过（`TOPUP_SUSPECT`）——那说明库可能已脏，
   必须停在信号重算之前。
-- **步骤 1–8 硬失败**：任一步非零退出即整链非零退出，状态文件记 `FAILED` + 失败步骤名。
+- **步骤 1–8 硬失败**：任一步非零退出即整链非零退出，状态文件记 `FAILED` + 失败步骤名
+  （步骤 7 护栏不过则记 `STALE` / `CHECK_ERROR`，上游冻结另记 `UPSTREAM_STALE`，见下）。
   步骤 8（企业微信推送）只在记账上不同：它失败时信号与护栏都已完成、只是没送达——日志打
   `NOTIFY_FAILED`，状态文件 `result` 仍是 `OK`，原因记在 `notify.error`；但照样退出 1 交告警器，
   因为没送达就等于没人知道。
@@ -89,9 +90,9 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
   在 08-17 11:25 回填补上的，我们能做的只是「看见」，并在下次重算时把产出补齐。
   回看窗口用 `--upstream-gap-lookback N` 调（`0` = 关闭）。
 - **失败告警**：主 service 的 `OnFailure=` 会拉起 `style-signals-daily-alert.service`，
-  写 `logs/ALERT_daily_signals`（时间 + `status.json` 摘要 + 日志路径 + 处置指引），
-  再 best-effort 推一条企业微信失败通知（`notify_wechat.py --alert`，外包 `timeout 30`、后跟 `||`：
-  推不出去只把原因追加进告警文件，告警器自己绝不失败），最后 best-effort 弹 `notify-send`。
+  写 `logs/ALERT_daily_signals`（时间 + `status.json` 摘要（含 `notify` 段）+ 日志路径 + 处置指引），
+  再 best-effort 推一条企业微信失败通知（`notify_wechat.py --alert`，外包 `timeout -k 5 30`、后跟 `||`：
+  推不出去只把原因追加进告警文件，告警器自己绝不失败），最后 best-effort 弹 `notify-send`（限时 10 秒）。
   告警器把主 service 本次的启动时刻（`ExecMainStartTimestamp`）经 `--run-started` 传给失败通知，
   用来判断状态文件是不是本次运行写的（见下「企业微信推送」的陈旧告警句）。
   链路会在 topup 审计判可疑/无法验证时**主动中止**——
@@ -192,7 +193,7 @@ git commit -m "..." deploy/daily_signals/SKIP_TOPUP    # ← 必须一起提交�
 什么都不发、失败时只写告警文件 + 桌面通知，人不在电脑前就不知道。现在**每个工作日都推**，
 不做「持仓变了才推」——静默才不会被误读成成功。
 
-**何时推**：链路步骤 8，护栏通过之后（定时器 18:30 + ≤2 分钟随机延迟起跑，整链十几秒，约 18:31 到）。
+**何时推**：链路步骤 8，护栏通过之后（定时器 18:30 + ≤2 分钟随机延迟 + `AccuracySec` 1 分钟起跑，整链十几秒，约 18:31 到）。
 护栏未过或任一步失败都**不推持仓**，改由告警器推失败通知。
 
 **推什么**：两池置顶，其余生产线作参考，末尾一行链路体检。池子映射只有一个入口
@@ -237,9 +238,11 @@ exit 1 → 告警）。这把「推送对象 ⊆ 护栏对象」钉成运行期�
 `qyapi.weixin.qq.com` 是国内端点，本机 Clash 代理会让它失败或变慢，所以代码里显式绕代理，
 不依赖单元文件清环境变量。URL 里带 key，**任何输出都抹掉它**（报错、堆栈、状态文件
 `notify.error`、告警文件）。网络层错误重试 1 次；`errcode≠0` 属配置/限流问题，不重试。
-runner 对推送调用限时 120 秒（DNS 解析不受 socket 超时约束，卡住会占锁到 1 小时），超时按推送
-失败处理（日志 `NOTIFY_FAILED`，推送调用退出码 124）；这时进程是被杀的、来不及写 `notify` 段，
-失败通知会落到「状态文件没记下失败原因」那句兜底，原因看运行日志。
+runner 对推送调用限时 120 秒、再宽限 10 秒强杀（`timeout -k 10 120`）：socket 超时只管单次阻塞
+操作、总时长不封顶（DNS 解析根本不受它管，慢回包 / TLS 握手也能一段段拖），真正封顶的是这层限时，
+否则卡住会占锁到 1 小时。超时按推送失败处理（日志 `NOTIFY_FAILED` 写明超时，推送调用退出码 124，
+宽限后强杀为 137）；这时进程是被杀的、来不及写 `notify` 段，失败通知会落到「状态文件没记下失败
+原因」那句兜底，原因看运行日志。
 
 ### 失败形态
 
@@ -281,13 +284,21 @@ systemd `Result`，**不引用**文件里旧的 result / topup / breaches——�
 ### 手动命令
 
 ```bash
-python3 deploy/daily_signals/notify_wechat.py --dry-run          # 预览：只打印，不发、不写状态文件；结尾报 webhook 是否已配置
-python3 deploy/daily_signals/notify_wechat.py                    # 补发：发送并把 notify 段写回状态文件
-python3 deploy/daily_signals/notify_wechat.py --alert --dry-run  # 告警演练：按当前状态文件拼失败通知，不发
+# 预览：只打印，不发、不写状态文件；结尾报 webhook 是否已配置
+python3 deploy/daily_signals/notify_wechat.py --dry-run
+# 补发：发送并把 notify 段写回状态文件
+python3 deploy/daily_signals/notify_wechat.py
+# 告警演练：按当前状态文件拼失败通知，不发
+python3 deploy/daily_signals/notify_wechat.py --alert --dry-run \
+    --run-started "$(systemctl --user show style-signals-daily.service -p ExecMainStartTimestamp --value --timestamp=unix)"
 ```
 
-补发照样只推护栏担保过的文件：护栏之后产出又被改过（如手工重跑了某条信号），会拒推——那就重跑
-整条链路。`--dry-run` 永远不写状态文件：白天手动预览不能覆盖掉当晚「已送达」的记录。
+告警演练不带 `--run-started` 时按日期判陈旧：隔天再跑，得到的就是「状态文件停在 …，不是本次运行
+写的」那句。
+
+补发照样过担保校验，但它只比对末行日期：推荐持仓文件的末行日期与护栏记录不一致才拒推（拒推时
+重跑整条链路）。同一末行日期下内容被改是发现不了的；只重跑信号脚本也不会碰推荐持仓文件（那是
+步骤 6 写的），校验照过。`--dry-run` 永远不写状态文件：白天手动预览不能覆盖掉当晚「已送达」的记录。
 
 ## 产物
 
@@ -333,6 +344,10 @@ systemctl --user daemon-reload
 ```
 
 ## 手动操作
+
+> ⚠️ **手动跑 runner 或 `systemctl --user start` 会真推到群里**（与 bs-toolkit、数据管理办公室共用
+> 同一个机器人）。只重算不推送：`STYLE_SIGNALS_NOTIFY_ARGS=--dry-run deploy/daily_signals/run_daily_signals.sh`
+> ——步骤 8 只打印不发，前面的 topup、信号重算、护栏照常。
 
 ```bash
 systemctl --user start style-signals-daily.service      # 立即跑一次
