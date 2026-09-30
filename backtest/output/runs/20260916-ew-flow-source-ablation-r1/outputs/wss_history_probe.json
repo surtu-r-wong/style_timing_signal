@@ -1,0 +1,477 @@
+[
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,000001.SZ",
+      "fields": "mfd_buyamt_m",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:01:56.463101+00:00",
+    "http_status": 200,
+    "wind_error_codes": [
+      "-40522006"
+    ],
+    "status": "error"
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,000001.SZ",
+      "fields": "mfd_sellamt_m",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:01:57.178366+00:00",
+    "http_status": 200,
+    "wind_error_codes": [
+      "-40522006"
+    ],
+    "status": "error"
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,000001.SZ",
+      "fields": "mfd_inflow_m",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:01:57.689828+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        -7947815349.0
+      ],
+      [
+        "000905.SH",
+        -823728864.9999999
+      ],
+      [
+        "000852.SH",
+        -2302424523.0
+      ],
+      [
+        "000001.SZ",
+        124760.00000000001
+      ]
+    ]
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,399102.SZ,000680.SH,000016.SH,000906.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2015-01-05",
+      "options": "tradeDate=20150105;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:01:58.284281+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        null,
+        null
+      ],
+      [
+        "000905.SH",
+        null,
+        null
+      ],
+      [
+        "000852.SH",
+        null,
+        null
+      ],
+      [
+        "932000.CSI",
+        null,
+        null
+      ],
+      [
+        "399102.SZ",
+        null,
+        null
+      ],
+      [
+        "000680.SH",
+        null,
+        null
+      ],
+      [
+        "000016.SH",
+        null,
+        null
+      ],
+      [
+        "000906.SH",
+        null,
+        null
+      ]
+    ]
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,399102.SZ,000680.SH,000016.SH,000906.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2018-06-19",
+      "options": "tradeDate=20180619;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:01:58.899927+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        1886676589.0,
+        1629259253.0
+      ],
+      [
+        "000905.SH",
+        -1467936669.9999998,
+        -1257412985.0
+      ],
+      [
+        "000852.SH",
+        -1528760094.9999998,
+        -934656079.9999999
+      ],
+      [
+        "932000.CSI",
+        null,
+        null
+      ],
+      [
+        "399102.SZ",
+        -895686364.0,
+        -564700507.0
+      ],
+      [
+        "000680.SH",
+        null,
+        null
+      ],
+      [
+        "000016.SH",
+        1551202030.0,
+        1456901385.0
+      ],
+      [
+        "000906.SH",
+        418739919.0,
+        371846268.0
+      ]
+    ]
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,399102.SZ,000680.SH,000016.SH,000906.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2020-07-01",
+      "options": "tradeDate=20200701;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:01:59.707411+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        5006159295.0,
+        3396198731.0000005
+      ],
+      [
+        "000905.SH",
+        -2438712647.0,
+        1018897777.0000001
+      ],
+      [
+        "000852.SH",
+        -2922515511.0,
+        665561250.0
+      ],
+      [
+        "932000.CSI",
+        null,
+        null
+      ],
+      [
+        "399102.SZ",
+        -1944023244.0000002,
+        32983284.0
+      ],
+      [
+        "000680.SH",
+        null,
+        null
+      ],
+      [
+        "000016.SH",
+        4234479922.0,
+        1606873955.0000002
+      ],
+      [
+        "000906.SH",
+        2567446648.0,
+        4415096508.0
+      ]
+    ]
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,399102.SZ,000680.SH,000016.SH,000906.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2022-07-25",
+      "options": "tradeDate=20220725;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:02:01.122959+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        -2037409781.0,
+        -321846213.0
+      ],
+      [
+        "000905.SH",
+        -1111318399.0,
+        -203496657.0
+      ],
+      [
+        "000852.SH",
+        -2700527232.0,
+        -694190284.0
+      ],
+      [
+        "932000.CSI",
+        null,
+        null
+      ],
+      [
+        "399102.SZ",
+        -2299269729.0,
+        -420356150.0
+      ],
+      [
+        "000680.SH",
+        null,
+        null
+      ],
+      [
+        "000016.SH",
+        -688940883.9999999,
+        -98433503.0
+      ],
+      [
+        "000906.SH",
+        -3148728180.0000005,
+        -525342869.99999994
+      ]
+    ]
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,399102.SZ,000680.SH,000016.SH,000906.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2024-09-24",
+      "options": "tradeDate=20240924;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:02:01.686836+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        1861496004.0,
+        830806582.0
+      ],
+      [
+        "000905.SH",
+        -25869146.999999996,
+        657674165.0000001
+      ],
+      [
+        "000852.SH",
+        -1131482853.0,
+        552949711.0
+      ],
+      [
+        "932000.CSI",
+        -1065921285.0000001,
+        718970831.9999999
+      ],
+      [
+        "399102.SZ",
+        -313009921.0,
+        1403077431.0
+      ],
+      [
+        "000680.SH",
+        null,
+        null
+      ],
+      [
+        "000016.SH",
+        925845474.0,
+        -66755354.0
+      ],
+      [
+        "000906.SH",
+        1835626857.0,
+        1488480747.0
+      ]
+    ]
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,399102.SZ,000680.SH,000016.SH,000906.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2026-09-02",
+      "options": "tradeDate=20260902;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:02:02.789708+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        -6822050876.0,
+        -2543750055.0
+      ],
+      [
+        "000905.SH",
+        -2792031277.0,
+        -910615956.0
+      ],
+      [
+        "000852.SH",
+        -1205889199.0,
+        -1095080073.0
+      ],
+      [
+        "932000.CSI",
+        -699710584.0,
+        -144751363.0
+      ],
+      [
+        "399102.SZ",
+        -8461168062.0,
+        -2339932240.0
+      ],
+      [
+        "000680.SH",
+        -734267727.0,
+        -236367799.0
+      ],
+      [
+        "000016.SH",
+        -224022198.0,
+        -148563440.0
+      ],
+      [
+        "000906.SH",
+        -9614082153.0,
+        -3454366011.0000005
+      ]
+    ]
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,399102.SZ,000680.SH,000016.SH,000906.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:02:03.788290+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        -797465125.0,
+        -888992844.0
+      ],
+      [
+        "000905.SH",
+        -1075348163.0,
+        376241289.00000006
+      ],
+      [
+        "000852.SH",
+        -1179749475.0,
+        116730966.00000001
+      ],
+      [
+        "932000.CSI",
+        1026381029.0,
+        492521302.0
+      ],
+      [
+        "399102.SZ",
+        -284812964.0,
+        -4201784.0
+      ],
+      [
+        "000680.SH",
+        514190634.99999994,
+        -2487131.0
+      ],
+      [
+        "000016.SH",
+        -854141989.9999999,
+        -89350640.0
+      ],
+      [
+        "000906.SH",
+        -1872813288.0,
+        -512751555.0
+      ]
+    ]
+  }
+]

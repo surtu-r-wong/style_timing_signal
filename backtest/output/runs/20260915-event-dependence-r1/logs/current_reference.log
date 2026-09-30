@@ -1,0 +1,35 @@
+scored 0 / 319
+scored 150 / 319
+scored 300 / 319
+PRIMARY                              comparisons  originally_lagging  flips  both
+role                  model                                              
+frozen_representative carry           13                  10      2     0
+not_adopted_fixed     carry            5                   5      3     0
+rejected_variant      carry           89                  65      8     0
+unselected_grid       carry          212                 199     11     0
+                          name                           study model reference  delta_sharpe  neutral_delta_sharpe  total_relative_log  nonevent_relative_log
+       grid_lf_ew_L10_zw50_sm5      equal-weight-original-grid carry    ew_sym     -0.152751              0.010779           -1.629412              -1.113673
+       grid_lf_ew_L20_zw40_sm0      equal-weight-original-grid carry    ew_sym     -0.058148              0.028432           -1.384244              -1.119118
+       grid_lf_ew_L20_zw60_sm5      equal-weight-original-grid carry    ew_sym     -0.001217              0.061342           -1.284403              -1.065057
+       grid_lf_ew_L40_zw80_sm0      equal-weight-original-grid carry    ew_sym     -0.040919              0.019013           -1.491619              -1.277103
+ grid_lf_slope_L20s0_zw120_sm5              momentum-transform carry    ew_sym     -0.024929              0.009306           -1.261818              -1.091329
+ grid_lf_voladj_L20s0_zw40_sm0              momentum-transform carry    ew_sym     -0.007522              0.090518           -1.353167              -0.966051
+grid_lf_voladj_L20s0_zw120_sm5              momentum-transform carry    ew_sym     -0.029071              0.041488           -1.363242              -1.132238
+grid_lf_winrate_L10s0_zw40_sm5              momentum-transform carry    ew_sym     -0.146811              0.008080           -1.623623              -1.118468
+grid_lf_smooth_L10s0_zw120_sm0              momentum-transform carry    ew_sym     -0.121328              0.023828           -1.710205              -1.270971
+grid_lf_smooth_L20s0_zw120_sm5              momentum-transform carry    ew_sym     -0.043799              0.006219           -1.442597              -1.245068
+ grid_lf_smooth_L60s0_zw40_sm0              momentum-transform carry    ew_sym     -0.043667              0.020538           -1.460067              -1.235547
+           staged_raw_longflat                    staged-entry carry    ew_sym     -0.065233              0.020935           -1.399950              -1.134824
+                 staged_lf_sm1                    staged-entry carry    ew_sym     -0.065233              0.020935           -1.399950              -1.134824
+           staged_staged_sm4_5                    staged-entry carry    ew_sym     -0.005369              0.040365           -1.453776              -1.272412
+              staged_B1_sm1_t1                    staged-entry carry    ew_sym     -0.014234              0.048127           -1.724735              -1.528605
+       pairset_B_500_1000_2000                        pair-set carry    ew_sym     -0.045491              0.008892           -1.291841              -1.087561
+           pairset_C_1000_only                        pair-set carry    ew_sym     -0.005575              0.042187           -1.245249              -1.056406
+                  fixed_lf_raw      signal-generator-smoothing carry    ew_sym     -0.065233              0.020935           -1.399950              -1.134824
+                fixed_lf_DEMA7      signal-generator-smoothing carry    ew_sym     -0.038811              0.007500           -1.344898              -1.156686
+             fixed_lf_Hamilton signal-generator-cusum-hamilton carry    ew_sym     -0.075782              0.035700           -1.402372              -1.055534
+                threshold_0.35    threshold-and-microcap-grids carry    ew_sym     -0.065482              0.015423           -2.029819              -1.798518
+                threshold_0.45    threshold-and-microcap-grids carry    ew_sym     -0.099440              0.052325           -2.327564              -1.949974
+              b2_self_mixed_U2             b2-industry-neutral carry    ew_sym     -0.044786              0.034044           -1.375779              -1.129421
+        dividend_price_partner                        pair-set carry    ew_sym     -0.025486              0.022460           -1.216927              -1.024709
+CURRENT REFERENCE 319

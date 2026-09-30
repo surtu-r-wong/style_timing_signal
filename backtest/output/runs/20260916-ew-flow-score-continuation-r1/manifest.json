@@ -1,0 +1,97 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/board_prices.csv",
+      "sha256": "04b238d7fa80adf14e728b26b27c768196ecd555bfeeef167677f58aeedde1e2",
+      "size": 191106
+    },
+    {
+      "path": "inputs/calendar_extension.csv",
+      "sha256": "b7a455e4d1faa09a18371a256b92249d46f646ba7ad0f60880fb7f4a95f5be18",
+      "size": 93
+    },
+    {
+      "path": "inputs/code__backtest__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__backtest__run_flow_source_ablation.py",
+      "sha256": "8d72d8fe7a4081fcac00443c6e63b815bce07aa812bc41b794e8ad4b986b25de",
+      "size": 11236
+    },
+    {
+      "path": "inputs/continue_scores.py",
+      "sha256": "356ae15325f6b9a4f950b7d33044e6a0fafe81353fc82dbc74d5cb08decb9fe2",
+      "size": 5866
+    },
+    {
+      "path": "inputs/money_flow.csv",
+      "sha256": "1dc81c65e34d95c61ebee40d98db3f4e9c328341112bc2c79b6ba2aa1543d17a",
+      "size": 1620317
+    },
+    {
+      "path": "inputs/p0_added_rows.csv",
+      "sha256": "bc0efabc69009964e670509059128cae7f0bdcf5c9a7e74c61806e575d1ef2e9",
+      "size": 5582
+    },
+    {
+      "path": "inputs/price_extension.csv",
+      "sha256": "c5343ae207623978a1368892fd8533fa416660e72a7dcdb55e6deb44f62004cb",
+      "size": 579
+    },
+    {
+      "path": "inputs/prior_scores.csv",
+      "sha256": "b634ae07ad922213b45d777775a9c22e6e1df6520a526838f5a6a2bc1572596b",
+      "size": 268184
+    },
+    {
+      "path": "inputs/scope.md",
+      "sha256": "8f47c6f90b1844754c73df66d1fb1f23967203139ab523fc779bb6f78c579e5a",
+      "size": 465
+    },
+    {
+      "path": "inputs/star_prices.csv",
+      "sha256": "cb6f1c6e52ec1b85d8b5ee93461c744801a2f882a367ee0d4ed070612cf508ca",
+      "size": 50046
+    },
+    {
+      "path": "inputs/verification.json",
+      "sha256": "2e9daca4d71906d8f515e266212047fb1b5b0f6d16afaa8370391b131784d588",
+      "size": 2617
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "968c36b440f0127534b3a2a3351749022802e879c14305be83816b09ee486fd0",
+      "size": 1131
+    },
+    {
+      "path": "outputs/conditional_keep_short.csv",
+      "sha256": "d0ac3f14098f01a8e06b51a69901be9a644ee3c2b5155424c312cc73148bc349",
+      "size": 255
+    },
+    {
+      "path": "outputs/residual_extension.csv",
+      "sha256": "dceeb7ee3dcfa2a03a8368bf4e902bab349792daee956c320c6713333f695a64",
+      "size": 502
+    },
+    {
+      "path": "outputs/score_extension.csv",
+      "sha256": "9892daf6b9499913620a42d0c4efe88244afc659a67471ec8496c04dec052ec3",
+      "size": 786
+    },
+    {
+      "path": "outputs/source_scores.csv",
+      "sha256": "671d061d6c42ff1ae4ddbfc632d88d0fdd88f25b0c292f896a13e8298bb71e90",
+      "size": 268933
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "e8efc1d8daace342db175ade1c75f83af69d0aeba2957b733eba31c4cd22afaa",
+      "size": 1279
+    }
+  ],
+  "completed_utc": "2026-09-16T08:21:44.555879+00:00",
+  "stage": "fixed_score_continuation_no_returns",
+  "status": "complete"
+}

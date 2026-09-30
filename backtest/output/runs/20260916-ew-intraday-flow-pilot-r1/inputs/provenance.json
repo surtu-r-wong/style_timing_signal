@@ -1,0 +1,26 @@
+{
+  "source_files": {
+    "futures.csv": {
+      "path": "backtest/output/runs/20260914-execution-audit-r2/inputs/futures.csv",
+      "size": 957830,
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b"
+    },
+    "spot.csv": {
+      "path": "backtest/output/runs/20260914-execution-audit-r2/inputs/spot.csv",
+      "size": 223423,
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d"
+    },
+    "equal_weight.csv": {
+      "path": "backtest/output/runs/20260914-execution-audit-r2/inputs/equal_weight.csv",
+      "size": 192861,
+      "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc"
+    },
+    "money_flow.csv": {
+      "path": "backtest/output/runs/20260916-ew-leg-flow-readiness-r1/inputs/money_flow.csv",
+      "size": 1620317,
+      "sha256": "1dc81c65e34d95c61ebee40d98db3f4e9c328341112bc2c79b6ba2aa1543d17a"
+    }
+  },
+  "board_observed_at": "2026-09-16 09:27:52.912333+08",
+  "publication_and_revision": "User confirms same-day publication and no historical revision; not independently version-audited."
+}

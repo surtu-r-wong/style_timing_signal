@@ -1,0 +1,116 @@
+[
+  {
+    "label": "wset_chinext",
+    "path": "/fetch/market_money_flow",
+    "params": {
+      "sector": "chinext",
+      "start": "2026-09-02",
+      "end": "2026-09-03"
+    },
+    "observed_utc": "2026-09-16T02:09:43.911381+00:00",
+    "http_status": 200,
+    "status": "ok",
+    "wind_error_codes": [],
+    "columns": [
+      "date",
+      "maininflowcount",
+      "mainoutflowcount",
+      "maininmoney",
+      "mainoutmoney",
+      "maininflowmoney",
+      "openmaininflowmoney",
+      "endmaininflowmoney",
+      "extrabillinflowmoney",
+      "largebillinflowmoney",
+      "middlebillinflowmoney",
+      "smallbillinflowmoney"
+    ],
+    "rows": [
+      [
+        "2026-09-03T00:00:00",
+        583,
+        820,
+        15064506.782899927,
+        15449704.1198,
+        -385197.3364999995,
+        -31890.84559999996,
+        2847.7552000000146,
+        -313810.58160000044,
+        -71386.75530000003,
+        68840.44999999994,
+        316356.8884000005
+      ],
+      [
+        "2026-09-02T00:00:00",
+        505,
+        897,
+        14761620.444300067,
+        16628337.86300003,
+        -1866717.4196999995,
+        -825592.1687999995,
+        -233703.4503000001,
+        -948034.9125000006,
+        -918682.5061999995,
+        483315.4786999997,
+        1383401.9395999983
+      ]
+    ]
+  },
+  {
+    "label": "wset_star",
+    "path": "/fetch/market_money_flow",
+    "params": {
+      "sector": "star",
+      "start": "2026-09-02",
+      "end": "2026-09-03"
+    },
+    "observed_utc": "2026-09-16T02:09:44.719623+00:00",
+    "http_status": 200,
+    "status": "ok",
+    "wind_error_codes": [],
+    "columns": [
+      "date",
+      "maininflowcount",
+      "mainoutflowcount",
+      "maininmoney",
+      "mainoutmoney",
+      "maininflowmoney",
+      "openmaininflowmoney",
+      "endmaininflowmoney",
+      "extrabillinflowmoney",
+      "largebillinflowmoney",
+      "middlebillinflowmoney",
+      "smallbillinflowmoney"
+    ],
+    "rows": [
+      [
+        "2026-09-03T00:00:00",
+        342,
+        273,
+        6850180.85329999,
+        6902683.878699992,
+        -52503.02649999999,
+        57836.43020000002,
+        3652.4412999999995,
+        -132747.32869999998,
+        80244.30329999996,
+        167092.83260000008,
+        -114589.80600000003
+      ],
+      [
+        "2026-09-02T00:00:00",
+        303,
+        312,
+        6975450.770900001,
+        7169336.489599998,
+        -193885.71799999996,
+        -102213.36819999997,
+        -20271.74379999999,
+        -179388.6218000001,
+        -14497.096900000073,
+        300067.1181999997,
+        -106181.39979999997
+      ]
+    ]
+  }
+]

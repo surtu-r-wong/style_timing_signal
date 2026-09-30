@@ -1,0 +1,22 @@
+{
+  "observed_at": "2026-09-16 08:33:00.664776+08",
+  "column_comments": {
+    "index_code": null,
+    "trade_date": null,
+    "wind_sector": null,
+    "main_inflow_count": null,
+    "main_outflow_count": null,
+    "main_in_money": null,
+    "main_out_money": null,
+    "main_inflow_money": null,
+    "open_main_inflow_money": null,
+    "end_main_inflow_money": null,
+    "extra_bill_inflow_money": null,
+    "large_bill_inflow_money": null,
+    "middle_bill_inflow_money": null,
+    "small_bill_inflow_money": null,
+    "src": null,
+    "fetched_at": null,
+    "updated_at": null
+  }
+}

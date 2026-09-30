@@ -1,0 +1,947 @@
+[
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201501.csv",
+    "size": 7548,
+    "sha256": "40ada7508d84af696188e5e36b55e38c14f41a741163f3c97f2d6e247d186e93"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201503.csv",
+    "size": 9288,
+    "sha256": "a4ae39aa8ce2796de2eecf3ba854b39ec9cdc4e77c6d7caaf5e9996ee0679055"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201505.csv",
+    "size": 8827,
+    "sha256": "7c5b38a2d72f30aedc34815ecb7f14c27abd0eea0e2e58591b261a9d8f8cf612"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201507.csv",
+    "size": 9477,
+    "sha256": "8c2e06b16e6996184d6b301d71e24f0c104fdc75d859a498cef1b36988ccc6f2"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201509.csv",
+    "size": 7970,
+    "sha256": "7e5b4dfbf7177233419ec60f2abe920c9491cc0183227e573ebe48b852b4f5b8"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201511.csv",
+    "size": 9430,
+    "sha256": "0125794ff8347c8b8553ef996374b35ac295e820bb9c516393931c3c8d5c4b52"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201601.csv",
+    "size": 7699,
+    "sha256": "7166081d2b5fbc725c06acf9dc2fcc68ddd81580e5b34fa7063a7116d5b39439"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201603.csv",
+    "size": 9302,
+    "sha256": "c79c5689f25e4a8a1cd012a767e1033c887b9ba2957605fa8f6d664adb142a94"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201605.csv",
+    "size": 8800,
+    "sha256": "0d75735e0381ecf01d42f5cbb70d51f4c3c015c1a3e0dde8280caeff98fc4cbc"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201607.csv",
+    "size": 9522,
+    "sha256": "1aeec8350fbdb2732ebdab6c5f7cf05a6168c421a00d80859a73517dc47cde4c"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201609.csv",
+    "size": 7760,
+    "sha256": "c70ade49a9e9157ca285edaa2b4d7d77ac7dc3d577660bfc4981543a128b4cf7"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201611.csv",
+    "size": 9495,
+    "sha256": "b2d8970c63ea0c550980f3a63094d6d04f6696e2694338f0af1c8fdb4783a889"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201701.csv",
+    "size": 7782,
+    "sha256": "cadd91981d802a17139270c9daf53e1400b48f9efceb5175b5ec9cbe6b882460"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201703.csv",
+    "size": 8827,
+    "sha256": "698256168d0cc94f325cf2fb4733424d5819fe596f4338d3bc71613e30c32842"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201705.csv",
+    "size": 9116,
+    "sha256": "5d7c7740ca105c44a7ef7b145f1ba6ed1f7d2d8f81575718e28a152b416305fa"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201707.csv",
+    "size": 9440,
+    "sha256": "52321a93257dea029ffcc0e34726a3a88b7dc4d9eb649b52ad4e969a6c1ea0b0"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201709.csv",
+    "size": 8204,
+    "sha256": "028b9de1b8acfc07d1991bbd7818cd0d8c28c4fd4864a1bcf9c656a311d98faf"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201711.csv",
+    "size": 9290,
+    "sha256": "269d38e7587bcf27303703fda6619fba4982a95f28d4fedc34bf49934998c98b"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201801.csv",
+    "size": 8092,
+    "sha256": "0d625d4bd9f45fcfd2c99eac0267721d07b0e7e143f5a072b2c8c98b98c8e44a"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201803.csv",
+    "size": 8643,
+    "sha256": "84567ce4cdec3f35d2eeff59c9ceb31c6b49729d1a81a3a94bfa6788a4c9c5e4"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201805.csv",
+    "size": 9029,
+    "sha256": "fba516699aadaab9dbde2946c2ac2d49ad95413235c61a45680eaabef04093b8"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201807.csv",
+    "size": 9641,
+    "sha256": "a424ee8364227c70535f06a8ae04ba09b4657f42d05844579fc5386ba63f9c67"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201809.csv",
+    "size": 8067,
+    "sha256": "e08db69a340d60b6e7bab7fcc9dbaf73e24132d35f5e1c0909dfa1858b22df4e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201811.csv",
+    "size": 9076,
+    "sha256": "29fd5179335c9a3fb930ee6428402b994ad46dff51c4ce3748c6f755daedb1dc"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201901.csv",
+    "size": 8036,
+    "sha256": "dd9efb78d45f7b31d97af17fca67058bcde8490577ce3d49456d58bb264fdc3c"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201903.csv",
+    "size": 9080,
+    "sha256": "1bbdec0525a98aab5fcc7f77213d9093f06c9822fd752bff0efcda30981fd3ed"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201905.csv",
+    "size": 8391,
+    "sha256": "cd300683e07d3724884df74df15e0d2391aac358f4757be6de60fb548e52f36f"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201907.csv",
+    "size": 9672,
+    "sha256": "43b9395bdab12e7f43c0dc6ec97b282d7d7cd38318347e65ae6de1b2cfccec97"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201909.csv",
+    "size": 8212,
+    "sha256": "8d53ac1d5b10b2d94a87313d78c9b9741931ce0414d856174be0d7d5314feb84"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_201911.csv",
+    "size": 9287,
+    "sha256": "573869c7956b176ea1c661258ada8f865486c2a5552d353bea1ef5fe5bd5a864"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202001.csv",
+    "size": 7871,
+    "sha256": "b6e24f21735f5b24476d9511ffd28e29712ca6259b283fcfbb6b3e35f66a46e4"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202003.csv",
+    "size": 9200,
+    "sha256": "ed7e74a6fc148d239808769271829892af9609924e03d9388056a5ff7f2157c6"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202005.csv",
+    "size": 8241,
+    "sha256": "1016cfd6a5ce9c3db660dac7ad45b43220067b6ca1bb10a39385a9af4a197325"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202007.csv",
+    "size": 9575,
+    "sha256": "206ab65c947acb77508c2ae530509db83aa8071687bb13fa6d015a866697fea3"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202009.csv",
+    "size": 8241,
+    "sha256": "ef3046faba27fa180a206c7f47677a7e69ce6b48fbb08007eb04963fdf0a49ad"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202011.csv",
+    "size": 9624,
+    "sha256": "e05b138eef5a8d383c930bb5ab7c2a4640338f3c34e722dbebc69d0d429664f1"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202101.csv",
+    "size": 7707,
+    "sha256": "f38f53ea9acc9bdac76790498d53a4e145e69cbcf0e2d2ca3db5df81d70ecc8b"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202103.csv",
+    "size": 9520,
+    "sha256": "fe035409b63043700941e9904d89a437909ec2e7cb1fef1ad1c47059c623e278"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202105.csv",
+    "size": 8535,
+    "sha256": "06e6cb606f902c0d066a753cb1914ed623b78866cf8f7c4978bea3685a65bce0"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202107.csv",
+    "size": 9518,
+    "sha256": "8879a5d330cf3609924f4b881f5453eaec8575b350e65afa191bb443249b331f"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202109.csv",
+    "size": 7828,
+    "sha256": "6f42a87587339b86996557e467ed4b50fa084254a28305d30e5297bdf03b6031"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202111.csv",
+    "size": 9839,
+    "sha256": "d5426ccb83479c3137564b14b62367163151fdaa0096bfcc3223ed869ec25ac9"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202201.csv",
+    "size": 7670,
+    "sha256": "b337565a402000bf54b49f6f19f18f378c8ce225686c7b40b86291fe6b772596"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202203.csv",
+    "size": 9118,
+    "sha256": "086b54c7ebbd1b290c099cdddc5d93f488e0d9f3ab6ba5ad20ea7fe3172449b6"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202205.csv",
+    "size": 8669,
+    "sha256": "a6d8108852598e9a87a79dfab3a7348941638ebfdeeaf6b68e9b3b1cafa72d7c"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202207.csv",
+    "size": 9474,
+    "sha256": "1b36858feb71fd85f0384cf8b5fca33967d5ddc43df7dce96b235c9dc86aa8fc"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202209.csv",
+    "size": 8032,
+    "sha256": "976657d36d6365c0b2aa45eba45d20fb002bdb8295b9be313033225116d441a5"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202211.csv",
+    "size": 9477,
+    "sha256": "adabd8a8a07650f0629cdf336bcde27a49cd67b9cd9df64547bbee270abc2bf7"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202301.csv",
+    "size": 7743,
+    "sha256": "2fcbcea9e9d25a5b8ecf4ef6be133526cc5b0005f2dca59a28375bfa4350d939"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202303.csv",
+    "size": 9196,
+    "sha256": "536997293600dd092bed22882545b41de65c038fb5a2b8b22722c5dfbf62c948"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202305.csv",
+    "size": 8669,
+    "sha256": "7def37ce13e4e809feb5bef67d806965bbbc68c821f68198cd7061792af61a9b"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202307.csv",
+    "size": 9473,
+    "sha256": "36becbdb840342b0b284644b2821ab52d117bbf2dd6e63fd3cf29cfcc3657a00"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202309.csv",
+    "size": 7995,
+    "sha256": "80e464ad1fa30eda28522d0ef6a93d13fe62a3d5a9b1faae7171762a1331ff8e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202311.csv",
+    "size": 9225,
+    "sha256": "79aaf091a1f7329d2bfee5879a1d616421d6b9ca154e8a5d2888271ca2db0549"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202401.csv",
+    "size": 7990,
+    "sha256": "891ae7dcfcc7ac0002a4cc5808f8d55dbbfc1ee8b3254d2c5eebe3f5410b8b0c"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202403.csv",
+    "size": 8875,
+    "sha256": "343a046b3dd743df298ccb41c58ef1771371c875797409a7ef7b642cfedb918c"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202405.csv",
+    "size": 8403,
+    "sha256": "2c42bd987de95c85fdfa46a4815d9523c47b264cf685c4c0ba9f4a2616f7cfe7"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202407.csv",
+    "size": 9734,
+    "sha256": "fb034398cfb6151bf0e0a5dc0ab42a304e92ae130fc43d8b617ab174704d7d10"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202409.csv",
+    "size": 8104,
+    "sha256": "26412c78eddd76ad034f7cd524ab1dadcbf9800dd7e4b3c3c0bfb3ec154eb2c6"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202411.csv",
+    "size": 9351,
+    "sha256": "06aaea94d0f03999732ce01c54e27f72db845c25f0c35faa8425c54c3e18c6b0"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202501.csv",
+    "size": 7829,
+    "sha256": "e46e02e858bd97c935cc3b756ae9d0871795992cfa5e9640f856ad8b2db28d53"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202503.csv",
+    "size": 9088,
+    "sha256": "2b87b6d78fac3856dba386cda35269eb0e4efe700f54cf8820ccac70caff92da"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202505.csv",
+    "size": 8520,
+    "sha256": "b1477c109507258554e9c303b1717dfc30684fbb0e61f80642c9cb60b30e19e4"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202507.csv",
+    "size": 9565,
+    "sha256": "5d7fc44f43df286d400b5e8aed413fea0cc1a11e5114b0c9ebb1223351304110"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202509.csv",
+    "size": 8498,
+    "sha256": "8ae946522783c203037537660107a31989b7fa4e4b004bc2d5a3f43d8efd4635"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202511.csv",
+    "size": 9317,
+    "sha256": "5088f7292fdfa93a44fe35701286e0861cfa9f2f47311e54a3b31a67a202e7ff"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202601.csv",
+    "size": 7503,
+    "sha256": "215408e53f0bc24da03fa19c0b6cc2cc6078219374c9d18a738c0e8a7e725607"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202603.csv",
+    "size": 9305,
+    "sha256": "d9213a69be2c4373312e18b139f561d3f51e5f89f609d6c9974b791b3f7776c4"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202605.csv",
+    "size": 8432,
+    "sha256": "a8a5421d1658ee1e31371fa83a0a1e5a68f2af9a493b2bff86add942a4adb24e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202607.csv",
+    "size": 9508,
+    "sha256": "5e3ff25ce88d6d8f5577c58403af5593dc5ef1ba377461625edc794c3255cb85"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000300.SH_202609.csv",
+    "size": 842,
+    "sha256": "ee8314cdd30545112374d1b8a6ea0efa534590a4f74ab9eba27b0e22cddec848"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_201901.csv",
+    "size": 23,
+    "sha256": "e800b7159eaf982b13dbcc28cfcbcdf2f7ed72f101bdeb46d608428fcecb6668"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_201903.csv",
+    "size": 23,
+    "sha256": "e800b7159eaf982b13dbcc28cfcbcdf2f7ed72f101bdeb46d608428fcecb6668"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_201905.csv",
+    "size": 23,
+    "sha256": "e800b7159eaf982b13dbcc28cfcbcdf2f7ed72f101bdeb46d608428fcecb6668"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_201907.csv",
+    "size": 6043,
+    "sha256": "df1b9f9c2660a6a3316d0d54ac1b87d3680b5917786092197941e4d1e80e04c9"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_201909.csv",
+    "size": 7271,
+    "sha256": "e8e06c00eaf4fd6512c5bdd018c97481e50ed4474dd23ec33ec49494fcf87f10"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_201911.csv",
+    "size": 8565,
+    "sha256": "8558c4b63fbceaaf0b76d4baad9d2e1549949083a16ff8e29f37c0547ad9f420"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202001.csv",
+    "size": 7407,
+    "sha256": "f28b361b3c0fbab7b61de6b851249859d154b35387f673887902770959ae320e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202003.csv",
+    "size": 8794,
+    "sha256": "a266104a7caf859825b31f037b3791324ed2c84b18747ec9ae4346ca609c0dde"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202005.csv",
+    "size": 7849,
+    "sha256": "642b15eb2a5ad28ce2c5d21d743830f373568664f44172a624fe23297476c7c2"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202007.csv",
+    "size": 9210,
+    "sha256": "40614685cfc6749d37aa68655b24c7b5489c72ff783d69c194444f2c70e077df"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202009.csv",
+    "size": 7966,
+    "sha256": "5301a0416d609dcd06cf4b2ec36ce4166c5839531c977de9bdc68f65d2036137"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202011.csv",
+    "size": 9244,
+    "sha256": "4ea2aca675d13c005605a0b41409deeedb158c3c7ff8e588177613a3f7c26755"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202101.csv",
+    "size": 7395,
+    "sha256": "6bbe0e7ec95c7fa3fed9e16b347b9ebb1788f9bbfe293b2c8032ab517c93f0a2"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202103.csv",
+    "size": 9180,
+    "sha256": "6ff4a9dfc14f55f28026ddddf8c329c7731d150db51f20015cf3124a9006d9c3"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202105.csv",
+    "size": 8284,
+    "sha256": "2960d657444bce2fc5ad039b4093ced38a51c2418cdcb54e7435dbfb5cb82193"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202107.csv",
+    "size": 9370,
+    "sha256": "64427b09b0f840a3d22efa842f1637d40fb77243549c9056790b8a254df72505"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202109.csv",
+    "size": 7687,
+    "sha256": "c1ce0374ee2feaa5b90332e40613499e66631c912939e8fd36ecedc2e327e448"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202111.csv",
+    "size": 9608,
+    "sha256": "bdf99f5cf384088cb9f4a9449e0ef57e988337315530108c08f439366b018563"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202201.csv",
+    "size": 7412,
+    "sha256": "233365bcbad81a38e807ac12bddd3f68f4124d62092fb6a6b116da5263698df5"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202203.csv",
+    "size": 8797,
+    "sha256": "6be9f3806aaa91f70e875a37328ebcbd652aeb644fb0ae7d2dec5062594ab1dd"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202205.csv",
+    "size": 8486,
+    "sha256": "1d9f1cb8c6d869a69d1b97177aae49f41106aa3a632b47df80e777a75b5fdccd"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202207.csv",
+    "size": 9412,
+    "sha256": "580fc7d3e7294f492e786eb3ef5dad48be152632ebae32386f0fb26328bf009f"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202209.csv",
+    "size": 7839,
+    "sha256": "1c0eba281d145b425206ef4c3d5ddb317de20866628d36813da0a17b4d6039a8"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202211.csv",
+    "size": 9336,
+    "sha256": "e0f07d9e153b4d3e2a8ad0edff38f4c60c7cdc224bf4459e7848532089c31c8e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202301.csv",
+    "size": 7732,
+    "sha256": "2790ccd274436159f77d788fb5ba08b2d004b07d4cf8757ae866f1d2faca4371"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202303.csv",
+    "size": 9001,
+    "sha256": "2925770197ee27a1a1244da3c71483b700352f9fd09b273ab538e202b472eac5"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202305.csv",
+    "size": 8517,
+    "sha256": "857e9f0bd757c996fa70e03fdb8b12e6a19978f6f8f7e4347eae7e087ef53c15"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202307.csv",
+    "size": 9381,
+    "sha256": "9ce04429a9f52b0131315a68f3449bd2cb598cd342e5977464eaac3014d2409d"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202309.csv",
+    "size": 7915,
+    "sha256": "e49322b558723f2bbc676c2067db24bd0964dd51e9a5aefd12b0f03444358e22"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202311.csv",
+    "size": 9208,
+    "sha256": "a69ebb8fc30d4ed88d15d94152e2bf6126f08439a38fb56a6819b5125635cfd9"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202401.csv",
+    "size": 7955,
+    "sha256": "65d3f30d3abf26687eae282511d05acffe707ea2e65bd6e75a5267754c3fe779"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202403.csv",
+    "size": 8789,
+    "sha256": "ba25ac607e120261c037cb752123ff95b7a9b49b72fafe7dcc1f7358b52a6188"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202405.csv",
+    "size": 8405,
+    "sha256": "6bdda94b50bdeed1ac52b96860b9da33f2a14227a1611311932e5cf3f1bd89be"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202407.csv",
+    "size": 9660,
+    "sha256": "c3893f8fc0766f5210caf516f48ffb87f0728ed8a9a005e4f39af7ccd4529915"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202409.csv",
+    "size": 7915,
+    "sha256": "147b16eeabbba90175eba58257818e36731de82483a90a406305849ecaab5657"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202411.csv",
+    "size": 9199,
+    "sha256": "367bf703dac433d54bfccbcb7616e72ed14ebee1576d798400e8f0cd20925e4b"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202501.csv",
+    "size": 7729,
+    "sha256": "b9a75ad2b56ebd4f15bf28b8eee236c824a95194584920d9260d9d606d89cf5e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202503.csv",
+    "size": 9040,
+    "sha256": "8e2ac85701b8fd198bc1b4c389fd378f5d52d2276a2ef60dcd5a05a11b7f8e74"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202505.csv",
+    "size": 8391,
+    "sha256": "7c9639d0500215740f5eee4420a923a5c83435d1b27f19626354f33c6157657e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202507.csv",
+    "size": 9453,
+    "sha256": "422ee6f75a34d8e0d5b6443b9c4ac5e3a639fd9c2b3bc89ec29928328cb051ed"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202509.csv",
+    "size": 8421,
+    "sha256": "686c94a154e1cf62d011d0982517f681c0204742ec37df5b6e8e22d25903b5bf"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202511.csv",
+    "size": 9176,
+    "sha256": "47138d977c8e4e5a9c9b684a8ad7351f8e72328c7c23ef749811ff8a3afbe315"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202601.csv",
+    "size": 7406,
+    "sha256": "951800387c86c25a04f310f0625d75b26de5da83687198e25082ccefeda17b8f"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202603.csv",
+    "size": 9259,
+    "sha256": "c81d16c59e2ad6ac27c366f167b50a2c04fea77a5bf101d69381311bf5bafcca"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202605.csv",
+    "size": 8426,
+    "sha256": "c57cca66793d4301a48814bae5fc60a0166bb85afb6baf743a241d9d29af5006"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202607.csv",
+    "size": 9495,
+    "sha256": "a7e477639f38b26d20af119ccfde56056b147dfcecd1661008c84a7c73112b06"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/000680.SH_202609.csv",
+    "size": 867,
+    "sha256": "496c3735ee55ae49ab7c9a0bd00da4238e02fbf9331b4c6d17c46a23609d779c"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201501.csv",
+    "size": 7547,
+    "sha256": "5416ee25786ad0fb5572722e59ad192fa9a90bb54c8d88ca586aa8a28692317b"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201503.csv",
+    "size": 9327,
+    "sha256": "fcce4055725d30900f0665c7858adeea8294cd938234572194af4e89baa84b55"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201505.csv",
+    "size": 8857,
+    "sha256": "d17c24311b7aec0f6ef977ac19c2cac018bcbd93ebce14c6d506b1b8b3990267"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201507.csv",
+    "size": 9509,
+    "sha256": "edc0921ed22896db4c9585d82f6886a3f12167a6d00c45d3bb4bd4ad10b3ae0e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201509.csv",
+    "size": 8005,
+    "sha256": "ad33b2a745e6d1359645266c695c1d425ca1b812ffe36f9ebc576e6b98acbeeb"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201511.csv",
+    "size": 9462,
+    "sha256": "8bec57ae45fe4888e4ae36f626cd6bb87c2949b6462c9ba45cd257411b59f48b"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201601.csv",
+    "size": 7848,
+    "sha256": "496d993beeec04040fc127f29519c9430dc85fc83f27b470930b3c17db6df841"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201603.csv",
+    "size": 9336,
+    "sha256": "cf84fa01c2d1a843057df2c6c3fbb957ca2c38ceb63e9c27950d82f1ce564c48"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201605.csv",
+    "size": 8898,
+    "sha256": "aeb0991b24a020eed74775e19fce0fce535d0f0e7ba6788ea3cd1f4dfd9adc78"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201607.csv",
+    "size": 9575,
+    "sha256": "7de3e147295fe6a55dafa3da092f07aee4a82183b89b9e54f43dce59335cb35d"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201609.csv",
+    "size": 7896,
+    "sha256": "d30ef32bcf0f96a5c19c50e050211d5e33a9c39dfff4f475fefe24795738a269"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201611.csv",
+    "size": 9588,
+    "sha256": "6bf4b09f70e5f6eeb6a1259e28c7332b8b933e1147d52010a5da4bfc8ec0bd56"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201701.csv",
+    "size": 7950,
+    "sha256": "1750a4c10a19fbd657377690383806fe529cb436d7326f3fccb9ad6159897f19"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201703.csv",
+    "size": 8945,
+    "sha256": "352b86074cd8dcc667be45a3ed772cebdcb1b9e2bb46694cdc1868c78be3d66c"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201705.csv",
+    "size": 9208,
+    "sha256": "dc6a9309f36251177a0c790cb9ed04da6d8b0fdc67d909303334b364aa0b547a"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201707.csv",
+    "size": 9654,
+    "sha256": "d68c1ba2ff26a79e6bb85822fc46d594e1a71ab82ca9e9cbfedb9cd4a66d565e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201709.csv",
+    "size": 8410,
+    "sha256": "68c273d99abbc879cdf39a828fece1341f8b3cf65279c28dffeb7fb4331f61ef"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201711.csv",
+    "size": 9380,
+    "sha256": "726ae075f05993674d7ef982b78886c8afba9fc9dceb7a069d4b66d417df47f7"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201801.csv",
+    "size": 8148,
+    "sha256": "8d57d33f9a0bc11d3dd6fe911bd51a665d894f723dbb2fc6b969ae58808d8b97"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201803.csv",
+    "size": 8715,
+    "sha256": "00d14b1fb4572e85c279332f3466d6ca1ed675d0553f63da065535948a365fe6"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201805.csv",
+    "size": 9159,
+    "sha256": "a86c173abf998989d43a9841a07b40be066c5bb060a455e263deed6452b1592e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201807.csv",
+    "size": 9867,
+    "sha256": "cb05e545d8a593f693df4c2e62c8812f5a8286670b368acd40b571843c6896ce"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201809.csv",
+    "size": 8122,
+    "sha256": "ecb859a15d244f9377315ae4de6f5ab4cdd409fa44b896dcf892b1d69c182e0f"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201811.csv",
+    "size": 9219,
+    "sha256": "b4e35ce4f5447f2ce631297dfbc6c763d174c38d503f3b23ff74b76992bd5a18"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201901.csv",
+    "size": 8165,
+    "sha256": "4cca42ce2feeee2197256f96aef5e4b8eec21104884487656d324dfb8e936096"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201903.csv",
+    "size": 9149,
+    "sha256": "e92ae0b1d3f20f6bec12c2e89c7b68c4507bf4e2852e22d5ba980d49f0de4fc6"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201905.csv",
+    "size": 8542,
+    "sha256": "d9152f356dad64eefef4d56ef0b69ee5169624489577648f18f7f3c1e6c48052"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201907.csv",
+    "size": 9790,
+    "sha256": "c0de701a5d9195083524fa48a81f9b1cff8698084fb50eb4be65807157fc561b"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201909.csv",
+    "size": 8312,
+    "sha256": "718e26c44f7a5ad5c08cd1b99503a7cbd854740a09cb3e3879062a529fd072ce"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_201911.csv",
+    "size": 9402,
+    "sha256": "a8f87480a0da810eaff4945d12887515db3c4d854964e8598f6f35d550b894f6"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202001.csv",
+    "size": 7914,
+    "sha256": "84f45629cc039ef0634bc1ff05f88adbf700967ab4eed3c4e6ea03ab98236307"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202003.csv",
+    "size": 9381,
+    "sha256": "d1b7ce239e0e7b880963b98ed8ce64959fe88d26a249d1fbc4709a2747e64207"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202005.csv",
+    "size": 8313,
+    "sha256": "6a65aaa2013e488b5b9bb3d05e7740d2492a7045203d4f0bf2775f9cc55c0731"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202007.csv",
+    "size": 9588,
+    "sha256": "dfc25e4da0c1d961c4af1964dd319b4d97078f39908baf7f2069fb45c33528f3"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202009.csv",
+    "size": 8368,
+    "sha256": "ba99ea65ca17a9eed49e5f1fea8557087bd4d78c2e013e50f70801a84b909f5b"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202011.csv",
+    "size": 9601,
+    "sha256": "6a21bebbf56e2b8f96d8c09a81f08af587a1eae0b0647723efe1440ed670e3bf"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202101.csv",
+    "size": 7715,
+    "sha256": "c079e8d5c231a2bbb9ef87fbc8ad2f4eb7bdbef6d93a3a3885ff4f6ff085d486"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202103.csv",
+    "size": 9646,
+    "sha256": "b176f4f43c3ac1ea148cd38cb3634e868183c0999edf2cd91af7cbc647a3cb6a"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202105.csv",
+    "size": 8522,
+    "sha256": "3b8b95b49d2e7f3e7d6d0849b401c7470dd2ff0c7faff316a33ace5776d89108"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202107.csv",
+    "size": 9658,
+    "sha256": "dc5e966fc60bbfae6f3fe3891c07593196b9f18da0bba18cd0bbde8067cb8b1d"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202109.csv",
+    "size": 7940,
+    "sha256": "78dba9c42594eae12a70f3a2d78a6931aaa566a83a0ab1e0144666972b4cb919"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202111.csv",
+    "size": 9914,
+    "sha256": "8e04b9c44923318e9c4936d8af5b2b1d6f97288bb99190e39721866fd0bd1636"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202201.csv",
+    "size": 7727,
+    "sha256": "62766c7a69045626daf78717c257f926222a49ed1099ad62a81872dc1c52fb0f"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202203.csv",
+    "size": 9179,
+    "sha256": "aa7eb2fc31c7f595ce609d6c0136f8e5a32c8c77e209162f9c81301a155300fe"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202205.csv",
+    "size": 8761,
+    "sha256": "80c47d567f2c29d3ea70ca1db160e59b5a1e43a422f44cf5f0b960f4dafa85d5"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202207.csv",
+    "size": 9643,
+    "sha256": "fe023b28035fb8147dc6b2fb07fa46daca06216a2041d515e5373b2a4ec60c42"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202209.csv",
+    "size": 8130,
+    "sha256": "6d29a9ed93d974f1b493998aacc9becad5947f072c9c9a38370b4ce75bcc5d23"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202211.csv",
+    "size": 9614,
+    "sha256": "5c825855e4fb88d6bbc4a72f4e598924abe83ea75ed5e9c363001bdd76d0b003"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202301.csv",
+    "size": 7893,
+    "sha256": "11f44996ddba9f775cdcaa54338b3a973f026f109e6ebdb262713c78a143b496"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202303.csv",
+    "size": 9245,
+    "sha256": "11d47e71459405f4fada858ec86cd54be2f94cc6bc6e0f655cb12800cd917919"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202305.csv",
+    "size": 8667,
+    "sha256": "89d574d8b8ab23d52a3d1277c5562ef68b0e09a6709385b9e8c03c25bc5dcac6"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202307.csv",
+    "size": 9582,
+    "sha256": "f7653942a54460a814283f435b328e5c21903e0dc7429f9118fd13ee20ec4580"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202309.csv",
+    "size": 8144,
+    "sha256": "3be895889e640cde21697abdbbcb55105782fd927283df07109606d4f9d06ab7"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202311.csv",
+    "size": 9437,
+    "sha256": "3e105ac7cc854e3246c336c7c9c9a7f11399715bd4ea619f7b8de6bd2faf6de7"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202401.csv",
+    "size": 8142,
+    "sha256": "990695fe2eeeabc5397029e934418f42e668d10ddabfedaf409e17b1dc934bbf"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202403.csv",
+    "size": 8981,
+    "sha256": "d202c2e79f7512fc854a57607f8b540dd3c88e4b077dc733919677752b84c4c2"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202405.csv",
+    "size": 8542,
+    "sha256": "187b89482d488cfacdf5a69bbbeccc969c33014fa33d6001eea2f2ac53a01c29"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202407.csv",
+    "size": 9865,
+    "sha256": "8914bf15f6b62a83c89de67cb34711363c861db6acf53626d4e347e2874f8d93"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202409.csv",
+    "size": 8207,
+    "sha256": "b0e2b4a29550a279f99af25fc732d371e6a3cc12bbebc59bcb38e7da2d52cd09"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202411.csv",
+    "size": 9519,
+    "sha256": "896534189cb654f050d9f7acbdd33a46f28287a9263f6768aecb12608b0dd657"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202501.csv",
+    "size": 7999,
+    "sha256": "cdda575becc7c6f8fe50c92670d5f9b918435cf2b587b07c623cadc963efb87a"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202503.csv",
+    "size": 9251,
+    "sha256": "b47aa68e9489d80840fe784da30ae985da7a7183bbb6795ee492ac4985a7910f"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202505.csv",
+    "size": 8650,
+    "sha256": "158b3d2f27039d46e9a6b30ae8d5bebf4f1c4a55fef88fc0c8bfc977687f40f1"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202507.csv",
+    "size": 9706,
+    "sha256": "02535fe4f50271753ab32d05575925b8e4681cf4cd3441171c1d0256c79e4b81"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202509.csv",
+    "size": 8566,
+    "sha256": "cc1aabb1f35da64e544e9813acaa1d751a10ca14f7d7b1a7804e63a3db463b04"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202511.csv",
+    "size": 9501,
+    "sha256": "895d2403169092f79ee9102db0028ef5ba4873097a5b92070281ebffbd09d47e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202601.csv",
+    "size": 7555,
+    "sha256": "8469f07442c09dc9c43ec5b892340fb2243fa08af18101f628aae7561b688791"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202603.csv",
+    "size": 9427,
+    "sha256": "f0b44040c7905610accb9905e7d08d06bed2ea72d537e67541b78a3033efef82"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202605.csv",
+    "size": 8591,
+    "sha256": "e179c777a52cf436bb8a916228b6c8b7d049361767570c11810202d4b8cb204a"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202607.csv",
+    "size": 9713,
+    "sha256": "733efddc3cbe5ea00292b6c8c9e7a4770022d5335fa3bc20ea11b043c9d8252e"
+  },
+  {
+    "path": "data_fixes/2026-09-03-index-money-flow/raw/399102.SZ_202609.csv",
+    "size": 881,
+    "sha256": "2524706576b3f32804c05bc3e82a98b13cb7bdd13e020fb9ce1b243186619009"
+  }
+]

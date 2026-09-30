@@ -1,0 +1,400 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/code__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__flow_structure_followup.py",
+      "sha256": "548325b7cd6fc5f55e64f152ae6c73782237caa52d4cffd8d58d8137e6341db4",
+      "size": 5294
+    },
+    {
+      "path": "inputs/code__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__run_exit_mechanism_audit.py",
+      "sha256": "113e95bd3d2d1192648e4ca3f5215c834573053a6337a2bda605ddf8fde1b1e2",
+      "size": 17477
+    },
+    {
+      "path": "inputs/code__run_flow_robustness_diagnostic.py",
+      "sha256": "82ac41c5a79b7c1c7d54f05fc0f13d0b24dd29d07f335d211aaa71ab19f5433d",
+      "size": 13947
+    },
+    {
+      "path": "inputs/code__run_intraday_flow_pilot.py",
+      "sha256": "8d79e614f8a66ad96308e270736940ce8303dd2eac08b8962dda1e42ce38ad36",
+      "size": 19934
+    },
+    {
+      "path": "inputs/code__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code__test_exit_mechanism_audit.py",
+      "sha256": "a3ebbde1811024f4c2eb5a70bb5b470f64eb4b20a9a8d05c31d22ea0ed0fdff6",
+      "size": 1331
+    },
+    {
+      "path": "inputs/correct_exit_inventory.py",
+      "sha256": "2e5111f005b8a66d38412b18592cc30f1139a02fbbf3b49ba6c038ca05a8eb77",
+      "size": 2315
+    },
+    {
+      "path": "inputs/corrected__run_exit_mechanism_audit.py",
+      "sha256": "e7235229767a726c57b054582eb9b4bfc169d8f57f6cc562d5f118b290dd8c90",
+      "size": 17579
+    },
+    {
+      "path": "inputs/corrected__test_exit_mechanism_audit.py",
+      "sha256": "59f12bc82bc1241dd8edc2b19c266ca32b5c1525e6267ee441f9b73941115518",
+      "size": 1388
+    },
+    {
+      "path": "inputs/decision_targets.csv",
+      "sha256": "d232a71bc5b1385fb1431591099457cfd3599304f665b8bc4cd255490fe9d451",
+      "size": 1095091
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/ledgers_close_10bps.csv.gz",
+      "sha256": "16196908d92618d2b1dee69413a93bbbc6622c0f261dceefe57d1da2f6a6e56c",
+      "size": 6442576
+    },
+    {
+      "path": "inputs/ledgers_close_3bps.csv.gz",
+      "sha256": "a61253c8bfe3e44d71f717d6a83422b7e576dc9b7b8b78bda424008aa0d5c4fb",
+      "size": 7199067
+    },
+    {
+      "path": "inputs/ledgers_second_close_3bps.csv.gz",
+      "sha256": "bd7c861f4f575986854fcb1f3ea306d38098940f1877da55f55575c202b44455",
+      "size": 7207743
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "2c7db23bef3af2a91e13ee6d7bfa0b3d982d2cf110f14a06cdc74f28cf2ed9fc",
+      "size": 3646
+    },
+    {
+      "path": "inputs/report_exit_mechanism_audit.py",
+      "sha256": "aab908d294e61feea6d2fc557ff5ddf177f2feb0d072c865b104ad76cd1f440b",
+      "size": 11079
+    },
+    {
+      "path": "inputs/response-09-office-2026-09-16.md",
+      "sha256": "d50f677885d7cf5b10f5b7c9607a87dc51d6ee8cd89580a54ead7b734ff99091",
+      "size": 7223
+    },
+    {
+      "path": "inputs/scores.csv",
+      "sha256": "2f3a51d2c259990ff7948791f85d259330dee4e1a4ff05efd359d76feb96fc9c",
+      "size": 411146
+    },
+    {
+      "path": "inputs/source_receipts.json",
+      "sha256": "34df5534e3a283661fd5b93fd2ae0a129a8e13e6276caa3ff2176bd02f84186a",
+      "size": 1935
+    },
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "inputs/verify_completion.py",
+      "sha256": "7d94e1fcb2e2000cdf973189709fc1aad2ea241b3fb17fa4bec2ccf75e75d68a",
+      "size": 4464
+    },
+    {
+      "path": "inputs/wset_continued_scores.csv",
+      "sha256": "671d061d6c42ff1ae4ddbfc632d88d0fdd88f25b0c292f896a13e8298bb71e90",
+      "size": 268933
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "9cda10e0c544782c905e6b833166cda043c852540c9a22fcf33e81c89e53ed1c",
+      "size": 9896
+    },
+    {
+      "path": "outputs/annual_attribution.csv",
+      "sha256": "edb34ece6405c31b28a55bb97879f036472b1591d8f7094ed4f578ae20e71aec",
+      "size": 37408
+    },
+    {
+      "path": "outputs/baseline_episodes_close_10bps.csv",
+      "sha256": "830b77ded9ae42a215ccb22a28cf3407cbc11d918c4ec496bdb621411b1bdf8c",
+      "size": 1619
+    },
+    {
+      "path": "outputs/baseline_episodes_close_3bps.csv",
+      "sha256": "830b77ded9ae42a215ccb22a28cf3407cbc11d918c4ec496bdb621411b1bdf8c",
+      "size": 1619
+    },
+    {
+      "path": "outputs/baseline_episodes_second_close_3bps.csv",
+      "sha256": "bdbbfcdce75e268ffa9f1075505b76c1a81cff0cbccc4a731bd1477f09a830b6",
+      "size": 1619
+    },
+    {
+      "path": "outputs/comparisons.csv",
+      "sha256": "392cc92d9a0f1d7266437b59134d9ebd00cbb156c6605f6d24dfd82961686264",
+      "size": 10571
+    },
+    {
+      "path": "outputs/completion_verification.json",
+      "sha256": "17f7f95af39780dd5acc9b68af6b1859791c5af616711afa65002b12806b807e",
+      "size": 560
+    },
+    {
+      "path": "outputs/counter_code_diff.patch",
+      "sha256": "ed3aab4f3161d1a8ce4571b220c008862ccf46e0f053bd162236d16b28de53b9",
+      "size": 899
+    },
+    {
+      "path": "outputs/daily_attribution.csv.gz",
+      "sha256": "f15cc8790ed936094cd25ca1072ff88e83cd793521d7904e892ed005cb7b4d9d",
+      "size": 1279413
+    },
+    {
+      "path": "outputs/decision_episode_inventory.csv",
+      "sha256": "72744c579475d2d3dcacde72c7bdd50ac539e7438d61c2dc84ef1d220333b493",
+      "size": 15744
+    },
+    {
+      "path": "outputs/decision_episode_inventory_corrected.csv",
+      "sha256": "3e327e7a7ee50601bcaf8d85bca95dd9819be25e06de10c1c6ec758f245b0b1e",
+      "size": 16163
+    },
+    {
+      "path": "outputs/decision_targets.csv",
+      "sha256": "0132a8e9247fdb3aea13f503910e809d4ffb3095dd0be23d87ddfd0979f78b57",
+      "size": 531164
+    },
+    {
+      "path": "outputs/definitions.csv",
+      "sha256": "062f22418305b61da3eb1a0abcf4cbdc7ea99cb4d5967302e3679c59210b0b9f",
+      "size": 309
+    },
+    {
+      "path": "outputs/episode_attribution.csv",
+      "sha256": "ea5a582176f4a920e0e4605c4b4f18bf1e58edccb85dc68b537cc2664eca4efb",
+      "size": 270194
+    },
+    {
+      "path": "outputs/inventory_counter_correction.json",
+      "sha256": "5acb4eb6cdb1c3046edd368c72463ae09814d1c9b81db549639ed64c1b723c9d",
+      "size": 864
+    },
+    {
+      "path": "outputs/ledgers_close_10bps.csv.gz",
+      "sha256": "f635c1c0a1e68ca6bc1ccc28285d8ae14ca6cd0079f4d41fea68c82fb190f46a",
+      "size": 3034387
+    },
+    {
+      "path": "outputs/ledgers_close_3bps.csv.gz",
+      "sha256": "bb977c30fa63f342ecdf997dec46b0a8c5e2073de317261d739db17ac94f2628",
+      "size": 3370009
+    },
+    {
+      "path": "outputs/ledgers_second_close_3bps.csv.gz",
+      "sha256": "84b5eb8cf45e156ab618823b58c3f15142dd55f263442917007a07174e389793",
+      "size": 3370562
+    },
+    {
+      "path": "outputs/metrics.csv",
+      "sha256": "54cebb67a515bfe20e927db2e11bce05e280505fb34f1baeff031b0fe4e94c22",
+      "size": 328917
+    },
+    {
+      "path": "outputs/new_trades_close_10bps.csv",
+      "sha256": "71de42280287ec7b20c673eb6495a783381954bb97b4674c577f9eb670baaedc",
+      "size": 199213
+    },
+    {
+      "path": "outputs/new_trades_close_3bps.csv",
+      "sha256": "701da180ef2fa248fe733515e551e7ddd71c0778e026bd69ab48a5ca25e26965",
+      "size": 199496
+    },
+    {
+      "path": "outputs/new_trades_second_close_3bps.csv",
+      "sha256": "49aa8ac86282605d7e6e19555719b9f17e6e14a1f91c17d0c00df308975fbfc9",
+      "size": 199632
+    },
+    {
+      "path": "outputs/phase_attribution.csv",
+      "sha256": "f8e8c987b792eab7e11800b50d5152c2ba5c0461479762d0393c98ad77a67afb",
+      "size": 6198
+    },
+    {
+      "path": "outputs/phase_daily.csv.gz",
+      "sha256": "447ac93ab8de61fa862292b01b8bef928a895eb9e68cd2605da9cea886d06889",
+      "size": 195141
+    },
+    {
+      "path": "outputs/source_differences_daily.csv",
+      "sha256": "f2eb3682bc43f9c01f98c0f955a6ac5c24ba00934c2547536361202a37a97e23",
+      "size": 1151
+    },
+    {
+      "path": "outputs/source_differences_entry_exit.csv",
+      "sha256": "81197acefb5caa6fcfc78bea78d66f0775df3597129c6749c8e9076bb52136fe",
+      "size": 228
+    },
+    {
+      "path": "outputs/source_differences_exit_only.csv",
+      "sha256": "81197acefb5caa6fcfc78bea78d66f0775df3597129c6749c8e9076bb52136fe",
+      "size": 228
+    },
+    {
+      "path": "outputs/source_sensitivity.csv",
+      "sha256": "27965f136f4360288e85e2702d52d15fd288fc238cf38f3875730b2bd7043ed6",
+      "size": 711
+    },
+    {
+      "path": "outputs/stress.csv",
+      "sha256": "0156d0177a9081cdfcc787afbce8117d236cb3260542040ffadb40ed36aeda88",
+      "size": 138665
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "6cd84fb1d581027c7d910771ece354217da9fe4bf6748ec17e8618d187a6f878",
+      "size": 1039
+    }
+  ],
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      " M output/citic40d/citic_style_signal_40d.csv",
+      " M output/equal_weight/equal_weight_signal_20d40z.csv",
+      " M output/equal_weight/equal_weight_signal_5d20z.csv",
+      " M output/hybrid20/confirmed_signal.csv",
+      " M output/hybrid20/growth_stability_signal.csv",
+      " M output/recommended/citic40d_longflat.csv",
+      " M output/recommended/equal_weight_longflat.csv",
+      " M output/recommended/equal_weight_symmetric.csv",
+      " M output/recommended/hybrid20_longflat.csv",
+      " M output/recommended/slope20_longflat.csv",
+      " M output/recommended/slope20_symmetric.csv",
+      " M output/slope20/slope20_signal_L20zw120.csv",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/flow_structure_followup.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/output/data_manager_handoff_20260916/",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-constituent-flow-extension-r1/",
+      "?? backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-robustness-diagnostic-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-score-continuation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-structure-followup-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_constituent_flow_extension.py",
+      "?? backtest/run_exit_mechanism_audit.py",
+      "?? backtest/run_flow_robustness_diagnostic.py",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_flow_structure_followup.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-extension.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-audit.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-diagnostic.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-followup.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? tests/test_exit_mechanism_audit.py",
+      "?? tests/test_flow_structure_followup.py",
+      "?? tests/test_intraday_flow_pilot.py"
+    ],
+    "tracked_dirty": true
+  },
+  "outcome": "source_sensitivity_reduced_but_increment_over_scaled_daily_unconfirmed",
+  "prereg_sha256": "2c7db23bef3af2a91e13ee6d7bfa0b3d982d2cf110f14a06cdc74f28cf2ed9fc",
+  "run_id": "20260916-ew-exit-mechanism-audit-r1",
+  "stage": "fixed_exit_mechanism_source_and_attribution_audit",
+  "status": "complete",
+  "verification": {
+    "account_leg_trade_identities": true,
+    "all_reused_targets_match": true,
+    "completed_utc": "2026-09-16T10:59:18.171717+00:00",
+    "end": "2026-09-11",
+    "new_ledgers": 48,
+    "new_state_rules": false,
+    "phase_episode_year_additivity": true,
+    "reference_checks": [
+      {
+        "max_engine_error": 0.0,
+        "scenario": "close_3bps",
+        "strategy": "C__old_exit_only"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "close_3bps",
+        "strategy": "D__new_entry_exit"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "close_10bps",
+        "strategy": "C__old_exit_only"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "close_10bps",
+        "strategy": "D__new_entry_exit"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "second_close_3bps",
+        "strategy": "C__old_exit_only"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "second_close_3bps",
+        "strategy": "D__new_entry_exit"
+      }
+    ],
+    "reused_ledgers": 48,
+    "samples": 2330,
+    "start": "2017-02-14"
+  }
+}

@@ -1,0 +1,1 @@
+All six control ledgers and attribution CSVs completed before JSON serialization encountered numpy.bool_. Native bool receipt written after rechecking saved CSV identities. No simulation or candidate search repeated. Original script retained as executed.

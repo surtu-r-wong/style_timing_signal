@@ -1,0 +1,64 @@
+{
+  "products": {
+    "IC": {
+      "rows": 2779,
+      "complete": 2779,
+      "incomplete": 0,
+      "first": "2015-04-16",
+      "last": "2026-09-16",
+      "index_close_missing": 0,
+      "set_changes": 136,
+      "incomplete_dates": []
+    },
+    "IM": {
+      "rows": 1009,
+      "complete": 1009,
+      "incomplete": 0,
+      "first": "2022-07-22",
+      "last": "2026-09-16",
+      "index_close_missing": 0,
+      "set_changes": 49,
+      "incomplete_dates": []
+    }
+  },
+  "features": {
+    "IC": {
+      "rows": 2779,
+      "valid_u5": 2524,
+      "first_valid": "2016-04-29",
+      "invalid_reasons": {
+        "warmup": 250,
+        "missing feature in training window": 5
+      }
+    },
+    "POOL": {
+      "rows": 1009,
+      "valid_u5": 754,
+      "first_valid": "2023-08-09",
+      "invalid_reasons": {
+        "warmup": 250,
+        "missing feature in training window": 5
+      }
+    }
+  },
+  "lifecycle_audit": {
+    "IC": {
+      "days": 2779,
+      "master_agrees_with_rule": 2681,
+      "days_master_incomplete": 98
+    },
+    "IM": {
+      "days": 1009,
+      "master_agrees_with_rule": 911,
+      "days_master_incomplete": 98
+    }
+  },
+  "collection": {
+    "sources": {
+      "IC/exchange": 10684,
+      "IC/wind": 432,
+      "IM/exchange": 4036
+    },
+    "collected_hours_after_trade_date_median_last_60d": 678.6770725655556
+  }
+}

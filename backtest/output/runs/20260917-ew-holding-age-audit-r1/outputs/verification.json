@@ -1,0 +1,48 @@
+{
+  "new_ledgers": 36,
+  "reused_ledgers": 45,
+  "reference_checks": [
+    {
+      "scenario": "close_3bps",
+      "strategy": "A__new_exit_only",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_3bps",
+      "strategy": "AS__old_daily",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "A__new_exit_only",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "AS__old_daily",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "A__new_exit_only",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "AS__old_daily",
+      "max_engine_error": 0.0
+    }
+  ],
+  "source_hashes_verified": true,
+  "account_leg_trade_identities": true,
+  "episode_year_additivity": true,
+  "target_delays_verified": true,
+  "age_exposure_matching": true,
+  "samples": 2330,
+  "decision_episodes": 48,
+  "right_censored_decision_days": 0,
+  "start": "2017-02-14",
+  "end": "2026-09-11",
+  "hindsight_reference_not_deployable": true,
+  "completed_utc": "2026-09-17T02:27:58.353674+00:00"
+}

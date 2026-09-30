@@ -1,0 +1,1 @@
+PASS: input hashes; 1431 trade rows with direct return products, both delayed endpoints, costs and excursions; all full-window counts and expectancy identities; exact reconciliation with preceding long/short studies.

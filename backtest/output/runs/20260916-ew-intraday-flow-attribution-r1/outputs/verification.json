@@ -1,0 +1,8 @@
+{
+  "seven_event_windows": 7,
+  "union_days": 70,
+  "disjoint_event_union": true,
+  "log_attribution_identity_passed": true,
+  "posthoc_selected_case": true,
+  "archive_serialization_recovered": true
+}

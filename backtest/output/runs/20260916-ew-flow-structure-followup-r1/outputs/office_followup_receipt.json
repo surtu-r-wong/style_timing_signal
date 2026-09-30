@@ -1,0 +1,10 @@
+{
+  "received_after_computation": true,
+  "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-16-style-timing-signal-index-money-flow-backfill/response-09-office-2026-09-16.md",
+  "copied_artifact": {
+    "path": "outputs/response-09-office-2026-09-16.md",
+    "size": 7223,
+    "sha256": "d50f677885d7cf5b10f5b7c9607a87dc51d6ee8cd89580a54ead7b734ff99091"
+  },
+  "interpretation": "Cross-interface consistency is evidence of source replication, not proof of data correctness or constant constituent coverage."
+}

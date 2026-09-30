@@ -1,0 +1,76 @@
+{
+  "contract_version": "ew-etf-member-features-v1",
+  "end": "2026-09-16",
+  "generated_at_utc": "2026-09-17T08:39:00.557995+00:00",
+  "artifacts": [
+    {
+      "path": "etf_fund_features.csv",
+      "sha256": "904845db8b408321f642dc0168658f6b66cfcbaf8525098e95ec3f7c7d1cf86f"
+    },
+    {
+      "path": "etf_features.csv",
+      "sha256": "7998ad749e744bd71913ca7389610e228657fac6e3945fff0e16b625bd2cc289"
+    },
+    {
+      "path": "member_product_features.csv",
+      "sha256": "86c478438fae575079aea2fe4097055a76988450f00baaf85f536114187d8723"
+    },
+    {
+      "path": "member_features.csv",
+      "sha256": "5c867b7b8c68ab18bf497621b2dfda920c8b1b6edf05c4db09348c91fa05533b"
+    },
+    {
+      "path": "price_features.csv",
+      "sha256": "d16270dce984f6e270cc307c52ecdb7776d2990ab364e741b197713266bc6484"
+    },
+    {
+      "path": "calendar.csv",
+      "sha256": "a2dad611a0c028b6f072d968935b31a8ed4187bf701d25cabb80944356630489"
+    }
+  ],
+  "supporting": [
+    {
+      "path": "quality_report.json",
+      "sha256": "37d4cfa84da4fb700a6298b642433d10d6fff0937b99e768db51ad19c721f3fd"
+    }
+  ],
+  "sources": {
+    "calendar": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/calendar.csv",
+      "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983"
+    },
+    "product_daily": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/product_daily.csv",
+      "sha256": "4cbe348adce71206e391709920c66d11edde9e4a8524110902aef1a53a4616e8"
+    },
+    "contract_detail": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/contract_detail.csv",
+      "sha256": "748da7f0354c29cd2f629129c78edd3d28e21fec76f3fa75475300b24457a1e1"
+    },
+    "etf_net_flow": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v2/net_flow_daily.csv",
+      "sha256": "db329d9f53d91b05da0538ccbbeae18d60abeb3008ae602c8051bebf9431cc5a"
+    },
+    "etf_events": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v2/share_translation_events.csv",
+      "sha256": "679d755968b4865a5453bd960524f77b6634cbe4a6c1864fdae27399b90da5e9"
+    },
+    "rank_IM": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/rank_long.csv",
+      "sha256": "09cb5cd3f056060dfcb0c9395fe78602ed20b1845f484d640e727878cf39e890"
+    },
+    "rank_IC": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/rank_long.csv",
+      "sha256": "7124319f9b39e512b8d1526ae5d60dd7d16c1337a8aed3c79e00f16bfcf0029e"
+    },
+    "manifest_IM": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/manifest.corrected.json",
+      "sha256": "061a83e31e16db4fee325b7efee394af013bf789f260e7e9c0b058552a6cbaff"
+    },
+    "manifest_IC": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/manifest.corrected.json",
+      "sha256": "a3e5cf4f08885accc9216d82cd7bca4e8e621e986c45eef362b2c786f49bb928"
+    }
+  },
+  "generator": "data_manager/scripts/ew_etf_member_v1.py"
+}

@@ -1,0 +1,321 @@
+{
+  "contract_version": "ew-etf-member-features-v1",
+  "end": "2026-09-16",
+  "calendar_start": "2015-01-05",
+  "etf_fund": {
+    "159845.SZ": {
+      "rows": 1328,
+      "valid": 1323,
+      "first_valid": "2021-04-07",
+      "by_year": {
+        "2021": "182/187",
+        "2022": "242/242",
+        "2023": "242/242",
+        "2024": "242/242",
+        "2025": "243/243",
+        "2026": "172/172"
+      },
+      "first_half_valid": "659/664",
+      "second_half_valid": "664/664",
+      "invalid_reasons": {
+        "fewer than 5 consecutive valid daily values in window": 4,
+        "no previous session observation in calendar": 1
+      }
+    },
+    "510500.SH": {
+      "rows": 2846,
+      "valid": 2836,
+      "first_valid": "2015-01-12",
+      "by_year": {
+        "2015": "234/244",
+        "2016": "244/244",
+        "2017": "244/244",
+        "2018": "243/243",
+        "2019": "244/244",
+        "2020": "243/243",
+        "2021": "243/243",
+        "2022": "242/242",
+        "2023": "242/242",
+        "2024": "242/242",
+        "2025": "243/243",
+        "2026": "172/172"
+      },
+      "first_half_valid": "1413/1423",
+      "second_half_valid": "1423/1423",
+      "invalid_reasons": {
+        "fewer than 5 consecutive valid daily values in window": 8,
+        "no previous session observation in calendar": 1,
+        "detected translation day": 1
+      }
+    },
+    "512100.SH": {
+      "rows": 2400,
+      "valid": 2395,
+      "first_valid": "2016-11-10",
+      "by_year": {
+        "2016": "37/42",
+        "2017": "244/244",
+        "2018": "243/243",
+        "2019": "244/244",
+        "2020": "243/243",
+        "2021": "243/243",
+        "2022": "242/242",
+        "2023": "242/242",
+        "2024": "242/242",
+        "2025": "243/243",
+        "2026": "172/172"
+      },
+      "first_half_valid": "1195/1200",
+      "second_half_valid": "1200/1200",
+      "invalid_reasons": {
+        "fewer than 5 consecutive valid daily values in window": 4,
+        "no previous session observation in calendar": 1
+      }
+    }
+  },
+  "etf_sources": {
+    "ETF500": {
+      "rows": 2846,
+      "valid": 2836,
+      "first_valid": "2015-01-12",
+      "by_year": {
+        "2015": "234/244",
+        "2016": "244/244",
+        "2017": "244/244",
+        "2018": "243/243",
+        "2019": "244/244",
+        "2020": "243/243",
+        "2021": "243/243",
+        "2022": "242/242",
+        "2023": "242/242",
+        "2024": "242/242",
+        "2025": "243/243",
+        "2026": "172/172"
+      },
+      "first_half_valid": "1413/1423",
+      "second_half_valid": "1423/1423",
+      "invalid_reasons": {
+        "0/1 members valid": 10
+      }
+    },
+    "ETFPOOL": {
+      "rows": 2846,
+      "valid": 1323,
+      "first_valid": "2021-04-07",
+      "by_year": {
+        "2015": "0/244",
+        "2016": "0/244",
+        "2017": "0/244",
+        "2018": "0/243",
+        "2019": "0/244",
+        "2020": "0/243",
+        "2021": "182/243",
+        "2022": "242/242",
+        "2023": "242/242",
+        "2024": "242/242",
+        "2025": "243/243",
+        "2026": "172/172"
+      },
+      "first_half_valid": "0/1423",
+      "second_half_valid": "1323/1423",
+      "invalid_reasons": {
+        "2/3 members valid": 1072,
+        "1/3 members valid": 441,
+        "0/3 members valid": 10
+      }
+    }
+  },
+  "member_product": {
+    "IC": {
+      "rows": 2779,
+      "valid": 2250,
+      "first_valid": "2015-04-24",
+      "by_year": {
+        "2015": "128/177",
+        "2016": "184/244",
+        "2017": "184/244",
+        "2018": "182/243",
+        "2019": "184/244",
+        "2020": "165/243",
+        "2021": "193/243",
+        "2022": "216/242",
+        "2023": "214/242",
+        "2024": "217/242",
+        "2025": "223/243",
+        "2026": "160/172"
+      },
+      "first_half_valid": "1023/1389",
+      "second_half_valid": "1227/1390",
+      "invalid_reasons": {
+        "selected contract changed within the 6-session window": 520,
+        "fewer than 6 consecutive valid sessions (warmup or gap in window)": 4,
+        "board invalid": 4,
+        "selection invalid": 1
+      }
+    },
+    "IM": {
+      "rows": 1009,
+      "valid": 876,
+      "first_valid": "2022-08-01",
+      "by_year": {
+        "2022": "68/110",
+        "2023": "215/242",
+        "2024": "210/242",
+        "2025": "223/243",
+        "2026": "160/172"
+      },
+      "first_half_valid": "413/504",
+      "second_half_valid": "463/505",
+      "invalid_reasons": {
+        "selected contract changed within the 6-session window": 128,
+        "fewer than 6 consecutive valid sessions (warmup or gap in window)": 4,
+        "selection invalid": 1
+      }
+    }
+  },
+  "member_sources": {
+    "MEMBER_IC": {
+      "rows": 2846,
+      "valid": 2250,
+      "first_valid": "2015-04-24",
+      "by_year": {
+        "2015": "128/244",
+        "2016": "184/244",
+        "2017": "184/244",
+        "2018": "182/243",
+        "2019": "184/244",
+        "2020": "165/243",
+        "2021": "193/243",
+        "2022": "216/242",
+        "2023": "214/242",
+        "2024": "217/242",
+        "2025": "223/243",
+        "2026": "160/172"
+      },
+      "first_half_valid": "1000/1423",
+      "second_half_valid": "1250/1423",
+      "invalid_reasons": {
+        "component m5 invalid (see member_product_features)": 596
+      }
+    },
+    "MEMBER_POOL": {
+      "rows": 1009,
+      "valid": 846,
+      "first_valid": "2022-08-01",
+      "by_year": {
+        "2022": "65/110",
+        "2023": "203/242",
+        "2024": "203/242",
+        "2025": "217/243",
+        "2026": "158/172"
+      },
+      "first_half_valid": "392/504",
+      "second_half_valid": "454/505",
+      "invalid_reasons": {
+        "component m5 invalid (see member_product_features)": 163
+      }
+    }
+  },
+  "price": {
+    "IC": {
+      "rows": 2846,
+      "valid": 2774,
+      "first_valid": "2015-04-23",
+      "by_year": {
+        "2015": "172/244",
+        "2016": "244/244",
+        "2017": "244/244",
+        "2018": "243/243",
+        "2019": "244/244",
+        "2020": "243/243",
+        "2021": "243/243",
+        "2022": "242/242",
+        "2023": "242/242",
+        "2024": "242/242",
+        "2025": "243/243",
+        "2026": "172/172"
+      },
+      "first_half_valid": "1351/1423",
+      "second_half_valid": "1423/1423",
+      "invalid_reasons": {
+        "price missing on t or t-5 (calendar warmup or gap)": 72
+      }
+    },
+    "POOL": {
+      "rows": 1009,
+      "valid": 1004,
+      "first_valid": "2022-07-29",
+      "by_year": {
+        "2022": "105/110",
+        "2023": "242/242",
+        "2024": "242/242",
+        "2025": "243/243",
+        "2026": "172/172"
+      },
+      "first_half_valid": "499/504",
+      "second_half_valid": "505/505",
+      "invalid_reasons": {
+        "IC or IM r5 missing (warmup or gap)": 5
+      }
+    }
+  },
+  "member_selection": {
+    "IC": {
+      "ties": 0,
+      "selection_invalid": 1,
+      "board_invalid_after_valid_selection": 4,
+      "contract_changes": 125,
+      "distinct_contracts": 96
+    },
+    "IM": {
+      "ties": 0,
+      "selection_invalid": 1,
+      "board_invalid_after_valid_selection": 0,
+      "contract_changes": 34,
+      "distinct_contracts": 23
+    }
+  },
+  "timing_assumptions": {
+    "etf": "份额/净值为 T 日收盘后值，Wind 发布时点未证明；保守假设 T+1 早间可得；fetched_at 为 2026-09-17 一次性回填",
+    "member": "中金所收盘后当日公布；办公室采集时间 2026-09-17，不是公布时点",
+    "price": "复用 ew-oi-v1 的 index_close（stock_selector.index_daily）"
+  },
+  "sources": {
+    "calendar": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/calendar.csv",
+      "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983"
+    },
+    "product_daily": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/product_daily.csv",
+      "sha256": "4cbe348adce71206e391709920c66d11edde9e4a8524110902aef1a53a4616e8"
+    },
+    "contract_detail": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/contract_detail.csv",
+      "sha256": "748da7f0354c29cd2f629129c78edd3d28e21fec76f3fa75475300b24457a1e1"
+    },
+    "etf_net_flow": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v2/net_flow_daily.csv",
+      "sha256": "db329d9f53d91b05da0538ccbbeae18d60abeb3008ae602c8051bebf9431cc5a"
+    },
+    "etf_events": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v2/share_translation_events.csv",
+      "sha256": "679d755968b4865a5453bd960524f77b6634cbe4a6c1864fdae27399b90da5e9"
+    },
+    "rank_IM": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/rank_long.csv",
+      "sha256": "09cb5cd3f056060dfcb0c9395fe78602ed20b1845f484d640e727878cf39e890"
+    },
+    "rank_IC": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/rank_long.csv",
+      "sha256": "7124319f9b39e512b8d1526ae5d60dd7d16c1337a8aed3c79e00f16bfcf0029e"
+    },
+    "manifest_IM": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/manifest.corrected.json",
+      "sha256": "061a83e31e16db4fee325b7efee394af013bf789f260e7e9c0b058552a6cbaff"
+    },
+    "manifest_IC": {
+      "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/manifest.corrected.json",
+      "sha256": "a3e5cf4f08885accc9216d82cd7bca4e8e621e986c45eef362b2c786f49bb928"
+    }
+  }
+}

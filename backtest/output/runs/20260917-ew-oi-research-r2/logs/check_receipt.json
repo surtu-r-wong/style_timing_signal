@@ -1,0 +1,19 @@
+{
+  "pytest_command": "python -m pytest tests/test_oi_research.py -q",
+  "exit_code": 0,
+  "result": "4 passed in 0.39s",
+  "lint_command": "python -m ruff check --select F,E9 backtest/run_oi_research.py tests/test_oi_research.py",
+  "lint_exit_code": 0,
+  "files": [
+    {
+      "path": "backtest/run_oi_research.py",
+      "size": 20586,
+      "sha256": "23f032847aafcf414a0e72491a89621ec559f3060a588ae5f6bb903df6a2159a"
+    },
+    {
+      "path": "tests/test_oi_research.py",
+      "size": 2063,
+      "sha256": "6f3874388ba52c429740eeb2b9a213166832b1537ebc470d98510b1af6c09d86"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "wss_csi300_open_close_vs_wset": {
+    "observations": 12,
+    "dates": 6,
+    "multiplier": 10000,
+    "all_match_after_scaling": true
+  },
+  "wset_refetch_checks": 16,
+  "wset_refetch_all_match": true,
+  "chinext_and_star_not_interchangeable_with_index_wss": true,
+  "history_sampling_only_not_continuity_certification": true,
+  "wsd_quota_code": "-40522017",
+  "new_index_gross_main_flow_denominator": "not_yet_verified",
+  "no_database_or_service_changes": true
+}

@@ -1,0 +1,20 @@
+Delivery accepted: {"product_rows": 3788, "feature_rows": 3788, "valid_rows": {"IC": 2524, "POOL": 754}, "first_valid": {"IC": "2016-04-29", "POOL": "2023-08-09"}, "last_date": "2026-09-16", "scope": "consumer structural validation; office owns derivation and numerical provenance", "raw_execution_rows": 15152, "oi_volume_match_exactly": true, "numeric_checks": [{"source": "IC", "field": "g5", "max_abs_error": 9.952975943416931e-17}, {"source": "IC", "field": "r5", "max_abs_error": 9.974659986866641e-17}, {"source": "IC", "field": "rv20", "max_abs_error": 9.71445146547012e-17}, {"source": "IC", "field": "v5", "max_abs_error": 1.7763568394002505e-15}, {"source": "IC", "field": "u5", "max_abs_error": 1.790234627208065e-15}, {"source": "POOL", "field": "g5", "max_abs_error": 9.996344030316351e-17}, {"source": "POOL", "field": "r5", "max_abs_error": 9.974659986866641e-17}, {"source": "POOL", "field": "rv20", "max_abs_error": 9.71445146547012e-17}, {"source": "POOL", "field": "v5", "max_abs_error": 2.220446049250313e-16}, {"source": "POOL", "field": "u5", "max_abs_error": 1.0130785099704553e-15}], "previous_ew_direction_matches": true, "historical_pit_individually_proven": false}
+IC_long close_3bps 32 ledgers
+IC_long close_10bps 32 ledgers
+IC_long second_close_3bps 32 ledgers
+common close_3bps 60 ledgers
+common close_10bps 60 ledgers
+common second_close_3bps 60 ledgers
+ window   scenario candidate  account    comparison period  sharpe_difference  candidate_cagr  reference_cagr  delta_log
+IC_long close_3bps   IC_L_g5 combined matched_price   full            0.11880         0.17504         0.13773    0.33242
+IC_long close_3bps   IC_L_u5 combined matched_price   full            0.05438         0.16580         0.14225    0.21024
+IC_long close_3bps   IC_S_g5 combined matched_price   full           -0.05525         0.26226         0.25040    0.09725
+IC_long close_3bps   IC_S_u5 combined matched_price   full            0.02240         0.28667         0.25249    0.27734
+ common close_3bps   IC_L_g5 combined matched_price   full            0.06295         0.23026         0.19979    0.07719
+ common close_3bps   IC_L_u5 combined matched_price   full            0.15384         0.27858         0.21577    0.15502
+ common close_3bps   IC_S_g5 combined matched_price   full           -0.08992         0.34157         0.32890    0.02920
+ common close_3bps   IC_S_u5 combined matched_price   full           -0.16392         0.32258         0.33052   -0.01843
+ common close_3bps POOL_L_g5 combined matched_price   full            0.23397         0.25510         0.17327    0.20748
+ common close_3bps POOL_L_u5 combined matched_price   full            0.10336         0.22344         0.17963    0.11224
+ common close_3bps POOL_S_g5 combined matched_price   full           -0.01180         0.39671         0.34940    0.10605
+ common close_3bps POOL_S_u5 combined matched_price   full           -0.08086         0.37711         0.34880    0.06395

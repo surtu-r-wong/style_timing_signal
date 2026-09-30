@@ -1,0 +1,296 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/calendar.csv",
+      "sha256": "a1fb35c3bd080ad355bdeb987fdf81e175f3ead1907178127025632df1c96763",
+      "size": 33995
+    },
+    {
+      "path": "inputs/capture.json",
+      "sha256": "dc6e21ff2a25ca8072f24d3a55c38898548f88804e9ca798fd257574e22ea7ae",
+      "size": 489
+    },
+    {
+      "path": "inputs/code__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__run_constituent_flow_extension.py",
+      "sha256": "acb46ddf0e18179e58484d3d661ff7170c4c408af85698de862e86e63a5e2e98",
+      "size": 15850
+    },
+    {
+      "path": "inputs/code__run_intraday_flow_pilot.py",
+      "sha256": "8d79e614f8a66ad96308e270736940ce8303dd2eac08b8962dda1e42ce38ad36",
+      "size": 19934
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc",
+      "size": 192861
+    },
+    {
+      "path": "inputs/flow.csv",
+      "sha256": "7b281f190fb8350b541b2060700243532e3860acbd840808961b10ee94eab4a3",
+      "size": 1974391
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/office_identity-outliers.csv",
+      "sha256": "c9a2db3cbfebda48acfc0a38c3a964b3d9c765908f9f1acc86b7ddc3400548f3",
+      "size": 2341
+    },
+    {
+      "path": "inputs/office_snapshot.csv",
+      "sha256": "39405d3528e8ea2bd9783a9f6f4e8ece867480b6d14b093646f27516c981c11c",
+      "size": 1425145
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "dd932f6c35200803b9ac4edbbdad646f867fdba04ca29896e157ee6d86ef984c",
+      "size": 3875
+    },
+    {
+      "path": "inputs/prices.csv",
+      "sha256": "2cb1fd6276186af9db38beb79748dfaab530f8dfd027450f325eb7992ec13fb0",
+      "size": 433561
+    },
+    {
+      "path": "inputs/report_constituent_flow.py",
+      "sha256": "7e9fe1fb52a6357185844c01385cec7ce5f9a45f3e7d379aeae1b2c3f0f82dfa",
+      "size": 11460
+    },
+    {
+      "path": "inputs/response-03-office-2026-09-16.md",
+      "sha256": "66b2871ac346e00cb913e3aa2c77c62ef0eeed2d8711a472f91a25f4eb9e33de",
+      "size": 4573
+    },
+    {
+      "path": "inputs/response-06-office-2026-09-16.md",
+      "sha256": "13c25b534a266707c66371e6f5177a7f042bed3074cdd3b84972c141c5fecdd4",
+      "size": 7243
+    },
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "inputs/wset_continued_scores.csv",
+      "sha256": "671d061d6c42ff1ae4ddbfc632d88d0fdd88f25b0c292f896a13e8298bb71e90",
+      "size": 268933
+    },
+    {
+      "path": "inputs/wset_scores.csv",
+      "sha256": "b634ae07ad922213b45d777775a9c22e6e1df6520a526838f5a6a2bc1572596b",
+      "size": 268184
+    },
+    {
+      "path": "logs/closeout_verification.json",
+      "sha256": "e59b997b26c25d689c895d44c8918547b57c00c6e9c77fc7a963433d90bd9ac9",
+      "size": 397
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "23638322cc9ef0d05e4e6ec727844cd6957b869f990b305e945d9c103d19058f",
+      "size": 8163
+    },
+    {
+      "path": "outputs/data_verification.json",
+      "sha256": "4ccc54f72534a0bd9a9089fff0be1fb88711c2ff3953c7847cb5b277f536ff7b",
+      "size": 1284
+    },
+    {
+      "path": "outputs/identity_outliers.csv",
+      "sha256": "07ed678dd53e180c3995db12dacca4abe3b73d7e45c3e392c9a55750fda43770",
+      "size": 1335
+    },
+    {
+      "path": "outputs/ledgers_core_common_close_10bps.csv.gz",
+      "sha256": "cd0260b6b07c3d265cb37534947c8ad6eb9d1e4b92ecbc517298783c77fa08ba",
+      "size": 1718530
+    },
+    {
+      "path": "outputs/ledgers_core_common_close_3bps.csv.gz",
+      "sha256": "ac32fdce952da739d466c12c65b9f459595f5eb9c191848b4e58024e1561fb00",
+      "size": 2189084
+    },
+    {
+      "path": "outputs/ledgers_core_common_second_close_3bps.csv.gz",
+      "sha256": "ccf1a924ce5ac45cf0247f37306a1ca7f462e853e7f11076c7e39cfcf5413f96",
+      "size": 1919028
+    },
+    {
+      "path": "outputs/ledgers_star_common_close_10bps.csv.gz",
+      "sha256": "c266d6091f3734dc4070d690aff0056327d2b0636a9e268346b2384e6d430dcd",
+      "size": 107235
+    },
+    {
+      "path": "outputs/ledgers_star_common_close_3bps.csv.gz",
+      "sha256": "656d41a90dc2bd02bddfa742ba8b79230a476ad867fd797640819d9f200d46c5",
+      "size": 120265
+    },
+    {
+      "path": "outputs/ledgers_star_common_second_close_3bps.csv.gz",
+      "sha256": "8256f92a91c3b9941295f35151324ac85af0e5f0f7516c3fea6bd56bd551e787",
+      "size": 119304
+    },
+    {
+      "path": "outputs/metrics.csv",
+      "sha256": "c7245cd73b698c9ee5ae460d13c48d7483db149f212de93a3d2e200aba6ed4f3",
+      "size": 299922
+    },
+    {
+      "path": "outputs/research_verification.json",
+      "sha256": "e71a28f97c6692155a7efac3249c1cbd4a8b7b8e1fc814e963822f203f921b57",
+      "size": 2140
+    },
+    {
+      "path": "outputs/residuals.csv",
+      "sha256": "d0009baca14e040be0fe839df52708a4eaf626abfd258a16be4d4909e9029727",
+      "size": 246329
+    },
+    {
+      "path": "outputs/scores.csv",
+      "sha256": "2f3a51d2c259990ff7948791f85d259330dee4e1a4ff05efd359d76feb96fc9c",
+      "size": 411146
+    },
+    {
+      "path": "outputs/source_overlap.csv",
+      "sha256": "2ceb8971b39b0aae49b232f43149061a8ca558c534bc02effc90f2b7d888de66",
+      "size": 1173
+    },
+    {
+      "path": "outputs/targets_core_common_close_10bps.csv",
+      "sha256": "2c8353837115094c8fa9aa79202df4125744c615cfd5d98d1a9e49a7ac4941ba",
+      "size": 205823
+    },
+    {
+      "path": "outputs/targets_core_common_close_3bps.csv",
+      "sha256": "7d58eb89d29ac37740f05b3f7ff6e1a613295fde8e59a83977ac383878ad120c",
+      "size": 225556
+    },
+    {
+      "path": "outputs/targets_core_common_second_close_3bps.csv",
+      "sha256": "7517219160d180102b6906c46dfc5fb3f6fed772a1fae914cc7a160f46dae898",
+      "size": 205823
+    },
+    {
+      "path": "outputs/targets_star_common_close_10bps.csv",
+      "sha256": "8e4ecfc7cff2ef7b9497eebded9524eb4959e66b21082156382c4c264656531f",
+      "size": 14196
+    },
+    {
+      "path": "outputs/targets_star_common_close_3bps.csv",
+      "sha256": "8e4ecfc7cff2ef7b9497eebded9524eb4959e66b21082156382c4c264656531f",
+      "size": 14196
+    },
+    {
+      "path": "outputs/targets_star_common_second_close_3bps.csv",
+      "sha256": "4f2cd9fd652e55b463552225a6c0f78757fe5fc9fc8d6292e5811ca6ab10e92e",
+      "size": 14196
+    },
+    {
+      "path": "outputs/trade_summary.csv",
+      "sha256": "a8c9ef03b9f02bb688ab86aea24e606e4bb6b942b60a6b75dbf03fe93de185c3",
+      "size": 10513
+    },
+    {
+      "path": "outputs/trades.csv",
+      "sha256": "541b9761430a887a1e09d1ca4934332463c96e56745d0553c53448abea406071",
+      "size": 912777
+    },
+    {
+      "path": "outputs/vendor_control_scores.csv",
+      "sha256": "ad2680a74c2e44954daaac6700f084e6a9861f010927d2394dbfa3dd938355c8",
+      "size": 410996
+    },
+    {
+      "path": "outputs/vendor_net_sensitivity.csv",
+      "sha256": "e076b78e66dabf6c5e159837af73401c955ed8cac53b5fa06b85db0b6948fa25",
+      "size": 412
+    },
+    {
+      "path": "outputs/wset_vs_constituent_amounts.csv",
+      "sha256": "649622ec25ae7aaf99e31bae5138123cb76e19aee4c12d443e72d7e05ecbaadd",
+      "size": 322
+    },
+    {
+      "path": "outputs/wset_vs_constituent_gates.csv",
+      "sha256": "1eca3917b72d8445b0f0c3401a7c24bbec8ba34c604d1c473aea41ef0b046f50",
+      "size": 106
+    },
+    {
+      "path": "outputs/wset_vs_constituent_lowest_gross_ratios.csv",
+      "sha256": "47aef10f00c7a2ad08d41c8420cff41204f6066ae54f34571c5aadb360182fcb",
+      "size": 641
+    }
+  ],
+  "completed_utc": "2026-09-16T09:59:41.774999+00:00",
+  "created_utc": "2026-09-16T09:49:56.916394+00:00",
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/output/data_manager_handoff_20260916/",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-constituent-flow-extension-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-score-continuation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_constituent_flow_extension.py",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-extension.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? tests/test_intraday_flow_pilot.py"
+    ],
+    "tracked_dirty": true
+  },
+  "outcome": "descriptive_no_incumbent_replacement",
+  "prereg_sha256": "dd932f6c35200803b9ac4edbbdad646f867fdba04ca29896e157ee6d86ef984c",
+  "stage": "P1_acceptance_and_fixed_constituent_source_comparison",
+  "status": "complete"
+}

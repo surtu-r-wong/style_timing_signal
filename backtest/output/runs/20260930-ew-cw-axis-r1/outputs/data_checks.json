@@ -1,0 +1,97 @@
+{
+  "index_unique_monotonic": {
+    "ew": true,
+    "cw": true
+  },
+  "calendar_mismatch_days": {
+    "300": 0,
+    "500": 0,
+    "1000": 0
+  },
+  "internal_nan_days": {
+    "ew300": 0,
+    "ew500": 0,
+    "ew1000": 0,
+    "cw300": 0,
+    "cw500": 0,
+    "cw1000": 0
+  },
+  "first_valid": {
+    "ew300": "2004-12-31",
+    "ew500": "2004-12-31",
+    "ew1000": "2013-12-31",
+    "cw300": "2004-12-31",
+    "cw500": "2004-12-31",
+    "cw1000": "2004-12-31"
+  },
+  "last_valid": {
+    "ew300": "2026-09-29",
+    "ew500": "2026-09-29",
+    "ew1000": "2026-09-29",
+    "cw300": "2026-09-29",
+    "cw500": "2026-09-29",
+    "cw1000": "2026-09-29"
+  },
+  "first_last_ok": {
+    "ew300": true,
+    "ew500": true,
+    "ew1000": true,
+    "cw300": true,
+    "cw500": true,
+    "cw1000": true
+  },
+  "valid_days": {
+    "ew300": 5282,
+    "ew500": 5282,
+    "ew1000": 3100,
+    "cw300": 5282,
+    "cw500": 5282,
+    "cw1000": 5282
+  },
+  "valid_days_ok": {
+    "ew300": true,
+    "ew500": true,
+    "ew1000": true,
+    "cw300": true,
+    "cw500": true,
+    "cw1000": true
+  },
+  "gate1_calendar_ok": true,
+  "stale_days": {
+    "ew300": 0,
+    "ew500": 0,
+    "ew1000": 0,
+    "cw300": 0,
+    "cw500": 0,
+    "cw1000": 0
+  },
+  "spread_gt3pct_days": {
+    "300": 0,
+    "500": 0,
+    "1000": 0
+  },
+  "gate2_stale_ok": true,
+  "cw_overlap_days": {
+    "300": 3099,
+    "500": 3299,
+    "1000": 3299
+  },
+  "cw_max_rel_diff": {
+    "300": 0.0,
+    "500": 0.0,
+    "1000": 0.0
+  },
+  "blend_D_nan_days": 0,
+  "blend_D_missing_in_db": 0,
+  "blend_D_max_abs_diff": 0.0,
+  "gate3_reconcile_ok": true,
+  "carry_first": "2015-04-16",
+  "carry_last": "2026-09-30",
+  "carry_missing_D_days": 312,
+  "control_last_dates": {
+    "equal_weight": "2026-09-30",
+    "slope20": "2026-09-30"
+  },
+  "gate4_frozen_ok": true,
+  "data_ok": true
+}

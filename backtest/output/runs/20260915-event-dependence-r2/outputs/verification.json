@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "source_run": "20260915-event-dependence-r1",
+  "input_hashes_checked": 10,
+  "focus_specifications": 26,
+  "event_decompositions": 364,
+  "daily_decomposition_error": 1.2685165418080402e-17,
+  "random_calendar_draws": 2000,
+  "random_eligible_comparisons": 696,
+  "random_direct_metric_checks": 18,
+  "random_max_direct_error": 1.1102230246251565e-15,
+  "random_windows_per_draw": 7,
+  "random_days_per_draw": 70,
+  "note": "Descriptive random-calendar diagnostic, not a calibrated p-value or a fresh out-of-sample test.",
+  "same_mapping_lf_review_count": 24,
+  "same_mapping_lf_neutral_leaders": 0,
+  "long_short_identity_max_error": 1.3877787807814457e-17,
+  "workbook_verified": true
+}

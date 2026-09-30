@@ -1,0 +1,5 @@
+group,left_column,right_column,direction
+1,沪深300成长,沪深300价值,forward
+2,中证500成长,中证500价值,forward
+3,中证1000成长,中证1000价值,forward
+4,中证2000成长,中证2000价值,forward

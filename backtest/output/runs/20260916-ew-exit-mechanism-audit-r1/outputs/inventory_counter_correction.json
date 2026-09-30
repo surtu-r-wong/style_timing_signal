@@ -1,0 +1,18 @@
+{
+  "scope": "Diagnostic inventory counter only; targets, ledgers, returns and all other attribution fields unchanged.",
+  "original_daily_reentries_meaning": "entries after baseline episode start, including a delayed first entry",
+  "corrected_daily_reentries_meaning": "max(total actual daily entries minus one, zero)",
+  "added_column": "daily_entries_after_baseline_start preserves original count",
+  "original_artifact": {
+    "path": "outputs/decision_episode_inventory.csv",
+    "size": 15744,
+    "sha256": "72744c579475d2d3dcacde72c7bdd50ac539e7438d61c2dc84ef1d220333b493"
+  },
+  "corrected_artifact": {
+    "path": "outputs/decision_episode_inventory_corrected.csv",
+    "size": 16163,
+    "sha256": "3e327e7a7ee50601bcaf8d85bca95dd9819be25e06de10c1c6ec758f245b0b1e"
+  },
+  "all_other_inventory_fields_identical": true,
+  "regression_test_passed": true
+}

@@ -1,0 +1,512 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/2026-09-17-ew-oi-and-new-input-plan.md",
+      "sha256": "571fb3172f87118a78937272c8afba92577772d8744d40a5bbd309c3191a0123",
+      "size": 6429
+    },
+    {
+      "path": "inputs/2026-09-17-ew-oi-execution-freeze.md",
+      "sha256": "cad7a15c10b223339ce9f4892d391873d2d7d1b733b770c7a7aca80b858ec38c",
+      "size": 4316
+    },
+    {
+      "path": "inputs/code__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__oi_delivery_contract.py",
+      "sha256": "0b61f1ecdafb670359d066058c794f3394ed0fe9c6f0319965778defeec9b212",
+      "size": 5751
+    },
+    {
+      "path": "inputs/code__run_intraday_flow_pilot.py",
+      "sha256": "8d79e614f8a66ad96308e270736940ce8303dd2eac08b8962dda1e42ce38ad36",
+      "size": 19934
+    },
+    {
+      "path": "inputs/code__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code__run_oi_research.py",
+      "sha256": "23f032847aafcf414a0e72491a89621ec559f3060a588ae5f6bb903df6a2159a",
+      "size": 20586
+    },
+    {
+      "path": "inputs/code__test_oi_research.py",
+      "sha256": "6f3874388ba52c429740eeb2b9a213166832b1537ebc470d98510b1af6c09d86",
+      "size": 2063
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "d04eb53702bcfa16af61e03a4272bb07bc4c5abd1a4dece4238621ec8b14805d",
+      "size": 193047
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "31aa2d003a564f66941952e4fd1ddc0b810578504c325e330bdf79c80d7694cd",
+      "size": 959379
+    },
+    {
+      "path": "inputs/office/calendar.csv",
+      "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983",
+      "size": 69872
+    },
+    {
+      "path": "inputs/office/contract_detail.csv",
+      "sha256": "748da7f0354c29cd2f629129c78edd3d28e21fec76f3fa75475300b24457a1e1",
+      "size": 1422505
+    },
+    {
+      "path": "inputs/office/features.csv",
+      "sha256": "4000330904f75e4cea19a015521f0efafe110d2ccd4216bff1390f66b91793e6",
+      "size": 572206
+    },
+    {
+      "path": "inputs/office/lifecycle_audit.csv",
+      "sha256": "e74a009d130d8519821270baec311fe8cd507f7d9b6b3c4ac35adf7b2c5a7638",
+      "size": 583692
+    },
+    {
+      "path": "inputs/office/manifest.json",
+      "sha256": "ccb8d5821abfdff791661416050d058d053bf013fa451da16eb2de7f48acd8ca",
+      "size": 1774
+    },
+    {
+      "path": "inputs/office/product_daily.csv",
+      "sha256": "4cbe348adce71206e391709920c66d11edde9e4a8524110902aef1a53a4616e8",
+      "size": 1169695
+    },
+    {
+      "path": "inputs/office/quality_report.json",
+      "sha256": "de8be9e96b023d94fa1cc77ae0406c7ca91816c459dd32a64fc9159831647c6b",
+      "size": 1359
+    },
+    {
+      "path": "inputs/office/raw_inputs/calendar.csv",
+      "sha256": "85ba6ec42217a0b64eb279508944c6995387fa6a09ebbd0cbf5c84e449f7ac1b",
+      "size": 71604
+    },
+    {
+      "path": "inputs/office/raw_inputs/futures.csv",
+      "sha256": "401571988ec8a39e98cdab3f87c336dc3eec354cb37444ad8d70588be07b91d2",
+      "size": 1093812
+    },
+    {
+      "path": "inputs/office/raw_inputs/index.csv",
+      "sha256": "af6165258e593684f38cf56cba52ed81d3ac86ee5301efc144b7dfbbe7ca7497",
+      "size": 176581
+    },
+    {
+      "path": "inputs/office/raw_inputs/master.csv",
+      "sha256": "9fc64013c68c57a7b53372f6d71e4f3030e3426f4a04f6fe2ece7c351f533e3a",
+      "size": 6776
+    },
+    {
+      "path": "inputs/office__disposition.md",
+      "sha256": "b5d326d2e0ea5ce198c8640cd3d4b17c9f5aa9bf73f7f8245a32d45403783ce9",
+      "size": 9942
+    },
+    {
+      "path": "inputs/office__response-01-office-2026-09-17.md",
+      "sha256": "eaca50ad29f024ff5c90a961dd4b4e9681f171b461cfced213429aeeceb9f500",
+      "size": 3052
+    },
+    {
+      "path": "inputs/office__response-02-office-2026-09-17.md",
+      "sha256": "44ff423625c284a5f42aa7f6cb868b1e28100d650a8d4135bc46904f711b7989",
+      "size": 2125
+    },
+    {
+      "path": "inputs/prior_targets.csv",
+      "sha256": "0132a8e9247fdb3aea13f503910e809d4ffb3095dd0be23d87ddfd0979f78b57",
+      "size": 531164
+    },
+    {
+      "path": "inputs/source_receipts.json",
+      "sha256": "95e49f742f3001aba3c60d4f2e5318059e146f1d43d9d2dbe892ea1383b02e0e",
+      "size": 588
+    },
+    {
+      "path": "logs/check_receipt.json",
+      "sha256": "801ad18d023f3c0c670638b2625238ff269834a9cbab4f90f3017dd8dd7e1cfd",
+      "size": 593
+    },
+    {
+      "path": "logs/failed_r1.log",
+      "sha256": "6e4daec9d2f6372caab14ce158f51119fabba0921bc8a2dc8ea5cea02a556bef",
+      "size": 2133
+    },
+    {
+      "path": "logs/final_verification.json",
+      "sha256": "7549ee99dd20e40dc916318060199c9771c95e9b6cfbc801a42b3e1c7e9faa2d",
+      "size": 270
+    },
+    {
+      "path": "logs/run.log",
+      "sha256": "35e0ad9847a38a58eaffa7d28ce28e21ab58737233af9a28419b3f51ed3fdc24",
+      "size": 2959
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "90d4db8d2531f41d1b5db157b4225c2473bd1658d58f8d557ce2a687774b94a2",
+      "size": 10544
+    },
+    {
+      "path": "outputs/ancillary_acceptance.json",
+      "sha256": "1e78dcfdcc8cbe2056eb45ca05808816ea18f3f95b60ad7a3b5b03befb900714",
+      "size": 4249
+    },
+    {
+      "path": "outputs/ancillary_acceptance_manifest.json",
+      "sha256": "bec5b8c8279b3ff4ffa651e0494594e63b4c90bba66273f7d6277e435fcbe761",
+      "size": 4073
+    },
+    {
+      "path": "outputs/comparisons.csv",
+      "sha256": "84de2efb263929a9d735d84cec290240c0733db2048cc8a4972ffd4ae6fa1d25",
+      "size": 410476
+    },
+    {
+      "path": "outputs/definitions.csv",
+      "sha256": "ad5d280dd89f23bcbbd91a0bd89ef64031a09dc54e0b4693de72dc7da7ec7b13",
+      "size": 962
+    },
+    {
+      "path": "outputs/delivery_acceptance.json",
+      "sha256": "9970660fdb4ce67ee53f9b8c5316901180d07c8a96408a681635a0a5a7af2a60",
+      "size": 1505
+    },
+    {
+      "path": "outputs/documents/2026-09-16-equal-weight-independent-legs.md",
+      "sha256": "f6cf6639a4835a87ad258a7f513cec69d6ffc6eb23f905363f67d22cae3f4df0",
+      "size": 21008
+    },
+    {
+      "path": "outputs/documents/2026-09-17-ew-oi-research-results.md",
+      "sha256": "6db273bf72335d8626bad2db892f4f137868a8d1f111af7c65089e6539add337",
+      "size": 10877
+    },
+    {
+      "path": "outputs/documents/README.md",
+      "sha256": "cd6a3ea249545804c31979d450b3829965313c0b3b1c064401484bd79630a637",
+      "size": 83047
+    },
+    {
+      "path": "outputs/documents/etf__response-04-style-timing-signal-2026-09-17.md",
+      "sha256": "608556af9e47456ce4e0448f6966cb033265710f0dfbc1001bcf2af0f3c65cb9",
+      "size": 2295
+    },
+    {
+      "path": "outputs/documents/member__response-03-style-timing-signal-2026-09-17.md",
+      "sha256": "346efda8f1b9e51388f91f5b858fc5c1698c077d605232f54900deed58aad1d2",
+      "size": 1519
+    },
+    {
+      "path": "outputs/documents/oi__response-03-style-timing-signal-2026-09-17.md",
+      "sha256": "c689734a44ff67c218b8c91ad6640d85e5ba15fd812cbc60312e4121d315b18d",
+      "size": 1306
+    },
+    {
+      "path": "outputs/documents/research_registry.yaml",
+      "sha256": "44071644589d853e15324c3c28e06ae4551c3ed6a8980bf9d550fbf9b51133d5",
+      "size": 118919
+    },
+    {
+      "path": "outputs/episode_attribution.csv",
+      "sha256": "414a3b9b665b4e699010e2ec195547cd240a6500124118940945b664cd9213d2",
+      "size": 127336
+    },
+    {
+      "path": "outputs/exposure.csv",
+      "sha256": "4af7eb98caa1a8049337dd70716eec5a08c3c0ade0dd5d9fdbedfee2bd303770",
+      "size": 26485
+    },
+    {
+      "path": "outputs/ledgers_IC_long_close_10bps.csv.gz",
+      "sha256": "0c4bff8e7a2bd02ffd225acc8dc60459b484f9c28c2ff50c7490cf78d505f1a5",
+      "size": 3655994
+    },
+    {
+      "path": "outputs/ledgers_IC_long_close_3bps.csv.gz",
+      "sha256": "7a72337a186c5102adecb0a8046c7c0ba066b705e454e683d6f3cb846ccebebb",
+      "size": 4110108
+    },
+    {
+      "path": "outputs/ledgers_IC_long_second_close_3bps.csv.gz",
+      "sha256": "009389e90c712fba5fe9c8fdcc728036c2b54029c2de70ae87094f37b17cc721",
+      "size": 4107315
+    },
+    {
+      "path": "outputs/ledgers_common_close_10bps.csv.gz",
+      "sha256": "6ccc96a53527814f2f7b782c46c76f1814967744ea0484e8ad0f29977a0af889",
+      "size": 2123404
+    },
+    {
+      "path": "outputs/ledgers_common_close_3bps.csv.gz",
+      "sha256": "5246a9b813eb48f50b47a227f06efc569af95985f21a552be3d3178e6ac87cb1",
+      "size": 2403524
+    },
+    {
+      "path": "outputs/ledgers_common_second_close_3bps.csv.gz",
+      "sha256": "b6d753022de6a0161f8669f7a8fd516109e947734f1b4087e53f35fd8c3bccc3",
+      "size": 2401397
+    },
+    {
+      "path": "outputs/lifecycle_attribution.csv",
+      "sha256": "5fe0387c2eb189108f399eaa8dbcf1c716548652dc8f182a9be8ad2271e369eb",
+      "size": 7349
+    },
+    {
+      "path": "outputs/metrics.csv",
+      "sha256": "e09d75672a12c399ee3a9d726af0d724617162aedbdad329ce0334e4d99c5533",
+      "size": 705879
+    },
+    {
+      "path": "outputs/relative_daily.csv.gz",
+      "sha256": "d6b4cba2e42af5b58853611cb513a1ed2812acd33191c18b6a4a14771bed0668",
+      "size": 689515
+    },
+    {
+      "path": "outputs/stress.csv",
+      "sha256": "d6a34d26eb51ea4000cc69d8583adf4a9f80f09f777f5d6098b696c2774ee959",
+      "size": 12721
+    },
+    {
+      "path": "outputs/targets_IC_long.csv",
+      "sha256": "3d606c291643913398a290fbb5ddfd06157a11cffb81c89b067b2da1ad95c93a",
+      "size": 625719
+    },
+    {
+      "path": "outputs/targets_common.csv",
+      "sha256": "fabab09a6436a97b0167c78e05a1140e39a668681c61e8e2649beb59cd38302c",
+      "size": 339021
+    },
+    {
+      "path": "outputs/trade_summary.csv",
+      "sha256": "92007f64d107ce07060a6566fe7e8d4cc746bf0e2f53c3c01d6394b1d8b832f2",
+      "size": 15652
+    },
+    {
+      "path": "outputs/trades_IC_long_close_10bps.csv",
+      "sha256": "c212e8c4e64348e4e63e27ed8746e4e6af8caef9291a20a0016495aba9cbebb5",
+      "size": 709502
+    },
+    {
+      "path": "outputs/trades_IC_long_close_3bps.csv",
+      "sha256": "e612864ed783f5e2cdd5fb38e83dc3fc62ac96d6323984b5f8e1651920d5c63d",
+      "size": 710271
+    },
+    {
+      "path": "outputs/trades_IC_long_second_close_3bps.csv",
+      "sha256": "378ccc97b30a0768b49dcf8eb072d1caeb63ab2a58fde23458dc20372f15354f",
+      "size": 711444
+    },
+    {
+      "path": "outputs/trades_common_close_10bps.csv",
+      "sha256": "90ff4d109403d7e60b77f01c6c5bfc306ea74e64dc51af839cd933762b9a6cdb",
+      "size": 395200
+    },
+    {
+      "path": "outputs/trades_common_close_3bps.csv",
+      "sha256": "48929e8b811f90fe7af057256fffb5131e3872fe8e816dc0a4add157840ff546",
+      "size": 395948
+    },
+    {
+      "path": "outputs/trades_common_second_close_3bps.csv",
+      "sha256": "bc4c734960430bb7e2604b2e6aaecbf642a0fc735e03274205e361aacec50043",
+      "size": 395897
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "5f72a94a77fe4508208c66da61cce775f3e1e1750346c1da5e8fba3572b68004",
+      "size": 1834
+    }
+  ],
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      " M output/citic40d/citic_style_signal_40d.csv",
+      " M output/equal_weight/equal_weight_signal_20d40z.csv",
+      " M output/equal_weight/equal_weight_signal_5d20z.csv",
+      " M output/hybrid20/confirmed_signal.csv",
+      " M output/hybrid20/growth_stability_signal.csv",
+      " M output/recommended/citic40d_longflat.csv",
+      " M output/recommended/equal_weight_longflat.csv",
+      " M output/recommended/equal_weight_symmetric.csv",
+      " M output/recommended/hybrid20_longflat.csv",
+      " M output/recommended/slope20_longflat.csv",
+      " M output/recommended/slope20_symmetric.csv",
+      " M output/slope20/slope20_signal_L20zw120.csv",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/flow_structure_followup.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/oi_delivery_contract.py",
+      "?? backtest/output/data_manager_handoff_20260916/",
+      "?? backtest/output/data_manager_handoff_20260917/",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-constituent-flow-extension-r1/",
+      "?? backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-robustness-diagnostic-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-score-continuation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-structure-followup-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/runs/20260917-ew-holding-age-audit-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-input-readiness-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-research-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_constituent_flow_extension.py",
+      "?? backtest/run_exit_mechanism_audit.py",
+      "?? backtest/run_flow_robustness_diagnostic.py",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_flow_structure_followup.py",
+      "?? backtest/run_holding_age_audit.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? backtest/run_oi_input_readiness.py",
+      "?? backtest/run_oi_research.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-extension.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-audit.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-diagnostic.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-followup.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-audit.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-results.md",
+      "?? docs/plans/2026-09-17-ew-oi-and-new-input-plan.md",
+      "?? docs/plans/2026-09-17-ew-oi-execution-freeze.md",
+      "?? docs/plans/2026-09-17-ew-oi-input-readiness-results.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? tests/test_exit_mechanism_audit.py",
+      "?? tests/test_flow_structure_followup.py",
+      "?? tests/test_holding_age_audit.py",
+      "?? tests/test_intraday_flow_pilot.py",
+      "?? tests/test_oi_delivery_contract.py",
+      "?? tests/test_oi_research.py"
+    ],
+    "tracked_dirty": true
+  },
+  "run_id": "20260917-ew-oi-research-r2",
+  "status": "complete",
+  "verification": {
+    "account_leg_trade_identities": true,
+    "all_returns_finite": true,
+    "completed_utc": "2026-09-17T07:13:41.365802+00:00",
+    "episode_year_lifecycle_additivity": true,
+    "fill_delays_verified": true,
+    "new_ledgers": 276,
+    "reference_checks": [
+      {
+        "max_error": 0.0,
+        "scenario": "close_3bps",
+        "strategy": "C__IC_L_u5",
+        "window": "IC_long"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "close_3bps",
+        "strategy": "DLEG__IC_S_g5",
+        "window": "IC_long"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "close_10bps",
+        "strategy": "C__IC_L_u5",
+        "window": "IC_long"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "close_10bps",
+        "strategy": "DLEG__IC_S_g5",
+        "window": "IC_long"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "second_close_3bps",
+        "strategy": "C__IC_L_u5",
+        "window": "IC_long"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "second_close_3bps",
+        "strategy": "DLEG__IC_S_g5",
+        "window": "IC_long"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "close_3bps",
+        "strategy": "C__POOL_L_u5",
+        "window": "common"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "close_3bps",
+        "strategy": "DLEG__POOL_S_g5",
+        "window": "common"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "close_10bps",
+        "strategy": "C__POOL_L_u5",
+        "window": "common"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "close_10bps",
+        "strategy": "DLEG__POOL_S_g5",
+        "window": "common"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "second_close_3bps",
+        "strategy": "C__POOL_L_u5",
+        "window": "common"
+      },
+      {
+        "max_error": 0.0,
+        "scenario": "second_close_3bps",
+        "strategy": "DLEG__POOL_S_g5",
+        "window": "common"
+      }
+    ]
+  }
+}

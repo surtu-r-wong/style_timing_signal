@@ -1,0 +1,14 @@
+name,stage,side,source,mapping,short_or_long_scale,baseline_days,kept_equivalent_days,full_days,half_days
+A_PAIR_L,A,L,PAIR,positive_contrast,0.41201000834028356,1199,494.0,494,0
+A_PAIR_S,A,S,PAIR,positive_contrast,0.6286472148541115,1131,711.0,711,0
+A_POOL_L,A,L,POOL,positive_contrast,0.44954128440366975,1199,539.0,539,0
+A_POOL_S,A,S,POOL,positive_contrast,0.6551724137931034,1131,741.0,741,0
+B_daily,B,S,new,daily,0.43147656940760387,1131,488.0,488,0
+B_entry_hold,B,S,new,entry_hold,0.5729442970822282,1131,648.0,648,0
+B_exit_only,B,S,new,exit_only,0.3297966401414677,1131,373.0,373,0
+B_entry_exit,B,S,new,entry_exit,0.3121131741821397,1131,353.0,353,0
+C_new_tier,C,S,new,tier,0.45137046861184793,1131,510.5,385,251
+C_new_hysteresis,C,S,new,hysteresis,0.42793987621573826,1131,484.0,484,0
+C_old_tier,C,S,old,tier,0.45446507515473034,1131,514.0,386,256
+C_old_hysteresis,C,S,old,hysteresis,0.43412908930150307,1131,491.0,491,0
+C_old_binary,C,S,old,binary,0.4420866489832007,1131,500.0,500,0

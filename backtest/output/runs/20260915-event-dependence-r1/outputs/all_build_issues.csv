@@ -1,0 +1,6 @@
+study,name,reason
+analyst-revision,analyst-revision_R1,internal calendar gaps: 190; longest contiguous segment used
+analyst-revision,analyst-revision_R2,internal calendar gaps: 190; longest contiguous segment used
+analyst-revision,analyst-revision_R3,internal calendar gaps: 210; longest contiguous segment used
+analyst-revision,analyst-revision_R4,internal calendar gaps: 190; longest contiguous segment used
+mian2-cross-section,mian2-cross-section_winner,internal missing dates 1; no reconstruction performed

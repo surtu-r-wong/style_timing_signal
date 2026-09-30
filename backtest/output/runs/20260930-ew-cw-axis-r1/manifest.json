@@ -1,0 +1,412 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/carry_blend.csv",
+      "sha256": "94836f7e09273bf092a27b707b99dbc46ab12bdedb1827cf5fe9ad4992ca1b4a",
+      "size": 86747
+    },
+    {
+      "path": "inputs/code/backtest____init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "inputs/code/backtest__baseline.py",
+      "sha256": "e76b8b8ef8ff89cf1705eaa7aefd84f0d6a7ea3e0eaa9d4e395028b8a0bb987d",
+      "size": 5664
+    },
+    {
+      "path": "inputs/code/backtest__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code/backtest__engine.py",
+      "sha256": "adcfc4d510af01294d3dfaf30e9abd240572b15eef56832910f8963437b9fbec",
+      "size": 2454
+    },
+    {
+      "path": "inputs/code/backtest__ew_cw_axis_probe.py",
+      "sha256": "ba6a18837e6b6d4af8faccb4aace6a2cf5f12bbfe99b5470c0da75125cccf4b4",
+      "size": 54784
+    },
+    {
+      "path": "inputs/code/backtest__execution_audit.py",
+      "sha256": "22bf6393ac76fd1041cb66656617edbcc3a9a96cfec8bfd059ef7e9ccedae729",
+      "size": 12644
+    },
+    {
+      "path": "inputs/code/backtest__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code/backtest__gate0_criterion_study.py",
+      "sha256": "99d94a0ea5877a6b3b3d95db7a1191a865aa2247c82c7816db8e77565e018663",
+      "size": 9868
+    },
+    {
+      "path": "inputs/code/backtest__leverage_probe.py",
+      "sha256": "2d6ab727d6f1da4b8b27f229be5ad65629ea61cfee81da82021263c5c775f8e9",
+      "size": 13775
+    },
+    {
+      "path": "inputs/code/backtest__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code/backtest__paired_bootstrap.py",
+      "sha256": "9de3d5ab5a6756c4cbf71bae42b7b51377bfe86e7034f5d98ca29b942b5c8d07",
+      "size": 8647
+    },
+    {
+      "path": "inputs/code/backtest__positions.py",
+      "sha256": "6418950e77bb6ead042bfff8aecb15a094c34645af040b3817a31545cd4d6404",
+      "size": 7768
+    },
+    {
+      "path": "inputs/code/backtest__research_statistics.py",
+      "sha256": "9970e78735dadc87b04f95a2ab9a18cff3abfd015e39238c21cb858a32ca5a80",
+      "size": 6093
+    },
+    {
+      "path": "inputs/code/backtest__rotation_probe.py",
+      "sha256": "dd2f891a19b1e72d9c00e7ba6d2c9db8cd159ee4a1ee31f1cd586c6e34a77429",
+      "size": 11229
+    },
+    {
+      "path": "inputs/code/backtest__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code/backtest__selection_permutation.py",
+      "sha256": "36d202ed14d2f96093cac6ef59ff0fd8b5af32bc5f38743e0905a30e217d244b",
+      "size": 29933
+    },
+    {
+      "path": "inputs/code/backtest__significance.py",
+      "sha256": "95a1062b85f47735d73437f9ec4bd9143baa161e7a8a0bf0597270e1acb2811b",
+      "size": 1770
+    },
+    {
+      "path": "inputs/code/signals__common__config.py",
+      "sha256": "90a80df8d7af97aafb002abfb716987405cefd0f793da7b933efd92c968c7f44",
+      "size": 931
+    },
+    {
+      "path": "inputs/code/signals__equal_weight__generate_signal.py",
+      "sha256": "4e4bc24d8caf9744a1acede9828a7d76029ef2a8ff1da2fff95b8fddf5e6451a",
+      "size": 12885
+    },
+    {
+      "path": "inputs/code/tests__test_ew_cw_axis_probe.py",
+      "sha256": "c29c9058e6683e8a954e229ffb02030b11a913ecedecb8a4c22494b7a7efd8be",
+      "size": 36988
+    },
+    {
+      "path": "inputs/code/tests__test_ew_cw_axis_probe_orchestration.py",
+      "sha256": "177b75ef8fa7f2a8c86582adfece30e8a253d8e50d8098e4feaaab38c6c69aa0",
+      "size": 31501
+    },
+    {
+      "path": "inputs/equal_weight_signal_20d40z.csv",
+      "sha256": "0ed91d9abf011b00a9b2236f55df1871d015718434148a1e1989d87a4aa6758e",
+      "size": 193594
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "c61eb27f7bd710c10849d72aa185d09434ae899fca8f901e2223777711ba5ffb",
+      "size": 22033
+    },
+    {
+      "path": "inputs/slope20_signal_L20zw120.csv",
+      "sha256": "a3445c3c48b49eafd8aa14e44fbe3f7f9c82cc2f15ab406367ae7891c3a581c7",
+      "size": 56518
+    },
+    {
+      "path": "inputs/指数.xlsx",
+      "sha256": "4ede9d82f236dec4babb1c3a7e6ea696d47c828d8e69adeeb484670e22df0000",
+      "size": 261938
+    },
+    {
+      "path": "inputs/等权指数.xlsx",
+      "sha256": "c057dd0067268e26c3d2e651fdeec2bb690f901e617c8ea3521021e60ce80d32",
+      "size": 242486
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "d88277fa8340711f8fa3d1d05e222911a8051d475bce35d73aeddbb1cea42921",
+      "size": 719
+    },
+    {
+      "path": "outputs/data_checks.json",
+      "sha256": "1ca4714d02bb8b45a43550586cc0ee0e4bb1e8f7670a40185363d7c42ca42afb",
+      "size": 1815
+    },
+    {
+      "path": "outputs/panel_main.csv",
+      "sha256": "563af4215f961ec5be9b95a3897b2b85900432eb1294564c3489bd03d7e5d02c",
+      "size": 9657
+    },
+    {
+      "path": "outputs/preflight.json",
+      "sha256": "eaa0dd196516e526cfd6f932ff277aaeb08c3169aa4fc7b751e8b8eff387ed59",
+      "size": 1604
+    },
+    {
+      "path": "outputs/report_incumbent_reference.csv",
+      "sha256": "2b481c9a347e846a59c9227e2278fa0ee61937794f4bfda5d32e0152d4a0ff97",
+      "size": 350
+    },
+    {
+      "path": "outputs/report_per_pair.csv",
+      "sha256": "f0f6af34dd2da0d39ebe439b7d2f63a16efabd91101cdc19bcb2d512947da3fc",
+      "size": 2439
+    },
+    {
+      "path": "outputs/report_yearly_net.json",
+      "sha256": "be26626b7260b849d0b7d1e04dfc46ade739b670cd5a3daa6e6ca8c3415f8d6c",
+      "size": 893
+    },
+    {
+      "path": "outputs/verdicts.csv",
+      "sha256": "90431b238568939a392e1cbe38ea526c38cadad3d53d33c784907abf5fc3a9d3",
+      "size": 1133
+    },
+    {
+      "path": "outputs/verdicts_main.csv",
+      "sha256": "bafdcbb32a27de37c55ebe064f3f0511c10e97779808c21e5d40748e6d58fc1f",
+      "size": 1100
+    },
+    {
+      "path": "logs/run.log",
+      "sha256": "bfde94e6eccc5c6f1e96d8d86c5c6c685a92b91ca186ceed9d45f342b51f6617",
+      "size": 300
+    }
+  ],
+  "completed_utc": "2026-09-30T15:48:57.838932+00:00",
+  "created_utc": "2026-09-30T15:46:54.898343+00:00",
+  "git": {
+    "commit": "ae4a8d0cf022c1b0ee08545e3657f08e9e8a55d4",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      " M output/citic40d/citic_style_signal_40d.csv",
+      " M output/equal_weight/equal_weight_signal_20d40z.csv",
+      " M output/equal_weight/equal_weight_signal_5d20z.csv",
+      " M output/hybrid20/confirmed_signal.csv",
+      " M output/hybrid20/growth_stability_signal.csv",
+      " M output/recommended/citic40d_longflat.csv",
+      " M output/recommended/equal_weight_longflat.csv",
+      " M output/recommended/equal_weight_symmetric.csv",
+      " M output/recommended/hybrid20_longflat.csv",
+      " M output/recommended/slope20_longflat.csv",
+      " M output/recommended/slope20_symmetric.csv",
+      " M output/slope20/slope20_signal_L20zw120.csv",
+      "?? backtest/etf_member_delivery_contract.py",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/flow_structure_followup.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/oi_delivery_contract.py",
+      "?? backtest/output/data_manager_acceptance_20260917/",
+      "?? backtest/output/data_manager_acceptance_20260917_r2/",
+      "?? backtest/output/data_manager_acceptance_20260917_r3/",
+      "?? backtest/output/data_manager_handoff_20260916/",
+      "?? backtest/output/data_manager_handoff_20260917/",
+      "?? backtest/output/data_manager_handoff_20260917_etf_member/",
+      "?? backtest/output/data_manager_handoff_20260917_etf_member_closeout/",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-constituent-flow-extension-r1/",
+      "?? backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-robustness-diagnostic-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-score-continuation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-structure-followup-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/runs/20260917-ew-etf-member-availability-audit-r1/",
+      "?? backtest/output/runs/20260917-ew-etf-member-research-r1/",
+      "?? backtest/output/runs/20260917-ew-etf-member-research-r2/",
+      "?? backtest/output/runs/20260917-ew-etf-member-research-r3/",
+      "?? backtest/output/runs/20260917-ew-holding-age-audit-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-input-readiness-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-research-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-research-r2/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_constituent_flow_extension.py",
+      "?? backtest/run_etf_member_availability_audit.py",
+      "?? backtest/run_etf_member_research.py",
+      "?? backtest/run_exit_mechanism_audit.py",
+      "?? backtest/run_flow_robustness_diagnostic.py",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_flow_structure_followup.py",
+      "?? backtest/run_holding_age_audit.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? backtest/run_oi_input_readiness.py",
+      "?? backtest/run_oi_research.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-extension.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-audit.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-diagnostic.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-followup.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/plans/2026-09-17-ew-etf-member-correction-results.md",
+      "?? docs/plans/2026-09-17-ew-etf-member-feature-freeze.md",
+      "?? docs/plans/2026-09-17-ew-etf-member-research-results.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-audit.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-results.md",
+      "?? docs/plans/2026-09-17-ew-oi-and-new-input-plan.md",
+      "?? docs/plans/2026-09-17-ew-oi-execution-freeze.md",
+      "?? docs/plans/2026-09-17-ew-oi-input-readiness-results.md",
+      "?? docs/plans/2026-09-17-ew-oi-research-results.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? docs/superpowers/plans/2026-09-30-ew-cw-axis-probe.md",
+      "?? tests/test_etf_member_research.py",
+      "?? tests/test_exit_mechanism_audit.py",
+      "?? tests/test_flow_structure_followup.py",
+      "?? tests/test_holding_age_audit.py",
+      "?? tests/test_intraday_flow_pilot.py",
+      "?? tests/test_oi_delivery_contract.py",
+      "?? tests/test_oi_research.py"
+    ],
+    "tracked_dirty": true
+  },
+  "git_end": {
+    "commit": "ae4a8d0cf022c1b0ee08545e3657f08e9e8a55d4",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      " M output/citic40d/citic_style_signal_40d.csv",
+      " M output/equal_weight/equal_weight_signal_20d40z.csv",
+      " M output/equal_weight/equal_weight_signal_5d20z.csv",
+      " M output/hybrid20/confirmed_signal.csv",
+      " M output/hybrid20/growth_stability_signal.csv",
+      " M output/recommended/citic40d_longflat.csv",
+      " M output/recommended/equal_weight_longflat.csv",
+      " M output/recommended/equal_weight_symmetric.csv",
+      " M output/recommended/hybrid20_longflat.csv",
+      " M output/recommended/slope20_longflat.csv",
+      " M output/recommended/slope20_symmetric.csv",
+      " M output/slope20/slope20_signal_L20zw120.csv",
+      "?? backtest/etf_member_delivery_contract.py",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/flow_structure_followup.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/oi_delivery_contract.py",
+      "?? backtest/output/data_manager_acceptance_20260917/",
+      "?? backtest/output/data_manager_acceptance_20260917_r2/",
+      "?? backtest/output/data_manager_acceptance_20260917_r3/",
+      "?? backtest/output/data_manager_handoff_20260916/",
+      "?? backtest/output/data_manager_handoff_20260917/",
+      "?? backtest/output/data_manager_handoff_20260917_etf_member/",
+      "?? backtest/output/data_manager_handoff_20260917_etf_member_closeout/",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-constituent-flow-extension-r1/",
+      "?? backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-robustness-diagnostic-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-score-continuation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-structure-followup-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/runs/20260917-ew-etf-member-availability-audit-r1/",
+      "?? backtest/output/runs/20260917-ew-etf-member-research-r1/",
+      "?? backtest/output/runs/20260917-ew-etf-member-research-r2/",
+      "?? backtest/output/runs/20260917-ew-etf-member-research-r3/",
+      "?? backtest/output/runs/20260917-ew-holding-age-audit-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-input-readiness-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-research-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-research-r2/",
+      "?? backtest/output/runs/20260930-ew-cw-axis-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_constituent_flow_extension.py",
+      "?? backtest/run_etf_member_availability_audit.py",
+      "?? backtest/run_etf_member_research.py",
+      "?? backtest/run_exit_mechanism_audit.py",
+      "?? backtest/run_flow_robustness_diagnostic.py",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_flow_structure_followup.py",
+      "?? backtest/run_holding_age_audit.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? backtest/run_oi_input_readiness.py",
+      "?? backtest/run_oi_research.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-extension.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-audit.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-diagnostic.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-followup.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/plans/2026-09-17-ew-etf-member-correction-results.md",
+      "?? docs/plans/2026-09-17-ew-etf-member-feature-freeze.md",
+      "?? docs/plans/2026-09-17-ew-etf-member-research-results.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-audit.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-results.md",
+      "?? docs/plans/2026-09-17-ew-oi-and-new-input-plan.md",
+      "?? docs/plans/2026-09-17-ew-oi-execution-freeze.md",
+      "?? docs/plans/2026-09-17-ew-oi-input-readiness-results.md",
+      "?? docs/plans/2026-09-17-ew-oi-research-results.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? docs/superpowers/plans/2026-09-30-ew-cw-axis-probe.md",
+      "?? tests/test_etf_member_research.py",
+      "?? tests/test_exit_mechanism_audit.py",
+      "?? tests/test_flow_structure_followup.py",
+      "?? tests/test_holding_age_audit.py",
+      "?? tests/test_intraday_flow_pilot.py",
+      "?? tests/test_oi_delivery_contract.py",
+      "?? tests/test_oi_research.py"
+    ],
+    "tracked_dirty": true
+  },
+  "n_cal": 400,
+  "n_perm": 999,
+  "prereg": "docs/plans/2026-09-30-ew-cw-axis-prereg.md",
+  "seeds": {
+    "calibration": 21260930,
+    "confirmation": 22260930,
+    "main": 20260930
+  },
+  "stage": "verdicts_written",
+  "status": "complete",
+  "verdicts": {
+    "F1": "STOP",
+    "F2": "STOP"
+  }
+}

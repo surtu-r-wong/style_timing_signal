@@ -1,0 +1,82 @@
+[
+  {
+    "field": "mfd_inflow_open_m",
+    "endpoint": "/fetch/financial_snapshot",
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,000001.SZ",
+      "fields": "mfd_inflow_open_m",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T01:59:40.423397+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        -797465125.0
+      ],
+      [
+        "000905.SH",
+        -1075348163.0
+      ],
+      [
+        "000852.SH",
+        -1179749475.0
+      ],
+      [
+        "932000.CSI",
+        1026381029.0
+      ],
+      [
+        "000001.SZ",
+        42640484.0
+      ]
+    ]
+  },
+  {
+    "field": "mfd_inflow_close_m",
+    "endpoint": "/fetch/financial_snapshot",
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH,932000.CSI,000001.SZ",
+      "fields": "mfd_inflow_close_m",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T01:59:41.407137+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        -888992844.0
+      ],
+      [
+        "000905.SH",
+        376241289.00000006
+      ],
+      [
+        "000852.SH",
+        116730966.00000001
+      ],
+      [
+        "932000.CSI",
+        492521302.0
+      ],
+      [
+        "000001.SZ",
+        -12975304.000000002
+      ]
+    ]
+  }
+]

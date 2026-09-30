@@ -1,0 +1,30 @@
+{
+  "status": "submitted",
+  "files": [
+    {
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/response-02-style-timing-signal-2026-09-17.md",
+      "sha256": "13c408da50b40ee44cf01c337395069fc5302eccb825d1a549908ab989dd04dc",
+      "bytes": 1734
+    },
+    {
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/consumer-acceptance-02/availability_audit_verification.json",
+      "sha256": "da7d87defb11d85786b3019a1fa1e09a67e9969f3a8d0ce99ed83ecf126fc822",
+      "bytes": 2165
+    },
+    {
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/consumer-acceptance-02/delivery_acceptance.json",
+      "sha256": "2added53a889cca518102cf27d239b365bdc5343e37026d1d5dc4b7d8018a3dd",
+      "bytes": 2477
+    },
+    {
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/consumer-acceptance-02/research_results.md",
+      "sha256": "be1a2e1a4c0e7e6dbe6cc400e2ec65abc4d24841667f922c6bb8b908ba356207",
+      "bytes": 8544
+    },
+    {
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/consumer-acceptance-02/research_verification.json",
+      "sha256": "64443e631eb9ff147da8541b577b55d3a6ac078c05afe67b7d53c4af6e84b489",
+      "bytes": 1965
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "contract_version": "ew-oi-v1",
+  "window_end": "2026-09-16",
+  "artifacts": [
+    {
+      "path": "product_daily.csv",
+      "sha256": "4cbe348adce71206e391709920c66d11edde9e4a8524110902aef1a53a4616e8"
+    },
+    {
+      "path": "features.csv",
+      "sha256": "4000330904f75e4cea19a015521f0efafe110d2ccd4216bff1390f66b91793e6"
+    },
+    {
+      "path": "calendar.csv",
+      "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983"
+    }
+  ],
+  "supporting_files": [
+    {
+      "path": "contract_detail.csv",
+      "sha256": "748da7f0354c29cd2f629129c78edd3d28e21fec76f3fa75475300b24457a1e1"
+    },
+    {
+      "path": "lifecycle_audit.csv",
+      "sha256": "e74a009d130d8519821270baec311fe8cd507f7d9b6b3c4ac35adf7b2c5a7638"
+    },
+    {
+      "path": "raw_inputs/futures.csv",
+      "sha256": "401571988ec8a39e98cdab3f87c336dc3eec354cb37444ad8d70588be07b91d2"
+    },
+    {
+      "path": "raw_inputs/index.csv",
+      "sha256": "af6165258e593684f38cf56cba52ed81d3ac86ee5301efc144b7dfbbe7ca7497"
+    },
+    {
+      "path": "raw_inputs/master.csv",
+      "sha256": "9fc64013c68c57a7b53372f6d71e4f3030e3426f4a04f6fe2ece7c351f533e3a"
+    }
+  ],
+  "generated_at_utc": "2026-09-17T03:47:44.109195+00:00",
+  "generator": {
+    "script": "data_manager/scripts/ew_oi_v1.py",
+    "data_manager_git_head": "cc23d16"
+  },
+  "raw_tables": [
+    "public.futures_daily",
+    "stock_selector.index_daily",
+    "public.trading_calendar",
+    "public.futures_contracts_all (corroboration only)"
+  ],
+  "unit": "lots; single-counted (单边手数); OI is end-of-day open interest, volume is the session's traded lots",
+  "training": "250 preceding consecutive sessions; columns [1,r5,abs(r5),rv20,v5]; rank 5; training-set centring/scaling, prediction equivalent"
+}

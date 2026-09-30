@@ -1,0 +1,2 @@
+17 targeted tests passed before return run; exact receipts in outputs/verification.json.
+No formal p-value gate or production deployment.

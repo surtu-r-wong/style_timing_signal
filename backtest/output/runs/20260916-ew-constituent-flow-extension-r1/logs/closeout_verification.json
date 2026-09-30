@@ -1,0 +1,12 @@
+{
+  "python3 tools/research_registry.py validate": "passed",
+  "python3 tools/research_registry.py render --check": "passed",
+  "git diff --check": "passed",
+  "preregistered_scope_unchanged": true,
+  "prior_artifacts_unchanged": 154,
+  "core_engine_unchanged": true,
+  "report_links_valid": true,
+  "source_amounts_decimal_exact": 75642,
+  "ledger_count": 122,
+  "original_engine_references": 9
+}

@@ -1,0 +1,71 @@
+schema,table,column,type
+public,futures_daily,id,bigint
+public,futures_daily,symbol,character varying
+public,futures_daily,trade_date,date
+public,futures_daily,open,numeric
+public,futures_daily,high,numeric
+public,futures_daily,low,numeric
+public,futures_daily,close,numeric
+public,futures_daily,volume,bigint
+public,futures_daily,oi,bigint
+public,futures_daily,turnover,numeric
+public,futures_daily,settle,numeric
+public,futures_daily,created_at,timestamp without time zone
+public,futures_daily,updated_at,timestamp without time zone
+public,futures_daily,source,character varying
+public,futures_daily,source_detail,jsonb
+public,futures_daily,pre_settle,numeric
+public,futures_daily,oi_chg,bigint
+public,futures_daily,pre_close,numeric
+public,futures_daily,delivery_settle,numeric
+public,futures_daily,exch_symbol,text
+public,trading_calendar,calendar_date,date
+public,trading_calendar,sfe,boolean
+public,trading_calendar,hkxe,boolean
+public,trading_calendar,comex,boolean
+public,trading_calendar,lme,boolean
+public,trading_calendar,nyse,boolean
+public,trading_calendar,tse,boolean
+public,trading_calendar,sgx,boolean
+public,trading_calendar,created_at,timestamp without time zone
+public,trading_calendar,updated_at,timestamp without time zone
+public,trading_calendar,deleted_at,timestamp with time zone
+stock_selector,etf_constituent,fund_code,text
+stock_selector,etf_constituent,basket_date,date
+stock_selector,etf_constituent,ts_code,text
+stock_selector,etf_constituent,sec_name,text
+stock_selector,etf_constituent,share,numeric
+stock_selector,etf_constituent,cash_sub_mark,text
+stock_selector,etf_constituent,close_price,numeric
+stock_selector,etf_constituent,price_date,date
+stock_selector,etf_constituent,weight,numeric
+stock_selector,etf_constituent,fund_cash_amount,numeric
+stock_selector,etf_constituent,fund_basket_value,numeric
+stock_selector,etf_constituent,updated_at,timestamp with time zone
+stock_selector,fund_holder_structure,fund_code,text
+stock_selector,fund_holder_structure,report_date,date
+stock_selector,fund_holder_structure,institution_holding_pct,numeric
+stock_selector,fund_holder_structure,personal_holding_pct,numeric
+stock_selector,fund_holder_structure,stock_to_nav_pct,numeric
+stock_selector,fund_holder_structure,data_source,text
+stock_selector,fund_holder_structure,created_at,timestamp with time zone
+stock_selector,fund_holder_structure,updated_at,timestamp with time zone
+stock_selector,fund_holder_structure,scale_is_merged,text
+stock_selector,fund_holder_structure,share_net_asset,numeric
+stock_selector,fund_nav,fund_code,text
+stock_selector,fund_nav,trade_date,date
+stock_selector,fund_nav,unit_nav,numeric
+stock_selector,fund_nav,accumulated_nav,numeric
+stock_selector,fund_nav,net_asset,numeric
+stock_selector,fund_nav,month_return,numeric
+stock_selector,fund_nav,created_at,timestamp with time zone
+stock_selector,fund_nav,updated_at,timestamp with time zone
+stock_selector,index_daily,index_code,text
+stock_selector,index_daily,trade_date,date
+stock_selector,index_daily,open,numeric
+stock_selector,index_daily,high,numeric
+stock_selector,index_daily,low,numeric
+stock_selector,index_daily,close,numeric
+stock_selector,index_daily,volume,bigint
+stock_selector,index_daily,amount,numeric
+stock_selector,index_daily,updated_at,timestamp with time zone

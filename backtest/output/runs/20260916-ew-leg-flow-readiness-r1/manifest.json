@@ -1,0 +1,125 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/__pycache__/code__backtest__flow_field_readiness.cpython-313.pyc",
+      "sha256": "31feb9e774f9560788ce4a4d6d2ea801f8ca13d826109e1177e00a835979f227",
+      "size": 14228
+    },
+    {
+      "path": "inputs/calendar.csv",
+      "sha256": "c05cb02c758be6c3588f1a85706e3b3ea1b0f468131ce543c5354c2efe68b0c4",
+      "size": 33979
+    },
+    {
+      "path": "inputs/code__backtest__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__backtest__flow_field_readiness.py",
+      "sha256": "0e89a33e5b91b00dc9ef821baa7bf5eb6aae6b107b1e3ea27ab082dec6ab6a9c",
+      "size": 8664
+    },
+    {
+      "path": "inputs/code__backtest__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code__signals__common__config.py",
+      "sha256": "90a80df8d7af97aafb002abfb716987405cefd0f793da7b933efd92c968c7f44",
+      "size": 931
+    },
+    {
+      "path": "inputs/decimal_identity_check.py",
+      "sha256": "5a2aa8071bdb9be78701ea8428db3551d88a9e1fdd29124d7bf282d332357c35",
+      "size": 921
+    },
+    {
+      "path": "inputs/metadata.json",
+      "sha256": "72ba8b65f6076a351363ca1270a1affbda7a4b168f4d53f3a0d073afce3438ac",
+      "size": 586
+    },
+    {
+      "path": "inputs/money_flow.csv",
+      "sha256": "1dc81c65e34d95c61ebee40d98db3f4e9c328341112bc2c79b6ba2aa1543d17a",
+      "size": 1620317
+    },
+    {
+      "path": "inputs/raw_source_hashes.json",
+      "sha256": "0f38ea1b45dc892a9ef0ff9c07912926cef7a9a647e72e2cd0dd0350266fe1ac",
+      "size": 35336
+    },
+    {
+      "path": "inputs/scope.md",
+      "sha256": "66ea6c2ec664bc3694a59801f80207d2013e8028b5b45df940f514e4b1beee6d",
+      "size": 4374
+    },
+    {
+      "path": "inputs/verify.py",
+      "sha256": "dd7256f8ef7d47e46749dd6c16fe33824fe7c4fd89704f27ba648d5a94dea526",
+      "size": 2681
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "f505b766e953e5c73e06705661a6b8403e0044b966a20c14b05981252be2ca22",
+      "size": 4535
+    },
+    {
+      "path": "outputs/decimal_identity_check.json",
+      "sha256": "60f065d13d04e4c08cc2a39c400526fc45f13c73d3af2b35c24d56c1fdf0974e",
+      "size": 181
+    },
+    {
+      "path": "outputs/field_statistics.csv",
+      "sha256": "c135ef5f8e11f00ea62a43929a959a6245bff932383c5c53d94e254d46e77b36",
+      "size": 2630
+    },
+    {
+      "path": "outputs/summary.json",
+      "sha256": "d520847267d3e45a10209dbc192b393dd89987ccc6a2af894debd155b9454887",
+      "size": 2112
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "8ac417a2fd2becef5ff56ac9ae69d2b3bcaf449da44ec859298f272f08882853",
+      "size": 1151
+    },
+    {
+      "path": "outputs/yearly_field_coverage.csv",
+      "sha256": "a220c119d4bd4150a7f0acadfea2710536b6a1a58fcdacacc98ac220d9c62193",
+      "size": 15368
+    },
+    {
+      "path": "logs/checks.txt",
+      "sha256": "4e2f3f088b8a63fd9d4885914df2d09fa25cc8caf5c89940ac3563f0ebfc7625",
+      "size": 291
+    }
+  ],
+  "completed_utc": "2026-09-16T00:37:58.259035+00:00",
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md"
+    ],
+    "tracked_dirty": true
+  },
+  "research_outcome": "pending",
+  "returns_examined": false,
+  "stage": "money_flow_field_readiness_only",
+  "status": "complete"
+}

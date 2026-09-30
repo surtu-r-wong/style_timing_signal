@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "oi",
+    "request": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/request.md",
+    "sha256": "65323478d7f27e865386d815c9af4bb049df6a6754a2e428c755c0429e06e0a0",
+    "status": "submitted_no_disposition_yet"
+  },
+  {
+    "kind": "etf",
+    "request": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/request.md",
+    "sha256": "1e888f52e440fc16bc6a7d6891305d65a1a5ef8600111177bc76b263d5e096d8",
+    "status": "submitted_no_disposition_yet"
+  },
+  {
+    "kind": "member",
+    "request": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/request.md",
+    "sha256": "96348ceb5acd154c4bee9b7bc0bccfd2e767e26aca8cfa99831072a6f5d50be6",
+    "status": "submitted_no_disposition_yet"
+  }
+]

@@ -1,0 +1,86 @@
+[
+  {
+    "parent_path": "inputs/futures.csv",
+    "path": "inputs/futures.csv",
+    "sha256": "31aa2d003a564f66941952e4fd1ddc0b810578504c325e330bdf79c80d7694cd",
+    "size": 959379
+  },
+  {
+    "parent_path": "inputs/office/calendar.csv",
+    "path": "inputs/office/calendar.csv",
+    "sha256": "a2dad611a0c028b6f072d968935b31a8ed4187bf701d25cabb80944356630489",
+    "size": 69804
+  },
+  {
+    "parent_path": "inputs/office/etf_features.csv",
+    "path": "inputs/office/etf_features.csv",
+    "sha256": "7998ad749e744bd71913ca7389610e228657fac6e3945fff0e16b625bd2cc289",
+    "size": 458515
+  },
+  {
+    "parent_path": "inputs/office/member_features.csv",
+    "path": "inputs/office/member_features.csv",
+    "sha256": "5c867b7b8c68ab18bf497621b2dfda920c8b1b6edf05c4db09348c91fa05533b",
+    "size": 212240
+  },
+  {
+    "parent_path": "inputs/office/price_features.csv",
+    "path": "inputs/office/price_features.csv",
+    "sha256": "d16270dce984f6e270cc307c52ecdb7776d2990ab364e741b197713266bc6484",
+    "size": 163071
+  },
+  {
+    "parent_path": "outputs/targets_IC_long.csv",
+    "path": "outputs/targets_IC_long.csv",
+    "sha256": "500e8f396449180fdb58d2796367877d679d429db13f706f2c3daacb3249dc08",
+    "size": 737605
+  },
+  {
+    "parent_path": "outputs/targets_common.csv",
+    "path": "outputs/targets_common.csv",
+    "sha256": "debef69aac720e2445a4b8b3786a37801a24c8e239b050b0ff9e7d6a78bd72fb",
+    "size": 509961
+  },
+  {
+    "parent_path": "outputs/definitions.csv",
+    "path": "outputs/definitions.csv",
+    "sha256": "66f35eaaa64772f3b68cae6791b04627f22937f2313254382cde03dd2e3d9fc2",
+    "size": 1361
+  },
+  {
+    "parent_path": "outputs/ledgers_IC_long_close_3bps.csv.gz",
+    "path": "outputs/ledgers_IC_long_close_3bps.csv.gz",
+    "sha256": "263e1d1861663e1b5fa319b6289604e64614267e79d8f6bc6b177370b8e6e3d7",
+    "size": 5128257
+  },
+  {
+    "parent_path": "outputs/ledgers_IC_long_close_10bps.csv.gz",
+    "path": "outputs/ledgers_IC_long_close_10bps.csv.gz",
+    "sha256": "7d6e3f1118c561d1c4181aef9ba8af6f29ff62df0c043149213d9f9e81038ded",
+    "size": 4560449
+  },
+  {
+    "parent_path": "outputs/ledgers_IC_long_second_close_3bps.csv.gz",
+    "path": "outputs/ledgers_IC_long_second_close_3bps.csv.gz",
+    "sha256": "090aab799c69e797b35a101d954d7e0847d5e54cf8337ae0116c74696e7947fb",
+    "size": 5121019
+  },
+  {
+    "parent_path": "outputs/ledgers_common_close_3bps.csv.gz",
+    "path": "outputs/ledgers_common_close_3bps.csv.gz",
+    "sha256": "64020027801714984865f1993dfab62492173a3daa530fd105441cd2ee5f556d",
+    "size": 3641001
+  },
+  {
+    "parent_path": "outputs/ledgers_common_close_10bps.csv.gz",
+    "path": "outputs/ledgers_common_close_10bps.csv.gz",
+    "sha256": "b72b8919dfc9adf3a521562318ca59f7cdf8b71e3ba871777d65409b79d1c738",
+    "size": 3218640
+  },
+  {
+    "parent_path": "outputs/ledgers_common_second_close_3bps.csv.gz",
+    "path": "outputs/ledgers_common_second_close_3bps.csv.gz",
+    "sha256": "49afa856dc0d07cf535da05a1ec4e44747c6fc5a8f2249672341672ed5ec4837",
+    "size": 3636454
+  }
+]

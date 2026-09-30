@@ -1,0 +1,51 @@
+[
+  {
+    "event": "tariff_20180323",
+    "anchor": "2018-03-23",
+    "kind": "tariff",
+    "label": "301行动",
+    "source": "https://ustr.gov/about-us/policy-offices/press-office/press-releases/2018/june/ustr-issues-tariffs-chinese-products"
+  },
+  {
+    "event": "tariff_20180619",
+    "anchor": "2018-06-19",
+    "kind": "tariff",
+    "label": "6月15日关税清单，端午后首个交易日",
+    "source": "https://ustr.gov/about-us/policy-offices/press-office/press-releases/2018/june/ustr-issues-tariffs-chinese-products"
+  },
+  {
+    "event": "tariff_20190506",
+    "anchor": "2019-05-06",
+    "kind": "tariff",
+    "label": "5月5日升级威胁",
+    "source": "https://www.axios.com/2019/05/05/trump-ratchets-up-us-china-trade-war-with-new-tariff-threat"
+  },
+  {
+    "event": "tariff_20190802",
+    "anchor": "2019-08-02",
+    "kind": "tariff",
+    "label": "8月1日升级威胁",
+    "source": "https://www.axios.com/2019/08/01/donald-trump-china-tariffs-300-billion-10-percent"
+  },
+  {
+    "event": "policy_20240924",
+    "anchor": "2024-09-24",
+    "kind": "policy",
+    "label": "金融政策组合",
+    "source": "https://english.www.gov.cn/news/202409/25/content_WS66f3602ec6d0868f4e8eb3c0.html"
+  },
+  {
+    "event": "tariff_20250403",
+    "anchor": "2025-04-03",
+    "kind": "tariff",
+    "label": "美国4月2日关税行动",
+    "source": "https://www.govinfo.gov/app/details/DCPD-202500425"
+  },
+  {
+    "event": "geneva_20250512",
+    "anchor": "2025-05-12",
+    "kind": "tariff",
+    "label": "日内瓦周末进展，开盘前已公开；正式声明15:00另作敏感性",
+    "source": "https://www.mofcom.gov.cn/syxwfb/art/2025/art_1079483db82e4b5591ffb65900ef4eac.html"
+  }
+]

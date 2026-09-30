@@ -1,0 +1,34 @@
+verified 0 / 1374
+verified 300 / 1374
+verified 600 / 1374
+verified 900 / 1374
+verified 1200 / 1374
+{
+  "status": "passed",
+  "comparison_rows": 1374,
+  "named_specifications": 736,
+  "unique_position_paths": 728,
+  "registry_records": 63,
+  "negative_records": 40,
+  "negative_signal_records": 38,
+  "negative_records_with_direct_replay": 29,
+  "negative_records_with_replay_including_alias": 30,
+  "independent_engine_comparisons": 2748,
+  "max_primary_metric_error": 1.4210854715202004e-14,
+  "frozen_source_hashes_checked": 75,
+  "archived_ledgers_checked": 10,
+  "attribution_rows": 263712,
+  "robust_sharpe_flips": 3,
+  "robust_both_flips": 0
+}
+             comparison_scope  lag   mask  comparisons  originally_lagging  sharpe_flips  both_flips
+     current_EW_cross_mapping    1 all_10          319                 279            24           0
+         current_EW_short_leg    1 all_10           27                  27             0           0
+         current_EW_symmetric    1 all_10          390                 387             1           0
+  current_spot_slope_longflat    1 all_10          295                 291             0           0
+       historical_EW_longflat    1 all_10          319                 314             0           0
+hypothetical_spot_with_shorts    1 all_10           24                  16             0           0
+ROBUST                name         comparison_scope
+   staged_B1_sm1_t1 current_EW_cross_mapping
+pairset_C_1000_only current_EW_cross_mapping
+  fixed_lf_Hamilton current_EW_cross_mapping

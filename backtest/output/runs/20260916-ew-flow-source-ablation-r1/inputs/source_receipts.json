@@ -1,0 +1,42 @@
+{
+  "money_flow.csv": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/inputs/money_flow.csv",
+    "size": 1620317,
+    "sha256": "1dc81c65e34d95c61ebee40d98db3f4e9c328341112bc2c79b6ba2aa1543d17a"
+  },
+  "board_prices.csv": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/inputs/board_prices.csv",
+    "size": 191106,
+    "sha256": "04b238d7fa80adf14e728b26b27c768196ecd555bfeeef167677f58aeedde1e2"
+  },
+  "futures.csv": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/inputs/futures.csv",
+    "size": 957830,
+    "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b"
+  },
+  "spot.csv": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/inputs/spot.csv",
+    "size": 223423,
+    "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d"
+  },
+  "equal_weight.csv": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/inputs/equal_weight.csv",
+    "size": 192861,
+    "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc"
+  },
+  "prior_features.csv": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/outputs/features.csv",
+    "size": 261600,
+    "sha256": "048a9e297aaa1d97543295b3bb128c7d71bd849fadbbe2dbf7f86413ff887a8b"
+  },
+  "prior_verification.json": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/outputs/verification.json",
+    "size": 1583,
+    "sha256": "41729f7eabc86dcd90acc51b7e3bffb37b6bc483407c510e5d3e1c813dce20d9"
+  },
+  "prior_contract_schedule.csv": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/outputs/contract_schedule.csv",
+    "size": 122175,
+    "sha256": "a940a23db436c4e494de1ca8a611891df89880518c3c81e9919ca6a3507240a1"
+  }
+}

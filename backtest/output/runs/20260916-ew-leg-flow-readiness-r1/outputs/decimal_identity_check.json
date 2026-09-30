@@ -1,0 +1,10 @@
+{
+  "vendor_main_equals_net": {
+    "decimal_gt_0_001": 1807,
+    "exactly_0_001": 169
+  },
+  "four_buckets_zero_sum": {
+    "decimal_gt_0_001": 2909,
+    "exactly_0_001": 193
+  }
+}

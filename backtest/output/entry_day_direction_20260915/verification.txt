@@ -1,0 +1,3 @@
+PASS: independently reconstructed all entry dates from observed position transitions.
+PASS: all 5175 event-horizon rows checked against direct compounding of daily returns.
+PASS: completed trade exits are first non-long signal dates.

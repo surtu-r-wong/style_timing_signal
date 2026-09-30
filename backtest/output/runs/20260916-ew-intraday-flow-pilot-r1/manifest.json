@@ -1,0 +1,216 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/board_prices.csv",
+      "sha256": "04b238d7fa80adf14e728b26b27c768196ecd555bfeeef167677f58aeedde1e2",
+      "size": 191106
+    },
+    {
+      "path": "inputs/code__backtest__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__backtest__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__backtest__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__backtest__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__backtest__run_intraday_flow_pilot.py",
+      "sha256": "8d79e614f8a66ad96308e270736940ce8303dd2eac08b8962dda1e42ce38ad36",
+      "size": 19934
+    },
+    {
+      "path": "inputs/code__backtest__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code__docs__plans__2026-09-16-money-flow-field-definitions.md",
+      "sha256": "4711321b9c6e68c05d262c5e4ee7e87ffdfe063fe281a0c2604ee69494f022a6",
+      "size": 7281
+    },
+    {
+      "path": "inputs/code__tests__test_execution_ledger.py",
+      "sha256": "247f952631bf5e3cd44fe010be587574c151cd95d1f40fe3f77efbf3aa37d690",
+      "size": 4175
+    },
+    {
+      "path": "inputs/code__tests__test_intraday_flow_pilot.py",
+      "sha256": "7021332812e3636b022df4663cddb1561b8302a7d601f02cc6f9d58a6c0d20b5",
+      "size": 5297
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc",
+      "size": 192861
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/money_flow.csv",
+      "sha256": "1dc81c65e34d95c61ebee40d98db3f4e9c328341112bc2c79b6ba2aa1543d17a",
+      "size": 1620317
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "047370b318c5a3d76d59a311f4728ff71a8429a296463f27bef40eccb7f1d8bd",
+      "size": 6124
+    },
+    {
+      "path": "inputs/provenance.json",
+      "sha256": "90da8b951851b2c87ec2a8a26191fa3c78ff4b3dcb6e3b1d63b83972ae8683a4",
+      "size": 1102
+    },
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "d25da15d28466517b62b3a1f9ea6b742f16759d334faf489d7768ecc2ae1600f",
+      "size": 8158
+    },
+    {
+      "path": "outputs/attribution_close_10bps.csv.gz",
+      "sha256": "a1bb0c71f1acb4e97cb8437e19d3155ebb4433f446067df351f981daab0cea97",
+      "size": 2316556
+    },
+    {
+      "path": "outputs/attribution_close_3bps.csv.gz",
+      "sha256": "dc184d5f19f3baeabdca746b897d41796a12faec773d509bb8e67d51d5613241",
+      "size": 2322914
+    },
+    {
+      "path": "outputs/attribution_second_close_3bps.csv.gz",
+      "sha256": "0fb87ff4d6bc46b33c6ad47cf7625145df66fca7670b3566c822598eaeac5790",
+      "size": 2319665
+    },
+    {
+      "path": "outputs/contract_schedule.csv",
+      "sha256": "a940a23db436c4e494de1ca8a611891df89880518c3c81e9919ca6a3507240a1",
+      "size": 122175
+    },
+    {
+      "path": "outputs/exposure_matched_scales.csv",
+      "sha256": "784316d6b854b35170cad879a7f3d0325fc3e2991e70445da87594eddb818e14",
+      "size": 1005
+    },
+    {
+      "path": "outputs/feature_components.csv",
+      "sha256": "06d91be2dc8f0f18c96e15f08ad8398de4b66682561f1cc9288f897bd299a18f",
+      "size": 504840
+    },
+    {
+      "path": "outputs/features.csv",
+      "sha256": "048a9e297aaa1d97543295b3bb128c7d71bd849fadbbe2dbf7f86413ff887a8b",
+      "size": 261600
+    },
+    {
+      "path": "outputs/ledgers_close_10bps.csv.gz",
+      "sha256": "24a5477d471c5a5fdd343ab81b231085ffd1d4ff545915385e93fdea86b2265e",
+      "size": 4789006
+    },
+    {
+      "path": "outputs/ledgers_close_3bps.csv.gz",
+      "sha256": "590370b153ce4262f063a837008c44848646d49ece4c6ef77aa45684753ea193",
+      "size": 5370868
+    },
+    {
+      "path": "outputs/ledgers_second_close_3bps.csv.gz",
+      "sha256": "90f6dd600ec1c535e3ab1811306e71c31f9da7cc8c475ee448db491d3d1457a5",
+      "size": 5361382
+    },
+    {
+      "path": "outputs/leg_comparisons.csv",
+      "sha256": "9277776731ac9ebe37416b7332748f3574e794d0e6b2e0c55a811b9a49c2a751",
+      "size": 165861
+    },
+    {
+      "path": "outputs/metrics.csv",
+      "sha256": "66bc48bdadac9b74d83c015e5de148b0fd353d805daa9cb844b3967804bde2e4",
+      "size": 665699
+    },
+    {
+      "path": "outputs/strategy_catalog.csv",
+      "sha256": "238fc63e642eba20b5a2738de55e1988f3460709bedda12ad019372eb7a07393",
+      "size": 1576
+    },
+    {
+      "path": "outputs/targets_close_10bps.csv",
+      "sha256": "03e1399686cd6a6c8f63b12018f96981edd5ef19825a126010e6adbad8f9e93b",
+      "size": 738398
+    },
+    {
+      "path": "outputs/targets_close_3bps.csv",
+      "sha256": "03e1399686cd6a6c8f63b12018f96981edd5ef19825a126010e6adbad8f9e93b",
+      "size": 738398
+    },
+    {
+      "path": "outputs/targets_second_close_3bps.csv",
+      "sha256": "660889b691ce41191a42b4d62dd3ed757fa4ba23df0d42f655254a59beea0a6b",
+      "size": 739639
+    },
+    {
+      "path": "outputs/trades.csv",
+      "sha256": "208848114a298d6cfd4db925158793d4ec2c81f75610009e1a979fa7a493484f",
+      "size": 2628566
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "41729f7eabc86dcd90acc51b7e3bffb37b6bc483407c510e5d3e1c813dce20d9",
+      "size": 1583
+    },
+    {
+      "path": "logs/checks.txt",
+      "sha256": "02b5d2df4b9664281f145227cdca88295aae81d9fa70090bbc643f9544a517e0",
+      "size": 138
+    }
+  ],
+  "completed_utc": "2026-09-16T01:29:44.058027+00:00",
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? tests/test_intraday_flow_pilot.py"
+    ],
+    "tracked_dirty": true
+  },
+  "prereg_sha256": "047370b318c5a3d76d59a311f4728ff71a8429a296463f27bef40eccb7f1d8bd",
+  "stage": "intraday_flow_descriptive_pilot",
+  "status": "complete"
+}

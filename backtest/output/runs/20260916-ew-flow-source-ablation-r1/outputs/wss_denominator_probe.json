@@ -1,0 +1,154 @@
+[
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH",
+      "fields": "mfd_buyamt",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:08:14.255239+00:00",
+    "http_status": 200,
+    "wind_error_codes": [
+      "-40522006"
+    ],
+    "status": "error"
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH",
+      "fields": "mfd_sellamt",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:08:15.462029+00:00",
+    "http_status": 200,
+    "wind_error_codes": [
+      "-40522006"
+    ],
+    "status": "error"
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH",
+      "fields": "mfd_buyamt_l",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:08:16.771067+00:00",
+    "http_status": 200,
+    "wind_error_codes": [
+      "-40522006"
+    ],
+    "status": "error"
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH",
+      "fields": "mfd_buyamt_xl",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:08:18.204775+00:00",
+    "http_status": 200,
+    "wind_error_codes": [
+      "-40522006"
+    ],
+    "status": "error"
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH",
+      "fields": "mfd_buyamt_large",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:08:18.842645+00:00",
+    "http_status": 200,
+    "wind_error_codes": [
+      "-40522006"
+    ],
+    "status": "error"
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH",
+      "fields": "mfd_buyamt_exlarge",
+      "rpt_date": "2026-09-03",
+      "options": "tradeDate=20260903;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:08:19.375318+00:00",
+    "http_status": 200,
+    "wind_error_codes": [
+      "-40522006"
+    ],
+    "status": "error"
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2016-01-04",
+      "options": "tradeDate=20160104;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:08:19.898912+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        -3348746519.0,
+        0.0
+      ],
+      [
+        "000905.SH",
+        -2603138965.0,
+        0.0
+      ],
+      [
+        "000852.SH",
+        -4756126174.0,
+        0.0
+      ]
+    ]
+  },
+  {
+    "params": {
+      "codes": "000300.SH,000905.SH,000852.SH",
+      "fields": "mfd_inflow_open_m,mfd_inflow_close_m",
+      "rpt_date": "2017-01-03",
+      "options": "tradeDate=20170103;cycle=D;unit=1"
+    },
+    "observed_utc": "2026-09-16T02:08:21.024564+00:00",
+    "http_status": 200,
+    "wind_error_codes": [],
+    "status": "ok",
+    "columns": [
+      "ts_code",
+      "mfd_inflow_open_m",
+      "mfd_inflow_close_m"
+    ],
+    "rows": [
+      [
+        "000300.SH",
+        39146695.0,
+        311093695.0
+      ],
+      [
+        "000905.SH",
+        -461981300.0,
+        104159414.0
+      ],
+      [
+        "000852.SH",
+        -1174189889.0,
+        49511334.0
+      ]
+    ]
+  }
+]

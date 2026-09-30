@@ -1,0 +1,158 @@
+"""Package the bounded audit; no production changes or new candidate search."""
+from pathlib import Path
+import ast,json,platform
+import pandas as pd,numpy as np
+import audit as core
+ROOT,RUN,O=core.ROOT,core.RUN,core.OUT
+c=pd.read_csv(O/'candidate_catalog.csv');a=pd.read_csv(O/'full_sensitivity.csv')
+v=json.loads((O/'verification.json').read_text())
+p=a[(a.lag==1)&a['mask'].eq('all_10')];flips=p[p.rank_flip].copy()
+coverage=pd.read_csv(O/'registry_coverage.csv')
+negative=set(coverage[coverage.outcome.isin(['stop','all_fail'])].study)
+flips['formal_negative_study']=flips.study.isin(negative)
+for study,g in c.groupby('study'):
+    if set(g.role)=={'frozen_representative'}:
+        sel=coverage.study.eq(study)&coverage.coverage.eq('grid_or_fixed_replay')
+        coverage.loc[sel,'coverage']='representatives'
+        coverage.loc[sel,'note']='回放已存档固定代表，未宣称复算族内全网格。'
+coverage.to_csv(O/'registry_coverage.csv',index=False)
+flips.to_csv(O/'review_candidates.csv',index=False)
+flips.to_csv(O/'夏普反转候选明细.csv',index=False,encoding='utf-8-sig')
+issues=[]
+for f in [O/'build_issues.csv',O/'extra/build_issues.csv',O/'extra2/build_issues.csv']:
+    try:issues.append(pd.read_csv(f))
+    except pd.errors.EmptyDataError:pass
+pd.concat(issues,ignore_index=True).drop_duplicates().to_csv(O/'all_build_issues.csv',index=False)
+(O/'events.json').write_text(json.dumps([dict(event=e[0],anchor=e[1],kind=e[2],label=e[3],source=e[4]) for e in core.EVENTS],ensure_ascii=False,indent=2))
+# Snapshot additional local Python dependencies without accessing environment files.
+core.SOURCES=json.loads((O/'input_sources.json').read_text())
+queue=[RUN/'inputs'/f for f in ['audit.py','extend.py','finish_coverage.py','current_reference.py','verify_and_summarize.py']]
+seen=set()
+while queue:
+    f=queue.pop()
+    if f in seen or not f.exists():continue
+    seen.add(f)
+    if not f.is_relative_to(RUN):core.freeze(f)
+    for node in ast.walk(ast.parse(f.read_text())):
+        mods=[]
+        if isinstance(node,ast.Import):mods=[n.name for n in node.names]
+        elif isinstance(node,ast.ImportFrom) and node.module and node.level==0:mods=[node.module]
+        for mod in mods:
+            if mod.split('.')[0] not in ['backtest','signals','data']:continue
+            candidate=ROOT/(mod.replace('.','/')+'.py')
+            if candidate.exists():queue.append(candidate)
+(O/'input_sources.json').write_text(json.dumps(core.SOURCES,indent=2))
+with pd.ExcelWriter(O/'被否决信号_事件依赖审计.xlsx',engine='openpyxl') as writer:
+    for name,df in [('夏普反转候选',flips),('主窗口全部比较',p),('稳健性',pd.read_csv(O/'robustness.csv')),('历史研究覆盖',coverage),('计数口径',pd.read_csv(O/'comparison_counts.csv')),('收益与回撤',pd.read_csv(O/'risk_and_returns.csv')),('事件日历',pd.read_csv(O/'event_windows.csv')),('数据缺口',pd.read_csv(O/'all_build_issues.csv'))]:
+        df.to_excel(writer,sheet_name=name,index=False)
+        ws=writer.sheets[name];ws.freeze_panes='A2';ws.auto_filter.ref=ws.dimensions
+        for col in ws.columns:ws.column_dimensions[col[0].column_letter].width=min(60,max(14,len(str(col[0].value))+3))
+report='''# 历史否决信号的事件依赖审计
+
+数据截至2026-09-11；分析日期2026-09-15。历史描述性归因，生产未改动。
+
+## 结论
+
+用户假设分为两层：现役相对优势是否集中于事件行情；排除这部分后，历史候选是否更好。本轮支持部分候选存在前一种现象，尚不足以推出后一结论。
+
+七项事件各取包含锚日的10个交易日，将候选和基准相同日期的净收益同时置零：**没有候选同时实现夏普和累计收益由落后转领先**。单看夏普有25个命名规格反转，对应23条不同仓位路径，不是25个独立信号。其中1个为对称候选，24个来自历史多头/空仓或混合映射与当前EW对称的跨映射比较。
+
+## 覆盖范围
+
+完整盘点台账63项，STOP/ALL_FAIL共40项；扣除2项统计方法，涉及38项信号或研究记录。**30/38项有回放或关联复检证据**：29项直接重建，另1项C1复检与已重建代表共用。部分只回放冻结代表或子网格，不能称30项全网格穷尽。
+
+另纳入原EW未选参数及未采用固定生成器，共736个命名规格、728条精确不同的仓位路径，形成1374组“候选×收益模型×基准”。不同映射、不同基准分别占行，1374不是独立信号数。最大公共日历2014-01-02—2026-09-11，共3088日；短历史候选只与自身同窗基准比较。
+
+|比较口径|比较数|原夏普落后|夏普反转|夏普及累计收益同时反转|
+|---|---:|---:|---:|---:|
+|对称候选 vs 当前EW对称|390|387|1|0|
+|历史LF/混合映射 vs 当前EW对称（补充）|319|279|24|0|
+|短触发 vs 当前EW空头腿|27|27|0|0|
+|可行多头候选 vs 当前slope现货|295|291|0|0|
+|候选 vs 历史EW多头|319|314|0|0|
+|含做空仓位 vs slope现货（不可直接部署）|24|16|0|0|
+
+当前EW对称比较共709组，其中666组原本夏普落后，25/666=3.75%出现夏普反转；同对称映射是1/387=0.26%。跨映射当前EW比较是在初批结果后补齐，属于探索性补充，没有改候选参数或事件日期。原本已领先的候选不计作事件造成的反转。正式研究被否决也不代表每个参数都曾单独受审。
+
+## 最值得复核的同类候选：EW 20/250/0
+
+20日价差、250日滚动标准化、不平滑；现役20/40/5。该规格来自原40点EW网格，不是新增参数搜索。
+
+|指标|候选|现役EW对称|
+|---|---:|---:|
+|原全期夏普|1.3715|1.3873|
+|10日事件窗口收益置零后夏普|1.3216|1.3053|
+|原全期最大回撤|−27.91%|−29.26%|
+|10日事件窗口收益置零后最大回撤|−31.41%|−29.69%|
+
+候选原期末净值比现役低11.45%，事件中性后仍低2.24%。按可精确相加的相对对数收益分解，**81.4%的落后集中在这70个事件窗口交易日**；这不是夏普差贡献率，更不是“81%概率是运气”。
+
+- 9.24不是这两个规格的胜负来源：事件前都持多，10日窗口净收益都约+25.20%。
+- 2025-04-03冲击前都持空，10日窗口都约+4.77%。
+- 主要差异在2019-08-02：候选事件前持多，现役持空；10日窗口候选约−3.03%，现役约+6.82%。相对对数收益差−0.09677，占全部事件窗口净差额的大部分。
+- 2019年5月事件前同为持空，后续换仓不同也产生差额；2025年5月日内瓦窗口候选反而较好。不能把所有差额称为事件前“蒙中/蒙错”。
+
+夏普反转在5/10/20日窗口都出现，但**双方开平仓均推迟至T+1收盘后消失**：10日事件中性夏普候选1.2250、现役1.3251。事件中性回撤也更深。因此保留作复核对象，不能认定更好。
+
+## 稳健性
+
+|统一剔除口径（T收盘执行）|夏普反转比较数|夏普和累计收益同时反转|
+|---|---:|---:|
+|事件起5个交易日|18|0|
+|事件起10个交易日（主口径）|25|0|
+|事件起20个交易日|19|2|
+|全公共日历绝对市场涨跌最大的20日|124|7|
+
+20日双指标反转为EW 20/250/0及四对权重(2/7,1/7,2/7,2/7)；后者夏普优势仅0.0021。两者都不能在T+1收盘执行下维持该20日双指标反转。不能因20日出现反转而事后替换主口径。
+
+staged_B1_sm1_t1、pairset_C_1000_only、Hamilton多头三个跨映射规格，在5/10/20日与两种执行时点的6种组合中都保持夏普反转；累计收益仍明显较低。其中分批建仓和1000-only在T收盘口径的worst(train,val)仍落后；Hamilton原worst(train,val)已略高于对称现役，并非事件剔除才翻转。完整分段指标已保存。
+
+六种组合都同时保持夏普和累计收益反转的候选数为**0**。没有重新进行多重选择统计检验，不赋予上述差异“显著”标签。2024年以后仍为反复使用的历史，不是新的样本外证据。
+
+## 未数值回放的8项及部分覆盖
+
+|研究|原因|
+|---|---|
+|面2横截面|冻结代表有1个内部交易日缺口，未擅自补持仓|
+|双通道|涉及现货2000/期货500工具配比，不等于同blend信号|
+|尾部第五桶、等比五桶|需重建股票级篮子和日持仓；本轮只核对原结构裁决|
+|新轴第一批、质量轴第二批|原裁决为结构/IC入场检验，没有直接沿用的单一日频交易规格|
+|B3连续风格状态|紧凑证据无完整逐日持仓；未重建全股票级管线|
+|基差期限横截面复制|原目标300/50、原闸为IC，未拿blend代理冒充|
+
+阈值研究仅blend子网格；基金拥挤、背离、广度、长轴等仅固定代表；EWMA仅EW对象。分析师修正四族缓存有190/210个内部缺日，本轮只用最长连续段。期权O6为描述性对照，资金流复制交易映射为补充诊断，均不能冒充原否决主规格。原预热与连续换仓节奏有局部差异，候选详情逐项说明，不能称原历史子窗口裁决逐位重跑。
+
+原否决原因须区分结构、独立信息、回撤/换手约束与收益。例如B3在2021—2023收益闸已失败，9.24和2025关税不能解释这部分失败；这不排除更早事件的影响。
+
+## 方法边界和事件来源
+
+标的是500/1000现货日收益等权混合；期指方向代理加入修复后的等权carry，换仓每边3bp，非实际逐合约成交回测。此口径与前述无费固定数量逐笔盈亏表不同。
+
+先算完整信号与收益，再将共同事件日期净收益（含当日成本及carry）置零并保留日历。相对对数收益“总差额=事件差额+非事件差额”。不先删价格、不重新生成信号。这是已观察路径的收益归因，**不能还原事件从未发生的世界**，也不能证明策略预见政策。事件前仓位与后续响应贡献单列。
+
+七项锚为2018-03-23、2018-06-19、2019-05-06、2019-08-02、2024-09-24、2025-04-03、2025-05-12。不是全部重大事件：疫情、2015年等未逐项标记；最大绝对市场涨跌日敏感性补充无标签尾部检查，统一按市场、不按候选亏损选日。短历史候选可能不涵盖全部七项。
+
+日内瓦主锚对应5月12日开盘前已公开的周末进展；正式声明当日15:00发布，另测5月13日起窗。来源：[USTR](https://ustr.gov/about-us/policy-offices/press-office/press-releases/2018/june/ustr-issues-tariffs-chinese-products)、[国务院英文网9.24报道](https://english.www.gov.cn/news/202409/25/content_WS66f3602ec6d0868f4e8eb3c0.html)、[2025关税官方档案](https://www.govinfo.gov/app/details/DCPD-202500425)、[商务部周末进展](https://www.mofcom.gov.cn/syxwfb/art/2025/art_1079483db82e4b5591ffb65900ef4eac.html)、[正式联合声明](https://www.mofcom.gov.cn/syxwfb/art/2025/art_3bcf393df58d4483804c0c3d692a5744.html)。2019两次同期报道链接见events.json。
+
+## 对新增评价维度的判断
+
+可将事件收益集中度、事件中性排名、窗口/执行敏感性、训练与验证最弱期表现一起加入候选评价。低事件依赖不自动代表好信号；该维度可识别脆弱排名、安排复核优先级，不应把历史事件日期当交易过滤器。
+
+## 验证及附件
+
+独立正式引擎复算1374组比较的两种时点，共2748次，主指标最大误差1.42e−14；10份历史逐日账本一致；核对263712行归因恒等式、事件并集、市场尾部日排序、仓位响应贡献、唯一性与原生日历。训练期零波动、夏普未定义的期权候选排除worst(train,val)，未用单个验证期替代。
+
+附件：被否决信号_事件依赖审计.xlsx、夏普反转候选明细.csv、registry_coverage.csv、event_attribution.csv、worst_tv_comparisons.csv、risk_and_returns.csv、verification.json。inputs保存数据、代码和预先固定的计划；manifest记录哈希。本轮完成有覆盖边界的审计，不是38项研究全部网格完整重跑。
+'''
+(O/'REPORT.md').write_text(report)
+from openpyxl import load_workbook
+wb=load_workbook(O/'被否决信号_事件依赖审计.xlsx',read_only=True,data_only=True)
+assert wb['夏普反转候选'].max_row==26 and wb['主窗口全部比较'].max_row==1375
+wb.close()
+for key,rec in core.SOURCES.items():assert core.artifact_record(RUN/rec['path'],RUN)==rec
+v['packaged_source_hashes_checked']=len(core.SOURCES);v['workbook_rows_checked']=True
+v['formal_negative_study_sharpe_flips']=int(flips.formal_negative_study.sum())
+(O/'verification.json').write_text(json.dumps(v,indent=2))
+manifest={'status':'complete','scope':'bounded descriptive audit; full registry inventory, partial numerical coverage','run_id':RUN.name,'asof':'2026-09-11','verification':v,'unreplayed_signal_studies':8,'production_changed':False,'python':platform.python_version(),'numpy':np.__version__,'pandas':pd.__version__,'artifacts':[core.artifact_record(f,RUN) for f in sorted(RUN.rglob('*')) if f.is_file() and f.name!='manifest.json' and '__pycache__' not in f.parts and f.suffix!='.log']}
+core.write_manifest(RUN,manifest)
+print('PACKAGED',len(flips),'flips;',v['formal_negative_study_sharpe_flips'],'formal-negative-study variants;',len(core.SOURCES),'source hashes;',len(manifest['artifacts']),'artifacts')

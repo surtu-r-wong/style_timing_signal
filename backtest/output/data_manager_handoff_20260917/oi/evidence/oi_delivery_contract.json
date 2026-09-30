@@ -1,0 +1,80 @@
+{
+  "contract_version": "ew-oi-v1",
+  "window_end": "2026-09-16",
+  "products": [
+    "IC",
+    "IM"
+  ],
+  "sources": [
+    "IC",
+    "POOL"
+  ],
+  "raw_tables": [
+    "public.futures_daily",
+    "stock_selector.index_daily",
+    "public.trading_calendar"
+  ],
+  "product_daily_required": [
+    "date",
+    "product",
+    "total_oi",
+    "total_volume",
+    "index_close",
+    "complete",
+    "expected_contracts",
+    "observed_contracts"
+  ],
+  "product_additional_required_documented": [
+    "listing_or_expiry_change",
+    "lifecycle_change_in_previous_five_sessions",
+    "source_version",
+    "unit",
+    "completeness_reason"
+  ],
+  "feature_required": [
+    "date",
+    "source",
+    "g5",
+    "r5",
+    "rv20",
+    "v5",
+    "u5",
+    "feature_valid",
+    "invalid_reason",
+    "n_train",
+    "rank",
+    "train_start",
+    "train_end"
+  ],
+  "calendar_required": [
+    "date",
+    "sfe"
+  ],
+  "manifest_required": {
+    "contract_version": "ew-oi-v1",
+    "artifacts": [
+      {
+        "path": "product_daily.csv",
+        "sha256": "actual sha256"
+      },
+      {
+        "path": "features.csv",
+        "sha256": "actual sha256"
+      },
+      {
+        "path": "calendar.csv",
+        "sha256": "actual sha256"
+      }
+    ]
+  },
+  "dates": "ISO YYYY-MM-DD; full trading calendar, no compressed gaps",
+  "contract_lists": "JSON arrays of distinct exact contract codes; expected from audited lifecycle; count equality alone insufficient",
+  "booleans": "CSV True/False; no numeric or truthy-string shortcuts",
+  "training": "250 preceding consecutive trading sessions only; columns [1,r5,abs(r5),rv20,v5]; rank 5; source-local; warmup retained with null u5",
+  "g5": "log(total_oi_t/total_oi_t-5)",
+  "r5": "index_close_t/index_close_t-5 - 1",
+  "rv20": "std(ddof=1) of 20 daily simple index returns ending t * sqrt(245)",
+  "v5": "mean of total_volume_s/total_oi_s-1 for s=t-4..t",
+  "pool": "arithmetic mean of IC/IM corresponding g5,r5,rv20,v5, both required; residual fit on pooled features",
+  "ownership": "data_manager derives all actual market datasets; research consumer validates and later evaluates candidates"
+}

@@ -1,0 +1,20 @@
+Delivery accepted and dates frozen: {"IC_long": "2015-04-24", "common": "2022-08-01", "endpoint": "2026-09-16", "first_valid_joint_price": {"ETF500": "2015-04-23", "ETFPOOL": "2022-07-29", "MEMBER_IC": "2015-04-24", "MEMBER_POOL": "2022-08-01"}, "T_plus_1_position_shift": 1, "T_plus_2_position_shift": 2, "last_target_with_execution": {"T_plus_1": "2026-09-15", "T_plus_2": "2026-09-14"}, "last_target_with_next_close_pnl": {"T_plus_1": "2026-09-14", "T_plus_2": "2026-09-11"}, "later_targets_retained_for_audit_only": true, "fallback": "incumbent; price control same mask", "frozen_before_pnl": true}
+IC_long close_3bps 36 ledgers
+IC_long close_10bps 36 ledgers
+IC_long second_close_3bps 36 ledgers
+common close_3bps 68 ledgers
+common close_10bps 68 ledgers
+common second_close_3bps 68 ledgers
+ window   scenario            candidate  account    comparison period  sharpe_difference  candidate_cagr  reference_cagr  delta_log
+IC_long close_3bps      ETF500_L_signal combined matched_price   full            0.11336         0.18446         0.14667    0.36699
+IC_long close_3bps      ETF500_S_signal combined matched_price   full           -0.14696         0.27211         0.29400   -0.19310
+IC_long close_3bps   MEMBER_IC_L_signal combined matched_price   full           -0.15018         0.15148         0.18895   -0.36246
+IC_long close_3bps   MEMBER_IC_S_signal combined matched_price   full            0.00485         0.36260         0.32538    0.31350
+ common close_3bps      ETF500_L_signal combined matched_price   full            0.14782         0.22022         0.16857    0.17707
+ common close_3bps      ETF500_S_signal combined matched_price   full            0.05063         0.29945         0.27395    0.08112
+ common close_3bps     ETFPOOL_L_signal combined matched_price   full            0.19689         0.20722         0.14565    0.21429
+ common close_3bps     ETFPOOL_S_signal combined matched_price   full           -0.11185         0.27920         0.28528   -0.01943
+ common close_3bps   MEMBER_IC_L_signal combined matched_price   full           -0.16897         0.15680         0.18976   -0.11500
+ common close_3bps   MEMBER_IC_S_signal combined matched_price   full           -0.06076         0.30908         0.29187    0.05417
+ common close_3bps MEMBER_POOL_L_signal combined matched_price   full           -0.19814         0.14472         0.18691   -0.14820
+ common close_3bps MEMBER_POOL_S_signal combined matched_price   full            0.27253         0.42063         0.30969    0.33286

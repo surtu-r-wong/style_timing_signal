@@ -1,0 +1,20 @@
+{
+  "source_receipts_revalidated": true,
+  "computed_artifacts_unchanged": true,
+  "prereg_unchanged": true,
+  "frozen_current_code_identical": true,
+  "all_177_execution_lags_checked": true,
+  "opposite_leg_preserved_for_all_candidates": true,
+  "all_matched_targets_reconciled": true,
+  "state_path_tests": {
+    "passed": 4,
+    "command": "python3 -m pytest -q tests/test_flow_structure_followup.py",
+    "reused_unchanged_code_result": true
+  },
+  "ruff_F_E9_passed": true,
+  "registry_validate_render_check_passed": true,
+  "git_diff_check_passed": true,
+  "python": "3.13.9",
+  "numpy": "2.3.4",
+  "pandas": "2.3.3"
+}

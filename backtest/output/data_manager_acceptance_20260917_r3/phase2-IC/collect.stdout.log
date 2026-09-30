@@ -1,0 +1,14 @@
+{
+  "product": "IC",
+  "start": "2015-04-16",
+  "end": "2026-09-16",
+  "days_requested": 2779,
+  "days_with_data": 2779,
+  "days_no_data": 0,
+  "days_error": 0,
+  "rank_rows": 473580,
+  "not_disclosed_rows": 9669,
+  "generated_at_utc": "2026-09-17T04:41:51.185268+00:00",
+  "source": "http://www.cffex.com.cn/sj/ccpm",
+  "raw_files": 2779
+}

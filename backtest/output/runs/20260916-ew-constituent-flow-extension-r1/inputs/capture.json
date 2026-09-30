@@ -1,0 +1,18 @@
+{
+  "observed_at": "2026-09-16 17:52:45.920305+08",
+  "database_read_only": true,
+  "office_snapshot_decimal_exact": true,
+  "source_values_compared": 75642,
+  "source_receipts": [
+    {
+      "path": "snapshot.csv",
+      "size": 1425145,
+      "sha256": "39405d3528e8ea2bd9783a9f6f4e8ece867480b6d14b093646f27516c981c11c"
+    },
+    {
+      "path": "identity-outliers.csv",
+      "size": 2341,
+      "sha256": "c9a2db3cbfebda48acfc0a38c3a964b3d9c765908f9f1acc86b7ddc3400548f3"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+candidate,name,study,model,reference,role,lag,period,mask,n,event_days,sharpe_candidate,sharpe_reference,delta_sharpe,neutral_sharpe_candidate,neutral_sharpe_reference,neutral_delta_sharpe,total_relative_log,event_relative_log,nonevent_relative_log,event_share_of_gap,rank_flip,both_metrics_flip

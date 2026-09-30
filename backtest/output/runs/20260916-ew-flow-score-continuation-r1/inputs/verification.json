@@ -1,0 +1,97 @@
+{
+  "observed_at": "2026-09-16 16:12:04.957178+08",
+  "completed_utc": "2026-09-16T08:12:05.503995+00:00",
+  "transaction_read_only": true,
+  "p0_passed": true,
+  "total_requested_codes_through_20260915": 7427,
+  "new_rows": 24,
+  "expected_business_dates": [
+    "2026-09-04",
+    "2026-09-07",
+    "2026-09-08",
+    "2026-09-09",
+    "2026-09-10",
+    "2026-09-11",
+    "2026-09-14",
+    "2026-09-15"
+  ],
+  "old_7403_rows_all_11_numeric_fields_decimal_exact_match": true,
+  "numeric_values_compared": 81433,
+  "old_sector_and_source_match": true,
+  "new_rows_nonnull_finite_and_positive_denominator": true,
+  "price_coverage": [
+    {
+      "index_code": "000300.SH",
+      "start": "2014-01-02",
+      "end": "2026-09-11",
+      "rows": 3088,
+      "null_close": 0
+    },
+    {
+      "index_code": "000680.SH",
+      "start": "2019-12-31",
+      "end": "2026-09-11",
+      "rows": 1625,
+      "null_close": 0
+    },
+    {
+      "index_code": "000852.SH",
+      "start": "2013-03-06",
+      "end": "2026-09-11",
+      "rows": 3288,
+      "null_close": 0
+    },
+    {
+      "index_code": "000905.SH",
+      "start": "2013-03-06",
+      "end": "2026-09-11",
+      "rows": 3288,
+      "null_close": 0
+    },
+    {
+      "index_code": "399102.SZ",
+      "start": "2014-01-02",
+      "end": "2026-09-11",
+      "rows": 3088,
+      "null_close": 0
+    }
+  ],
+  "missing_price_dates_in_p0_window": {
+    "000300.SH": [
+      "2026-09-14",
+      "2026-09-15"
+    ],
+    "000680.SH": [
+      "2026-09-14",
+      "2026-09-15"
+    ],
+    "000852.SH": [
+      "2026-09-14",
+      "2026-09-15"
+    ],
+    "000905.SH": [
+      "2026-09-14",
+      "2026-09-15"
+    ],
+    "399102.SZ": [
+      "2026-09-14",
+      "2026-09-15"
+    ]
+  },
+  "p1_status": "pending_exact_I_U_vendor_field_codes_and_office_new_table_governance",
+  "source_replies": [
+    {
+      "path": "/home/elfbob/claude-code/data_manager/requests/2026-09-16-style-timing-signal-index-money-flow-backfill/disposition.md",
+      "sha256": "b732a4f28d7c17b1d9d48b344a070c9001dfd8242016d8753ca3f97f91977b5e"
+    },
+    {
+      "path": "/home/elfbob/claude-code/data_manager/requests/2026-09-16-style-timing-signal-index-money-flow-backfill/response-01-office-2026-09-16.md",
+      "sha256": "56699919d16a9a7ba2bbba17937ecc75335f81123f86e6fde441baec88b751d6"
+    },
+    {
+      "path": "/home/elfbob/claude-code/data_manager/requests/2026-09-16-style-timing-signal-index-money-flow-backfill/response-02-office-2026-09-16.md",
+      "sha256": "fa5d652dc7acaa820d8775ae73414ef3e28a55a1ad183f20b41e02a2e0865a1f"
+    }
+  ],
+  "no_vendor_calls_or_database_writes": true
+}

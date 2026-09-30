@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "comparison_rows": 1374,
+  "named_specifications": 736,
+  "unique_position_paths": 728,
+  "registry_records": 63,
+  "negative_records": 40,
+  "negative_signal_records": 38,
+  "negative_records_with_direct_replay": 29,
+  "negative_records_with_replay_including_alias": 30,
+  "independent_engine_comparisons": 2748,
+  "max_primary_metric_error": 1.4210854715202004e-14,
+  "frozen_source_hashes_checked": 75,
+  "archived_ledgers_checked": 10,
+  "attribution_rows": 263712,
+  "robust_sharpe_flips": 3,
+  "robust_both_flips": 0,
+  "packaged_source_hashes_checked": 97,
+  "workbook_rows_checked": true,
+  "formal_negative_study_sharpe_flips": 17
+}

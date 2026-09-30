@@ -1,0 +1,40 @@
+close_3bps
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+close_10bps
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+second_close_3bps
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+/home/elfbob/claude-code/style_timing_signal/backtest/run_flow_robustness_diagnostic.py:64: RuntimeWarning: invalid value encountered in scalar divide
+  'sharpe':float(ret.mean()/ret.std(ddof=1)*np.sqrt(245)),
+  scenario      candidate     side window  sharpe_difference  candidate_cagr  age_reference_cagr  delta_log
+close_3bps      new_daily combined   full           0.008628        0.354329            0.300905   0.382748
+close_3bps      new_daily    short   full           0.113946        0.082900            0.040182   0.382758
+close_3bps  new_exit_only combined   full           0.075218        0.358181            0.288327   0.502154
+close_3bps  new_exit_only    short   full           0.222142        0.085979            0.030126   0.502144
+close_3bps new_entry_exit combined   full           0.055306        0.354574            0.288041   0.478975
+close_3bps new_entry_exit    short   full           0.169785        0.083096            0.029897   0.478976
+close_3bps      old_daily combined   full           0.091778        0.383968            0.303897   0.566781
+close_3bps      old_daily    short   full           0.247760        0.106598            0.042574   0.566790
+close_3bps  old_exit_only combined   full           0.079909        0.360044            0.289026   0.510035
+close_3bps  old_exit_only    short   full           0.228216        0.087469            0.030685   0.510025
+close_3bps old_entry_exit combined   full           0.060020        0.356433            0.288740   0.486857
+close_3bps old_entry_exit    short   full           0.176299        0.084582            0.030456   0.486858

@@ -1,0 +1,10 @@
+{
+  "post_hoc_reason": "Approximately 48% of MEMBER_POOL short matched-price net log difference occurs on fallback-affected dates.",
+  "scope": "All 12 original window/candidate cases, all 3 original scenarios; original targets and windows unchanged.",
+  "controls": "Fallback states equal original leg; valid states scaled original leg or price-only leg to selected valid-state exposure.",
+  "new_candidate_rules": 0,
+  "new_control_ledgers": 72,
+  "parameters_fitted_on_full_history": "valid-state exposure ratios; not deployable",
+  "metrics": "combined account full/early/late, 0/1/5 best relative days zeroed",
+  "frozen_before_diagnostic_pnl": true
+}

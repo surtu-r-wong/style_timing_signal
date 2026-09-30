@@ -1,0 +1,14 @@
+built overnight-intraday-decomposition
+built long-axes-probes
+built pair-set
+scored 0 / 24
+PRIMARY                              comparisons  originally_lagging  flips  both
+role                  model                                              
+frozen_representative carry           16                  16      0     0
+                      spot             8                   8      0     0
+Empty DataFrame
+Columns: [name, study, model, reference, delta_sharpe, neutral_delta_sharpe, total_relative_log, nonevent_relative_log]
+Index: []
+/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260915-event-dependence-r1/inputs/finish_coverage.py:70: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  pd.concat([pd.read_csv(MAIN/filename),pd.read_csv(EXTRA/filename)],ignore_index=True).to_csv(MAIN/filename,index=False)
+FINISH COVERAGE 24 []

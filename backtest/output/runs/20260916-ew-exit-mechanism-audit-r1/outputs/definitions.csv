@@ -1,0 +1,5 @@
+candidate,source,mode,q_baseline,r_daily,held_days
+new_exit_only,new,exit_only,0.3297966401414677,0.764344262295082,373
+new_entry_exit,new,entry_exit,0.3121131741821397,0.7233606557377049,353
+old_exit_only,old,exit_only,0.33244916003536695,0.752,376
+old_entry_exit,old,entry_exit,0.3147656940760389,0.712,356

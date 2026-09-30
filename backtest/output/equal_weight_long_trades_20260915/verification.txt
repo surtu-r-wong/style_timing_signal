@@ -1,0 +1,1 @@
+PASS: all 67 entry dates match prior study; all 66 closed P&L/durations/extrema match verified baseline; all paths independently checked via daily return products; open trade marked to last close; exported workbook checked when available.

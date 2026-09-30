@@ -1,0 +1,47 @@
+[
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/inputs/scores.csv",
+    "size": 411146,
+    "sha256": "2f3a51d2c259990ff7948791f85d259330dee4e1a4ff05efd359d76feb96fc9c"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/inputs/wset_continued_scores.csv",
+    "size": 268933,
+    "sha256": "671d061d6c42ff1ae4ddbfc632d88d0fdd88f25b0c292f896a13e8298bb71e90"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/inputs/futures.csv",
+    "size": 957830,
+    "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/inputs/spot.csv",
+    "size": 223423,
+    "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/outputs/decision_targets.csv",
+    "size": 1095091,
+    "sha256": "d232a71bc5b1385fb1431591099457cfd3599304f665b8bc4cd255490fe9d451"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/outputs/response-09-office-2026-09-16.md",
+    "size": 7223,
+    "sha256": "d50f677885d7cf5b10f5b7c9607a87dc51d6ee8cd89580a54ead7b734ff99091"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/outputs/ledgers_close_3bps.csv.gz",
+    "size": 7199067,
+    "sha256": "a61253c8bfe3e44d71f717d6a83422b7e576dc9b7b8b78bda424008aa0d5c4fb"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/outputs/ledgers_close_10bps.csv.gz",
+    "size": 6442576,
+    "sha256": "16196908d92618d2b1dee69413a93bbbc6622c0f261dceefe57d1da2f6a6e56c"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-structure-followup-r1/outputs/ledgers_second_close_3bps.csv.gz",
+    "size": 7207743,
+    "sha256": "bd7c861f4f575986854fcb1f3ea306d38098940f1877da55f55575c202b44455"
+  }
+]

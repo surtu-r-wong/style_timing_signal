@@ -1,0 +1,280 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/code__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__run_flow_robustness_diagnostic.py",
+      "sha256": "82ac41c5a79b7c1c7d54f05fc0f13d0b24dd29d07f335d211aaa71ab19f5433d",
+      "size": 13947
+    },
+    {
+      "path": "inputs/code__run_intraday_flow_pilot.py",
+      "sha256": "8d79e614f8a66ad96308e270736940ce8303dd2eac08b8962dda1e42ce38ad36",
+      "size": 19934
+    },
+    {
+      "path": "inputs/decompose_score_difference.py",
+      "sha256": "abb7d19478bbd6ea7aad2eadfa1fcc86ff5eee5bfb4ac39ce476383a86773e2a",
+      "size": 3149
+    },
+    {
+      "path": "inputs/flow.csv",
+      "sha256": "7b281f190fb8350b541b2060700243532e3860acbd840808961b10ee94eab4a3",
+      "size": 1974391
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/ledgers_core_common_close_10bps.csv.gz",
+      "sha256": "cd0260b6b07c3d265cb37534947c8ad6eb9d1e4b92ecbc517298783c77fa08ba",
+      "size": 1718530
+    },
+    {
+      "path": "inputs/ledgers_core_common_close_3bps.csv.gz",
+      "sha256": "ac32fdce952da739d466c12c65b9f459595f5eb9c191848b4e58024e1561fb00",
+      "size": 2189084
+    },
+    {
+      "path": "inputs/ledgers_core_common_second_close_3bps.csv.gz",
+      "sha256": "ccf1a924ce5ac45cf0247f37306a1ca7f462e853e7f11076c7e39cfcf5413f96",
+      "size": 1919028
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "db9628bb7869cad3fbc75691efe259cf79b2fe27bbdc28b863cb4a54f1fc82d9",
+      "size": 2937
+    },
+    {
+      "path": "inputs/prices.csv",
+      "sha256": "2cb1fd6276186af9db38beb79748dfaab530f8dfd027450f325eb7992ec13fb0",
+      "size": 433561
+    },
+    {
+      "path": "inputs/report_flow_robustness.py",
+      "sha256": "fd3847d77107f9b64359000ed38d5241d445e5e08d9d01b38715c2bc33de0751",
+      "size": 9190
+    },
+    {
+      "path": "inputs/score_decomposition_scope.md",
+      "sha256": "2a8d86125a9a37e1b00ae13082903ceb2f3bbe805254ba73b64ca00657a3b786",
+      "size": 258
+    },
+    {
+      "path": "inputs/scores.csv",
+      "sha256": "2f3a51d2c259990ff7948791f85d259330dee4e1a4ff05efd359d76feb96fc9c",
+      "size": 411146
+    },
+    {
+      "path": "inputs/source_receipts.json",
+      "sha256": "be09a3f47ab82e250da9bef86d8e5920319db418f1de5bd54d429f4d99dd7da6",
+      "size": 2871
+    },
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "inputs/targets_core_common_close_10bps.csv",
+      "sha256": "2c8353837115094c8fa9aa79202df4125744c615cfd5d98d1a9e49a7ac4941ba",
+      "size": 205823
+    },
+    {
+      "path": "inputs/targets_core_common_close_3bps.csv",
+      "sha256": "7d58eb89d29ac37740f05b3f7ff6e1a613295fde8e59a83977ac383878ad120c",
+      "size": 225556
+    },
+    {
+      "path": "inputs/targets_core_common_second_close_3bps.csv",
+      "sha256": "7517219160d180102b6906c46dfc5fb3f6fed772a1fae914cc7a160f46dae898",
+      "size": 205823
+    },
+    {
+      "path": "inputs/wset_board_prices.csv",
+      "sha256": "04b238d7fa80adf14e728b26b27c768196ecd555bfeeef167677f58aeedde1e2",
+      "size": 191106
+    },
+    {
+      "path": "inputs/wset_continued_scores.csv",
+      "sha256": "671d061d6c42ff1ae4ddbfc632d88d0fdd88f25b0c292f896a13e8298bb71e90",
+      "size": 268933
+    },
+    {
+      "path": "inputs/wset_money_flow.csv",
+      "sha256": "1dc81c65e34d95c61ebee40d98db3f4e9c328341112bc2c79b6ba2aa1543d17a",
+      "size": 1620317
+    },
+    {
+      "path": "logs/closeout_verification.json",
+      "sha256": "5830381c240d8e2102ff189717bcf5f5d3ba00a952b3b9b133953430328971a3",
+      "size": 438
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "99dc826bc30919791d89a9e564f948e766f8842a944a10d5e97e825112891c28",
+      "size": 7759
+    },
+    {
+      "path": "outputs/annual_attribution.csv",
+      "sha256": "6b04cac3343ccc28ca9dfd6aab46d6626a59c79e3e4371881cb1cc58366d4640",
+      "size": 7179
+    },
+    {
+      "path": "outputs/baseline_short_episodes_close_10bps.csv",
+      "sha256": "830b77ded9ae42a215ccb22a28cf3407cbc11d918c4ec496bdb621411b1bdf8c",
+      "size": 1619
+    },
+    {
+      "path": "outputs/baseline_short_episodes_close_3bps.csv",
+      "sha256": "830b77ded9ae42a215ccb22a28cf3407cbc11d918c4ec496bdb621411b1bdf8c",
+      "size": 1619
+    },
+    {
+      "path": "outputs/baseline_short_episodes_second_close_3bps.csv",
+      "sha256": "bdbbfcdce75e268ffa9f1075505b76c1a81cff0cbccc4a731bd1477f09a830b6",
+      "size": 1619
+    },
+    {
+      "path": "outputs/comparison_summary.csv",
+      "sha256": "7d704e1849e691ad042a698083f21c3e1bb23655d0f658ac6505aaf68574695b",
+      "size": 4044
+    },
+    {
+      "path": "outputs/daily_attribution.csv.gz",
+      "sha256": "a0eddd770fdfe21d7ff94f0ebabffdf5e884f8e2213fa67e32d811adcc8a9471",
+      "size": 629387
+    },
+    {
+      "path": "outputs/episode_attribution.csv",
+      "sha256": "7ab998465e7c27eb8d4d9108a37c23945d6adf560ba43e7ae3947d913568d366",
+      "size": 51562
+    },
+    {
+      "path": "outputs/event_attribution.csv",
+      "sha256": "60cabcae39f8be4ebfed8bba6b08387542e7ff1607ee3e276f27df25ad17eefa",
+      "size": 7648
+    },
+    {
+      "path": "outputs/january2024_source_trace.csv",
+      "sha256": "2d70323b94663a340fdbfe599348afb8f7779c0c59685ec8be0d70fda477c870",
+      "size": 529
+    },
+    {
+      "path": "outputs/matched_ledgers_close_10bps.csv.gz",
+      "sha256": "48d27fbc80837add31e9f2f12d4c9039805eb1f1d373f824608a2cc3726027ea",
+      "size": 257174
+    },
+    {
+      "path": "outputs/matched_ledgers_close_3bps.csv.gz",
+      "sha256": "557c053f9b7d6d67fca824a22bd80ff6ba46b16eb98a63dbeb04219af5b182b8",
+      "size": 288286
+    },
+    {
+      "path": "outputs/matched_ledgers_second_close_3bps.csv.gz",
+      "sha256": "0aa7076473e91e8b609fb220b8f1869f26ee864492c1038aca64a51a49d14852",
+      "size": 288315
+    },
+    {
+      "path": "outputs/matched_metrics.csv",
+      "sha256": "d5f27e533fd215b981b160688180582165b1bc679cdee7b71d9c3caf8970eef7",
+      "size": 1665
+    },
+    {
+      "path": "outputs/score_difference_decomposition.csv",
+      "sha256": "1ea1b793df7715f255a4cd1f9bda1220dc850ead07bdad7efba8554d28168cea",
+      "size": 2062
+    },
+    {
+      "path": "outputs/source_amount_mismatches.csv",
+      "sha256": "de501cd8dcfd6782d5a3550965f6955817929554d52594d888cf1b0e302db37e",
+      "size": 90646
+    },
+    {
+      "path": "outputs/source_decision_disagreements.csv",
+      "sha256": "49cce3afc8a75e83f320015d287f7ddb09b91127d2ed4828b29b4f19cfb43d3d",
+      "size": 2105
+    },
+    {
+      "path": "outputs/source_execution_support.json",
+      "sha256": "05890cbdda6d17c2d4d180d10ec12f74a33ce48f797d611d1dca46897a50f4db",
+      "size": 417
+    },
+    {
+      "path": "outputs/stress_summary.csv",
+      "sha256": "5f21c3934e2d952385cf6d4d599a610997ae844920b7ae44ca093fe4f4e2062c",
+      "size": 10670
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "496b2d7e12e549dd846003777131452649411292e31f8914097dcba9c28f7086",
+      "size": 1017
+    }
+  ],
+  "completed_utc": "2026-09-16T10:14:36.464689+00:00",
+  "created_utc": "2026-09-16T10:03:11.609965+00:00",
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/output/data_manager_handoff_20260916/",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-constituent-flow-extension-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-robustness-diagnostic-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-score-continuation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_constituent_flow_extension.py",
+      "?? backtest/run_flow_robustness_diagnostic.py",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-extension.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-diagnostic.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? tests/test_intraday_flow_pilot.py"
+    ],
+    "tracked_dirty": true
+  },
+  "outcome": "no_incumbent_replacement_key_source_difference_referred_to_data_manager",
+  "prereg_sha256": "db9628bb7869cad3fbc75691efe259cf79b2fe27bbdc28b863cb4a54f1fc82d9",
+  "stage": "posthoc_flow_robustness_and_source_diagnostics",
+  "status": "complete"
+}

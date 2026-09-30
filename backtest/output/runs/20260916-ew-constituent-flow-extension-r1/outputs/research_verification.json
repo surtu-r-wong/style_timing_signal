@@ -1,0 +1,99 @@
+{
+  "sample_definitions": [
+    {
+      "scope": "core_common",
+      "start": "2017-02-14",
+      "end": "2026-09-11",
+      "n": 2330,
+      "sources": [
+        "CSI300",
+        "CSI500",
+        "CSI1000",
+        "CHINEXT",
+        "PAIR",
+        "POOL",
+        "CORE"
+      ]
+    },
+    {
+      "scope": "star_common",
+      "start": "2026-03-06",
+      "end": "2026-09-11",
+      "n": 131,
+      "sources": [
+        "CSI300",
+        "CSI500",
+        "CSI1000",
+        "CHINEXT",
+        "PAIR",
+        "POOL",
+        "CORE",
+        "STAR",
+        "ALL"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "scope": "core_common",
+      "scenario": "close_3bps",
+      "strategy": "C__base",
+      "max_reference_error": 0.0
+    },
+    {
+      "scope": "core_common",
+      "scenario": "close_3bps",
+      "strategy": "C__POOL",
+      "max_reference_error": 0.0
+    },
+    {
+      "scope": "core_common",
+      "scenario": "close_10bps",
+      "strategy": "C__base",
+      "max_reference_error": 0.0
+    },
+    {
+      "scope": "core_common",
+      "scenario": "close_10bps",
+      "strategy": "C__POOL",
+      "max_reference_error": 0.0
+    },
+    {
+      "scope": "core_common",
+      "scenario": "second_close_3bps",
+      "strategy": "C__base",
+      "max_reference_error": 0.0
+    },
+    {
+      "scope": "core_common",
+      "scenario": "second_close_3bps",
+      "strategy": "C__POOL",
+      "max_reference_error": 0.0
+    },
+    {
+      "scope": "star_common",
+      "scenario": "close_3bps",
+      "strategy": "C__STAR",
+      "max_reference_error": 0.0
+    },
+    {
+      "scope": "star_common",
+      "scenario": "close_10bps",
+      "strategy": "C__STAR",
+      "max_reference_error": 0.0
+    },
+    {
+      "scope": "star_common",
+      "scenario": "second_close_3bps",
+      "strategy": "C__STAR",
+      "max_reference_error": 0.0
+    }
+  ],
+  "total_ledgers": 122,
+  "all_account_leg_and_trade_pnl_identities_passed": true,
+  "future_perturbation_invariant": true,
+  "execution_end": "2026-09-11",
+  "feature_end": "2026-09-15",
+  "unchanged_B_neg_rule": true,
+  "completed_utc": "2026-09-16T09:54:11.322909+00:00"
+}

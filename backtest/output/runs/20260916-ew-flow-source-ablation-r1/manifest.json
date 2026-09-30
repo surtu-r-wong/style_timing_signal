@@ -1,0 +1,320 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/board_prices.csv",
+      "sha256": "04b238d7fa80adf14e728b26b27c768196ecd555bfeeef167677f58aeedde1e2",
+      "size": 191106
+    },
+    {
+      "path": "inputs/code__backtest__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__backtest__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__backtest__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__backtest__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__backtest__run_flow_source_ablation.py",
+      "sha256": "8d72d8fe7a4081fcac00443c6e63b815bce07aa812bc41b794e8ad4b986b25de",
+      "size": 11236
+    },
+    {
+      "path": "inputs/code__backtest__run_intraday_flow_pilot.py",
+      "sha256": "8d79e614f8a66ad96308e270736940ce8303dd2eac08b8962dda1e42ce38ad36",
+      "size": 19934
+    },
+    {
+      "path": "inputs/code__backtest__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/database_inventory.json",
+      "sha256": "7ab5fc9f327c3b01fa1e64498022494c9d708b9e3cda46350f9c885a42e07efe",
+      "size": 1988
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc",
+      "size": 192861
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/gateway_probe.py",
+      "sha256": "eb2c71f80d2928df208c02b55a2d540d821c3c6d0d8bb8857aac389c785621e5",
+      "size": 2321
+    },
+    {
+      "path": "inputs/money_flow.csv",
+      "sha256": "1dc81c65e34d95c61ebee40d98db3f4e9c328341112bc2c79b6ba2aa1543d17a",
+      "size": 1620317
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "efacba681d40f2e7855e27bf8ef1363ad7a7592085aa48fd5c4e98c33ff2aadc",
+      "size": 2654
+    },
+    {
+      "path": "inputs/prior_contract_schedule.csv",
+      "sha256": "a940a23db436c4e494de1ca8a611891df89880518c3c81e9919ca6a3507240a1",
+      "size": 122175
+    },
+    {
+      "path": "inputs/prior_features.csv",
+      "sha256": "048a9e297aaa1d97543295b3bb128c7d71bd849fadbbe2dbf7f86413ff887a8b",
+      "size": 261600
+    },
+    {
+      "path": "inputs/prior_verification.json",
+      "sha256": "41729f7eabc86dcd90acc51b7e3bffb37b6bc483407c510e5d3e1c813dce20d9",
+      "size": 1583
+    },
+    {
+      "path": "inputs/source_closeout.py",
+      "sha256": "c400972dd38fd70a40a2dfb6088ebdfd02ee64b257eae629afb4d8a82193d12f",
+      "size": 10568
+    },
+    {
+      "path": "inputs/source_receipts.json",
+      "sha256": "4501ff164c3898a2c529d95b24d907fffc370ec18281fe037a1d97249815c7b3",
+      "size": 1796
+    },
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "inputs/star_prices.csv",
+      "sha256": "cb6f1c6e52ec1b85d8b5ee93461c744801a2f882a367ee0d4ed070612cf508ca",
+      "size": 50046
+    },
+    {
+      "path": "inputs/wset_recheck.py",
+      "sha256": "6e218760b3d54df4d1f405d300f64d4c0187a8fa6af2391873e839fa88b3ca48",
+      "size": 1791
+    },
+    {
+      "path": "inputs/wss_denominator_probe.py",
+      "sha256": "879cecd777e0afad0e47a57fca0a83e4078806351dbf7e118108cc606c5151a8",
+      "size": 2041
+    },
+    {
+      "path": "inputs/wss_history_probe.py",
+      "sha256": "f11c3e601e1befbeee1a9f0d69c96f636ae392bed25029689a10cf679296d74e",
+      "size": 2118
+    },
+    {
+      "path": "inputs/wss_probe.py",
+      "sha256": "55816718a0dfd12ce293de320fe342d671adc437691e2919cc60a08e83786797",
+      "size": 1745
+    },
+    {
+      "path": "logs/closeout_verification.json",
+      "sha256": "3923bb1cdf6122c161677bbcff57790a6ae341dd28628c4586ac1211530ac276",
+      "size": 2105
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "e833a199410da90825944dee487a1cf00c2fb671ff80361cc0fcc1562507ccb6",
+      "size": 7589
+    },
+    {
+      "path": "outputs/data_route_verification.json",
+      "sha256": "3863a40c076b86f05d68e950b0b5d16b7448251c5adb9877fd9837726a079441",
+      "size": 471
+    },
+    {
+      "path": "outputs/gateway_probe.json",
+      "sha256": "d0d391363d8763da6545097463ec05f24fd6d9338d41a6bf83b4ecce8bff3c87",
+      "size": 4486
+    },
+    {
+      "path": "outputs/interface_reconciliation.csv",
+      "sha256": "f7629c3a05776955b0007f87497b87db102c2e72f5fd1cfe4e10f6b5449fc997",
+      "size": 2527
+    },
+    {
+      "path": "outputs/ledgers_common_short_close_10bps.csv.gz",
+      "sha256": "3fb60ea7e1fda85c8fc1d795a5c34d1f24566f85fc82f07ee0c858b108cd3253",
+      "size": 843322
+    },
+    {
+      "path": "outputs/ledgers_common_short_close_3bps.csv.gz",
+      "sha256": "a81cf02ae917f6fffead8d242aa60608eab9912313121d8b78d33e805569266d",
+      "size": 949212
+    },
+    {
+      "path": "outputs/ledgers_common_short_second_close_3bps.csv.gz",
+      "sha256": "57864dd2b3d8baac714da261f6b68575608883d99186bc56fc74aadacc422809",
+      "size": 948220
+    },
+    {
+      "path": "outputs/ledgers_long_window_close_10bps.csv.gz",
+      "sha256": "8a9898da0c07195534fb1cd4f774468ed2e3caa2f4e7843df7c5a6726b2dfe71",
+      "size": 1139814
+    },
+    {
+      "path": "outputs/ledgers_long_window_close_3bps.csv.gz",
+      "sha256": "c7d6965606f89daa3fd2c94ccf5f27d67a81e25b1dabae91b1f1a43f30946bce",
+      "size": 1278335
+    },
+    {
+      "path": "outputs/ledgers_long_window_second_close_3bps.csv.gz",
+      "sha256": "f35178a2e704a119436714ade15d647dacab0287119cc267fd8602f7376b71b3",
+      "size": 1276260
+    },
+    {
+      "path": "outputs/metrics.csv",
+      "sha256": "8daaaa74ddb573b7700d2002da027b73b628b495d5388ee8c04d82a2d05b5f3e",
+      "size": 232901
+    },
+    {
+      "path": "outputs/research_verification.json",
+      "sha256": "6af9d6ecb33960a75adc7464eef176bda5ab973637c778f2d7b7740872bad5d4",
+      "size": 1183
+    },
+    {
+      "path": "outputs/score_correlation_common_short.csv",
+      "sha256": "e29fddd9a377b27f9b23b816e1949cf5f26eae5cfd6c7ce935e95cb4a3f43b14",
+      "size": 465
+    },
+    {
+      "path": "outputs/score_correlation_long_window.csv",
+      "sha256": "6542ac87db0e88a9d488306e5f53b68d416b250149be30a94bcb1d6be24043d4",
+      "size": 167
+    },
+    {
+      "path": "outputs/source_overlap.csv",
+      "sha256": "e8b57e2661d2acdea00c739f7065583fe3fa43c0710cbf34796e47cba34d09de",
+      "size": 1025
+    },
+    {
+      "path": "outputs/source_residuals.csv",
+      "sha256": "4a9a4afc11ddfe62043d4f4c3db48c72f1f2c616bdd987bb4d11b773412c4d50",
+      "size": 177829
+    },
+    {
+      "path": "outputs/source_scores.csv",
+      "sha256": "b634ae07ad922213b45d777775a9c22e6e1df6520a526838f5a6a2bc1572596b",
+      "size": 268184
+    },
+    {
+      "path": "outputs/targets_common_short_close_10bps.csv",
+      "sha256": "0b337212547142f4f04de546ac01a34ef438d19ce41316be312d0716394fcbe7",
+      "size": 96634
+    },
+    {
+      "path": "outputs/targets_common_short_close_3bps.csv",
+      "sha256": "0b337212547142f4f04de546ac01a34ef438d19ce41316be312d0716394fcbe7",
+      "size": 96634
+    },
+    {
+      "path": "outputs/targets_common_short_second_close_3bps.csv",
+      "sha256": "686a7f7ff65657e7c945b94d4c3da25e0f77224da6a8e9d5da0977389c290fa8",
+      "size": 96634
+    },
+    {
+      "path": "outputs/targets_long_window_close_10bps.csv",
+      "sha256": "3a1b935fc3440a872751b4b5236ff027821363d56944245f892563de95cf3ba0",
+      "size": 139931
+    },
+    {
+      "path": "outputs/targets_long_window_close_3bps.csv",
+      "sha256": "3a1b935fc3440a872751b4b5236ff027821363d56944245f892563de95cf3ba0",
+      "size": 139931
+    },
+    {
+      "path": "outputs/targets_long_window_second_close_3bps.csv",
+      "sha256": "026acd4b085ebef49746a66b5e6c741e7b163667b204919e659958e3ea7fa020",
+      "size": 139931
+    },
+    {
+      "path": "outputs/wset_recheck.json",
+      "sha256": "6c0f168940daa54e000db9b7f460355853076d220d895f57a23e993d2b9a0815",
+      "size": 2615
+    },
+    {
+      "path": "outputs/wset_refetch_reconciliation.csv",
+      "sha256": "c23e441e64eb8c1dcaa93a9c04a1c02cbcfc8f7cde2b523a599c2bbfe30cbc61",
+      "size": 1519
+    },
+    {
+      "path": "outputs/wss_denominator_probe.json",
+      "sha256": "5a0951c7c5a320d74a24ce47d579d4b039933aa86c86b0063cff35ddccd2ee76",
+      "size": 3493
+    },
+    {
+      "path": "outputs/wss_history_probe.json",
+      "sha256": "89958e6f2a4d8c493dbf1af197db5f6c9402297b566c6f34f8adc42d701d53d0",
+      "size": 9413
+    },
+    {
+      "path": "outputs/wss_probe.json",
+      "sha256": "090a831eb41b3dbfac4b8c655368578248e717dbef0ad0c1d446bff2fac15c75",
+      "size": 1647
+    },
+    {
+      "path": "outputs/wss_sample_coverage.csv",
+      "sha256": "9c6d2040e329737e3e9a9fd1d476b5c3b5a181e264f22c751afd57a8e12bc123",
+      "size": 3016
+    }
+  ],
+  "completed_utc": "2026-09-16T02:14:23.137478+00:00",
+  "created_utc": "2026-09-16T01:56:44.672206+00:00",
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? tests/test_intraday_flow_pilot.py"
+    ],
+    "tracked_dirty": true
+  },
+  "prereg_sha256": "efacba681d40f2e7855e27bf8ef1363ad7a7592085aa48fd5c4e98c33ff2aadc",
+  "research_outcome": "descriptive_no_production_change",
+  "stage": "fixed_B_neg_source_ablation_and_other_index_route_audit",
+  "status": "complete"
+}

@@ -1,0 +1,844 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/audit.py",
+      "sha256": "cd59733e77d77f51963dd04480b63835ec12f6facb52392e97f755c5a3d72d61",
+      "size": 17812
+    },
+    {
+      "path": "inputs/current_reference.py",
+      "sha256": "0ec5a43fd4762d863ff32f59665acd3ec359d078359174bed1c56f1b71f1c843",
+      "size": 1239
+    },
+    {
+      "path": "inputs/data/backtest/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "inputs/data/backtest/baseline.py",
+      "sha256": "d8727a0b9d2c576f0cfbd1a82a35cd659d35424c27f46f25c8f7eff0f053bc9a",
+      "size": 5637
+    },
+    {
+      "path": "inputs/data/backtest/basis_term.py",
+      "sha256": "155f87e37720fc7a14fe9b30f1646cdfe5095870c6b71c53ce1140980bbb8204",
+      "size": 5173
+    },
+    {
+      "path": "inputs/data/backtest/basis_term_probe.py",
+      "sha256": "1b9eee74956b1261ceb3ba2533282f662f66aa36e8a024580660e01c7c71b3aa",
+      "size": 4986
+    },
+    {
+      "path": "inputs/data/backtest/breadth.py",
+      "sha256": "0dc175118df7b26bc6417526b154682eec9f191c0e4ca95619efbeebfe29438e",
+      "size": 5348
+    },
+    {
+      "path": "inputs/data/backtest/breadth_dual.py",
+      "sha256": "c60e286b4ce5bf9b6aae17ba4ad2e08e8681864f10b15e5a85fefc89511fb564",
+      "size": 9685
+    },
+    {
+      "path": "inputs/data/backtest/conditional_probe.py",
+      "sha256": "20441f6066c4cdb9a22e382854d26beba357e26db0c593a775840ebabb473327",
+      "size": 45305
+    },
+    {
+      "path": "inputs/data/backtest/consensus_axis_probe.py",
+      "sha256": "60692af7e9d1388276b5188dd7197529fa2bd001630bc297799369f94e00b244",
+      "size": 5490
+    },
+    {
+      "path": "inputs/data/backtest/consensus_revision.py",
+      "sha256": "4027306893de5244acc0203e62888ac7b018b02031e15aa28e2b1fbf1568f18b",
+      "size": 6645
+    },
+    {
+      "path": "inputs/data/backtest/data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/data/backtest/divergence_probe.py",
+      "sha256": "4fddcc4be51fd2a47aad613df0ea1f60a3f9590dbaa45afc754e6c29d2935836",
+      "size": 34539
+    },
+    {
+      "path": "inputs/data/backtest/dual.py",
+      "sha256": "705f7685ed522501effaebd4ce63ef2ea9835748391f53d3da2259d0a3703148",
+      "size": 8157
+    },
+    {
+      "path": "inputs/data/backtest/engine.py",
+      "sha256": "adcfc4d510af01294d3dfaf30e9abd240572b15eef56832910f8963437b9fbec",
+      "size": 2454
+    },
+    {
+      "path": "inputs/data/backtest/erp_probe.py",
+      "sha256": "96489898d3ef8966b89fbf2cd428a01d46a51341366a87b298d35729aa5d301d",
+      "size": 4832
+    },
+    {
+      "path": "inputs/data/backtest/execution_audit.py",
+      "sha256": "22bf6393ac76fd1041cb66656617edbcc3a9a96cfec8bfd059ef7e9ccedae729",
+      "size": 12644
+    },
+    {
+      "path": "inputs/data/backtest/execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/data/backtest/family_unification_formal.py",
+      "sha256": "7978594c7de2aa833ebaf2984a8a9716794f6997dd31d5e86516e38ce2c2a735",
+      "size": 10597
+    },
+    {
+      "path": "inputs/data/backtest/fund_crowding_probe.py",
+      "sha256": "168cb87738ec9c3f2f320e17fd945bcb561d5f7ded16b9b4ee5de77bc30d1913",
+      "size": 50207
+    },
+    {
+      "path": "inputs/data/backtest/fusion_probe.py",
+      "sha256": "20ecdbc96406d6ec00ea6aea9b0d4b3a3c1e71a8703ae66595e0303cf6817f4b",
+      "size": 26743
+    },
+    {
+      "path": "inputs/data/backtest/gates.py",
+      "sha256": "c43ecc2f0f8cf80ff5886f3d09610c12614a57fae95a16acef4a3758c65eae3f",
+      "size": 790
+    },
+    {
+      "path": "inputs/data/backtest/grid_reassessment.py",
+      "sha256": "6756e24d5b9755e012fea78cbd9d6d7904e9ee8301920935fd10fad6c96af329",
+      "size": 11357
+    },
+    {
+      "path": "inputs/data/backtest/leverage_probe.py",
+      "sha256": "2d6ab727d6f1da4b8b27f229be5ad65629ea61cfee81da82021263c5c775f8e9",
+      "size": 13775
+    },
+    {
+      "path": "inputs/data/backtest/long_axes_probe.py",
+      "sha256": "39c47f8768a4e4fb2b038375769280af390b56eb82ba0d6c368c166053d6d110",
+      "size": 4599
+    },
+    {
+      "path": "inputs/data/backtest/mapping_probe.py",
+      "sha256": "b9cfea2f256ec7c1405b588f2d4a5e753dc73c50fef1197de7b62cd46a842ebd",
+      "size": 31207
+    },
+    {
+      "path": "inputs/data/backtest/metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/data/backtest/momentum_scan.py",
+      "sha256": "529e202b1d3624542c9fc569e4f6fcad7b5d3cb87184c6719613c3251ea33df5",
+      "size": 11926
+    },
+    {
+      "path": "inputs/data/backtest/money_flow_axis_probe.py",
+      "sha256": "037657dfffcb5bb497c6863ef185cefede05845b5f4a532151c220bf97fbb971",
+      "size": 5276
+    },
+    {
+      "path": "inputs/data/backtest/money_flow_series.py",
+      "sha256": "dbef007ced1b77d252d9993d0d6d70a5b20e0a7f43b6377289cbe1302aef0f41",
+      "size": 5240
+    },
+    {
+      "path": "inputs/data/backtest/new_high_axis_probe.py",
+      "sha256": "c6c2259d7a366167e63b91c7c4870c4e01806e51fcbd34f72cc69a113c410598",
+      "size": 4973
+    },
+    {
+      "path": "inputs/data/backtest/new_high_breadth.py",
+      "sha256": "c018c9498d7947840f6e8c108bbc3955cb64c2a664208198fc54a224942df80f",
+      "size": 4693
+    },
+    {
+      "path": "inputs/data/backtest/option_axis_probe.py",
+      "sha256": "b7b7ffc85c6969ae2555407bd661996365f2cc7e2663db8aea38422acfa216b7",
+      "size": 4219
+    },
+    {
+      "path": "inputs/data/backtest/option_iv.py",
+      "sha256": "3a2cb9239f5307e37b9aa0a4963d16f7191acde921ea7862df79d095a23eea64",
+      "size": 9759
+    },
+    {
+      "path": "inputs/data/backtest/output/avg_correlation.csv",
+      "sha256": "1021d298ae1e5c583329cd14b9457c97ceab3767e0e320e88d87fae20f4cc95f",
+      "size": 260130
+    },
+    {
+      "path": "inputs/data/backtest/output/basis_term_probe_verdicts.csv",
+      "sha256": "ba23902080e3bc17d4185c7a3a21aff2b967aebdf8c73edeecfab8f33ef17d1b",
+      "size": 1155
+    },
+    {
+      "path": "inputs/data/backtest/output/basis_term_series.csv",
+      "sha256": "7b091d724c04520d53f1ab16c8ad57b4a9679b8cb473bf5b1b4e1681361bbf2b",
+      "size": 298000
+    },
+    {
+      "path": "inputs/data/backtest/output/breadth.csv",
+      "sha256": "b3c52add727e013a82febc31cb5217a91f557ceb2b1348673bbda95f19feb29a",
+      "size": 305050
+    },
+    {
+      "path": "inputs/data/backtest/output/consensus_axis_probe_verdicts.csv",
+      "sha256": "a5a8af07073ac796299afa573134723ad53a0d20a30406857f41494d704ebc3c",
+      "size": 1410
+    },
+    {
+      "path": "inputs/data/backtest/output/consensus_revision_series.csv",
+      "sha256": "5598d6f14d4fb0a7207cfc69dc98daa6125f1b7712b5e8a7cf075e4420cbc513",
+      "size": 168423
+    },
+    {
+      "path": "inputs/data/backtest/output/entry_day_direction_20260915/spot_close.csv",
+      "sha256": "7632af5f1dfec5e231dbab9abb0de90cd95998f293fbfea8093a108c019bde25",
+      "size": 95076
+    },
+    {
+      "path": "inputs/data/backtest/output/erp_probe_verdicts.csv",
+      "sha256": "e71b513a3ac3e8a881497462f94019cdb4afd46c19b5d3e944e59adda916f16b",
+      "size": 663
+    },
+    {
+      "path": "inputs/data/backtest/output/fund_crowding_beta_daily.csv",
+      "sha256": "4d65056691ca51c1ece794f025e6f524ea76cc781511c5c5fe7c18f9bbe87e3b",
+      "size": 440300
+    },
+    {
+      "path": "inputs/data/backtest/output/fund_crowding_quarterly.csv",
+      "sha256": "56b0f0d7bbadd5dcba523c96a685022b8ba2e9ac15b7ac8e6c617c46fc4d8c60",
+      "size": 5711
+    },
+    {
+      "path": "inputs/data/backtest/output/leverage_probe_verdicts.csv",
+      "sha256": "6d1a11f771ae5953c891fb325da08413be6638bb2eb516f89e378bfc0196bfce",
+      "size": 880
+    },
+    {
+      "path": "inputs/data/backtest/output/long_axes_probe_verdicts.csv",
+      "sha256": "cf5ada4a64083fac94c1577a7331fb02bd1834b25ce10bbadf61f34fd83ce342",
+      "size": 1324
+    },
+    {
+      "path": "inputs/data/backtest/output/market_turnover.csv",
+      "sha256": "49bdd8c51e53b92ea7fc35ab1ad6f9456f3a7685310399db73f9d11d0f2b0a81",
+      "size": 218202
+    },
+    {
+      "path": "inputs/data/backtest/output/money_flow_axis_probe_verdicts.csv",
+      "sha256": "08c03292aa49bcc065ce0d83c1504c35706dd7e91a4c9ff2be1255d6e8349801",
+      "size": 857
+    },
+    {
+      "path": "inputs/data/backtest/output/money_flow_series.csv",
+      "sha256": "373221374b1b1c15ee278235be32153e5d6bb07ce82664bf5e77106980554aa5",
+      "size": 629283
+    },
+    {
+      "path": "inputs/data/backtest/output/new_high_axis_probe_verdicts.csv",
+      "sha256": "50e7d56467b6c1ad07169e292ad2e643c8d807596877aaa3c341e289353d3310",
+      "size": 871
+    },
+    {
+      "path": "inputs/data/backtest/output/new_high_breadth_series.csv",
+      "sha256": "adc0753de966d1e212a59ae3ec7d2b30e18d5ff4a01c56bf8fcf7f8dc074826c",
+      "size": 349585
+    },
+    {
+      "path": "inputs/data/backtest/output/option_axis_probe_verdicts.csv",
+      "sha256": "e71d7c37ae02a534b7caf85b03c9b1f9ba50d2eea2ec476853ed9c7de2c8c2de",
+      "size": 1585
+    },
+    {
+      "path": "inputs/data/backtest/output/option_iv_IO.csv",
+      "sha256": "84fe39106fca5bf0d5608950724c03ad0a7fe6b95d6d7c834837698ee2a8f30d",
+      "size": 277307
+    },
+    {
+      "path": "inputs/data/backtest/output/option_iv_MO.csv",
+      "sha256": "fbddee2e8ee9f5e4c6e56db4a649a1729b4b7aa2f954fd1dd5ceedb7a132d8aa",
+      "size": 169531
+    },
+    {
+      "path": "inputs/data/backtest/output/probe_2_divergence_summary.json",
+      "sha256": "411f3a4ca780b3d6950796423fdbe88063dfeef929648bbc9b4a352638d57b37",
+      "size": 3969
+    },
+    {
+      "path": "inputs/data/backtest/output/probe_7_fund_crowding_summary.json",
+      "sha256": "2ae8c08f46221f779b2b0e3031e6fed2310f666ae3c99fe32fb20ace52eb926c",
+      "size": 10272
+    },
+    {
+      "path": "inputs/data/backtest/output/probe_xsection_summary.json",
+      "sha256": "d1f427c11e3fef3b5fe9692c392a07ce009ff836489a2eba6ff06746478e1873",
+      "size": 4276
+    },
+    {
+      "path": "inputs/data/backtest/output/runs/20260914-fixed-candidates-r1/outputs/candidate_factors.csv",
+      "sha256": "b9079cdc77e822686e771838fa4ee343d2cc6775ec810f40ccd23c5f3b486316",
+      "size": 199658
+    },
+    {
+      "path": "inputs/data/backtest/output/runs/20260914-grid-reassessment-r1/inputs/config_4pairs.csv",
+      "sha256": "52b9091d17cf4661b4f9d927bd861e18fbd9bf7ada047e77afd83c4e719635af",
+      "size": 213
+    },
+    {
+      "path": "inputs/data/backtest/output/runs/20260914-grid-reassessment-r1/inputs/equal_weight.csv",
+      "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc",
+      "size": 192861
+    },
+    {
+      "path": "inputs/data/backtest/output/runs/20260914-grid-reassessment-r1/inputs/slope20.csv",
+      "sha256": "3bad72ce3afd89e08eec7bf4881ca2d7011364135f619deceb33911df52fd823",
+      "size": 56298
+    },
+    {
+      "path": "inputs/data/backtest/output/runs/20260914-grid-reassessment-r1/inputs/style_prices.csv",
+      "sha256": "947d5aad9c933fcde31368587350007465f2e7ac2bc517232206bce4b0558ef7",
+      "size": 277779
+    },
+    {
+      "path": "inputs/data/backtest/output/runs/20260914-grid-reassessment-r1/outputs/carry_comparison.csv",
+      "sha256": "fc86c26b8eabb20cb76eb7010ad0780bb89dc00619c91235b8754e7af7495700",
+      "size": 219095
+    },
+    {
+      "path": "inputs/data/backtest/output/thermo_probe_verdicts.csv",
+      "sha256": "83c9f8d34bacbb2a11df12a4487511e58ce0c7b582e3e3d11d8292cc5e2d8f51",
+      "size": 1106
+    },
+    {
+      "path": "inputs/data/backtest/output/thermometer.csv",
+      "sha256": "2b3c084fb0aa1651e4ccf06b98f589d7663f19a6108c29eacc71804f738a8c76",
+      "size": 571533
+    },
+    {
+      "path": "inputs/data/backtest/output/xs_dispersion.csv",
+      "sha256": "1e2cf17a41465c80d218268c0b81c2a1cbc7ce7e7e06122dd87166bf1f265a24",
+      "size": 278202
+    },
+    {
+      "path": "inputs/data/backtest/overnight_probe.py",
+      "sha256": "d3a6390d1a3174f29e442ed512a2faa46b67aee0126003368b32c0cb15e101b2",
+      "size": 13542
+    },
+    {
+      "path": "inputs/data/backtest/pair_set_probe.py",
+      "sha256": "70ce68b3334bc7c9713bd764dd7c46f7d9a411a303992977cf6bf80f669bb168",
+      "size": 46708
+    },
+    {
+      "path": "inputs/data/backtest/pair_set_probe_5b.py",
+      "sha256": "aac4da03ab78e905414c53b80b85316c7609c5e2c46359f0e4ac485fdc9d738d",
+      "size": 39818
+    },
+    {
+      "path": "inputs/data/backtest/pair_weighting_probe.py",
+      "sha256": "69bc1c2e7ad4cd59bd92e98f41337fd0453c3fafca2088c06b08ef0788234d08",
+      "size": 5411
+    },
+    {
+      "path": "inputs/data/backtest/paired_bootstrap.py",
+      "sha256": "9de3d5ab5a6756c4cbf71bae42b7b51377bfe86e7034f5d98ca29b942b5c8d07",
+      "size": 8647
+    },
+    {
+      "path": "inputs/data/backtest/positions.py",
+      "sha256": "6418950e77bb6ead042bfff8aecb15a094c34645af040b3817a31545cd4d6404",
+      "size": 7768
+    },
+    {
+      "path": "inputs/data/backtest/reversal_probe.py",
+      "sha256": "b5be6cd684249ac33a81b31f04568f9c0dedcd03f2870e4e77b8605abacf47a8",
+      "size": 11003
+    },
+    {
+      "path": "inputs/data/backtest/rotation_probe.py",
+      "sha256": "dd2f891a19b1e72d9c00e7ba6d2c9db8cd159ee4a1ee31f1cd586c6e34a77429",
+      "size": 11229
+    },
+    {
+      "path": "inputs/data/backtest/run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/data/backtest/scan.py",
+      "sha256": "202d01d82fe3b20d0cc011a4898a329ed0ab7c47452f37bb150a2606bf60d0e5",
+      "size": 5593
+    },
+    {
+      "path": "inputs/data/backtest/selection_permutation.py",
+      "sha256": "36d202ed14d2f96093cac6ef59ff0fd8b5af32bc5f38743e0905a30e217d244b",
+      "size": 29933
+    },
+    {
+      "path": "inputs/data/backtest/significance.py",
+      "sha256": "95a1062b85f47735d73437f9ec4bd9143baa161e7a8a0bf0597270e1acb2811b",
+      "size": 1770
+    },
+    {
+      "path": "inputs/data/backtest/staged_entry_probe.py",
+      "sha256": "60448d107762e073ddcd42d148cfe2751fd8f80eb7d5b7d1826b642906109d95",
+      "size": 12523
+    },
+    {
+      "path": "inputs/data/backtest/thermo_probe.py",
+      "sha256": "eb624265ce86ddc3cd11337b439c1842c2299e2fc927d48b1239e0e2c61e9078",
+      "size": 12383
+    },
+    {
+      "path": "inputs/data/backtest/threshold_by_underlying_probe.py",
+      "sha256": "8cf73d9e86c9667d1eaa9d94ddd274f4779c0a1dcbabee7c9f9af2e6d8817c6a",
+      "size": 7740
+    },
+    {
+      "path": "inputs/data/backtest/underlying_probe.py",
+      "sha256": "9f91ed2c9a9f3aa55f3316defa16ce2f010398efb8036c003fe92c4d9372c990",
+      "size": 9111
+    },
+    {
+      "path": "inputs/data/backtest/xsection_probe.py",
+      "sha256": "5afcc9c6ccb2954525fda2c35984eb04df9dd41349a39568ed7eae5223a17460",
+      "size": 35373
+    },
+    {
+      "path": "inputs/data/backtest/yearly.py",
+      "sha256": "0aa14cd02fee903132e79e23b9ec3ce5c5790e74272f48880e35736cc6499f18",
+      "size": 6930
+    },
+    {
+      "path": "inputs/data/docs/plans/2026-08-26-signal-generator-prescreens/ewma_std_prescreen.py",
+      "sha256": "267c1fdf969a9fbfd0a05dd8f90d229e95a986cbf8d3a54e78e4885c39aaf4be",
+      "size": 10665
+    },
+    {
+      "path": "inputs/data/output/equal_weight/equal_weight_signal_5d20z.csv",
+      "sha256": "141b2a633d3ad96de1bdc8b21cba39abfc6ef7b8a1427c3bc9dfe931911232f0",
+      "size": 193704
+    },
+    {
+      "path": "inputs/data/output/style_basket/signal_pure_style_U2.csv",
+      "sha256": "1ec7bc07bb889ab72ed535837d40408825437dfb16d64fcad36ff70fd735357e",
+      "size": 159687
+    },
+    {
+      "path": "inputs/data/output/style_basket/signal_self_mixed_U2.csv",
+      "sha256": "6924bbca8d772724dee1e25c327ef7200ea588b5f3a488e18134e56c42aecd02",
+      "size": 159660
+    },
+    {
+      "path": "inputs/data/output/style_basket/spread_U2.csv",
+      "sha256": "6970647cd4f97d6e85cb4b150bcd0684c9b1a454cbc0135a0e106b65f9eaff87",
+      "size": 359075
+    },
+    {
+      "path": "inputs/data/output/style_basket/spread_U2_neutral.csv",
+      "sha256": "9e1cfcc0155d1b95d04675648328553633c01007a7bca02071c7f745bbae908d",
+      "size": 359979
+    },
+    {
+      "path": "inputs/data/signals/citic40d/generate_signal.py",
+      "sha256": "a431f4d25cda94be5d87cb6fa7a43093d513dec8ae6e26caf059e5347c15e066",
+      "size": 5985
+    },
+    {
+      "path": "inputs/data/signals/common/config.py",
+      "sha256": "90a80df8d7af97aafb002abfb716987405cefd0f793da7b933efd92c968c7f44",
+      "size": 931
+    },
+    {
+      "path": "inputs/data/signals/common/data_source.py",
+      "sha256": "a85b168c2a383ca1b04ddd51844a9cab59ee6cf51f9008a9a51d3b732c51a199",
+      "size": 5894
+    },
+    {
+      "path": "inputs/data/signals/common/factors.py",
+      "sha256": "33372e7cb61e1dcd45adcd903f0c02e2b051f1662bc43f591d3c965d77a8e9ff",
+      "size": 22096
+    },
+    {
+      "path": "inputs/data/signals/common/financial_field_map.py",
+      "sha256": "9b95594f521505e3c4f82ab25a3e563197fe3281e8d2ae60cfb9074d65e61dfe",
+      "size": 7743
+    },
+    {
+      "path": "inputs/data/signals/common/financial_reader.py",
+      "sha256": "122fd30f2c4b6e1e893a41ed58c493aea0fb7e52ea2eb958e008625d42a86fd7",
+      "size": 2940
+    },
+    {
+      "path": "inputs/data/signals/equal_weight/generate_signal.py",
+      "sha256": "4e4bc24d8caf9744a1acede9828a7d76029ef2a8ff1da2fff95b8fddf5e6451a",
+      "size": 12885
+    },
+    {
+      "path": "inputs/data/signals/style_basket/build.py",
+      "sha256": "21e9eaddb0b0f10a4954c88c5d393b99de0fd7688d646d3d32e786c8701b0d2d",
+      "size": 21396
+    },
+    {
+      "path": "inputs/data/signals/style_basket/scoring.py",
+      "sha256": "150e07a9a8b5d07d81355ab7986213e7acd9d90f4f10ef5ffd415cc06d1dda58",
+      "size": 6071
+    },
+    {
+      "path": "inputs/dividend_prices.csv",
+      "sha256": "3bd7f3653cde673135cfc1f227018ea62ccfafecc13c6ea92faee930a8471d6e",
+      "size": 125573
+    },
+    {
+      "path": "inputs/erp_sources.csv",
+      "sha256": "be38e68d5665f7a7f578e1cc0bbb9aa5cff48bce50b4a1e95f36d0abbac646f6",
+      "size": 179351
+    },
+    {
+      "path": "inputs/extend.py",
+      "sha256": "e93c6f3e732cb696affea5a8afd436cf8a4f07f76df6fa2ff163a092fdc9f8a5",
+      "size": 10292
+    },
+    {
+      "path": "inputs/finish_coverage.py",
+      "sha256": "7bc40df40b96fe54290ceb5556dcee0da8bf3f20066112f3ca4afe8d63e88c6b",
+      "size": 5080
+    },
+    {
+      "path": "inputs/margin.csv",
+      "sha256": "94ad3d2eae09f76cb617cae1dfce8c4aa8b64cbbf0cca7e1990bb35832b6389f",
+      "size": 161977
+    },
+    {
+      "path": "inputs/new_style_prices.csv",
+      "sha256": "ecf9e2b3d377d3af4e4363ad406cc1905b96a8dee205ad77350d366b017631d1",
+      "size": 277691
+    },
+    {
+      "path": "inputs/ohl_close.csv",
+      "sha256": "5ac838bd77482688e31bc3623f1ac3a341a55e0cf5a2dea058cf3974b3887f79",
+      "size": 245447
+    },
+    {
+      "path": "inputs/ohl_open.csv",
+      "sha256": "59446ccb881ea8c587ddc5d0bb5a90027da77a07841390dabfcc2212d0778d99",
+      "size": 245513
+    },
+    {
+      "path": "inputs/package_report.py",
+      "sha256": "cba88c15a834159b219cefdc833b684b37f39c6140af47eba2f5a8b56252eb3d",
+      "size": 13279
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "844cbe4c0675dd269c040e8735004e86640dc82d00ff34971749bbe5fdb55fac",
+      "size": 3776
+    },
+    {
+      "path": "inputs/research_registry.yaml",
+      "sha256": "dd88cdc572adc4a0546b13ba671736e82c0fd0ecc9d2555b9524b738cc6a6da0",
+      "size": 101066
+    },
+    {
+      "path": "inputs/verify_and_summarize.py",
+      "sha256": "47ff4d3acc794743de8d28b0c08095c3673c72f0ddfe290d4e6897dc9dd661e6",
+      "size": 11779
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "7c6d2bd3407c972d6f718ce0c9aaf9c56a9c1fd93fee572d8c6fa0462fd2f22a",
+      "size": 8763
+    },
+    {
+      "path": "outputs/all_build_issues.csv",
+      "sha256": "db559953264e100bbbd5f3b656ee1e64ad59653bca8f56f8c88574e82eff7797",
+      "size": 511
+    },
+    {
+      "path": "outputs/build_issues.csv",
+      "sha256": "902ea6eb2c3efa6aa6b1d66c8d50750d23f4f9c88e583a9546ea195ee6cf1a6f",
+      "size": 410
+    },
+    {
+      "path": "outputs/candidate_catalog.csv",
+      "sha256": "b1638867652bebc8eaff1d0dcc8e3ab7c51d69260ce460569cbc33fb1cb37c21",
+      "size": 598299
+    },
+    {
+      "path": "outputs/candidate_positions.csv",
+      "sha256": "73a24a47893c08f9f5997d6ac948960cc904211e7521702a69acc4fe0220dbe3",
+      "size": 9711688
+    },
+    {
+      "path": "outputs/comparison_counts.csv",
+      "sha256": "3c528608427f23a912db4ed6bd609041e9513258edf64c58c5e16542465cdd70",
+      "size": 14567
+    },
+    {
+      "path": "outputs/current_reference/candidate_catalog.csv",
+      "sha256": "da61ff8eabaf9c24bcd50ba268ba702571b3d517ee2d848b4e5186cad4f066b7",
+      "size": 121871
+    },
+    {
+      "path": "outputs/current_reference/event_attribution.csv",
+      "sha256": "ca8da3553c78c4fd47b768f95a8eba9aa15b0c69c11ce48defb39f743ee4ba74",
+      "size": 20705909
+    },
+    {
+      "path": "outputs/current_reference/event_masks.csv",
+      "sha256": "8ca3e485809b7ed711c46960856d35ea7dc4f120e9841fed7f09083c5fc12880",
+      "size": 478261
+    },
+    {
+      "path": "outputs/current_reference/event_position_response.csv",
+      "sha256": "e413d49e94c8046687d67918a46889980bdd4c148105977e8212f693cce133b7",
+      "size": 766690
+    },
+    {
+      "path": "outputs/current_reference/event_windows.csv",
+      "sha256": "c79ae8993150e62de966f3377df8fad5fa0a6187ef678232c0ee7930c37a1f79",
+      "size": 5158
+    },
+    {
+      "path": "outputs/current_reference/primary_comparisons.csv",
+      "sha256": "3c9758d1557bcacbb0847416e5815a642f14613ca5e91eef64bf830a09b3c503",
+      "size": 111311
+    },
+    {
+      "path": "outputs/current_reference/rank_flips.csv",
+      "sha256": "3436a2a04c5951ea1006ce9b0bf4611e7b0fc0ead3acf45d873ce0e3cc9465a7",
+      "size": 8455
+    },
+    {
+      "path": "outputs/event_attribution.csv",
+      "sha256": "593cf1b1429b47d99fb6c727990da6658df5a5abc7dd537a644b8ea1258d8e81",
+      "size": 88103896
+    },
+    {
+      "path": "outputs/event_masks.csv",
+      "sha256": "8ca3e485809b7ed711c46960856d35ea7dc4f120e9841fed7f09083c5fc12880",
+      "size": 478261
+    },
+    {
+      "path": "outputs/event_position_response.csv",
+      "sha256": "b54835f8703ece843f459ad96975289db71a62629292f960758198ea365d6278",
+      "size": 3161040
+    },
+    {
+      "path": "outputs/event_windows.csv",
+      "sha256": "c79ae8993150e62de966f3377df8fad5fa0a6187ef678232c0ee7930c37a1f79",
+      "size": 5158
+    },
+    {
+      "path": "outputs/events.json",
+      "sha256": "f5e4e7af24bc251c6b2d0888d9d54e35c35f752e04f31800f9eb060444a21508",
+      "size": 1713
+    },
+    {
+      "path": "outputs/extra/build_issues.csv",
+      "sha256": "2f63cecf3482f13070d7568f32a4f899c7ab6b921c58d9a0df97988eec620e0a",
+      "size": 119
+    },
+    {
+      "path": "outputs/extra/candidate_catalog.csv",
+      "sha256": "7ef7f6adde2666a14340decf0d80c2d97b79fd4eeee790e15a784d590b1f2ede",
+      "size": 20857
+    },
+    {
+      "path": "outputs/extra/candidate_positions.csv",
+      "sha256": "93592b51ee786f531468976b6e5efa97dc8de4a2373f09cf3175e79706dd36f3",
+      "size": 617327
+    },
+    {
+      "path": "outputs/extra/event_attribution.csv",
+      "sha256": "fd1e8f8d797e5424bae4bf29cf8e91c4a9470f19f71ed375cacfa63bce2c491b",
+      "size": 4971019
+    },
+    {
+      "path": "outputs/extra/event_masks.csv",
+      "sha256": "8ca3e485809b7ed711c46960856d35ea7dc4f120e9841fed7f09083c5fc12880",
+      "size": 478261
+    },
+    {
+      "path": "outputs/extra/event_position_response.csv",
+      "sha256": "1de5a488eb18fca8af60413f6dd3a51bea028fb200e5cacd4a48b0e7f21af9e4",
+      "size": 162382
+    },
+    {
+      "path": "outputs/extra/event_windows.csv",
+      "sha256": "c79ae8993150e62de966f3377df8fad5fa0a6187ef678232c0ee7930c37a1f79",
+      "size": 5158
+    },
+    {
+      "path": "outputs/extra/primary_comparisons.csv",
+      "sha256": "9a3f2d5d2b593a754857b794200cd2f32134bbca2cfa92a70b2d4c912f7748af",
+      "size": 27309
+    },
+    {
+      "path": "outputs/extra/rank_flips.csv",
+      "sha256": "5b3ed8fea68f52ab56d72ef66a7b1459dc3e29dad24cfa9b357394265e0b883e",
+      "size": 296
+    },
+    {
+      "path": "outputs/extra2/build_issues.csv",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "size": 1
+    },
+    {
+      "path": "outputs/extra2/candidate_catalog.csv",
+      "sha256": "596f64cf68d05589f4d099d323e5acf6e529d79bb928054424bdb92a0db9e032",
+      "size": 7252
+    },
+    {
+      "path": "outputs/extra2/candidate_positions.csv",
+      "sha256": "6cb20e5d2cdf3fc01af61aed70ce0f1d4218061ae5a409a8930dd99e6b8bf101",
+      "size": 244147
+    },
+    {
+      "path": "outputs/extra2/event_attribution.csv",
+      "sha256": "cc25edb0d2bc0864e069c0c1ed6a0529699682529dfd08849e5ab2c92b5a8e9c",
+      "size": 1607710
+    },
+    {
+      "path": "outputs/extra2/event_masks.csv",
+      "sha256": "8ca3e485809b7ed711c46960856d35ea7dc4f120e9841fed7f09083c5fc12880",
+      "size": 478261
+    },
+    {
+      "path": "outputs/extra2/event_position_response.csv",
+      "sha256": "9e3f6694e46b497d0aa95dedce04e63fa10e7dcd33aab39273f2f5ea191bbf4b",
+      "size": 53026
+    },
+    {
+      "path": "outputs/extra2/event_windows.csv",
+      "sha256": "c79ae8993150e62de966f3377df8fad5fa0a6187ef678232c0ee7930c37a1f79",
+      "size": 5158
+    },
+    {
+      "path": "outputs/extra2/primary_comparisons.csv",
+      "sha256": "59791e4d456626e34ff6af3b7034db376374bab0331e24dccb52e89880e3dd09",
+      "size": 9034
+    },
+    {
+      "path": "outputs/extra2/rank_flips.csv",
+      "sha256": "5b3ed8fea68f52ab56d72ef66a7b1459dc3e29dad24cfa9b357394265e0b883e",
+      "size": 296
+    },
+    {
+      "path": "outputs/full_sensitivity.csv",
+      "sha256": "73483b33fc773426c7ea9c460efa44989858fc16c94913fb88caf6d708fd6c15",
+      "size": 28797487
+    },
+    {
+      "path": "outputs/input_sources.json",
+      "sha256": "aae014d591d9b13ad0142242e0b97936e08a4fcf2f349c6905434a08dc5aeb5f",
+      "size": 20400
+    },
+    {
+      "path": "outputs/ledger_verification.csv",
+      "sha256": "0922c55c665bb4a478c0d155a2df18cf281117bda1804339091f086aec0cf7f9",
+      "size": 465
+    },
+    {
+      "path": "outputs/market.csv",
+      "sha256": "01f84d4033453bad062beffa0fdf1575cde12a68d231807227578136069000b0",
+      "size": 154259
+    },
+    {
+      "path": "outputs/primary_comparisons.csv",
+      "sha256": "ec198e2fc968f3386ade46c14a5183239e565344607b711414c036f34e058747",
+      "size": 474089
+    },
+    {
+      "path": "outputs/rank_flips.csv",
+      "sha256": "10e2c997bc1e1b439644b07188212d941971af60c58f76498fb9c0e3ee9cffa6",
+      "size": 8689
+    },
+    {
+      "path": "outputs/reference_positions.csv",
+      "sha256": "d18725c9a5bcb078124bf4ae071df55354cce8e9dc42bd56a0730ae34e670637",
+      "size": 86462
+    },
+    {
+      "path": "outputs/registry_coverage.csv",
+      "sha256": "05f19686a533a851f1e5756e3621194a16bab17fadfecc425af1a1c10655b9e5",
+      "size": 49006
+    },
+    {
+      "path": "outputs/review_candidates.csv",
+      "sha256": "cb6f4d4f3af3821febc4863d953cd41caadb910c94a9ae4c9b8b6de519b6c6ee",
+      "size": 11274
+    },
+    {
+      "path": "outputs/risk_and_returns.csv",
+      "sha256": "c8fcc135a56906cbbf66f442c8ac7315d7ded6ff6f2d11b91ebff2e378b83822",
+      "size": 547199
+    },
+    {
+      "path": "outputs/robustness.csv",
+      "sha256": "fb4a4b0b822d93042c7448030af71356aee1a554d49430c884263e036c5efcac",
+      "size": 650296
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "18e60c62b9eb0815c83863a1e1c20ab046dcdf11346f6f5a95c2f90340356058",
+      "size": 667
+    },
+    {
+      "path": "outputs/worst_tv_comparisons.csv",
+      "sha256": "7baabb0d1b01012ad8f438963de18c9e112207161a204ce8207269a34e89d0e7",
+      "size": 1429848
+    },
+    {
+      "path": "outputs/夏普反转候选明细.csv",
+      "sha256": "6a240a1622422a376d2801ef4fea83c225491c26be65d12e0a7973af997e2b30",
+      "size": 11277
+    },
+    {
+      "path": "outputs/被否决信号_事件依赖审计.xlsx",
+      "sha256": "f76c60af4fde10148eb21ee41b6594c1da5fa7f82d96cd8efe41e8a06341e357",
+      "size": 776368
+    }
+  ],
+  "asof": "2026-09-11",
+  "numpy": "2.3.4",
+  "pandas": "2.3.3",
+  "production_changed": false,
+  "python": "3.13.9",
+  "run_id": "20260915-event-dependence-r1",
+  "scope": "bounded descriptive audit; full registry inventory, partial numerical coverage",
+  "status": "complete",
+  "unreplayed_signal_studies": 8,
+  "verification": {
+    "archived_ledgers_checked": 10,
+    "attribution_rows": 263712,
+    "comparison_rows": 1374,
+    "formal_negative_study_sharpe_flips": 17,
+    "frozen_source_hashes_checked": 75,
+    "independent_engine_comparisons": 2748,
+    "max_primary_metric_error": 1.4210854715202004e-14,
+    "named_specifications": 736,
+    "negative_records": 40,
+    "negative_records_with_direct_replay": 29,
+    "negative_records_with_replay_including_alias": 30,
+    "negative_signal_records": 38,
+    "packaged_source_hashes_checked": 97,
+    "registry_records": 63,
+    "robust_both_flips": 0,
+    "robust_sharpe_flips": 3,
+    "status": "passed",
+    "unique_position_paths": 728,
+    "workbook_rows_checked": true
+  }
+}

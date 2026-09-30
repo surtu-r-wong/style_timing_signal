@@ -1,0 +1,22 @@
+[
+  {
+    "path": "backtest/output/runs/20260917-ew-oi-input-readiness-r1/inputs/calendar.csv",
+    "size": 69872,
+    "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983"
+  },
+  {
+    "path": "backtest/output/runs/20260917-ew-oi-input-readiness-r1/inputs/columns.csv",
+    "size": 3295,
+    "sha256": "24ef2e54986019c9d306c56891618bfd9b4fbd35c579522a9c735d625bdd8e28"
+  },
+  {
+    "path": "backtest/output/runs/20260917-ew-oi-input-readiness-r1/inputs/futures.csv",
+    "size": 959379,
+    "sha256": "31aa2d003a564f66941952e4fd1ddc0b810578504c325e330bdf79c80d7694cd"
+  },
+  {
+    "path": "backtest/output/runs/20260917-ew-oi-input-readiness-r1/inputs/spot.csv",
+    "size": 176519,
+    "sha256": "977cb1b0e25ed06255c15f546ff1c9daaf93fcaa55b97d209e5fc97835fa47bf"
+  }
+]

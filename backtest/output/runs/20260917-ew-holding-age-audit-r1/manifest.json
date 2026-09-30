@@ -1,0 +1,362 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/code__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__run_flow_robustness_diagnostic.py",
+      "sha256": "82ac41c5a79b7c1c7d54f05fc0f13d0b24dd29d07f335d211aaa71ab19f5433d",
+      "size": 13947
+    },
+    {
+      "path": "inputs/code__run_holding_age_audit.py",
+      "sha256": "39d515200fcdd2a675a11f8011e7c90e97793e4c7126a573aad32562b4720444",
+      "size": 13042
+    },
+    {
+      "path": "inputs/code__run_intraday_flow_pilot.py",
+      "sha256": "8d79e614f8a66ad96308e270736940ce8303dd2eac08b8962dda1e42ce38ad36",
+      "size": 19934
+    },
+    {
+      "path": "inputs/code__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code__test_holding_age_audit.py",
+      "sha256": "2bd7a9484882e89930f95e6deca3c39d21a0536e411b4f62b2137ae80278051d",
+      "size": 1448
+    },
+    {
+      "path": "inputs/decision_targets.csv",
+      "sha256": "0132a8e9247fdb3aea13f503910e809d4ffb3095dd0be23d87ddfd0979f78b57",
+      "size": 531164
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b",
+      "size": 957830
+    },
+    {
+      "path": "inputs/ledgers_close_10bps.csv.gz",
+      "sha256": "f635c1c0a1e68ca6bc1ccc28285d8ae14ca6cd0079f4d41fea68c82fb190f46a",
+      "size": 3034387
+    },
+    {
+      "path": "inputs/ledgers_close_3bps.csv.gz",
+      "sha256": "bb977c30fa63f342ecdf997dec46b0a8c5e2073de317261d739db17ac94f2628",
+      "size": 3370009
+    },
+    {
+      "path": "inputs/ledgers_second_close_3bps.csv.gz",
+      "sha256": "84b5eb8cf45e156ab618823b58c3f15142dd55f263442917007a07174e389793",
+      "size": 3370562
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "fd674418ae3bd0090810ffd9aa309c95331d2732e373ae021ef20bfb2ecd9cc0",
+      "size": 3068
+    },
+    {
+      "path": "inputs/source_manifest.json",
+      "sha256": "6621aaa8f37f686098919a10deb45a18feace8ac9c65e6fd73a8b9808e39d267",
+      "size": 14555
+    },
+    {
+      "path": "inputs/source_receipts.json",
+      "sha256": "c6efbf398c8d87a600ec14a5a76f365761cc92347750d731e999eed82de0b99a",
+      "size": 1271
+    },
+    {
+      "path": "inputs/spot.csv",
+      "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d",
+      "size": 223423
+    },
+    {
+      "path": "logs/check_receipt.json",
+      "sha256": "1501a68ef932db3d2ee6af28d1f25849a0dddcaaae65d8eb74bdeb05a2498a41",
+      "size": 750
+    },
+    {
+      "path": "logs/final_verification.json",
+      "sha256": "1dce112d69f7b3efe3a94361481b2801a1a4ae6a5e47353735f3847010804a31",
+      "size": 199
+    },
+    {
+      "path": "logs/run.log",
+      "sha256": "69abd00699cd18f34d5cd4f4c6b33ff87a5ca2ef9605c135c8337165918d5d5d",
+      "size": 3965
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "52d29dd9a2b7b07a962d96b23ff0138ed05fbe4a5f0d842a0072f063feb31b98",
+      "size": 6966
+    },
+    {
+      "path": "outputs/age_profiles.csv",
+      "sha256": "68cc3beb3882a696ebeefe6dc4043f51cfeaaaa76c5fdab6690e6ca2fafdcad8",
+      "size": 11742
+    },
+    {
+      "path": "outputs/age_targets.csv",
+      "sha256": "18844e3126137cffad3f9ba5044f77493998d6982563a1ac211eeead13e3d77c",
+      "size": 311763
+    },
+    {
+      "path": "outputs/baseline_episodes_close_10bps.csv",
+      "sha256": "830b77ded9ae42a215ccb22a28cf3407cbc11d918c4ec496bdb621411b1bdf8c",
+      "size": 1619
+    },
+    {
+      "path": "outputs/baseline_episodes_close_3bps.csv",
+      "sha256": "830b77ded9ae42a215ccb22a28cf3407cbc11d918c4ec496bdb621411b1bdf8c",
+      "size": 1619
+    },
+    {
+      "path": "outputs/baseline_episodes_second_close_3bps.csv",
+      "sha256": "bdbbfcdce75e268ffa9f1075505b76c1a81cff0cbccc4a731bd1477f09a830b6",
+      "size": 1619
+    },
+    {
+      "path": "outputs/comparisons.csv",
+      "sha256": "8cf22f645e69ddcdeedd1af015d3d82fba617552b753c7d84fe63726a4fc2a64",
+      "size": 57691
+    },
+    {
+      "path": "outputs/decision_ages.csv",
+      "sha256": "5ca96142b988f9d28775a62bb62c93783fc3954c5b6940edda74bd694d0fc1e3",
+      "size": 51816
+    },
+    {
+      "path": "outputs/definitions.csv",
+      "sha256": "c59774b5a42c1ce7e6aa5e9179b8bb4e5da80a8bca2e9d6bb769d8ac78562c89",
+      "size": 278
+    },
+    {
+      "path": "outputs/documents/2026-09-16-equal-weight-independent-legs.md",
+      "sha256": "6dac10944aae3e010ccfa076391cd1dfdf02fd7eaa74689e0fe75bf08f86ce36",
+      "size": 20107
+    },
+    {
+      "path": "outputs/documents/2026-09-17-ew-holding-age-results.md",
+      "sha256": "59ed767a37810e995a00151ce086173e9f92c71707da75304e97661b8bfd14d8",
+      "size": 7311
+    },
+    {
+      "path": "outputs/documents/README.md",
+      "sha256": "87bdb2eeb7262e20477ee7700daba828f7f798b8fdf21328af1d4df1f702454c",
+      "size": 79525
+    },
+    {
+      "path": "outputs/documents/research_registry.yaml",
+      "sha256": "32cbe8ebd217e248a6fe291d1e3d58b45466a8c454fa91afbbc9f037cd3b1d93",
+      "size": 114268
+    },
+    {
+      "path": "outputs/episode_attribution.csv",
+      "sha256": "caa64bec632ef72d7c5ca20fac60c372a90f3977db82b80b188175086b9f2c5c",
+      "size": 102362
+    },
+    {
+      "path": "outputs/exposure_by_window.csv",
+      "sha256": "d3283f8c3474e340592d00db62960b49b07fea752ddb000e13a862c8f184714c",
+      "size": 26693
+    },
+    {
+      "path": "outputs/ledgers_close_10bps.csv.gz",
+      "sha256": "dafb7b9d3c368848b0ab240f0920fdfc2908f5e579c0b4ec17d4d47d5ea66c3f",
+      "size": 2835682
+    },
+    {
+      "path": "outputs/ledgers_close_3bps.csv.gz",
+      "sha256": "6f86b9b05977d9bb85b9a48bc3bc3360c9fd951ad85555ac3996c70f7945a99a",
+      "size": 3159502
+    },
+    {
+      "path": "outputs/ledgers_second_close_3bps.csv.gz",
+      "sha256": "7d6e9b38f1a0be4baf68e1c163d684df4f754035c5fffbb166b6cd636b40a34a",
+      "size": 3160652
+    },
+    {
+      "path": "outputs/metrics.csv",
+      "sha256": "082f47a9abd79b10ae05c1e114e44792c9ab8ed0acf58742ee1fec83944939ba",
+      "size": 255183
+    },
+    {
+      "path": "outputs/new_trades_close_10bps.csv",
+      "sha256": "718cde513be0f31e2907292e14cc710434a2676c66e845ecf99bfbba9b2e497d",
+      "size": 131556
+    },
+    {
+      "path": "outputs/new_trades_close_3bps.csv",
+      "sha256": "31b3cbf8af8bf6b789af9bd81ccb93f74d5a938fed1fb61cd093125da7406869",
+      "size": 131797
+    },
+    {
+      "path": "outputs/new_trades_second_close_3bps.csv",
+      "sha256": "0b57ae1ae3a19b3a23e2560002747d1bd5e52c48525ba97620bc03dc151b0e4b",
+      "size": 131907
+    },
+    {
+      "path": "outputs/postcheck.json",
+      "sha256": "db5d7233a995e3b96587ea41a7131fc13b49ef95e55f4b69726dbdf4bae96345",
+      "size": 2442
+    },
+    {
+      "path": "outputs/relative_daily.csv.gz",
+      "sha256": "103a6638cd34f78f1ba7b7f232abef3686c6db1ce8dc8e0bae893b8322c7c795",
+      "size": 868386
+    },
+    {
+      "path": "outputs/stress.csv",
+      "sha256": "dc9c3d2e1a88dd9a5ac1ee43e167c38ad59a13f7a4a193118cf2436fde46b0ba",
+      "size": 6134
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "97d57a61003b364178202aaf187c6bf7190c15be4248e0f5bf6796fb18ac155c",
+      "size": 1168
+    }
+  ],
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      " M output/citic40d/citic_style_signal_40d.csv",
+      " M output/equal_weight/equal_weight_signal_20d40z.csv",
+      " M output/equal_weight/equal_weight_signal_5d20z.csv",
+      " M output/hybrid20/confirmed_signal.csv",
+      " M output/hybrid20/growth_stability_signal.csv",
+      " M output/recommended/citic40d_longflat.csv",
+      " M output/recommended/equal_weight_longflat.csv",
+      " M output/recommended/equal_weight_symmetric.csv",
+      " M output/recommended/hybrid20_longflat.csv",
+      " M output/recommended/slope20_longflat.csv",
+      " M output/recommended/slope20_symmetric.csv",
+      " M output/slope20/slope20_signal_L20zw120.csv",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/flow_structure_followup.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/output/data_manager_handoff_20260916/",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-constituent-flow-extension-r1/",
+      "?? backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-robustness-diagnostic-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-score-continuation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-structure-followup-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_constituent_flow_extension.py",
+      "?? backtest/run_exit_mechanism_audit.py",
+      "?? backtest/run_flow_robustness_diagnostic.py",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_flow_structure_followup.py",
+      "?? backtest/run_holding_age_audit.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-extension.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-audit.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-diagnostic.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-followup.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-audit.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? tests/test_exit_mechanism_audit.py",
+      "?? tests/test_flow_structure_followup.py",
+      "?? tests/test_holding_age_audit.py",
+      "?? tests/test_intraday_flow_pilot.py"
+    ],
+    "tracked_dirty": true
+  },
+  "prereg_sha256": "fd674418ae3bd0090810ffd9aa309c95331d2732e373ae021ef20bfb2ecd9cc0",
+  "run_id": "20260917-ew-holding-age-audit-r1",
+  "stage": "descriptive_hindsight_holding_age_audit",
+  "status": "complete",
+  "verification": {
+    "account_leg_trade_identities": true,
+    "age_exposure_matching": true,
+    "completed_utc": "2026-09-17T02:27:58.353674+00:00",
+    "decision_episodes": 48,
+    "end": "2026-09-11",
+    "episode_year_additivity": true,
+    "hindsight_reference_not_deployable": true,
+    "new_ledgers": 36,
+    "reference_checks": [
+      {
+        "max_engine_error": 0.0,
+        "scenario": "close_3bps",
+        "strategy": "A__new_exit_only"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "close_3bps",
+        "strategy": "AS__old_daily"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "close_10bps",
+        "strategy": "A__new_exit_only"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "close_10bps",
+        "strategy": "AS__old_daily"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "second_close_3bps",
+        "strategy": "A__new_exit_only"
+      },
+      {
+        "max_engine_error": 0.0,
+        "scenario": "second_close_3bps",
+        "strategy": "AS__old_daily"
+      }
+    ],
+    "reused_ledgers": 45,
+    "right_censored_decision_days": 0,
+    "samples": 2330,
+    "source_hashes_verified": true,
+    "start": "2017-02-14",
+    "target_delays_verified": true
+  }
+}

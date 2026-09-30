@@ -1,0 +1,5 @@
+comparison_scope,lag,n,actual_event_sharpe_flips,random_flip_median,random_flip_q05,random_flip_q95,random_at_least_actual_fraction
+current_EW_cross_mapping,1,319,24,4.0,0.0,25.049999999999955,0.0635
+current_EW_cross_mapping,2,319,26,6.0,0.0,26.0,0.06
+current_EW_symmetric,1,377,1,1.0,0.0,3.0,0.6775
+current_EW_symmetric,2,377,1,0.0,0.0,2.0,0.311

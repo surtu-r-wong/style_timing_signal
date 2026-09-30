@@ -1,0 +1,1 @@
+PASS: input SHA256, independently reconstructed short transitions, all 1980 event-horizon rows via direct return products, trade exits, cost/delayed columns and full-window summary counts.

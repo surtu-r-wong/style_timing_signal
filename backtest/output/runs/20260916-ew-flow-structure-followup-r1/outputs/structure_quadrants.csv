@@ -1,0 +1,17 @@
+source,quadrant,days
+CHINEXT,both_buy,146
+CHINEXT,both_sell,1643
+CHINEXT,x_buy_l_sell,537
+CHINEXT,x_sell_l_buy,4
+CSI1000,both_buy,123
+CSI1000,both_sell,1717
+CSI1000,x_buy_l_sell,481
+CSI1000,x_sell_l_buy,9
+CSI300,both_buy,297
+CSI300,both_sell,1611
+CSI300,x_buy_l_sell,351
+CSI300,x_sell_l_buy,71
+CSI500,both_buy,184
+CSI500,both_sell,1732
+CSI500,x_buy_l_sell,378
+CSI500,x_sell_l_buy,36

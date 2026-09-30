@@ -1,0 +1,14 @@
+{
+  "product": "IM",
+  "start": "2022-07-22",
+  "end": "2026-09-16",
+  "days_requested": 1009,
+  "days_with_data": 1009,
+  "days_no_data": 0,
+  "days_error": 0,
+  "rank_rows": 219600,
+  "not_disclosed_rows": 1128,
+  "generated_at_utc": "2026-09-17T03:58:53.438423+00:00",
+  "source": "http://www.cffex.com.cn/sj/ccpm",
+  "raw_files": 1009
+}

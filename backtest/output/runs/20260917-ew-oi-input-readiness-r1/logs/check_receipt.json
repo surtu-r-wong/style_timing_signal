@@ -1,0 +1,26 @@
+{
+  "pytest_command": "python -m pytest tests/test_oi_delivery_contract.py -q",
+  "pytest_exit_code": 0,
+  "pytest_result": "7 passed in 0.54s",
+  "ruff_exit_code": 0,
+  "ruff_select": "F,E9",
+  "readiness_run_exit_code": 0,
+  "scope": "raw readiness and consumer structure; no candidate performance",
+  "files": [
+    {
+      "path": "backtest/oi_delivery_contract.py",
+      "size": 5751,
+      "sha256": "0b61f1ecdafb670359d066058c794f3394ed0fe9c6f0319965778defeec9b212"
+    },
+    {
+      "path": "backtest/run_oi_input_readiness.py",
+      "size": 8182,
+      "sha256": "931c765915217901925506f829c69749c53c74347368437ff46e0194d73eb736"
+    },
+    {
+      "path": "tests/test_oi_delivery_contract.py",
+      "size": 3284,
+      "sha256": "f9b26df324d91dedf8ac22ac1aca27fe834775090c50a96f2d8a1c8916e9b60e"
+    }
+  ]
+}

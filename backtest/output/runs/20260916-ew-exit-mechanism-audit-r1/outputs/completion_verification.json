@@ -1,0 +1,14 @@
+{
+  "frozen_inputs_and_original_computed_artifacts_unchanged": true,
+  "prereg_unchanged": true,
+  "source_receipts_verified": 9,
+  "all_books_execution_lags_verified": 96,
+  "all_q_r_references_and_opposite_legs_verified": true,
+  "initial_and_corrected_code_archived": true,
+  "only_postcompute_change_is_diagnostic_counter": true,
+  "new_inventory_regression_test_passed": true,
+  "four_existing_state_rule_tests_reused_unchanged_code": true,
+  "ruff_F_E9_passed": true,
+  "registry_validate_and_render_check_passed": true,
+  "git_diff_check_passed": true
+}

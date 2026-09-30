@@ -1,0 +1,52 @@
+[
+  {
+    "path": "inputs/data/candidate_catalog.csv",
+    "size": 598299,
+    "sha256": "b1638867652bebc8eaff1d0dcc8e3ab7c51d69260ce460569cbc33fb1cb37c21"
+  },
+  {
+    "path": "inputs/data/candidate_positions.csv",
+    "size": 9711688,
+    "sha256": "73a24a47893c08f9f5997d6ac948960cc904211e7521702a69acc4fe0220dbe3"
+  },
+  {
+    "path": "inputs/data/reference_positions.csv",
+    "size": 86462,
+    "sha256": "d18725c9a5bcb078124bf4ae071df55354cce8e9dc42bd56a0730ae34e670637"
+  },
+  {
+    "path": "inputs/data/market.csv",
+    "size": 154259,
+    "sha256": "01f84d4033453bad062beffa0fdf1575cde12a68d231807227578136069000b0"
+  },
+  {
+    "path": "inputs/data/event_masks.csv",
+    "size": 478261,
+    "sha256": "8ca3e485809b7ed711c46960856d35ea7dc4f120e9841fed7f09083c5fc12880"
+  },
+  {
+    "path": "inputs/data/event_windows.csv",
+    "size": 5158,
+    "sha256": "c79ae8993150e62de966f3377df8fad5fa0a6187ef678232c0ee7930c37a1f79"
+  },
+  {
+    "path": "inputs/data/full_sensitivity.csv",
+    "size": 28797487,
+    "sha256": "73483b33fc773426c7ea9c460efa44989858fc16c94913fb88caf6d708fd6c15"
+  },
+  {
+    "path": "inputs/data/worst_tv_comparisons.csv",
+    "size": 1429848,
+    "sha256": "7baabb0d1b01012ad8f438963de18c9e112207161a204ce8207269a34e89d0e7"
+  },
+  {
+    "path": "inputs/data/review_candidates.csv",
+    "size": 11274,
+    "sha256": "cb6f4d4f3af3821febc4863d953cd41caadb910c94a9ae4c9b8b6de519b6c6ee"
+  },
+  {
+    "path": "inputs/data/registry_coverage.csv",
+    "size": 49006,
+    "sha256": "05f19686a533a851f1e5756e3621194a16bab17fadfecc425af1a1c10655b9e5"
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "status": "complete",
+  "stage": "consumer_readonly_p0_acceptance",
+  "artifacts": [
+    {
+      "path": "disposition.md",
+      "sha256": "b732a4f28d7c17b1d9d48b344a070c9001dfd8242016d8753ca3f97f91977b5e",
+      "size": 11360
+    },
+    {
+      "path": "p0_added_rows.csv",
+      "sha256": "bc0efabc69009964e670509059128cae7f0bdcf5c9a7e74c61806e575d1ef2e9",
+      "size": 5582
+    },
+    {
+      "path": "response-01-office-2026-09-16.md",
+      "sha256": "56699919d16a9a7ba2bbba17937ecc75335f81123f86e6fde441baec88b751d6",
+      "size": 4502
+    },
+    {
+      "path": "response-02-office-2026-09-16.md",
+      "sha256": "fa5d652dc7acaa820d8775ae73414ef3e28a55a1ad183f20b41e02a2e0865a1f",
+      "size": 3373
+    },
+    {
+      "path": "verification.json",
+      "sha256": "2e9daca4d71906d8f515e266212047fb1b5b0f6d16afaa8370391b131784d588",
+      "size": 2617
+    },
+    {
+      "path": "verify_delivery.py",
+      "sha256": "ab98339274fcdd13bfc86d9511628a331b36519a5fafba9182eabb548315f03b",
+      "size": 4623
+    }
+  ]
+}

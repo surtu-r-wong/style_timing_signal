@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/tmp/accept_office_ancillary_20260917.py", line 65, in <module>
+    m=check_files(path)
+  File "/tmp/accept_office_ancillary_20260917.py", line 19, in check_files
+    assert actual["sha256"]==item["sha256"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

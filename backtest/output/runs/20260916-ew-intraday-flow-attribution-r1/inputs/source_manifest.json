@@ -1,0 +1,12 @@
+{
+  "first_run_manifest": {
+    "path": "backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/manifest.json",
+    "size": 7593,
+    "sha256": "554220ea2c9ad08abe7ed984a183255a389ce56fdae2684b09a4f8e93670c259"
+  },
+  "event_definitions": {
+    "path": "backtest/output/runs/20260915-event-dependence-r1/inputs/audit.py",
+    "size": 17812,
+    "sha256": "cd59733e77d77f51963dd04480b63835ec12f6facb52392e97f755c5a3d72d61"
+  }
+}

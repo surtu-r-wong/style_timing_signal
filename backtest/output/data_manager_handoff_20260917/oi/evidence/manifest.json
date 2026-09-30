@@ -1,0 +1,64 @@
+{
+  "files": [
+    {
+      "path": "evidence/contract_counts.csv",
+      "size": 60645,
+      "sha256": "043f4ea5c99af73058cde1d2fc1c8e38e733266e67cc1c1ff04e903dd23e3398"
+    },
+    {
+      "path": "evidence/coverage.csv",
+      "size": 282,
+      "sha256": "7ee0ec56ef23b7a2d4a6e1aa17d67322391d798abb4e2533e1f26ad394dfcf0f"
+    },
+    {
+      "path": "evidence/gaps.csv",
+      "size": 99,
+      "sha256": "d9e6053f7f766c3e03e68e0dcd1fbcb067c1d1a46f63a48b895dd1caae8478e9"
+    },
+    {
+      "path": "evidence/invalid_values.csv",
+      "size": 31,
+      "sha256": "e6b0f9d599b0783ddb89b8ad3f19a4e5b31c56b42b728f9332060fc6707e5f81"
+    },
+    {
+      "path": "evidence/oi_delivery_contract.json",
+      "size": 2139,
+      "sha256": "521ea6c7097b604f8add85f50fe331a062131768f1174b3be4591c1e85d84e61"
+    },
+    {
+      "path": "evidence/oi_delivery_contract.py",
+      "size": 5751,
+      "sha256": "0b61f1ecdafb670359d066058c794f3394ed0fe9c6f0319965778defeec9b212"
+    },
+    {
+      "path": "evidence/provenance.json",
+      "size": 268,
+      "sha256": "fe93171c2a8ceb641fd3e78b7cc7b451ca08e82900ba1daf5feced70505aa508"
+    },
+    {
+      "path": "evidence/raw_snapshot_fingerprints.json",
+      "size": 793,
+      "sha256": "5073c3fc93a0b656060480c954c52cf6b8ae30c5edbb56e8d5c9f8b246bbb328"
+    },
+    {
+      "path": "evidence/research_spec.md",
+      "size": 6429,
+      "sha256": "571fb3172f87118a78937272c8afba92577772d8744d40a5bbd309c3191a0123"
+    },
+    {
+      "path": "evidence/test_oi_delivery_contract.py",
+      "size": 3284,
+      "sha256": "f9b26df324d91dedf8ac22ac1aca27fe834775090c50a96f2d8a1c8916e9b60e"
+    },
+    {
+      "path": "evidence/verification.json",
+      "size": 316,
+      "sha256": "267b15e88db2abbf7d66f0b8e457ffa5c2502fe58bb94c7cb7957663596d0f61"
+    },
+    {
+      "path": "request.md",
+      "size": 6149,
+      "sha256": "65323478d7f27e865386d815c9af4bb049df6a6754a2e428c755c0429e06e0a0"
+    }
+  ]
+}

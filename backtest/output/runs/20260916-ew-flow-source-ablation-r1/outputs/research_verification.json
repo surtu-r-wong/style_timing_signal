@@ -1,0 +1,55 @@
+{
+  "sample_definitions": [
+    {
+      "scope": "long_window",
+      "start": "2016-02-15",
+      "end": "2026-09-03",
+      "n": 2568,
+      "sources": [
+        "CSI300",
+        "CHINEXT",
+        "PAIR"
+      ],
+      "half_split_after": "2021-05-21"
+    },
+    {
+      "scope": "common_short",
+      "start": "2021-02-09",
+      "end": "2026-09-03",
+      "n": 1349,
+      "sources": [
+        "CSI300",
+        "CHINEXT",
+        "STAR",
+        "PAIR",
+        "TRIPLE"
+      ],
+      "half_split_after": "2023-11-22"
+    }
+  ],
+  "checks": [
+    {
+      "scope": "long_window",
+      "scenario": "close_3bps",
+      "prior_frozen_base_pair_reproduced": true
+    },
+    {
+      "scope": "long_window",
+      "scenario": "close_10bps",
+      "prior_frozen_base_pair_reproduced": true
+    },
+    {
+      "scope": "long_window",
+      "scenario": "second_close_3bps",
+      "prior_frozen_base_pair_reproduced": true
+    },
+    {
+      "scope": "common_short",
+      "scenario": "close_3bps",
+      "original_engine_star_reference": true
+    }
+  ],
+  "prior_score_reproduced_atol": 1e-12,
+  "all_72_account_pnl_identities_passed": true,
+  "rules_and_directions_unchanged": true
+}

@@ -1,0 +1,60 @@
+{
+  "observed_at": "2026-09-16 16:21:43.975556+08",
+  "old_scores_reproduced_atol": 1e-12,
+  "unchanged_formula_and_direction": true,
+  "extended_business_days": 8,
+  "ready_days": 6,
+  "availability": [
+    {
+      "date": "2026-09-04",
+      "score_ready": true,
+      "missing_price_codes": []
+    },
+    {
+      "date": "2026-09-07",
+      "score_ready": true,
+      "missing_price_codes": []
+    },
+    {
+      "date": "2026-09-08",
+      "score_ready": true,
+      "missing_price_codes": []
+    },
+    {
+      "date": "2026-09-09",
+      "score_ready": true,
+      "missing_price_codes": []
+    },
+    {
+      "date": "2026-09-10",
+      "score_ready": true,
+      "missing_price_codes": []
+    },
+    {
+      "date": "2026-09-11",
+      "score_ready": true,
+      "missing_price_codes": []
+    },
+    {
+      "date": "2026-09-14",
+      "score_ready": false,
+      "missing_price_codes": [
+        "000300.SH",
+        "399102.SZ",
+        "000680.SH"
+      ]
+    },
+    {
+      "date": "2026-09-15",
+      "score_ready": false,
+      "missing_price_codes": [
+        "000300.SH",
+        "399102.SZ",
+        "000680.SH"
+      ]
+    }
+  ],
+  "conditional_gate_only_not_actual_positions": true,
+  "no_returns_computed": true,
+  "no_vendor_calls_no_database_writes": true
+}

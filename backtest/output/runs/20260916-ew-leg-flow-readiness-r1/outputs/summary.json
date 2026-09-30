@@ -1,0 +1,74 @@
+{
+  "rows": 7403,
+  "checks": {
+    "nonempty": true,
+    "unique_keys": true,
+    "finite_fields": true,
+    "valid_dates": true,
+    "unique_calendar": true,
+    "nonnegative_integer_counts": true,
+    "positive_count_sum": true,
+    "csi300_count_cap": true,
+    "nonnegative_gross_money": true,
+    "positive_money_denominator": true,
+    "net_equals_extra_plus_large": true,
+    "calendar_coverage": true
+  },
+  "numerical_checks_pass": true,
+  "coverage": [
+    {
+      "index_code": "000300.SH",
+      "rows": 2837,
+      "first": "2015-01-05",
+      "last": "2026-09-03",
+      "missing_dates": [],
+      "off_calendar_dates": [],
+      "calendar_days_after_last": 6,
+      "first_fetch": "2026-09-03",
+      "last_fetch": "2026-09-03",
+      "last_update": "2026-09-03 18:16:07.748685+08:00"
+    },
+    {
+      "index_code": "000680.SH",
+      "rows": 1729,
+      "first": "2019-07-22",
+      "last": "2026-09-03",
+      "missing_dates": [],
+      "off_calendar_dates": [],
+      "calendar_days_after_last": 6,
+      "first_fetch": "2026-09-03",
+      "last_fetch": "2026-09-03",
+      "last_update": "2026-09-03 18:16:07.748685+08:00"
+    },
+    {
+      "index_code": "399102.SZ",
+      "rows": 2837,
+      "first": "2015-01-05",
+      "last": "2026-09-03",
+      "missing_dates": [],
+      "off_calendar_dates": [],
+      "calendar_days_after_last": 6,
+      "first_fetch": "2026-09-03",
+      "last_fetch": "2026-09-03",
+      "last_update": "2026-09-03 18:16:07.748685+08:00"
+    }
+  ],
+  "identities": {
+    "net_equals_extra_plus_large": {
+      "violations_gt_0_001": 0,
+      "max_abs_error": 6.984919309616089e-09
+    },
+    "vendor_main_equals_net": {
+      "violations_gt_0_001": 1881,
+      "max_abs_error": 78713.45569999993
+    },
+    "four_buckets_zero_sum": {
+      "violations_gt_0_001": 3017,
+      "max_abs_error": 105129.54090000018
+    }
+  },
+  "definition_status": "definition_pending",
+  "historical_availability": "pit_unverified",
+  "returns_examined": false,
+  "limits": "Numeric checks do not prove vendor definitions, publication timing, membership PIT or revision policy."
+}

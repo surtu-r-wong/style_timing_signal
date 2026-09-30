@@ -1,0 +1,98 @@
+[
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v1/etf_share_daily.csv",
+    "path": "etf_share_daily.csv",
+    "size": 1436614,
+    "sha256": "999285055f470b9d3664a565fe6dc9c0bf65377b4919bd36860eb37a6e29f077"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v1/net_flow_daily.csv",
+    "path": "net_flow_daily.csv",
+    "size": 602615,
+    "sha256": "11409c259eaeb5dbfef5c68db61109ceee454c4a910d23243485c9bce2bc08ef"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v1/pre_listing_rows.csv",
+    "path": "pre_listing_rows.csv",
+    "size": 4954,
+    "sha256": "ab55b602ec1f52499b4ae89316613c71c8221818a3e0d098b9650f28d86dd83f"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v1/share_translation_events.csv",
+    "path": "share_translation_events.csv",
+    "size": 345,
+    "sha256": "679d755968b4865a5453bd960524f77b6634cbe4a6c1864fdae27399b90da5e9"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/collect.stderr.log",
+    "path": "collect.stderr.log",
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/collect.stdout.log",
+    "path": "collect.stdout.log",
+    "size": 341,
+    "sha256": "ac2d2352a62356f215d9d7b3c02f386090ed44a9feac3a89589fd3a961651393"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/fetch_log.csv",
+    "path": "fetch_log.csv",
+    "size": 29299,
+    "sha256": "48bf2232a3459e52f4d542ea744af5b4a006464eefbbfa9f3d9f5515c70c7f59"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/member_alias.csv",
+    "path": "member_alias.csv",
+    "size": 13365,
+    "sha256": "e559416c890d84c9cc05df5bd7bd251a8719965d65d5dc1a0e3acadd8c89090f"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/not_disclosed.csv",
+    "path": "not_disclosed.csv",
+    "size": 152410,
+    "sha256": "25116dac4cea111fbcf5c4d42f98749b34570784ff9acd9017543c75d1d9250e"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/rank_long.csv",
+    "path": "rank_long.csv",
+    "size": 35222327,
+    "sha256": "09cb5cd3f056060dfcb0c9395fe78602ed20b1845f484d640e727878cf39e890"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/collect.stderr.log",
+    "path": "collect.stderr.log",
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/collect.stdout.log",
+    "path": "collect.stdout.log",
+    "size": 341,
+    "sha256": "f417cf090709e414236a52f530b875da31aa8e735c078e049e63a4989e83cceb"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/fetch_log.csv",
+    "path": "fetch_log.csv",
+    "size": 80046,
+    "sha256": "426dfb7d166e1ebb6cdf1babde6210222e06ec2a500db30d996aade4bee4ecc5"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/member_alias.csv",
+    "path": "member_alias.csv",
+    "size": 15197,
+    "sha256": "c650d9d52bb52406c36e392525040aba5054b33ad131f711443eef6472e9b703"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/not_disclosed.csv",
+    "path": "not_disclosed.csv",
+    "size": 1305445,
+    "sha256": "15ac49326ff853cf4950fdbc8cff9a6a70f6d01e61e6af2f47aca77422523836"
+  },
+  {
+    "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/rank_long.csv",
+    "path": "rank_long.csv",
+    "size": 74496080,
+    "sha256": "7124319f9b39e512b8d1526ae5d60dd7d16c1337a8aed3c79e00f16bfcf0029e"
+  }
+]

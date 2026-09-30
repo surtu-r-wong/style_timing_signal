@@ -1,0 +1,66 @@
+{
+  "status": "pass",
+  "scope": "ETF v2 correction and member corrected manifests; not signal validation",
+  "prior_evidence_hashes_verified": true,
+  "etf_rows": 7013,
+  "etf_non_event_rows_identical": 7009,
+  "etf_raw_unchanged": true,
+  "etf_events": [
+    {
+      "fund": "159845.SZ",
+      "date": "2023-02-28",
+      "source": "official",
+      "net_new_shares": 161484876.7234931,
+      "est_net_flow_cny": 445331540.4864143,
+      "arithmetic_pass": true
+    },
+    {
+      "fund": "510500.SH",
+      "date": "2015-04-14",
+      "source": "detected",
+      "net_new_shares": null,
+      "est_net_flow_cny": null,
+      "arithmetic_pass": true
+    },
+    {
+      "fund": "510500.SH",
+      "date": "2022-08-26",
+      "source": "official",
+      "net_new_shares": 5709070.092000008,
+      "est_net_flow_cny": 36081996.87092437,
+      "arithmetic_pass": true
+    },
+    {
+      "fund": "512100.SH",
+      "date": "2022-09-02",
+      "source": "official",
+      "net_new_shares": 15165.400000095367,
+      "est_net_flow_cny": 40752.21562055445,
+      "arithmetic_pass": true
+    }
+  ],
+  "members": [
+    {
+      "product": "IM",
+      "corrected_manifest_pass": true,
+      "payloads_unchanged_since_prior_acceptance": true,
+      "days": 1009,
+      "rank_rows": 219600
+    },
+    {
+      "product": "IC",
+      "corrected_manifest_pass": true,
+      "payloads_unchanged_since_prior_acceptance": true,
+      "days": 2779,
+      "rank_rows": 473580
+    }
+  ],
+  "prior_structural_checks_reused": "backtest/output/data_manager_acceptance_20260917_r2/verification.json",
+  "no_market_features_derived_or_repaired": true,
+  "limitations": [
+    "historical availability not independently proved",
+    "ETF 2013-2014 calendar not independently verified",
+    "member top20 boards are not full-market positions",
+    "collector code changes reported by office, not independently retested"
+  ]
+}

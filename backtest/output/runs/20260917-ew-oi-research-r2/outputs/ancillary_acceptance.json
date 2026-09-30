@@ -1,0 +1,129 @@
+{
+  "etf_raw_arithmetic_and_hashed_files_checked": true,
+  "etf_derivative_status": "event_unit_reconciliation_pending_office",
+  "etf": [
+    {
+      "fund": "159845.SZ",
+      "rows": 1328,
+      "first": "2021-03-30",
+      "last": "2026-09-16",
+      "missing_close_dates": [
+        "2021-03-30"
+      ],
+      "nav_date_earlier_than_trade_date": 0,
+      "event_adjusted_days": 1,
+      "large_move_days": 47,
+      "independent_calendar_verified_from": "2021-03-30"
+    },
+    {
+      "fund": "510500.SH",
+      "rows": 3285,
+      "first": "2013-03-14",
+      "last": "2026-09-16",
+      "missing_close_dates": [
+        "2013-03-14"
+      ],
+      "nav_date_earlier_than_trade_date": 0,
+      "event_adjusted_days": 2,
+      "large_move_days": 6,
+      "independent_calendar_verified_from": "2015-01-05"
+    },
+    {
+      "fund": "512100.SH",
+      "rows": 2400,
+      "first": "2016-11-03",
+      "last": "2026-09-16",
+      "missing_close_dates": [
+        "2016-11-03"
+      ],
+      "nav_date_earlier_than_trade_date": 0,
+      "event_adjusted_days": 1,
+      "large_move_days": 27,
+      "independent_calendar_verified_from": "2016-11-03"
+    }
+  ],
+  "event_unit_issues": [
+    {
+      "fund": "159845.SZ",
+      "date": "2023-02-28",
+      "source": "official",
+      "factor": 0.747644145,
+      "net_new_shares_post_translation_units": 161484876.7234931,
+      "delivered_amount_cny": 332949518.82849807,
+      "unit_consistent_check_amount_cny": 445331540.48641425,
+      "difference_cny": -112382021.65791619
+    },
+    {
+      "fund": "510500.SH",
+      "date": "2015-04-14",
+      "source": "detected",
+      "factor": 0.2803239884052217,
+      "net_new_shares_post_translation_units": 1.1920928955078125e-07,
+      "delivered_amount_cny": 0.0,
+      "unit_consistent_check_amount_cny": 9.683065436224818e-07,
+      "difference_cny": -9.683065436224818e-07
+    },
+    {
+      "fund": "510500.SH",
+      "date": "2022-08-26",
+      "source": "official",
+      "factor": 1.14539,
+      "net_new_shares_post_translation_units": 5709070.092000008,
+      "delivered_amount_cny": 41327958.395988055,
+      "unit_consistent_check_amount_cny": 36081996.87092437,
+      "difference_cny": 5245961.525063686
+    },
+    {
+      "fund": "512100.SH",
+      "date": "2022-09-02",
+      "source": "official",
+      "factor": 0.36555,
+      "net_new_shares_post_translation_units": 15165.400000095367,
+      "delivered_amount_cny": 14896.972420093678,
+      "unit_consistent_check_amount_cny": 40752.21562055445,
+      "difference_cny": -25855.243200460776
+    }
+  ],
+  "members": [
+    {
+      "product": "IM",
+      "days": 1009,
+      "rank_rows": 219600,
+      "boards": 10980,
+      "not_disclosed_rows": 1128,
+      "member_ids": 110,
+      "leading_zero_rows": 219600,
+      "days_with_only_one_disclosed_contract": 5,
+      "rank_keys_unique_and_each_board_1_to_20": true,
+      "ids_preserved_as_strings": true
+    },
+    {
+      "product": "IC",
+      "days": 2779,
+      "rank_rows": 473580,
+      "boards": 23679,
+      "not_disclosed_rows": 9669,
+      "member_ids": 120,
+      "leading_zero_rows": 473580,
+      "days_with_only_one_disclosed_contract": 560,
+      "rank_keys_unique_and_each_board_1_to_20": true,
+      "ids_preserved_as_strings": true
+    }
+  ],
+  "member_acceptance_scope": "hashes, calendar, board ranks, declared nondisclosure, alias coverage; no member indicators derived",
+  "hash_mismatches": [
+    {
+      "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/collect.stdout.log",
+      "expected": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual": "ac2d2352a62356f215d9d7b3c02f386090ed44a9feac3a89589fd3a961651393"
+    },
+    {
+      "source": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/collect.stdout.log",
+      "expected": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual": "f417cf090709e414236a52f530b875da31aa8e735c078e049e63a4989e83cceb"
+    }
+  ],
+  "all_member_payload_hashes_match": true,
+  "full_member_manifest_pass": false,
+  "no_market_dataset_repaired": true
+}

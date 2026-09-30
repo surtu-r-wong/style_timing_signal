@@ -1,0 +1,30 @@
+{
+  "contract_version": "etf-share-flow-v2",
+  "generated_at_utc": "2026-09-17T07:44:32.849485+00:00",
+  "artifacts": [
+    {
+      "path": "etf_share_daily.csv",
+      "sha256": "999285055f470b9d3664a565fe6dc9c0bf65377b4919bd36860eb37a6e29f077"
+    },
+    {
+      "path": "net_flow_daily.csv",
+      "sha256": "db329d9f53d91b05da0538ccbbeae18d60abeb3008ae602c8051bebf9431cc5a"
+    },
+    {
+      "path": "pre_listing_rows.csv",
+      "sha256": "ab55b602ec1f52499b4ae89316613c71c8221818a3e0d098b9650f28d86dd83f"
+    },
+    {
+      "path": "share_translation_events.csv",
+      "sha256": "679d755968b4865a5453bd960524f77b6634cbe4a6c1864fdae27399b90da5e9"
+    }
+  ],
+  "raw_input": "data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/raw-etf-share-daily/raw_all_rows.csv",
+  "raw_input_sha256": "2924158d272d1a29a569c1edb4677012c5937afd07e3c79389908c9ef6f9270d",
+  "generator": "data_manager/scripts/etf_share_flow_v1.py",
+  "parameters": {
+    "JUMP": 0.08,
+    "TOL": 0.03,
+    "LARGE": 0.2
+  }
+}

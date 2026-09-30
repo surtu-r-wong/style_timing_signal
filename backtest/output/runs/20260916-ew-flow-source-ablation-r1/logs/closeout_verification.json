@@ -1,0 +1,78 @@
+{
+  "unchanged_prior_artifacts_verified": 81,
+  "prereg_unchanged": true,
+  "report_links_valid": true,
+  "python3 tools/research_registry.py validate": "passed",
+  "python3 tools/research_registry.py render --check": "passed",
+  "git diff --check": "passed",
+  "research_verification": {
+    "sample_definitions": [
+      {
+        "scope": "long_window",
+        "start": "2016-02-15",
+        "end": "2026-09-03",
+        "n": 2568,
+        "sources": [
+          "CSI300",
+          "CHINEXT",
+          "PAIR"
+        ],
+        "half_split_after": "2021-05-21"
+      },
+      {
+        "scope": "common_short",
+        "start": "2021-02-09",
+        "end": "2026-09-03",
+        "n": 1349,
+        "sources": [
+          "CSI300",
+          "CHINEXT",
+          "STAR",
+          "PAIR",
+          "TRIPLE"
+        ],
+        "half_split_after": "2023-11-22"
+      }
+    ],
+    "checks": [
+      {
+        "scope": "long_window",
+        "scenario": "close_3bps",
+        "prior_frozen_base_pair_reproduced": true
+      },
+      {
+        "scope": "long_window",
+        "scenario": "close_10bps",
+        "prior_frozen_base_pair_reproduced": true
+      },
+      {
+        "scope": "long_window",
+        "scenario": "second_close_3bps",
+        "prior_frozen_base_pair_reproduced": true
+      },
+      {
+        "scope": "common_short",
+        "scenario": "close_3bps",
+        "original_engine_star_reference": true
+      }
+    ],
+    "prior_score_reproduced_atol": 1e-12,
+    "all_72_account_pnl_identities_passed": true,
+    "rules_and_directions_unchanged": true
+  },
+  "route_verification": {
+    "wss_csi300_open_close_vs_wset": {
+      "observations": 12,
+      "dates": 6,
+      "multiplier": 10000,
+      "all_match_after_scaling": true
+    },
+    "wset_refetch_checks": 16,
+    "wset_refetch_all_match": true,
+    "chinext_and_star_not_interchangeable_with_index_wss": true,
+    "history_sampling_only_not_continuity_certification": true,
+    "wsd_quota_code": "-40522017",
+    "new_index_gross_main_flow_denominator": "not_yet_verified",
+    "no_database_or_service_changes": true
+  }
+}

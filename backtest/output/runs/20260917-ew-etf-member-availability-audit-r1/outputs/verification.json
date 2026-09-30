@@ -1,0 +1,81 @@
+{
+  "new_control_ledgers": 72,
+  "reference_checks": [
+    {
+      "window": "IC_long",
+      "scenario": "close_3bps",
+      "control": "matched_available_base__MEMBER_IC_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "close_3bps",
+      "control": "matched_available_price__MEMBER_IC_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "close_10bps",
+      "control": "matched_available_base__MEMBER_IC_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "close_10bps",
+      "control": "matched_available_price__MEMBER_IC_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "second_close_3bps",
+      "control": "matched_available_base__MEMBER_IC_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "second_close_3bps",
+      "control": "matched_available_price__MEMBER_IC_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "close_3bps",
+      "control": "matched_available_base__MEMBER_POOL_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "close_3bps",
+      "control": "matched_available_price__MEMBER_POOL_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "close_10bps",
+      "control": "matched_available_base__MEMBER_POOL_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "close_10bps",
+      "control": "matched_available_price__MEMBER_POOL_S_signal",
+      "max_error": 2.220446049250313e-16
+    },
+    {
+      "window": "common",
+      "scenario": "second_close_3bps",
+      "control": "matched_available_base__MEMBER_POOL_S_signal",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "second_close_3bps",
+      "control": "matched_available_price__MEMBER_POOL_S_signal",
+      "max_error": 0.0
+    }
+  ],
+  "state_exposures_match": true,
+  "fallback_positions_identical": true,
+  "account_trade_and_lag_checks": true,
+  "post_hoc_not_deployable": true
+}

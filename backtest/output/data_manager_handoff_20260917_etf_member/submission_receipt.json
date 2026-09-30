@@ -1,0 +1,47 @@
+{
+  "status": "submitted_not_yet_acknowledged",
+  "files": [
+    {
+      "local": "backtest/output/data_manager_handoff_20260917_etf_member/request.md",
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/request.md",
+      "sha256": "0e5591c772bd3ae7f7bb72f168a48e939d86352765f478e1e2c10a5adef82009",
+      "bytes": 2050
+    },
+    {
+      "local": "backtest/output/data_manager_handoff_20260917_etf_member/spec.md",
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/spec.md",
+      "sha256": "e995c5192939f5b23fb0914425bd7f1a8bfa01c92188c8dbf054ee568f7248a9",
+      "bytes": 7594
+    },
+    {
+      "local": "backtest/output/data_manager_handoff_20260917_etf_member/feature_contract.json",
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/feature_contract.json",
+      "sha256": "0d06852a6299e0a88b83a9df8f770834ac6c123e3f099081e1ab84cc112b3a41",
+      "bytes": 2645
+    },
+    {
+      "local": "backtest/output/data_manager_handoff_20260917_etf_member/acceptance-verification.json",
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/acceptance-verification.json",
+      "sha256": "7dc2b432f376468d9bfd15160dedaefd33050d661a9dba280c934b6d2a215eff",
+      "bytes": 1897
+    },
+    {
+      "local": "backtest/output/data_manager_handoff_20260917_etf_member/acceptance-manifest.json",
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-member-derived-inputs/acceptance-manifest.json",
+      "sha256": "8bdf1fcc8621c6aaa7376e1100c618e55e91dd5b16536a09381e176fb6cffcc0",
+      "bytes": 3638
+    },
+    {
+      "local": "backtest/output/data_manager_handoff_20260917_etf_member/etf_response06.md",
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/response-06-style-timing-signal-2026-09-17.md",
+      "sha256": "8b60090347b0a5d62fad06c90260e28ceabdb719f8e782cd8acf16850cb93cce",
+      "bytes": 1072
+    },
+    {
+      "local": "backtest/output/data_manager_handoff_20260917_etf_member/member_response05.md",
+      "submitted": "/home/elfbob/claude-code/data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/response-05-style-timing-signal-2026-09-17.md",
+      "sha256": "e8ca153cca4575c2a9aa68368c7823410acfeba18ad28b7c888cd50217f329d3",
+      "bytes": 983
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "checks": {
+    "offline_reproduction": true,
+    "mutation_unique_keys": true,
+    "mutation_calendar_coverage": true,
+    "mutation_finite_fields": true,
+    "mutation_nonnegative_integer_counts": true,
+    "mutation_positive_money_denominator": true,
+    "mutation_net_equals_extra_plus_large": true,
+    "raw_snapshot_reconciliation": true
+  },
+  "rows_compared": 7403,
+  "raw_max_absolute_differences": {
+    "main_inflow_count": 0.0,
+    "main_outflow_count": 0.0,
+    "main_in_money": 2.2351741790771484e-07,
+    "main_out_money": 2.086162567138672e-07,
+    "main_inflow_money": 1.955777406692505e-08,
+    "open_main_inflow_money": 3.958120942115784e-09,
+    "end_main_inflow_money": 9.313225746154785e-09,
+    "extra_bill_inflow_money": 6.51925802230835e-09,
+    "large_bill_inflow_money": 7.916241884231567e-09,
+    "middle_bill_inflow_money": 4.190951585769653e-09,
+    "small_bill_inflow_money": 1.0244548320770264e-08
+  },
+  "source_note": "Outputs reproduced offline after removing an unused import; saved final audit code is the reproducer.",
+  "limits": "Does not validate vendor semantics or PIT availability; no returns loaded."
+}

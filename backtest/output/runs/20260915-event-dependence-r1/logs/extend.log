@@ -1,0 +1,16 @@
+built family-unification
+built leverage-probe
+scored 0 / 81
+PRIMARY                               comparisons  originally_lagging  flips  both
+role                   model                                              
+diagnostic_translation carry            1                   1      0     0
+frozen_representative  carry           17                  16      0     0
+                       spot             5                   3      0     0
+rejected_variant       carry           29                  29      0     0
+                       spot            29                  29      0     0
+Empty DataFrame
+Columns: [name, study, model, reference, delta_sharpe, neutral_delta_sharpe, total_relative_log, nonevent_relative_log]
+Index: []
+/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260915-event-dependence-r1/inputs/extend.py:142: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  pd.concat([old,new],ignore_index=True).to_csv(MAIN/filename,index=False)
+EXTENSION DONE 81 [{'study': 'mian2-cross-section', 'name': 'mian2-cross-section_winner', 'reason': 'internal missing dates 1; no reconstruction performed'}]

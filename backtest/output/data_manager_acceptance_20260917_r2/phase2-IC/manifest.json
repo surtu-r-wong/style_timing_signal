@@ -1,0 +1,40 @@
+{
+  "product": "IC",
+  "start": "2015-04-16",
+  "end": "2026-09-16",
+  "days_requested": 2779,
+  "days_with_data": 2779,
+  "days_no_data": 0,
+  "days_error": 0,
+  "rank_rows": 473580,
+  "not_disclosed_rows": 9669,
+  "generated_at_utc": "2026-09-17T04:41:51.185268+00:00",
+  "source": "http://www.cffex.com.cn/sj/ccpm",
+  "files": [
+    {
+      "path": "collect.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "collect.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fetch_log.csv",
+      "sha256": "426dfb7d166e1ebb6cdf1babde6210222e06ec2a500db30d996aade4bee4ecc5"
+    },
+    {
+      "path": "member_alias.csv",
+      "sha256": "c650d9d52bb52406c36e392525040aba5054b33ad131f711443eef6472e9b703"
+    },
+    {
+      "path": "not_disclosed.csv",
+      "sha256": "15ac49326ff853cf4950fdbc8cff9a6a70f6d01e61e6af2f47aca77422523836"
+    },
+    {
+      "path": "rank_long.csv",
+      "sha256": "7124319f9b39e512b8d1526ae5d60dd7d16c1337a8aed3c79e00f16bfcf0029e"
+    }
+  ],
+  "raw_files": 2779
+}

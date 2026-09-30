@@ -1,0 +1,41 @@
+{
+  "source_disagreement_days": 18,
+  "matched_short_scale": 0.43147656940760387,
+  "new_ledgers": 6,
+  "reference_checks": [
+    {
+      "scenario": "close_3bps",
+      "strategy": "C__matched300",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_3bps",
+      "strategy": "S__matched300",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "C__matched300",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "S__matched300",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "C__matched300",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "S__matched300",
+      "max_engine_error": 0.0
+    }
+  ],
+  "episode_year_event_additivity_passed": true,
+  "all_new_account_leg_trade_identities_passed": true,
+  "all_previous_ledgers_reused_without_reexecution": true,
+  "no_new_strategy_or_threshold_selected": true
+}

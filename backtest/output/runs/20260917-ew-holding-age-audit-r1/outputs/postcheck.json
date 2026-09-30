@@ -1,0 +1,90 @@
+{
+  "all_81_ledgers_have_finite_returns": true,
+  "undefined_sharpe_comparisons": [
+    {
+      "scenario": "close_3bps",
+      "candidate": "new_daily",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 118
+    },
+    {
+      "scenario": "close_3bps",
+      "candidate": "new_entry_exit",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 118
+    },
+    {
+      "scenario": "close_3bps",
+      "candidate": "old_daily",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 118
+    },
+    {
+      "scenario": "close_3bps",
+      "candidate": "old_entry_exit",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 118
+    },
+    {
+      "scenario": "close_10bps",
+      "candidate": "new_daily",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 118
+    },
+    {
+      "scenario": "close_10bps",
+      "candidate": "new_entry_exit",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 118
+    },
+    {
+      "scenario": "close_10bps",
+      "candidate": "old_daily",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 118
+    },
+    {
+      "scenario": "close_10bps",
+      "candidate": "old_entry_exit",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 118
+    },
+    {
+      "scenario": "second_close_3bps",
+      "candidate": "new_daily",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 117
+    },
+    {
+      "scenario": "second_close_3bps",
+      "candidate": "new_entry_exit",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 117
+    },
+    {
+      "scenario": "second_close_3bps",
+      "candidate": "old_daily",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 117
+    },
+    {
+      "scenario": "second_close_3bps",
+      "candidate": "old_entry_exit",
+      "window": "year_2021",
+      "candidate_nonzero_days": 0,
+      "reference_nonzero_days": 117
+    }
+  ],
+  "undefined_explanation": "2021 short candidate is entirely flat; inherited describe() reports Sharpe 0 by convention, comparison preserves NaN. No missing returns."
+}

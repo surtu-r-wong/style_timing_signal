@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "contract_version": "ew-etf-member-features-v1",
+  "end": "2026-09-16",
+  "calendar_start": "2015-01-05",
+  "spec": "spec.md",
+  "data_owner": "data_manager",
+  "no_new_tables_or_scheduled_jobs": true,
+  "sources": {
+    "etf": [
+      "ETF500",
+      "ETFPOOL"
+    ],
+    "member": [
+      "MEMBER_IC",
+      "MEMBER_POOL"
+    ]
+  },
+  "fixed_funds": {
+    "500": [
+      "510500.SH"
+    ],
+    "1000": [
+      "512100.SH",
+      "159845.SZ"
+    ]
+  },
+  "files": {
+    "etf_fund_features.csv": [
+      "date",
+      "fund_id",
+      "previous_date",
+      "previous_shares",
+      "event_factor",
+      "net_new_shares",
+      "a",
+      "e5",
+      "window_start",
+      "window_end",
+      "daily_valid",
+      "feature_valid",
+      "invalid_reason",
+      "event_source",
+      "large_move"
+    ],
+    "etf_features.csv": [
+      "date",
+      "source",
+      "value",
+      "fixed_members",
+      "valid_member_count",
+      "feature_valid",
+      "invalid_reason"
+    ],
+    "member_product_features.csv": [
+      "date",
+      "product",
+      "selected_contract",
+      "selection_date",
+      "selection_oi",
+      "eligible_contracts",
+      "selection_tie",
+      "selection_valid",
+      "long20",
+      "short20",
+      "balance",
+      "window_start",
+      "window_end",
+      "m5",
+      "contract_changed_in_window",
+      "board_valid",
+      "feature_valid",
+      "invalid_reason"
+    ],
+    "member_features.csv": [
+      "date",
+      "source",
+      "value",
+      "feature_valid",
+      "invalid_reason"
+    ],
+    "price_features.csv": [
+      "date",
+      "source",
+      "r5",
+      "feature_valid",
+      "invalid_reason"
+    ],
+    "calendar.csv": [
+      "date",
+      "sfe"
+    ]
+  },
+  "key_rules": [
+    "All date keys ISO YYYY-MM-DD",
+    "Source and date unique",
+    "Member IDs are four-character strings",
+    "Numeric missing is empty/NaN, never zero",
+    "No future inputs",
+    "No compression of calendar",
+    "ETF normalization in post-event share units",
+    "Member selection uses prior-session OI among currently listed contracts",
+    "member m5 requires 6 consecutive valid days with identical selected contract"
+  ],
+  "validation": {
+    "etf_window": 5,
+    "member_difference_lag": 5,
+    "member_same_contract_sessions": 6,
+    "price_return_lag": 5
+  },
+  "research": {
+    "candidates": 8,
+    "sides": [
+      "long",
+      "short"
+    ],
+    "threshold": 0,
+    "internal_missing_policy": "incumbent fallback with identical availability mask for price-only comparator",
+    "historical_availability": "unverified; descriptive timing assumption only"
+  }
+}

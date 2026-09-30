@@ -1,0 +1,32 @@
+[
+  {
+    "path": "backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/inputs/futures.csv",
+    "size": 957830,
+    "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/inputs/spot.csv",
+    "size": 223423,
+    "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/outputs/decision_targets.csv",
+    "size": 531164,
+    "sha256": "0132a8e9247fdb3aea13f503910e809d4ffb3095dd0be23d87ddfd0979f78b57"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/outputs/ledgers_close_3bps.csv.gz",
+    "size": 3370009,
+    "sha256": "bb977c30fa63f342ecdf997dec46b0a8c5e2073de317261d739db17ac94f2628"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/outputs/ledgers_close_10bps.csv.gz",
+    "size": 3034387,
+    "sha256": "f635c1c0a1e68ca6bc1ccc28285d8ae14ca6cd0079f4d41fea68c82fb190f46a"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/outputs/ledgers_second_close_3bps.csv.gz",
+    "size": 3370562,
+    "sha256": "84b5eb8cf45e156ab618823b58c3f15142dd55f263442917007a07174e389793"
+  }
+]

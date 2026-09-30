@@ -1,0 +1,289 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/code__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__etf_member_delivery_contract.py",
+      "sha256": "fa43d848795f41385d9e92c87e0e7c55996f7ae00130ce449c12ee9117b4194e",
+      "size": 8249
+    },
+    {
+      "path": "inputs/code__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__run_etf_member_research.py",
+      "sha256": "3544ba59e4035e9773fe644fd3a37355ef99021a7483175ab0c26bee39a44f97",
+      "size": 19415
+    },
+    {
+      "path": "inputs/code__run_intraday_flow_pilot.py",
+      "sha256": "8d79e614f8a66ad96308e270736940ce8303dd2eac08b8962dda1e42ce38ad36",
+      "size": 19934
+    },
+    {
+      "path": "inputs/code__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code__run_oi_research.py",
+      "sha256": "23f032847aafcf414a0e72491a89621ec559f3060a588ae5f6bb903df6a2159a",
+      "size": 20586
+    },
+    {
+      "path": "inputs/code__test_etf_member_research.py",
+      "sha256": "2aca1373f2ad100e6c304c6ec6e61dd2086df01a5b7ff1ee03b04c37d700efe4",
+      "size": 2830
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "d04eb53702bcfa16af61e03a4272bb07bc4c5abd1a4dece4238621ec8b14805d",
+      "size": 193047
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "31aa2d003a564f66941952e4fd1ddc0b810578504c325e330bdf79c80d7694cd",
+      "size": 959379
+    },
+    {
+      "path": "inputs/office/calendar.csv",
+      "sha256": "a2dad611a0c028b6f072d968935b31a8ed4187bf701d25cabb80944356630489",
+      "size": 69804
+    },
+    {
+      "path": "inputs/office/etf_features.csv",
+      "sha256": "7998ad749e744bd71913ca7389610e228657fac6e3945fff0e16b625bd2cc289",
+      "size": 458515
+    },
+    {
+      "path": "inputs/office/etf_fund_features.csv",
+      "sha256": "904845db8b408321f642dc0168658f6b66cfcbaf8525098e95ec3f7c7d1cf86f",
+      "size": 953638
+    },
+    {
+      "path": "inputs/office/field_dictionary.md",
+      "sha256": "27fc890fee71fd2be1ad9bd214275710954cd3243bc9e3fe436aaff35d7dd87b",
+      "size": 2804
+    },
+    {
+      "path": "inputs/office/manifest.json",
+      "sha256": "3e6d24f73ea57696abf1ec20bda5f60aaa2193e19e37c6a493e9d7ebec40046d",
+      "size": 3384
+    },
+    {
+      "path": "inputs/office/member_features.csv",
+      "sha256": "5c867b7b8c68ab18bf497621b2dfda920c8b1b6edf05c4db09348c91fa05533b",
+      "size": 212240
+    },
+    {
+      "path": "inputs/office/member_product_features.csv",
+      "sha256": "86c478438fae575079aea2fe4097055a76988450f00baaf85f536114187d8723",
+      "size": 766716
+    },
+    {
+      "path": "inputs/office/price_features.csv",
+      "sha256": "d16270dce984f6e270cc307c52ecdb7776d2990ab364e741b197713266bc6484",
+      "size": 163071
+    },
+    {
+      "path": "inputs/office/quality_report.json",
+      "sha256": "37d4cfa84da4fb700a6298b642433d10d6fff0937b99e768db51ad19c721f3fd",
+      "size": 9785
+    },
+    {
+      "path": "inputs/office__disposition.md",
+      "sha256": "8b5535e6c504a29104226300e6cf06b8f51586814f68fcac77b2702efb5de603",
+      "size": 2652
+    },
+    {
+      "path": "inputs/office__feature_contract.json",
+      "sha256": "0d06852a6299e0a88b83a9df8f770834ac6c123e3f099081e1ab84cc112b3a41",
+      "size": 2645
+    },
+    {
+      "path": "inputs/office__request.md",
+      "sha256": "0e5591c772bd3ae7f7bb72f168a48e939d86352765f478e1e2c10a5adef82009",
+      "size": 2050
+    },
+    {
+      "path": "inputs/office__response-01-office-2026-09-17.md",
+      "sha256": "f02f0cbdf3358728840c08e8437da998530fe917df42e59c36c8e81efba870d8",
+      "size": 1921
+    },
+    {
+      "path": "inputs/office__spec.md",
+      "sha256": "e995c5192939f5b23fb0914425bd7f1a8bfa01c92188c8dbf054ee568f7248a9",
+      "size": 7594
+    },
+    {
+      "path": "inputs/source_receipts.json",
+      "sha256": "41be4cf2da496a73342f0fd024b6a4f8acd8dd2f2be7a95fefa067a8582a20e0",
+      "size": 1999
+    },
+    {
+      "path": "inputs/sources/calendar.csv",
+      "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983",
+      "size": 69872
+    },
+    {
+      "path": "inputs/sources/contract_detail.csv",
+      "sha256": "748da7f0354c29cd2f629129c78edd3d28e21fec76f3fa75475300b24457a1e1",
+      "size": 1422505
+    },
+    {
+      "path": "inputs/sources/etf_events.csv",
+      "sha256": "679d755968b4865a5453bd960524f77b6634cbe4a6c1864fdae27399b90da5e9",
+      "size": 345
+    },
+    {
+      "path": "inputs/sources/etf_net_flow.csv",
+      "sha256": "db329d9f53d91b05da0538ccbbeae18d60abeb3008ae602c8051bebf9431cc5a",
+      "size": 602705
+    },
+    {
+      "path": "inputs/sources/lifecycle_audit.csv",
+      "sha256": "e74a009d130d8519821270baec311fe8cd507f7d9b6b3c4ac35adf7b2c5a7638",
+      "size": 583692
+    },
+    {
+      "path": "inputs/sources/manifest_IC.json",
+      "sha256": "a3e5cf4f08885accc9216d82cd7bca4e8e621e986c45eef362b2c786f49bb928",
+      "size": 1610
+    },
+    {
+      "path": "inputs/sources/manifest_IM.json",
+      "sha256": "061a83e31e16db4fee325b7efee394af013bf789f260e7e9c0b058552a6cbaff",
+      "size": 1609
+    },
+    {
+      "path": "inputs/sources/product_daily.csv",
+      "sha256": "4cbe348adce71206e391709920c66d11edde9e4a8524110902aef1a53a4616e8",
+      "size": 1169695
+    },
+    {
+      "path": "inputs/sources/rank_IC.csv",
+      "sha256": "7124319f9b39e512b8d1526ae5d60dd7d16c1337a8aed3c79e00f16bfcf0029e",
+      "size": 74496080
+    },
+    {
+      "path": "inputs/sources/rank_IM.csv",
+      "sha256": "09cb5cd3f056060dfcb0c9395fe78602ed20b1845f484d640e727878cf39e890",
+      "size": 35222327
+    }
+  ],
+  "error_type": "AssertionError",
+  "failure_explanation": "Consumer incorrectly required prelisting fund rows; stopped before PnL.",
+  "git": {
+    "commit": "ccf69ea256a4a7f7ad80c3a3dd3e99a189c8223d",
+    "dirty": true,
+    "porcelain": [
+      " M data_fixes/2026-09-03-index-money-flow/README.md",
+      " M docs/plans/README.md",
+      " M docs/plans/research_registry.yaml",
+      " M output/citic40d/citic_style_signal_40d.csv",
+      " M output/equal_weight/equal_weight_signal_20d40z.csv",
+      " M output/equal_weight/equal_weight_signal_5d20z.csv",
+      " M output/hybrid20/confirmed_signal.csv",
+      " M output/hybrid20/growth_stability_signal.csv",
+      " M output/recommended/citic40d_longflat.csv",
+      " M output/recommended/equal_weight_longflat.csv",
+      " M output/recommended/equal_weight_symmetric.csv",
+      " M output/recommended/hybrid20_longflat.csv",
+      " M output/recommended/slope20_longflat.csv",
+      " M output/recommended/slope20_symmetric.csv",
+      " M output/slope20/slope20_signal_L20zw120.csv",
+      "?? backtest/etf_member_delivery_contract.py",
+      "?? backtest/flow_field_readiness.py",
+      "?? backtest/flow_structure_followup.py",
+      "?? backtest/intraday_flow_pilot.py",
+      "?? backtest/oi_delivery_contract.py",
+      "?? backtest/output/data_manager_acceptance_20260917/",
+      "?? backtest/output/data_manager_acceptance_20260917_r2/",
+      "?? backtest/output/data_manager_acceptance_20260917_r3/",
+      "?? backtest/output/data_manager_handoff_20260916/",
+      "?? backtest/output/data_manager_handoff_20260917/",
+      "?? backtest/output/data_manager_handoff_20260917_etf_member/",
+      "?? backtest/output/entry_day_direction_20260915/",
+      "?? backtest/output/equal_weight_long_trades_20260915/",
+      "?? backtest/output/equal_weight_short_trades_20260915/",
+      "?? backtest/output/incumbent_winrate_baseline_20260915/",
+      "?? backtest/output/runs/20260915-event-dependence-r1/",
+      "?? backtest/output/runs/20260915-event-dependence-r2/",
+      "?? backtest/output/runs/20260916-ew-constituent-flow-extension-r1/",
+      "?? backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-robustness-diagnostic-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-score-continuation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-source-ablation-r1/",
+      "?? backtest/output/runs/20260916-ew-flow-structure-followup-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-attribution-r1/",
+      "?? backtest/output/runs/20260916-ew-intraday-flow-pilot-r1/",
+      "?? backtest/output/runs/20260916-ew-leg-flow-readiness-r1/",
+      "?? backtest/output/runs/20260917-ew-holding-age-audit-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-input-readiness-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-research-r1/",
+      "?? backtest/output/runs/20260917-ew-oi-research-r2/",
+      "?? backtest/output/short_entry_day_direction_20260915/",
+      "?? backtest/run_constituent_flow_extension.py",
+      "?? backtest/run_etf_member_research.py",
+      "?? backtest/run_exit_mechanism_audit.py",
+      "?? backtest/run_flow_robustness_diagnostic.py",
+      "?? backtest/run_flow_source_ablation.py",
+      "?? backtest/run_flow_structure_followup.py",
+      "?? backtest/run_holding_age_audit.py",
+      "?? backtest/run_intraday_flow_pilot.py",
+      "?? backtest/run_oi_input_readiness.py",
+      "?? backtest/run_oi_research.py",
+      "?? docs/plans/2026-09-15-research-closeout.md",
+      "?? docs/plans/2026-09-16-equal-weight-independent-legs.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-extension.md",
+      "?? docs/plans/2026-09-16-ew-constituent-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-audit.md",
+      "?? docs/plans/2026-09-16-ew-exit-mechanism-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-diagnostic.md",
+      "?? docs/plans/2026-09-16-ew-flow-robustness-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-ablation.md",
+      "?? docs/plans/2026-09-16-ew-flow-source-results.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-followup.md",
+      "?? docs/plans/2026-09-16-ew-flow-structure-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-pilot.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-results.md",
+      "?? docs/plans/2026-09-16-ew-intraday-flow-verification.json",
+      "?? docs/plans/2026-09-16-money-flow-field-definitions.md",
+      "?? docs/plans/2026-09-17-ew-etf-member-correction-results.md",
+      "?? docs/plans/2026-09-17-ew-etf-member-feature-freeze.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-audit.md",
+      "?? docs/plans/2026-09-17-ew-holding-age-results.md",
+      "?? docs/plans/2026-09-17-ew-oi-and-new-input-plan.md",
+      "?? docs/plans/2026-09-17-ew-oi-execution-freeze.md",
+      "?? docs/plans/2026-09-17-ew-oi-input-readiness-results.md",
+      "?? docs/plans/2026-09-17-ew-oi-research-results.md",
+      "?? docs/superpowers/plans/2026-09-15-event-dependence-audit.md",
+      "?? tests/test_etf_member_research.py",
+      "?? tests/test_exit_mechanism_audit.py",
+      "?? tests/test_flow_structure_followup.py",
+      "?? tests/test_holding_age_audit.py",
+      "?? tests/test_intraday_flow_pilot.py",
+      "?? tests/test_oi_delivery_contract.py",
+      "?? tests/test_oi_research.py"
+    ],
+    "tracked_dirty": true
+  },
+  "no_pnl_computed": true,
+  "run_id": "20260917-ew-etf-member-research-r1",
+  "status": "failed"
+}

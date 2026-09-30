@@ -1,0 +1,61 @@
+{
+  "new_ledgers": 158,
+  "reused_ledgers": 19,
+  "reference_checks": [
+    {
+      "scenario": "close_3bps",
+      "strategy": "C__A_PAIR_L",
+      "max_reference_error": 0.0
+    },
+    {
+      "scenario": "close_3bps",
+      "strategy": "C__B_entry_exit",
+      "max_reference_error": 0.0
+    },
+    {
+      "scenario": "close_3bps",
+      "strategy": "C__C_new_tier",
+      "max_reference_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "C__A_PAIR_L",
+      "max_reference_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "C__B_entry_exit",
+      "max_reference_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "C__C_new_tier",
+      "max_reference_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "C__A_PAIR_L",
+      "max_reference_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "C__B_entry_exit",
+      "max_reference_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "C__C_new_tier",
+      "max_reference_error": 0.0
+    }
+  ],
+  "future_structure_perturbation_invariant": true,
+  "past_only_buffer_invariant": true,
+  "account_leg_trade_identities": true,
+  "phase_episode_additivity": true,
+  "execution_start": "2017-02-14",
+  "execution_end": "2026-09-11",
+  "days": 2330,
+  "candidate_count_including_two_prior_binary_benchmarks": 13,
+  "no_database_access": true,
+  "completed_utc": "2026-09-16T10:34:38.589318+00:00"
+}

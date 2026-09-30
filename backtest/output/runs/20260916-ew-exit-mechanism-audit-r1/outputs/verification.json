@@ -1,0 +1,44 @@
+{
+  "new_ledgers": 48,
+  "reused_ledgers": 48,
+  "reference_checks": [
+    {
+      "scenario": "close_3bps",
+      "strategy": "C__old_exit_only",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_3bps",
+      "strategy": "D__new_entry_exit",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "C__old_exit_only",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "D__new_entry_exit",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "C__old_exit_only",
+      "max_engine_error": 0.0
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "D__new_entry_exit",
+      "max_engine_error": 0.0
+    }
+  ],
+  "account_leg_trade_identities": true,
+  "phase_episode_year_additivity": true,
+  "all_reused_targets_match": true,
+  "new_state_rules": false,
+  "samples": 2330,
+  "start": "2017-02-14",
+  "end": "2026-09-11",
+  "completed_utc": "2026-09-16T10:59:18.171717+00:00"
+}

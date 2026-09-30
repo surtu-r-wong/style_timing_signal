@@ -1,0 +1,7 @@
+candidate,selected_exposure_days,age_reference_exposure_days,sparse_age_days_n_lt_5,max_age
+new_daily,488.0,488.0,23,56
+new_exit_only,373.0,373.0,23,56
+new_entry_exit,353.0,353.0,23,56
+old_daily,500.0,500.0,23,56
+old_exit_only,376.0,376.0,23,56
+old_entry_exit,356.0,356.0,23,56

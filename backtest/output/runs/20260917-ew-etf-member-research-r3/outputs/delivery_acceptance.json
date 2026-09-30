@@ -1,0 +1,118 @@
+{
+  "status": "pass",
+  "numeric_checks": [
+    {
+      "field": "159845.SZ a",
+      "max_abs_error": 9.963817965141786e-17
+    },
+    {
+      "field": "159845.SZ e5",
+      "max_abs_error": 9.996344030316351e-17
+    },
+    {
+      "field": "159845.SZ previous_shares",
+      "max_abs_error": 0.0
+    },
+    {
+      "field": "510500.SH a",
+      "max_abs_error": 9.974659986866641e-17
+    },
+    {
+      "field": "510500.SH e5",
+      "max_abs_error": 9.974659986866641e-17
+    },
+    {
+      "field": "510500.SH previous_shares",
+      "max_abs_error": 0.0
+    },
+    {
+      "field": "512100.SH a",
+      "max_abs_error": 9.974659986866641e-17
+    },
+    {
+      "field": "512100.SH e5",
+      "max_abs_error": 9.985502008591496e-17
+    },
+    {
+      "field": "512100.SH previous_shares",
+      "max_abs_error": 0.0
+    },
+    {
+      "field": "ETF500",
+      "max_abs_error": 9.974659986866641e-17
+    },
+    {
+      "field": "ETFPOOL",
+      "max_abs_error": 9.920449878242366e-17
+    },
+    {
+      "field": "IC long20",
+      "max_abs_error": 0.0
+    },
+    {
+      "field": "IC short20",
+      "max_abs_error": 0.0
+    },
+    {
+      "field": "IC balance",
+      "max_abs_error": 9.963817965141786e-17
+    },
+    {
+      "field": "IC m5",
+      "max_abs_error": 9.974659986866641e-17
+    },
+    {
+      "field": "IM long20",
+      "max_abs_error": 0.0
+    },
+    {
+      "field": "IM short20",
+      "max_abs_error": 0.0
+    },
+    {
+      "field": "IM balance",
+      "max_abs_error": 9.8879238130678e-17
+    },
+    {
+      "field": "IM m5",
+      "max_abs_error": 9.8879238130678e-17
+    },
+    {
+      "field": "MEMBER_IC",
+      "max_abs_error": 9.974659986866641e-17
+    },
+    {
+      "field": "MEMBER_POOL",
+      "max_abs_error": 9.93129189996722e-17
+    },
+    {
+      "field": "r5 IC",
+      "max_abs_error": 9.974659986866641e-17
+    },
+    {
+      "field": "r5 POOL",
+      "max_abs_error": 9.974659986866641e-17
+    }
+  ],
+  "member_coverage": [
+    {
+      "product": "IC",
+      "days": 2779,
+      "valid_days": 2250,
+      "fallback_days": 529,
+      "selected_contract_changes": 124
+    },
+    {
+      "product": "IM",
+      "days": 1009,
+      "valid_days": 876,
+      "fallback_days": 133,
+      "selected_contract_changes": 33
+    }
+  ],
+  "calendar_and_keys": true,
+  "prior_oi_selection_and_same_contract_windows": true,
+  "reference_values_persisted_or_traded": false,
+  "historical_pit_proven": false,
+  "execution_raw_oi_volume_exact": true
+}

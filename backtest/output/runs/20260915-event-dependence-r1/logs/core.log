@@ -1,0 +1,40 @@
+grid built 636
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+/home/elfbob/claude-code/style_timing_signal/backtest/reversal_probe.py:79: FutureWarning: Downcasting object dtype arrays on .fillna, .ffill, .bfill is deprecated and will change in a future version. Call result.infer_objects(copy=False) instead. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  cross = below & ~below.shift(1).fillna(False)
+price candidates built 924
+representatives built 950
+scored 0 / 950
+scored 150 / 950
+scored 300 / 950
+scored 450 / 950
+scored 600 / 950
+scored 750 / 950
+scored 900 / 950
+PRIMARY                              comparisons  originally_lagging  flips  both
+role                  model                                              
+frozen_representative carry           26                  26      0     0
+not_adopted_fixed     carry           10                  10      0     0
+                      spot             5                   5      0     0
+rejected_variant      carry          213                 210      0     0
+                      spot            60                  52      0     0
+unselected_grid       carry          424                 420      1     0
+                      spot           212                 210      0     0
+                 name                      study model reference  delta_sharpe  neutral_delta_sharpe  total_relative_log  nonevent_relative_log
+grid_ew_L20_zw250_sm0 equal-weight-original-grid carry    ew_sym     -0.015799              0.016256           -0.121642              -0.022673
+DONE CORE; awaiting independent verification and coverage report

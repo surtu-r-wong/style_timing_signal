@@ -1,0 +1,53 @@
+{
+  "coverage": [
+    {
+      "index_code": "000300.SH",
+      "rows": 2601,
+      "start": "2016-01-04",
+      "end": "2026-09-15",
+      "internal_missing_days": 0,
+      "missing_control_prices": 0
+    },
+    {
+      "index_code": "000680.SH",
+      "rows": 402,
+      "start": "2025-01-20",
+      "end": "2026-09-15",
+      "internal_missing_days": 0,
+      "missing_control_prices": 0
+    },
+    {
+      "index_code": "000852.SH",
+      "rows": 2601,
+      "start": "2016-01-04",
+      "end": "2026-09-15",
+      "internal_missing_days": 0,
+      "missing_control_prices": 0
+    },
+    {
+      "index_code": "000905.SH",
+      "rows": 2601,
+      "start": "2016-01-04",
+      "end": "2026-09-15",
+      "internal_missing_days": 0,
+      "missing_control_prices": 0
+    },
+    {
+      "index_code": "399102.SZ",
+      "rows": 2601,
+      "start": "2016-01-04",
+      "end": "2026-09-15",
+      "internal_missing_days": 0,
+      "missing_control_prices": 0
+    }
+  ],
+  "all_seven_values_finite": true,
+  "buy_sell_nonnegative": true,
+  "positive_gross_denominator": true,
+  "identity_outliers_gt_1e_5": 23,
+  "identity_outlier_dates": 12,
+  "max_identity_gap_over_gross": 0.028074587330491514,
+  "outlier_keys_match_office": true,
+  "source_unit": "元",
+  "src": "wind:wsd:mfd"
+}

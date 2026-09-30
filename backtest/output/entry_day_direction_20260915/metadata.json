@@ -1,0 +1,19 @@
+{
+  "start": "2014-01-02",
+  "end": "2026-09-11",
+  "input_sha256": {
+    "slope20_longflat.csv": "5e9e4a8a9bb4e2c51071d28c8209e1bf4202261a5f84a94c0f237745faa3f11d",
+    "equal_weight_symmetric.csv": "e65cf2217633624e815ea96b4b77e8bf8f929a5767264298de98330dcef20e4d",
+    "hybrid20_longflat.csv": "f1ffd83fce6a4bdd9b675c5aed291d8b4a05f7813a5ef2b418bf4e216ced7909",
+    "citic40d_longflat.csv": "83602b136218009224e347110a4a694bfa03d3ff33681482c51cbca7367373e8",
+    "spot_close.csv": "7632af5f1dfec5e231dbab9abb0de90cd95998f293fbfea8093a108c019bde25"
+  },
+  "primary_underlying": "daily 50/50 Zhongzheng 500 and 1000 spot returns",
+  "entry": "position(T)>0 and observed position(T-1)<=0; first row excluded",
+  "up": "T close / previous trading close > 1",
+  "outcome": "T close through T+h close, or first non-long signal close; gross spot returns",
+  "costs": "primary excludes fees, carry, slippage; trade_cost_ret applies 3bps each side",
+  "maturity": "incomplete horizons and unclosed trades excluded from outcome denominators",
+  "inference": "two-sided Fisher diagnostic; Holm over primary 20 comparisons; 10000 entry-year cluster resamples",
+  "seed": 20260915
+}

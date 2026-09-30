@@ -1,0 +1,137 @@
+{
+  "PROBE": "面2 个股截面二阶矩（X1 离散度 / X2 平均相关性；预登记 32 点，合成一次调用）",
+  "verdict": "STOP",
+  "winner_variant": {
+    "family": "X2",
+    "lb": 5,
+    "zw": 250,
+    "k": 40
+  },
+  "gate1_ic_machine": {
+    "statistic": "abs_nonoverlap_ic",
+    "n_variants": 32,
+    "n_perm": 1000,
+    "seed": 0,
+    "scheme": "rotation",
+    "best_variant": "('X2', 5, 250, 40)",
+    "observed_best": 0.14471069549970778,
+    "p_selected": 0.8391608391608392,
+    "p_min_p": 0.5374625374625375,
+    "p_naive_UNCORRECTED": 0.2597402597402597,
+    "selection_inflation": 3.2307692307692313,
+    "null_selected_mean": 0.2129840667969471,
+    "null_selected_p95": 0.3443921683226183,
+    "n_distinct_null_winners": 22
+  },
+  "gate1b_partial_ic_machine": {
+    "statistic": "abs_partial_ic_vs_equal_weight",
+    "n_variants": 32,
+    "n_perm": 1000,
+    "seed": 0,
+    "scheme": "rotation",
+    "best_variant": "('X2', 5, 250, 40)",
+    "observed_best": 0.16285808445619565,
+    "p_selected": 0.7442557442557443,
+    "p_min_p": 0.3696303696303696,
+    "p_naive_UNCORRECTED": 0.2077922077922078,
+    "selection_inflation": 3.581730769230769,
+    "null_selected_mean": 0.21585127209681526,
+    "null_selected_p95": 0.347329369554231,
+    "n_distinct_null_winners": 22,
+    "observed_at_gate1_winner": 0.16285808445619565,
+    "p_selected_at_gate1_winner": 0.7442557442557443,
+    "partial_ic_signed_at_gate1_winner": -0.1628580844561957,
+    "same_sign_as_ic": true
+  },
+  "null_selected_quantiles": {
+    "ic": {
+      "p5": 0.11819403857393337,
+      "p25": 0.1616690538245622,
+      "p50": 0.20859987516991427,
+      "p75": 0.2544710695499708,
+      "p95": 0.3443921683226183,
+      "p99": 0.3846931618936293
+    },
+    "partial_ic": {
+      "p5": 0.11679145446798757,
+      "p25": 0.16201414112613796,
+      "p50": 0.20987982678967868,
+      "p75": 0.2585525127276617,
+      "p95": 0.347329369554231,
+      "p99": 0.4072562830115065
+    }
+  },
+  "winner_ic_by_window": {
+    "selection_2014_2023": -0.1447106954997078,
+    "train_2014_2020": -0.1383275261324042,
+    "val_2021_2023": 0.022058823529411766,
+    "holdout_2024_2026": -0.07252747252747253,
+    "full_2014_2026": -0.2492460881934566
+  },
+  "winner_net_by_window": {
+    "selection_2014_2023": {
+      "net_sharpe": 0.2121995620760416,
+      "net_ann": 0.05358644334600301,
+      "maxdd": -0.6519006768223239,
+      "turnover": 4.227608874281018,
+      "n_obs": 2434
+    },
+    "train_2014_2020": {
+      "net_sharpe": 0.19625349657541316,
+      "net_ann": 0.05437085610058375,
+      "maxdd": -0.6519006768223239,
+      "turnover": 4.592852958406561,
+      "n_obs": 1707
+    },
+    "val_2021_2023": {
+      "net_sharpe": 0.006058706017210177,
+      "net_ann": 0.0011041773735270479,
+      "maxdd": -0.3822921595353168,
+      "turnover": 3.370013755158184,
+      "n_obs": 727
+    },
+    "holdout_2024_2026": {
+      "net_sharpe": 0.42154047151341517,
+      "net_ann": 0.11253984169418428,
+      "maxdd": -0.2937182392129374,
+      "turnover": 5.43581616481775,
+      "n_obs": 631
+    },
+    "full_2014_2026": {
+      "net_sharpe": 0.5664401706192983,
+      "net_ann": 0.14466976735495554,
+      "maxdd": -0.6519006768223239,
+      "turnover": 4.156606851549755,
+      "n_obs": 3065
+    }
+  },
+  "run": {
+    "n_perm": 1000,
+    "seed": 0,
+    "cost_bps": 3.0,
+    "n_obs_selection": 2434,
+    "selection_window": [
+      "2014-01-01",
+      "2023-12-31"
+    ],
+    "sample_first_date": "2014-01-02",
+    "sample_last_date": "2023-12-29",
+    "common_full_first": "2014-01-02",
+    "common_full_last": "2026-08-11",
+    "min_shift": 80,
+    "max_shift": 2354,
+    "n_variants": 32,
+    "sql_start": "2012-01-01",
+    "corr_window": 60,
+    "universe": "suffix .SH/.SZ + close NOT NULL + pre_close>0 + volume>0（无 .BJ/.HK、无市值/流动性/ST/次新筛选）",
+    "x1_first_date": "2012-01-04",
+    "x2_first_date": "2012-07-03",
+    "x2_min": 0.06447555719771735,
+    "x2_max": 0.7719291391930344,
+    "n_universe_first": 2228,
+    "n_universe_last": 5200,
+    "vectorized_vs_house_ic_max_abs_diff": 2.7755575615628914e-17,
+    "db_host": "settings.yaml default",
+    "holdout_policy": "2024-2026 只报告不选择、不进任何闸门（勘误 §3 / 议程 §7.3）"
+  }
+}

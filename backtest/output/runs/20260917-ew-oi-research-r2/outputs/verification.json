@@ -1,0 +1,82 @@
+{
+  "new_ledgers": 276,
+  "reference_checks": [
+    {
+      "window": "IC_long",
+      "scenario": "close_3bps",
+      "strategy": "C__IC_L_u5",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "close_3bps",
+      "strategy": "DLEG__IC_S_g5",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "close_10bps",
+      "strategy": "C__IC_L_u5",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "close_10bps",
+      "strategy": "DLEG__IC_S_g5",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "second_close_3bps",
+      "strategy": "C__IC_L_u5",
+      "max_error": 0.0
+    },
+    {
+      "window": "IC_long",
+      "scenario": "second_close_3bps",
+      "strategy": "DLEG__IC_S_g5",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "close_3bps",
+      "strategy": "C__POOL_L_u5",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "close_3bps",
+      "strategy": "DLEG__POOL_S_g5",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "close_10bps",
+      "strategy": "C__POOL_L_u5",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "close_10bps",
+      "strategy": "DLEG__POOL_S_g5",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "second_close_3bps",
+      "strategy": "C__POOL_L_u5",
+      "max_error": 0.0
+    },
+    {
+      "window": "common",
+      "scenario": "second_close_3bps",
+      "strategy": "DLEG__POOL_S_g5",
+      "max_error": 0.0
+    }
+  ],
+  "account_leg_trade_identities": true,
+  "fill_delays_verified": true,
+  "episode_year_lifecycle_additivity": true,
+  "all_returns_finite": true,
+  "completed_utc": "2026-09-17T07:13:41.365802+00:00"
+}

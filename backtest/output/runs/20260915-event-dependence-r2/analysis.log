@@ -1,0 +1,29 @@
+/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260915-event-dependence-r2/inputs/analyze.py:38: RuntimeWarning: invalid value encountered in scalar divide
+  return dict(sharpe=float(s.mean()/s.std(ddof=1)*np.sqrt(245)),total_return=float(nav[-1]-1),
+/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260915-event-dependence-r2/inputs/analyze.py:38: RuntimeWarning: invalid value encountered in scalar divide
+  return dict(sharpe=float(s.mean()/s.std(ddof=1)*np.sqrt(245)),total_return=float(nav[-1]-1),
+/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260915-event-dependence-r2/inputs/analyze.py:38: RuntimeWarning: invalid value encountered in scalar divide
+  return dict(sharpe=float(s.mean()/s.std(ddof=1)*np.sqrt(245)),total_return=float(nav[-1]-1),
+/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260915-event-dependence-r2/inputs/analyze.py:38: RuntimeWarning: invalid value encountered in scalar divide
+  return dict(sharpe=float(s.mean()/s.std(ddof=1)*np.sqrt(245)),total_return=float(nav[-1]-1),
+DECOMPOSED 364 candidate/event/lag rows
+RANDOM CHECKED 1 696 2000
+RANDOM CHECKED 2 696 2000
+{
+  "status": "passed",
+  "source_run": "20260915-event-dependence-r1",
+  "input_hashes_checked": 10,
+  "focus_specifications": 26,
+  "event_decompositions": 364,
+  "daily_decomposition_error": 1.2685165418080402e-17,
+  "random_calendar_draws": 2000,
+  "random_eligible_comparisons": 696,
+  "random_direct_metric_checks": 18,
+  "random_max_direct_error": 1.1102230246251565e-15,
+  "random_windows_per_draw": 7,
+  "random_days_per_draw": 70,
+  "note": "Descriptive random-calendar diagnostic, not a calibrated p-value or a fresh out-of-sample test."
+}
+                           candidate                  name                      study  lag     comparison_scope    n  draws  originally_lagging  original_delta_sharpe  actual_neutral_delta_sharpe  actual_event_log_gap  actual_nonevent_log_gap  random_sharpe_flip_fraction  random_both_flip_fraction  random_event_gap_at_least_as_adverse_fraction  random_neutral_delta_q05  random_neutral_delta_median  random_neutral_delta_q95
+grid_ew_L20_zw250_sm0__carry__ew_sym grid_ew_L20_zw250_sm0 equal-weight-original-grid    1 current_EW_symmetric 3088   2000                True              -0.015799                     0.016256             -0.098969                -0.022673                        0.528                      0.273                                         0.3425                 -0.041036                     0.002231                  0.059070
+grid_ew_L20_zw250_sm0__carry__ew_sym grid_ew_L20_zw250_sm0 equal-weight-original-grid    2 current_EW_symmetric 3088   2000                True              -0.153260                    -0.100119             -0.180443                -0.370559                        0.000                      0.000                                         0.1030                 -0.175473                    -0.133189                 -0.085815

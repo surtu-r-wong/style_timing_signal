@@ -1,0 +1,82 @@
+[
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/inputs/flow.csv",
+    "size": 1974391,
+    "sha256": "7b281f190fb8350b541b2060700243532e3860acbd840808961b10ee94eab4a3"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/inputs/prices.csv",
+    "size": 433561,
+    "sha256": "2cb1fd6276186af9db38beb79748dfaab530f8dfd027450f325eb7992ec13fb0"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/inputs/calendar.csv",
+    "size": 33995,
+    "sha256": "a1fb35c3bd080ad355bdeb987fdf81e175f3ead1907178127025632df1c96763"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/inputs/futures.csv",
+    "size": 957830,
+    "sha256": "68159e72b2631b71c021b5e69ea901e06106eeaf3c5cd81bbceb0eb2298c582b"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/inputs/spot.csv",
+    "size": 223423,
+    "sha256": "fcd14becae1c5fa6b959c69c14c7666969686d5860055d58a02475af2637f67d"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/inputs/equal_weight.csv",
+    "size": 192861,
+    "sha256": "85988994ee26e3a8eb431337ba31f38b663d0273f62887335483e78753f308cc"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/inputs/wset_continued_scores.csv",
+    "size": 268933,
+    "sha256": "671d061d6c42ff1ae4ddbfc632d88d0fdd88f25b0c292f896a13e8298bb71e90"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/outputs/scores.csv",
+    "size": 411146,
+    "sha256": "2f3a51d2c259990ff7948791f85d259330dee4e1a4ff05efd359d76feb96fc9c"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/outputs/targets_core_common_close_3bps.csv",
+    "size": 225556,
+    "sha256": "7d58eb89d29ac37740f05b3f7ff6e1a613295fde8e59a83977ac383878ad120c"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/outputs/ledgers_core_common_close_3bps.csv.gz",
+    "size": 2189084,
+    "sha256": "ac32fdce952da739d466c12c65b9f459595f5eb9c191848b4e58024e1561fb00"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/outputs/targets_core_common_close_10bps.csv",
+    "size": 205823,
+    "sha256": "2c8353837115094c8fa9aa79202df4125744c615cfd5d98d1a9e49a7ac4941ba"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/outputs/ledgers_core_common_close_10bps.csv.gz",
+    "size": 1718530,
+    "sha256": "cd0260b6b07c3d265cb37534947c8ad6eb9d1e4b92ecbc517298783c77fa08ba"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/outputs/targets_core_common_second_close_3bps.csv",
+    "size": 205823,
+    "sha256": "7517219160d180102b6906c46dfc5fb3f6fed772a1fae914cc7a160f46dae898"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-constituent-flow-extension-r1/outputs/ledgers_core_common_second_close_3bps.csv.gz",
+    "size": 1919028,
+    "sha256": "ccf1a924ce5ac45cf0247f37306a1ca7f462e853e7f11076c7e39cfcf5413f96"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-robustness-diagnostic-r1/inputs/wset_money_flow.csv",
+    "size": 1620317,
+    "sha256": "1dc81c65e34d95c61ebee40d98db3f4e9c328341112bc2c79b6ba2aa1543d17a"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-flow-score-continuation-r1/inputs/p0_added_rows.csv",
+    "size": 5582,
+    "sha256": "bc0efabc69009964e670509059128cae7f0bdcf5c9a7e74c61806e575d1ef2e9"
+  }
+]

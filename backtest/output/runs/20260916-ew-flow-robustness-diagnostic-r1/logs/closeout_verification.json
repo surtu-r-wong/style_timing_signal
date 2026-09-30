@@ -1,0 +1,12 @@
+{
+  "prior_artifacts_unchanged": 104,
+  "score_decomposition_rows": 18,
+  "score_decomposition_max_error": 1.687018580387445e-16,
+  "control_prices_identical_on_dependency_windows": true,
+  "full_stress_metrics_match_prior": true,
+  "prereg_unchanged": true,
+  "links_valid": true,
+  "python3 tools/research_registry.py validate": "passed",
+  "python3 tools/research_registry.py render --check": "passed",
+  "git diff --check": "passed"
+}

@@ -1,0 +1,277 @@
+{
+  "artifacts": [
+    {
+      "path": "analysis.log",
+      "sha256": "cd71de493c8b281bd1210eb86e3a05d4ee263b270be8a90d5288286177bc9a27",
+      "size": 3008
+    },
+    {
+      "path": "inputs/analyze.py",
+      "sha256": "ea7b0135910e77088bc93949bdc55ac17fd307d5211952f004a0f8d1de88c391",
+      "size": 15380
+    },
+    {
+      "path": "inputs/data/candidate_catalog.csv",
+      "sha256": "b1638867652bebc8eaff1d0dcc8e3ab7c51d69260ce460569cbc33fb1cb37c21",
+      "size": 598299
+    },
+    {
+      "path": "inputs/data/candidate_positions.csv",
+      "sha256": "73a24a47893c08f9f5997d6ac948960cc904211e7521702a69acc4fe0220dbe3",
+      "size": 9711688
+    },
+    {
+      "path": "inputs/data/event_masks.csv",
+      "sha256": "8ca3e485809b7ed711c46960856d35ea7dc4f120e9841fed7f09083c5fc12880",
+      "size": 478261
+    },
+    {
+      "path": "inputs/data/event_windows.csv",
+      "sha256": "c79ae8993150e62de966f3377df8fad5fa0a6187ef678232c0ee7930c37a1f79",
+      "size": 5158
+    },
+    {
+      "path": "inputs/data/full_sensitivity.csv",
+      "sha256": "73483b33fc773426c7ea9c460efa44989858fc16c94913fb88caf6d708fd6c15",
+      "size": 28797487
+    },
+    {
+      "path": "inputs/data/market.csv",
+      "sha256": "01f84d4033453bad062beffa0fdf1575cde12a68d231807227578136069000b0",
+      "size": 154259
+    },
+    {
+      "path": "inputs/data/reference_positions.csv",
+      "sha256": "d18725c9a5bcb078124bf4ae071df55354cce8e9dc42bd56a0730ae34e670637",
+      "size": 86462
+    },
+    {
+      "path": "inputs/data/registry_coverage.csv",
+      "sha256": "05f19686a533a851f1e5756e3621194a16bab17fadfecc425af1a1c10655b9e5",
+      "size": 49006
+    },
+    {
+      "path": "inputs/data/review_candidates.csv",
+      "sha256": "cb6f4d4f3af3821febc4863d953cd41caadb910c94a9ae4c9b8b6de519b6c6ee",
+      "size": 11274
+    },
+    {
+      "path": "inputs/data/worst_tv_comparisons.csv",
+      "sha256": "7baabb0d1b01012ad8f438963de18c9e112207161a204ce8207269a34e89d0e7",
+      "size": 1429848
+    },
+    {
+      "path": "inputs/design.md",
+      "sha256": "11e487051da6c8c38fdaa1aa085cc64c3a19005b6730c100b63f096096765fa3",
+      "size": 2514
+    },
+    {
+      "path": "inputs/engine.py",
+      "sha256": "adcfc4d510af01294d3dfaf30e9abd240572b15eef56832910f8963437b9fbec",
+      "size": 2454
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-07-08-b2-industry-neutral-decomposition.md",
+      "sha256": "ed74af39556811d9774762f78dde674e418b4117a8eae055f5be6e8875b0186c",
+      "size": 6134
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-07-10-momentum-transform-scan-design.md",
+      "sha256": "5aabe52d4f8a3dbc2f0600e0276b08f775547d654765cae3e4c5f82d2e232799",
+      "size": 11977
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-13-probe-5-pair-set.md",
+      "sha256": "a1fb5e4e39c069165d4e50a0241eb77df499fd98e4272524a2162882b295151d",
+      "size": 38048
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-13-probe-5b-dividend-partner-prereg.md",
+      "sha256": "9801c4c8b7d6988e46ff25c8e4e61f833c60cdfd67e19c837a21d9d361e8f86a",
+      "size": 41801
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-17-staged-entry-exploration.md",
+      "sha256": "530c685dcb38f8866ffd5f920da8dd44a2a00b85cbd7e6144d0094dc0a1d6d69",
+      "size": 16668
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-18-band-fidelity-curve.md",
+      "sha256": "11e95afefbb5fccd72ac08803ca25e19c40643edede945308d0e63b7fdc51421",
+      "size": 9134
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-18-microcap-joint-grid.md",
+      "sha256": "30444cf2e978780d9f53f4faf4014577c29525665ad86b2027857bc47e44249a",
+      "size": 9025
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-18-microcap-upper-bound.md",
+      "sha256": "2cb3a05103b57f77ff4b2e469449411af2168c0172b45a639ead1b3c5628aaea",
+      "size": 5751
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-18-param-stability-diagnostic.md",
+      "sha256": "9cab4888aad3c23e8b082c6160b30d5cff65da43fe79f13fdc3b1a65adbcb5c8",
+      "size": 6034
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-18-threshold-by-underlying.md",
+      "sha256": "02888775b1eb4024aa8c20032795cdb7e2d682d107063ab97d0adce356597a32",
+      "size": 8927
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-08-26-signal-generator-prescreens.md",
+      "sha256": "f5fbc056077409fb906e87f60032faedf46cca662ddb0983c7f58dc9e01e1150",
+      "size": 11519
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-09-09-pair-weighting-prereg.md",
+      "sha256": "cdc93d223faddcd2df5b943078c310d78085d05bbc05bc1ce0b1a1f696e2011a",
+      "size": 2289
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-09-09-pair-weighting-results.md",
+      "sha256": "0754f052f6691f8fa298a289adf912643ec44f4d370556e8aa6a7c3567ca8af8",
+      "size": 2154
+    },
+    {
+      "path": "inputs/evidence/docs/plans/2026-09-14-incumbent-parameter-lineage.md",
+      "sha256": "c33b02655675dd1e7242a398425cbbaf43246c9df65642c619cef0740b4a2846",
+      "size": 6594
+    },
+    {
+      "path": "inputs/package.py",
+      "sha256": "e3385e059a430732c6b4d54b27bc627a20d168e73f7c05cd7bfd29d4c45a1f76",
+      "size": 15822
+    },
+    {
+      "path": "inputs/run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "cb7dad55360c01d0df13facf1e71783eb3287a9e781f56897eaae296a3278a6b",
+      "size": 8530
+    },
+    {
+      "path": "outputs/event_daily_paths.csv",
+      "sha256": "ebf074ff48c7c16fefdfd242b4ef2a6890db791f0fb427588a84e46a41e3c484",
+      "size": 661748
+    },
+    {
+      "path": "outputs/event_decomposition.csv",
+      "sha256": "9392bc5946374194281dbc650ce4fb0c7280866a8aaa9144501cbdee42a4b42a",
+      "size": 97840
+    },
+    {
+      "path": "outputs/event_decomposition_summary.csv",
+      "sha256": "aa3be6b676517717a495760ff771e2278680ca1d1ebbc2bf8a25ed3736eab1f8",
+      "size": 11430
+    },
+    {
+      "path": "outputs/focus_catalog.csv",
+      "sha256": "bf03be4b7cfb3181834bddd684a11b8ba408b1e1e3787b5088abe3920d0b0aa3",
+      "size": 11206
+    },
+    {
+      "path": "outputs/focus_random_summary.csv",
+      "sha256": "e79f7246ff651dec3961ea0c0b9f247d8ad20b78f3d2b28141536ceb8c6434d7",
+      "size": 15061
+    },
+    {
+      "path": "outputs/focus_random_trials.csv",
+      "sha256": "18fbd687d9e8186433a8771b2430999f750b8845b866a9b3222999710dde000e",
+      "size": 8921973
+    },
+    {
+      "path": "outputs/input_sources.json",
+      "sha256": "b104b6e4036fc18ee62e8922b46e32d9b6cf80dc57c0c7cafca3e9a9605478be",
+      "size": 1576
+    },
+    {
+      "path": "outputs/long_signal_vs_short_leg.csv",
+      "sha256": "dd54210f873286360971416c35632be849133062225636421bb9897b134c966b",
+      "size": 15613
+    },
+    {
+      "path": "outputs/random_calendar_diagnostic.png",
+      "sha256": "2a935aa74936b898959c72b425f120b650293f6ae4a7f9c4e1f13473602634bf",
+      "size": 69568
+    },
+    {
+      "path": "outputs/random_calendar_diagnostic.svg",
+      "sha256": "20c042cede37d96079fa67ba7cafa2c0d505c7627e86565e871c57a1805c2651",
+      "size": 85805
+    },
+    {
+      "path": "outputs/random_calendar_summary.csv",
+      "sha256": "f569f9080b5252a22d4d3ff52aa9b0a0cf9788dd2570d634bb0e9aca08ad2533",
+      "size": 392885
+    },
+    {
+      "path": "outputs/random_count_summary.csv",
+      "sha256": "36da96498e99348a0e8acba01ebd01ecc51cd27c6a092724b0047eb33cf0472f",
+      "size": 347
+    },
+    {
+      "path": "outputs/random_flip_counts.csv",
+      "sha256": "bc940938b961cb3c42c50c2fb58a3dce574500e7573080cdcb92d49ef0aa4b67",
+      "size": 333035
+    },
+    {
+      "path": "outputs/random_windows.csv",
+      "sha256": "b8d8df6640b1e1559f72680fc98bbf6b1764cd2b41725be74cf6db18bf318b97",
+      "size": 440250
+    },
+    {
+      "path": "outputs/rejection_review.csv",
+      "sha256": "032e9cb1dbca8f8831f43009bc4612bcbcd453fde686388b544bb1226f88c723",
+      "size": 9631
+    },
+    {
+      "path": "outputs/same_mapping_comparisons.csv",
+      "sha256": "8c2df6f4bf5ceff778ed990acb88c115ce27cf058a1e48398cbb146ef5825a85",
+      "size": 255443
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "cd7c60071378afc73ad8b07e7a749dac1f9c7c1e1c080cfd442b986660146475",
+      "size": 716
+    },
+    {
+      "path": "outputs/yearly_results.csv",
+      "sha256": "6d3d1e42274ad43194ea03316092524c011b190204336f26330f05fa6e60188d",
+      "size": 263493
+    },
+    {
+      "path": "outputs/事件依赖第二轮_候选复核.xlsx",
+      "sha256": "c207ceae8e8c1f8252a5d61e01a2a596c451f336dc1e372ab52b3a9ffbf4a6ce",
+      "size": 476717
+    }
+  ],
+  "production_changed": false,
+  "scope": "26 focused specifications; attribution and random-calendar diagnostic; r1 coverage gaps unchanged",
+  "source_run": "20260915-event-dependence-r1",
+  "status": "complete",
+  "verification": {
+    "daily_decomposition_error": 1.2685165418080402e-17,
+    "event_decompositions": 364,
+    "focus_specifications": 26,
+    "input_hashes_checked": 10,
+    "long_short_identity_max_error": 1.3877787807814457e-17,
+    "note": "Descriptive random-calendar diagnostic, not a calibrated p-value or a fresh out-of-sample test.",
+    "random_calendar_draws": 2000,
+    "random_days_per_draw": 70,
+    "random_direct_metric_checks": 18,
+    "random_eligible_comparisons": 696,
+    "random_max_direct_error": 1.1102230246251565e-15,
+    "random_windows_per_draw": 7,
+    "same_mapping_lf_neutral_leaders": 0,
+    "same_mapping_lf_review_count": 24,
+    "source_run": "20260915-event-dependence-r1",
+    "status": "passed",
+    "workbook_verified": true
+  }
+}

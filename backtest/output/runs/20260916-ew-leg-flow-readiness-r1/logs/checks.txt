@@ -1,0 +1,4 @@
+Numerical audit: 12 checks passed.
+Frozen-input output reproduction, 6 mutation checks and 7403-row raw reconciliation: passed.
+python3 -m ruff check --no-cache --select F,E9 backtest/flow_field_readiness.py: All checks passed.
+No candidate returns, production changes, or full-suite rerun.

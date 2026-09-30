@@ -1,0 +1,20 @@
+{
+  "manifest_sha256_verified_artifact_counts": {
+    "20260916-ew-intraday-flow-pilot-r1": 36,
+    "20260916-ew-intraday-flow-attribution-r1": 26,
+    "20260916-ew-leg-flow-readiness-r1": 19
+  },
+  "posthoc_controls_reference_engine": {
+    "fixed_half_short": {
+      "rows": 2568,
+      "max_abs_error": 1.7763568394002505e-15
+    },
+    "matched_short_exposure": {
+      "rows": 2568,
+      "max_abs_error": 1.7763568394002505e-15
+    }
+  },
+  "existing_targeted_tests": "17 passed; unchanged implementation reused",
+  "production_unchanged": true,
+  "candidate_selection_is_historical": true
+}

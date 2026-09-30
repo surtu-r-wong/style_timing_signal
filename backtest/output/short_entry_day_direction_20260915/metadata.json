@@ -1,0 +1,17 @@
+{
+  "start": "2014-01-02",
+  "end": "2026-09-11",
+  "input_sha256": {
+    "slope20_symmetric.csv": "0359dda953ef8ee69840d214accf928e712d7c72d486ee1b041d818330714ada",
+    "equal_weight_symmetric.csv": "e65cf2217633624e815ea96b4b77e8bf8f929a5767264298de98330dcef20e4d",
+    "spot_close.csv": "7632af5f1dfec5e231dbab9abb0de90cd95998f293fbfea8093a108c019bde25"
+  },
+  "primary_underlying": "daily 50/50 Zhongzheng 500 and 1000 spot returns",
+  "entry": "position(T)<0 and observed position(T-1)>=0; first row excluded",
+  "up": "T close / previous trading close > 1",
+  "outcome": "T close through T+h close, or first non-short signal close; negative underlying cumulative return",
+  "costs": "primary excludes fees, carry, slippage; trade_cost_ret applies 3bps each side",
+  "maturity": "incomplete horizons and unclosed trades excluded from outcome denominators",
+  "inference": "two-sided Fisher diagnostic; Holm over primary 10 comparisons; 10000 entry-year cluster resamples",
+  "seed": 20260915
+}

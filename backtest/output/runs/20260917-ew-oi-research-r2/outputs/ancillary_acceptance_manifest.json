@@ -1,0 +1,126 @@
+{
+  "artifacts": [
+    {
+      "path": "acceptance.log",
+      "sha256": "83aaca781daa1828e3ce77e8152c3063808417cf03b0342002995186346fd977",
+      "size": 4250
+    },
+    {
+      "path": "acceptance_script.py",
+      "sha256": "79303afed868b002419c13f2b767284b7733680e0d9488278bdf7827c4485970",
+      "size": 7383
+    },
+    {
+      "path": "etf__response-04-style-timing-signal-2026-09-17.md",
+      "sha256": "608556af9e47456ce4e0448f6966cb033265710f0dfbc1001bcf2af0f3c65cb9",
+      "size": 2295
+    },
+    {
+      "path": "etf_delivery/etf_share_daily.csv",
+      "sha256": "999285055f470b9d3664a565fe6dc9c0bf65377b4919bd36860eb37a6e29f077",
+      "size": 1436614
+    },
+    {
+      "path": "etf_delivery/field_dictionary.md",
+      "sha256": "4c398b8164273f82b307bdfd418be30800ad79bdbcf5b6c1a3080406ba5c8a6d",
+      "size": 2167
+    },
+    {
+      "path": "etf_delivery/manifest.json",
+      "sha256": "e3ad333f5f34cc90cec0d1acab39520d3eed61dd7826fc4868315c126de6900c",
+      "size": 1022
+    },
+    {
+      "path": "etf_delivery/net_flow_daily.csv",
+      "sha256": "11409c259eaeb5dbfef5c68db61109ceee454c4a910d23243485c9bce2bc08ef",
+      "size": 602615
+    },
+    {
+      "path": "etf_delivery/pre_listing_rows.csv",
+      "sha256": "ab55b602ec1f52499b4ae89316613c71c8221818a3e0d098b9650f28d86dd83f",
+      "size": 4954
+    },
+    {
+      "path": "etf_delivery/quality_report.json",
+      "sha256": "346a23e69f7ea42c8d1d9225bdbe3fec3941ca78086040d9fc4c985eaba8fbdf",
+      "size": 1956
+    },
+    {
+      "path": "etf_delivery/share_translation_events.csv",
+      "sha256": "679d755968b4865a5453bd960524f77b6634cbe4a6c1864fdae27399b90da5e9",
+      "size": 345
+    },
+    {
+      "path": "etf_event_unit_reconciliation.csv",
+      "sha256": "80b25071f6cc4644730128283fbbe243de503f513b6c844338d6d8dd9d1e6e6a",
+      "size": 595
+    },
+    {
+      "path": "first_attempt.log",
+      "sha256": "64bbb8f84760d5c01ab6fb92698fe4e8a56e97efdd4f0fb86c156f2b60393293",
+      "size": 309
+    },
+    {
+      "path": "member__response-03-style-timing-signal-2026-09-17.md",
+      "sha256": "346efda8f1b9e51388f91f5b858fc5c1698c077d605232f54900deed58aad1d2",
+      "size": 1519
+    },
+    {
+      "path": "oi__response-03-style-timing-signal-2026-09-17.md",
+      "sha256": "c689734a44ff67c218b8c91ad6640d85e5ba15fd812cbc60312e4121d315b18d",
+      "size": 1306
+    },
+    {
+      "path": "phase1-IM/fetch_log.csv",
+      "sha256": "48bf2232a3459e52f4d542ea744af5b4a006464eefbbfa9f3d9f5515c70c7f59",
+      "size": 29299
+    },
+    {
+      "path": "phase1-IM/manifest.json",
+      "sha256": "513f081d94080d42fd59684d533d0496897245eee59440b9648b989f225bf103",
+      "size": 1136
+    },
+    {
+      "path": "phase1-IM/member_alias.csv",
+      "sha256": "e559416c890d84c9cc05df5bd7bd251a8719965d65d5dc1a0e3acadd8c89090f",
+      "size": 13365
+    },
+    {
+      "path": "phase1-IM/not_disclosed.csv",
+      "sha256": "25116dac4cea111fbcf5c4d42f98749b34570784ff9acd9017543c75d1d9250e",
+      "size": 152410
+    },
+    {
+      "path": "phase2-IC/fetch_log.csv",
+      "sha256": "426dfb7d166e1ebb6cdf1babde6210222e06ec2a500db30d996aade4bee4ecc5",
+      "size": 80046
+    },
+    {
+      "path": "phase2-IC/manifest.json",
+      "sha256": "2d2209c57bdf1c6908612c33215505daf1b23cb0d1269b180f6df94b9d53e649",
+      "size": 1136
+    },
+    {
+      "path": "phase2-IC/member_alias.csv",
+      "sha256": "c650d9d52bb52406c36e392525040aba5054b33ad131f711443eef6472e9b703",
+      "size": 15197
+    },
+    {
+      "path": "phase2-IC/not_disclosed.csv",
+      "sha256": "15ac49326ff853cf4950fdbc8cff9a6a70f6d01e61e6af2f47aca77422523836",
+      "size": 1305445
+    },
+    {
+      "path": "source_receipts.json",
+      "sha256": "a408e23888898fef552a4e14b18aa66e289b89f1c84c51abc0fed13382cc6b79",
+      "size": 4805
+    },
+    {
+      "path": "verification.json",
+      "sha256": "1e78dcfdcc8cbe2056eb45ca05808816ea18f3f95b60ad7a3b5b03befb900714",
+      "size": 4249
+    }
+  ],
+  "scope": "consumer_quality_audit_complete; ETF_event_amount_and_member_log_fixes_pending_office",
+  "status": "complete"
+}

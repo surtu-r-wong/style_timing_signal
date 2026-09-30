@@ -1,0 +1,9 @@
+{
+  "target_difference_days": 18,
+  "filled_position_difference_days": 18,
+  "nonnegligible_relative_return_days": 36,
+  "filled_or_previous_filled_difference_days": 30,
+  "delta_log_inside_execution_support": 0.2058765372764549,
+  "delta_log_outside_execution_support": 2.436558094388676e-06,
+  "note": "Small tails outside position-disagreement support may arise from cost/equity rebalancing; all dates retained."
+}

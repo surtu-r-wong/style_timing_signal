@@ -1,0 +1,85 @@
+{
+  "funds": {
+    "159845.SZ": {
+      "rows": 1328,
+      "first": "2021-03-30",
+      "last": "2026-09-16",
+      "nav_null": 0,
+      "close_null": 1,
+      "flow_rows": 1327,
+      "event_days": 1,
+      "large_move_days": 47,
+      "pre_listing_rows": 21,
+      "status_values": {
+        "开放申购": 1327,
+        "封闭期": 1
+      }
+    },
+    "510500.SH": {
+      "rows": 3285,
+      "first": "2013-03-14",
+      "last": "2026-09-16",
+      "nav_null": 0,
+      "close_null": 1,
+      "flow_rows": 3284,
+      "event_days": 2,
+      "large_move_days": 6,
+      "pre_listing_rows": 44,
+      "status_values": {
+        "开放申购": 3282,
+        "暂停申购": 2,
+        "封闭期": 1
+      }
+    },
+    "512100.SH": {
+      "rows": 2400,
+      "first": "2016-11-03",
+      "last": "2026-09-16",
+      "nav_null": 0,
+      "close_null": 1,
+      "flow_rows": 2399,
+      "event_days": 1,
+      "large_move_days": 27,
+      "pre_listing_rows": 38,
+      "status_values": {
+        "开放申购": 2398,
+        "封闭期": 1,
+        "暂停申购": 1
+      }
+    }
+  },
+  "events": [
+    {
+      "ts_code": "159845.SZ",
+      "trade_date": "2023-02-28",
+      "factor": 0.747644145,
+      "event_source": "official",
+      "share_ratio": NaN,
+      "nav_ratio": NaN
+    },
+    {
+      "ts_code": "510500.SH",
+      "trade_date": "2015-04-14",
+      "factor": 0.28032398840522177,
+      "event_source": "detected",
+      "share_ratio": 0.28032398840522177,
+      "nav_ratio": 3.5660079051383398
+    },
+    {
+      "ts_code": "510500.SH",
+      "trade_date": "2022-08-26",
+      "factor": 1.14539,
+      "event_source": "official",
+      "share_ratio": 1.146494568584296,
+      "nav_ratio": 0.8699682276557535
+    },
+    {
+      "ts_code": "512100.SH",
+      "trade_date": "2022-09-02",
+      "factor": 0.36555,
+      "event_source": "official",
+      "share_ratio": 0.3655514857708738,
+      "nav_ratio": 2.7597475313040825
+    }
+  ]
+}

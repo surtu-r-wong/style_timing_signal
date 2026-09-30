@@ -1,0 +1,6 @@
+   series  rows  days      first       last  missing_days  min_contracts  max_contracts  days_count_not_four
+       IC 11116  2779 2015-04-16 2026-09-16             0            4.0            4.0                  0.0
+       IM  4036  1009 2022-07-22 2026-09-16             0            4.0            4.0                  0.0
+000852.SH  2845  2845 2015-01-05 2026-09-15             1            NaN            NaN                  NaN
+000905.SH  2845  2845 2015-01-05 2026-09-15             1            NaN            NaN                  NaN
+{"read_only_snapshot_complete": true, "duplicate_keys": 0, "invalid_value_cells": 0, "coverage_gaps": 2, "rows": 15152, "observed_count_is_not_proof_of_listed_contract_completeness": true, "office_delivery_required_before_feature_research": true, "finished_utc": "2026-09-17T02:55:33.867784+00:00"}

@@ -1,0 +1,17 @@
+[
+  {
+    "path": "backtest/output/runs/20260917-ew-oi-input-readiness-r1/inputs/futures.csv",
+    "size": 959379,
+    "sha256": "31aa2d003a564f66941952e4fd1ddc0b810578504c325e330bdf79c80d7694cd"
+  },
+  {
+    "path": "backtest/output/runs/20260916-ew-exit-mechanism-audit-r1/outputs/decision_targets.csv",
+    "size": 531164,
+    "sha256": "0132a8e9247fdb3aea13f503910e809d4ffb3095dd0be23d87ddfd0979f78b57"
+  },
+  {
+    "path": "output/equal_weight/equal_weight_signal_20d40z.csv",
+    "size": 193047,
+    "sha256": "d04eb53702bcfa16af61e03a4272bb07bc4c5abd1a4dece4238621ec8b14805d"
+  }
+]

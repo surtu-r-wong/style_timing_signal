@@ -1,0 +1,38 @@
+[
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/calendar.csv",
+    "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983"
+  },
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/product_daily.csv",
+    "sha256": "4cbe348adce71206e391709920c66d11edde9e4a8524110902aef1a53a4616e8"
+  },
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-oi-derived-inputs/delivery/ew-oi-v1/contract_detail.csv",
+    "sha256": "748da7f0354c29cd2f629129c78edd3d28e21fec76f3fa75475300b24457a1e1"
+  },
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v2/net_flow_daily.csv",
+    "sha256": "db329d9f53d91b05da0538ccbbeae18d60abeb3008ae602c8051bebf9431cc5a"
+  },
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-etf-share-flow/delivery/etf-share-flow-v2/share_translation_events.csv",
+    "sha256": "679d755968b4865a5453bd960524f77b6634cbe4a6c1864fdae27399b90da5e9"
+  },
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/rank_long.csv",
+    "sha256": "09cb5cd3f056060dfcb0c9395fe78602ed20b1845f484d640e727878cf39e890"
+  },
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/rank_long.csv",
+    "sha256": "7124319f9b39e512b8d1526ae5d60dd7d16c1337a8aed3c79e00f16bfcf0029e"
+  },
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase1-IM/manifest.corrected.json",
+    "sha256": "061a83e31e16db4fee325b7efee394af013bf789f260e7e9c0b058552a6cbaff"
+  },
+  {
+    "path": "data_manager/requests/2026-09-17-style-timing-signal-futures-member-feasibility/delivery/phase2-IC/manifest.corrected.json",
+    "sha256": "a3e5cf4f08885accc9216d82cd7bca4e8e621e986c45eef362b2c786f49bb928"
+  }
+]

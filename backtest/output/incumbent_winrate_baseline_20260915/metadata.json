@@ -1,0 +1,19 @@
+{
+  "input_sha256": {
+    "entry_day_direction_20260915/events.csv": "b753f7b62e45beb3e2dade56fc132299639a04294a48233837c3320e2eac05e7",
+    "short_entry_day_direction_20260915/events.csv": "2f3e0d0123a08a5049fd3695fd01f54bdc7ba4a39d0cfabfb010398c486e0a6b",
+    "entry_day_direction_20260915/spot_close.csv": "7632af5f1dfec5e231dbab9abb0de90cd95998f293fbfea8093a108c019bde25"
+  },
+  "window": [
+    "2014-01-02",
+    "2026-09-11"
+  ],
+  "primary": "gross fixed-unit blend proxy completed-trade win rate",
+  "costs": "3bps of entry and exit notionals; no carry or actual contracts",
+  "delayed": "both entry and exit delayed one trading close; incomplete endpoints excluded",
+  "payoff_ratio": "mean winning return / abs(mean losing return)",
+  "profit_factor": "sum positive returns / abs(sum negative returns), equal starting notional per trade",
+  "periods": "grouped by entry date; exits can lie beyond period boundary",
+  "excursion": "close-only, gross, known ex post; never usable as entry-time feature",
+  "inference": "descriptive historical baseline; no independence or prospective evidence claims"
+}

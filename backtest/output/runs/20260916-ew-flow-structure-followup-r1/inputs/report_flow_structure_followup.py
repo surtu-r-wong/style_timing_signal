@@ -1,0 +1,136 @@
+from pathlib import Path
+import json
+import shutil
+import pandas as pd
+from backtest.run_manifest import artifact_record
+root=Path.cwd()
+run=root/'backtest/output/runs/20260916-ew-flow-structure-followup-r1'
+out=run/'outputs'
+m=pd.read_csv(out/'metrics.csv')
+c=pd.read_csv(out/'comparisons.csv')
+s=pd.read_csv(out/'stress.csv')
+defs=pd.read_csv(out/'candidate_definitions.csv').set_index('name')
+labels={'A_PAIR_L':'PAIR只过滤多头','A_PAIR_S':'PAIR只过滤空头','A_POOL_L':'POOL只过滤多头','A_POOL_S':'POOL只过滤空头','B_daily':'原逐日过滤','B_entry_hold':'只控制进场','B_exit_only':'只控制退出','B_entry_exit':'进场＋退出','C_new_tier':'新源分档','C_new_hysteresis':'新源缓冲持仓','C_old_tier':'旧源分档','C_old_hysteresis':'旧源缓冲持仓','C_old_binary':'旧源逐日过滤'}
+def row(name,scenario='close_3bps',window='full'):
+ return m.loc[(m.strategy==name)&(m.scenario==scenario)&(m.window==window)].iloc[0]
+def table(head,rows):
+ return '\n'.join(['| '+' | '.join(head)+' |','|'+'|'.join(['---']*len(head))+'|']+['| '+' | '.join(map(str,r))+' |' for r in rows])
+def combo(names):
+ rows=[]
+ for name in names:
+  a=row('C__'+name);q=row('Q__'+name)
+  rows.append([labels[name],f'{a.cagr:.2%}',f'{a.sharpe:.3f}',f'{a.maxdd:.2%}',f'{q.sharpe:.3f}',f'{a.sharpe-q.sharpe:+.3f}'])
+ return table(['组合（另一腿不变）','CAGR','Sharpe','最大回撤','同暴露参照Sharpe','Sharpe增量'],rows)
+def robust(names):
+ rows=[]
+ for name in names:
+  diffs=[]
+  for scenario,window in [('close_3bps','early_half'),('close_3bps','late_half'),('close_10bps','full'),('second_close_3bps','full')]:
+   diffs.append(row('C__'+name,scenario,window).sharpe-row('Q__'+name,scenario,window).sharpe)
+  stress=s.query("scenario=='close_3bps' and comparison=='matched' and candidate==@name").set_index('best_days_zeroed')
+  rows.append([labels[name],*[f'{x:+.3f}' for x in diffs],f'{stress.loc[1,"sharpe_difference"]:+.3f}',f'{stress.loc[5,"sharpe_difference"]:+.3f}'])
+ return table(['候选','前半期','后半期','10bp','额外延迟一天','最好1日置零','最好5日置零'],rows)
+A=['A_PAIR_L','A_PAIR_S','A_POOL_L','A_POOL_S']
+B=['B_daily','B_entry_hold','B_exit_only','B_entry_exit']
+C=['C_new_tier','C_new_hysteresis','C_old_tier','C_old_hysteresis','C_old_binary']
+legrows=[]
+for name in A:
+ side=defs.loc[name,'side']; a=row(side+'__'+name);q=row('Q'+side+'__'+name)
+ legrows.append([labels[name],f'{defs.loc[name,"short_or_long_scale"]:.2%}',f'{a.cagr:.2%}',f'{q.cagr:.2%}'])
+source=pd.read_csv(out/'source_sensitivity.csv').query("scenario=='close_3bps'")
+source_rows=[[r.mapping,r.decision_disagreements,f'{r.decision_absolute_gap:.1f}',f'{r.old_minus_new_log:.5f}',f'{r.old_minus_new_sharpe:.5f}'] for r in source.itertuples()]
+report=f'''# equal_weight资金流结构、空头进退和仓位稳定性结果
+
+2026-09-16。按[事前固定规格](2026-09-16-ew-flow-structure-followup.md)执行，run=`20260916-ew-flow-structure-followup-r1`。历史样本已反复使用，以下全部为描述性结果，未改变现役。
+
+## 结论
+
+最值得保留的是**空头退出机制**：在原EW空头段内，首次资金流不支持时退出、该段不再进入，比仅筛选段首进场更有解释力。只控制退出、进场＋退出相对同暴露固定减仓的Sharpe差，在前后半期、10bp及额外延迟成交均为正；但移除最有利5日的描述性压力测试后转负。没有统计确认或替换依据，也不从两个退出版本中事后选定赢家。
+
+订单结构固定构造的主来源PAIR两腿均未改善；POOL多头有局部正增量，但前后半期不一致、最好5日置零后优势反转。本轮不继续翻方向或搜索窗口。缓冲持仓减少新旧源分歧及换手，但尚未证明稳健增量，不能替代源端解释。
+
+## 样本、参照与方法
+
+共同窗2017-02-14至2026-09-11，2330交易日；特征输入至09-15，收益终点为冻结执行边界。真实IC/IM合约按既有权重承载，IM上市前不能解读为当时已有IM交易。收盘后形成信号，T+1收盘执行；另有10bp与T+2收盘3bp情景。
+
+基准原组合CAGR36.12%、Sharpe1.423、最大回撤−34.45%；固定半空为30.99%、1.575、−22.89%。各候选的同暴露参照q按全期对应腿绝对目标仓位均值确定，仅是事后风险敞口对照，不是可部署估计；不保证实际净值下的绝对名义资金完全相等。组合账和独立腿账分别计算，未相加独立复利收益。
+
+共11个新固定候选，另有2个既有binary对照；组合/独立腿及相应q参照加公共基准，共177本账，其中158本新执行、19本逐值核对目标后复用。各候选、成本和窗口全量结果见CSV，不以表内最高数值作选优。
+
+## A：大单与超大单结构
+
+X、L分别为各档(买−卖)/(买＋卖)，唯一新构造D=X−L。过去250日回归控制合计净额占比及指数涨跌，取当日样本外残差的20日均值，再按PAIR/POOL等权聚合。多头保留正分数，空头保留负分数；另一腿不改。这个方向是假设，不是超大单身份或风格预测能力的既成事实。
+
+{combo(A)}
+
+独立腿及同暴露参照：
+
+{table(['候选','保留原腿等效比例','候选单腿CAGR','同暴露单腿CAGR'],legrows)}
+
+下表均为组合相对各自同暴露参照的Sharpe差：
+
+{robust(A)}
+
+原始D与总净流占比的相关为0.754～0.896；残差相关降至−0.022～0.009，与当日收益残差相关绝对值不超过0.025。控制项确实剔除了主要共同变化，但这些样本相关不能证明独立预测力。PAIR多头/空头都弱；POOL多头全期有+0.031 Sharpe，但前半期为−0.064，最好5日置零为−0.053。这支持结束本轮固定构造筛选，不支持把大单/超大单结构整体判死。
+
+## B：空头进场与退出
+
+沿用P1 CSI300原B_neg方向，正分数支持保留空头。entry_hold只在原EW段首检查；exit_only段首一律进场、第二日起遇首次否决退出；entry_exit段首也检查；三个新版本段内退出或拒绝后都不再进入。原逐日过滤可再次进入。
+
+{combo(B)}
+
+相对同暴露参照的Sharpe差：
+
+{robust(B)}
+
+只控制退出保留373/1131=32.98%的原空头决策日，进场＋退出为353/1131=31.21%；原逐日过滤为43.15%。这解释了必须增加同暴露参照的原因。只控制退出组合年化换手约34.97，低于原逐日41.12，3bp年化成本约1.05%对1.23%。独立空头CAGR为8.60%（同暴露3.19%）；进场＋退出为8.31%（同暴露3.02%）。
+
+两个退出版本的48个原空头执行段，各有33段相对各自同暴露参照的log贡献为正、15段为负。只控制退出总log增量0.48595，最好5日贡献0.25709（约52.9%）；进场＋退出总增量0.47585，最好5日贡献0.26194（约55.0%）。两者最好一天均为2025-04-07。最好1日置零仍有正Sharpe差，最好5日置零则分别−0.024、−0.021；它们比原逐日过滤稳一些，但仍对尾部收益敏感。
+
+延迟成交时也需区分比较对象：只控制退出Sharpe1.504略低于原逐日1.510，进场＋退出为1.554；所以不能声称只控制退出在所有执行情景都优于原逐日版本。各自相对同暴露的正增量与跨版本优劣是不同判断。
+
+### 原逐日过滤的阶段归因
+
+以下仅解释原daily相对原组合，不是新退出规则的因果分解。按完整段事后标记并对齐T+1成交与T+2首个持仓收益；两相邻成交状态标签变化的日期单列transition，包含成本及旧仓收益，不丢弃这些日子。
+
+- 最后一次离场之后：+0.17593相对log收益。
+- 整段没有开空：−0.13774。
+- 首次进场之前：−0.03235。
+- 两次保留之间的空仓：−0.02589。
+- 转换日期：−0.02838；其余留仓/非空头日有微小成本与复利尾差。
+
+总和为−0.04845，与既有新300相对原组合的全期log差一致。“退出后的避险有贡献、拒绝整段或反复进退可能付出代价”是本轮诊断线索，不意味着所有段退出后都更好。状态规则本身没有使用这些未来标签。
+
+## C：仓位映射与数据源敏感性
+
+阈值固定为此前250日原始B标准差的0.25/√20，未搜索；该尺度不是统计标准误。分档在中间区间半仓；缓冲持仓在区间内保持前态，原EW非空头时归零。新旧源各自计算，未混源。
+
+{combo(C)}
+
+同窗3bp的新旧来源差异：
+
+{table(['映射','分歧决策日','累计绝对仓位差','旧−新相对log','旧−新Sharpe'],source_rows)}
+
+分档的分歧日由18增至21，但差异多为半仓，累计绝对仓位差由18降至10.5；不能叫做“分歧日减少”。缓冲持仓降至7个分歧日，旧新绩效仍有差异。新源分档对同暴露Sharpe差−0.002，缓冲持仓+0.028；后者最好1日置零后变−0.012。稳定映射减轻部分敏感性，没有消除数据问题或形成独立alpha证据。
+
+## 数据办公室的新回复与解释边界
+
+本轮计算结束后收到`response-09-office-2026-09-16.md`，另存本run输出作为事后补充，不改事前规格或输入。办公室用84单元格复核2024-01-08、01-09、2023-12-13，报告同日期参数的WSS与交付WSD逐值一致。因此当前交付忠实复现供应商原值的证据加强，办公室不另立REPAIR、不改库；这不等于供应商原值正确，Wind仍未解释聚合金额骤降及与WSET差异。
+
+研究侧对回复中的推论保留边界：别的交易日能出现真实零，不能证明2024-01-08的零一定正确；源端两接口一致不能排除共同底层缺失或覆盖变化；口径/有效成分覆盖可以随日期变化，不能仅凭孤立异常排除；恒等式成立不证明各字段同倍率变化或聚合完整。办公室给出的聚合基数不足形状是线索，尚无成分级覆盖证据。没有用旧WSET补值、删掉异常或按更好绩效选择“正确”来源。
+
+## 验证、产物与下一步
+
+新增状态路径测试4项通过；9个代表账本与原contract_ledger的逐日收益误差均为0；158本新账均通过账户、分腿及交易损益恒等式；结构分数未来扰动不影响过去，缓冲阈值只依赖过去；逐段和阶段相对log分解精确相加。新代码F/E9检查通过；既有核心引擎未改，不重复此前17项核心测试。
+
+本轮保留“固定空头退出机制”作为进一步确认的候选族，两个版本都保留其尝试记录；订单结构不追加参数搜索，缓冲持仓只作为稳定性辅助证据。下一步应先解决供应商关键日期解释，再为退出机制冻结后续观察设计和实际有意义的改善幅度；ON_DEMAND资金流表尚无持续日更，若要进入日常观察需另向data_manager明确日更需求。未自动申请新采集、运行服务、部署或改生产仓位。
+
+主要产物：`metrics.csv`（所有窗口/情景）、`candidate_definitions.csv`、`decision_targets.csv`、`comparisons.csv`、`stress.csv`、`relative_daily.csv.gz`、`episode_attribution.csv`、`daily_phase_*.csv`、`source_sensitivity.csv`、账本和新交易清单、`verification.json`及manifest。相对log不是账户金额；最好日置零不是反事实回测或p值。
+'''
+(root/'docs/plans/2026-09-16-ew-flow-structure-results.md').write_text(report)
+(out/'REPORT.md').write_text(report.replace('(2026-09-16-ew-flow-structure-followup.md)','(../../../../../docs/plans/2026-09-16-ew-flow-structure-followup.md)'))
+office=Path('/home/elfbob/claude-code/data_manager/requests/2026-09-16-style-timing-signal-index-money-flow-backfill/response-09-office-2026-09-16.md')
+shutil.copyfile(office,out/office.name)
+(out/'office_followup_receipt.json').write_text(json.dumps({'received_after_computation':True,'source':str(office),'copied_artifact':artifact_record(out/office.name,run),'interpretation':'Cross-interface consistency is evidence of source replication, not proof of data correctness or constant constituent coverage.'},ensure_ascii=False,indent=2))
+shutil.copyfile('/tmp/report_flow_structure_followup.py',run/'inputs/report_flow_structure_followup.py')
+print('report written',len(report))

@@ -1,0 +1,12 @@
+--- executed_snapshot
++++ corrected_counter_only
+@@ -71,7 +71,8 @@
+                             'entry_gate': bool(gate.iloc[start]), 'decision_days': len(days),
+                             'held_days': int(target.lt(0).sum()), 'daily_held_days': int(daily.lt(0).sum()),
+                             'first_flat_after_entry_or_rejection': str(days[flat[0]].date()) if len(flat) else None,
+-                            'daily_reentries': int(daily_entries.iloc[1:].sum()),
++                            'daily_reentries': max(0, int(daily_entries.sum())-1),
++                            'daily_entries_after_baseline_start': int(daily_entries.iloc[1:].sum()),
+                             'forced_entry_days': int(forced.sum()), 'blocked_daily_holding_days': int(blocked.sum()),
+                             'blocked_daily_entry_count': int((blocked & daily_entries).sum())})
+     for mode in MODES:

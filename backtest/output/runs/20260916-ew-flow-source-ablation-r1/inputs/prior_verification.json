@@ -1,0 +1,69 @@
+{
+  "unit_tests": "17 passed before candidate run",
+  "future_perturbation_no_history_change": true,
+  "real_reference_comparisons": [
+    {
+      "scenario": "close_3bps",
+      "strategy": "C__base__base",
+      "rows": 2568,
+      "scope": "full"
+    },
+    {
+      "scenario": "close_3bps",
+      "strategy": "L__A_pos",
+      "rows": 75,
+      "scope": "IM_launch"
+    },
+    {
+      "scenario": "close_3bps",
+      "strategy": "S__B_neg",
+      "rows": 75,
+      "scope": "IM_launch"
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "C__base__base",
+      "rows": 2568,
+      "scope": "full"
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "L__A_pos",
+      "rows": 75,
+      "scope": "IM_launch"
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "S__B_neg",
+      "rows": 75,
+      "scope": "IM_launch"
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "C__base__base",
+      "rows": 2568,
+      "scope": "full"
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "L__A_pos",
+      "rows": 75,
+      "scope": "IM_launch"
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "S__B_neg",
+      "rows": 75,
+      "scope": "IM_launch"
+    }
+  ],
+  "full_reference_max_abs_error": 4.440892098500626e-16,
+  "all_153_leg_pnl_and_cost_identities_passed": true,
+  "all_153_trade_sum_identities_passed": true,
+  "sample_start": "2016-02-15",
+  "sample_end": "2026-09-03",
+  "n_days": 2568,
+  "first_half_n": 1284,
+  "second_half_n": 1284,
+  "candidate_return_grid_executed_once": true
+}

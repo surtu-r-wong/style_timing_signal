@@ -1,0 +1,21 @@
+{
+  "pytest_command": "python -m pytest tests/test_holding_age_audit.py -q",
+  "exit_code": 0,
+  "result": "6 passed in 0.46s",
+  "lint_command": "python -m ruff check --select F,E9 backtest/run_holding_age_audit.py tests/test_holding_age_audit.py",
+  "lint_exit_code": 0,
+  "lint_result": "All checks passed!",
+  "reuse_basis": "Files unchanged since successful tests; hashes match run snapshots.",
+  "files": [
+    {
+      "path": "backtest/run_holding_age_audit.py",
+      "size": 13042,
+      "sha256": "39d515200fcdd2a675a11f8011e7c90e97793e4c7126a573aad32562b4720444"
+    },
+    {
+      "path": "tests/test_holding_age_audit.py",
+      "size": 1448,
+      "sha256": "2bd7a9484882e89930f95e6deca3c39d21a0536e411b4f62b2137ae80278051d"
+    }
+  ]
+}

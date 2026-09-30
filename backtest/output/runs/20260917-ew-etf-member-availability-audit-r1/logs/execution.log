@@ -1,0 +1,31 @@
+IC_long close_3bps 8 availability-control ledgers
+IC_long close_10bps 8 availability-control ledgers
+IC_long second_close_3bps 8 availability-control ledgers
+common close_3bps 16 availability-control ledgers
+common close_10bps 16 availability-control ledgers
+common second_close_3bps 16 availability-control ledgers
+ window   scenario            candidate               reference period  candidate_cagr  reference_cagr  reference_sharpe  sharpe_difference  delta_log
+IC_long close_3bps      ETF500_L_signal  matched_available_base   full         0.18446         0.17756           0.82820           -0.01021    0.06617
+IC_long close_3bps      ETF500_L_signal matched_available_price   full         0.18446         0.14667           0.70463            0.11336    0.36699
+IC_long close_3bps      ETF500_S_signal  matched_available_base   full         0.27211         0.32130           1.55732           -0.31141   -0.42937
+IC_long close_3bps      ETF500_S_signal matched_available_price   full         0.27211         0.29400           1.39287           -0.14696   -0.19310
+IC_long close_3bps   MEMBER_IC_L_signal  matched_available_base   full         0.15148         0.21725           0.92462           -0.24516   -0.62864
+IC_long close_3bps   MEMBER_IC_L_signal matched_available_price   full         0.15148         0.18774           0.81640           -0.13694   -0.35095
+IC_long close_3bps   MEMBER_IC_S_signal  matched_available_base   full         0.36260         0.41035           1.72447           -0.29217   -0.38983
+IC_long close_3bps   MEMBER_IC_S_signal matched_available_price   full         0.36260         0.38830           1.61785           -0.18555   -0.21150
+ common close_3bps      ETF500_L_signal  matched_available_base   full         0.22022         0.18015           0.96541            0.08177    0.13671
+ common close_3bps      ETF500_L_signal matched_available_price   full         0.22022         0.16857           0.89936            0.14782    0.17707
+ common close_3bps      ETF500_S_signal  matched_available_base   full         0.29945         0.31135           1.67448           -0.16850   -0.03732
+ common close_3bps      ETF500_S_signal matched_available_price   full         0.29945         0.27395           1.45535            0.05063    0.08112
+ common close_3bps     ETFPOOL_L_signal  matched_available_base   full         0.20722         0.18301           0.97653            0.01658    0.08293
+ common close_3bps     ETFPOOL_L_signal matched_available_price   full         0.20722         0.14565           0.79622            0.19689    0.21429
+ common close_3bps     ETFPOOL_S_signal  matched_available_base   full         0.27920         0.31932           1.68217           -0.32989   -0.12644
+ common close_3bps     ETFPOOL_S_signal matched_available_price   full         0.27920         0.28528           1.46413           -0.11185   -0.01943
+ common close_3bps   MEMBER_IC_L_signal  matched_available_base   full         0.15680         0.20144           1.04162           -0.22787   -0.15502
+ common close_3bps   MEMBER_IC_L_signal matched_available_price   full         0.15680         0.19675           1.00883           -0.19508   -0.13899
+ common close_3bps   MEMBER_IC_S_signal  matched_available_base   full         0.30908         0.35681           1.83301           -0.39814   -0.14663
+ common close_3bps   MEMBER_IC_S_signal matched_available_price   full         0.30908         0.32778           1.66362           -0.22875   -0.05808
+ common close_3bps MEMBER_POOL_L_signal  matched_available_base   full         0.14472         0.21743           1.07582           -0.32583   -0.25213
+ common close_3bps MEMBER_POOL_L_signal matched_available_price   full         0.14472         0.19236           0.96064           -0.21065   -0.16693
+ common close_3bps MEMBER_POOL_S_signal  matched_available_base   full         0.42063         0.38787           1.93747           -0.10474    0.09551
+ common close_3bps MEMBER_POOL_S_signal matched_available_price   full         0.42063         0.36801           1.81649            0.01624    0.15453

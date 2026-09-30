@@ -1,0 +1,20 @@
+{
+  "coverage_report_matches_snapshot": true,
+  "report_links_resolve": true,
+  "tested_code_unchanged": true,
+  "office_requests_and_evidence_unchanged": true,
+  "office_status": [
+    {
+      "kind": "oi",
+      "office_responses": []
+    },
+    {
+      "kind": "etf",
+      "office_responses": []
+    },
+    {
+      "kind": "member",
+      "office_responses": []
+    }
+  ]
+}
