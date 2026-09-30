@@ -365,6 +365,28 @@ ssh ... -p 2222 "wsl -d ubuntu2404 -e bash -lc 'ps -p 1 -o etimes=; tmux ls </de
 最强嫌疑是 360（文件过滤驱动 360Box64/360FsFlt/360AvFlt 各挂 10 个实例，驱动链接日期 2016–2022，跑在 2026 年的 Build 26200 内核上）。
 **已排除**：磁盘/内存/CPU、SearchIndexer、ConPTY、PSReadLine/profile、HVCI、WSL 本身（现象早于安装）、网络。
 
+> **2026-09-30 第四轮更新**（`evidence/diagnostics/2026-09-30-lag-round4.md`）：
+> - **加重了**：现在**每一次** .NET 文件类调用约 15 s（不再只是首次）。交互窗口每条命令约 45 s：
+>   第一个键 14–17 s（PSReadLine）+ 回车后 30–40 s（宿主设置进程当前目录，
+>   `[Environment]::CurrentDirectory=` 单次 13.96 s，cmd `cd` 同 API 秒回）。
+> - **订正**：上一行「PSReadLine 已排除」**不成立**。当时的 TTY 对照是非交互命令，不加载 PSReadLine；
+>   真交互会话里 `Remove-Module PSReadLine` 后第一键 14.5 s → 0.02 s。
+> - **嫌疑收窄**：`safemon\360scovecEnt64.dll` 是 PowerShell 独有的 360 注入件（另两个 SafeWrapper/capid64
+>   在不卡的 cmd、Python 里也有）；全机只加载于 powershell.exe + Schedule/Winmgmt 两个 svchost。
+>   对照：同机解压的 **PowerShell 7.6.6**（免安装版，现位于 **`D:\tools\pwsh7\pwsh.exe`**）
+>   **没有**被注入该模块，文件类操作全部 0.00 s，交互每条命令与 cmd 同速。
+>   （.NET 运行时也不同，严格说是强力支持而非完全分离。）
+> - **交互绕行（已落地）**：Windows Terminal 与 VS Code 的**默认终端已改为 pwsh 7**（2026-09-30）：
+>   WT 新增「PowerShell 7」profile 并设为 `defaultProfile`（原文件备份在同目录 `settings.json.bak-20260930`，
+>   5.1/cmd/WSL profile 保留）；VS Code 原无用户 `settings.json`，新建仅含
+>   `terminal.integrated.profiles.windows` / `defaultProfile.windows` 两项（删文件即还原）。
+>   未改系统 PATH、未动 Wind 网关与计划任务（仍走 5.1）。官方 zip 留在 `D:\deploy_stage\pwsh7\` 作重装源。
+>   cmd / WSL 标签页同样不受影响；只能用 5.1 时先 `Remove-Module PSReadLine`（省约 1/3）。
+>   远端脚本同理：`ssh ... -p 2222 'D:\tools\pwsh7\pwsh.exe -NoProfile -File <x.ps1>'` 可绕开 §6.2 的慢路径
+>   （外层 ssh 默认 shell 仍是 5.1，但只起一次、不做文件操作）。
+>   360 若日后把 pwsh.exe 纳入脚本防护，绕行即失效：`tasklist /m 360scovecEnt64.dll` 出现 pwsh.exe 即是。
+>   已向 IT 提的诉求更新为「将 powershell.exe 从 360 safemon 脚本防护豁免」。
+
 **IT 证据包**：`/home/elfbob/claude-code/deploy_backups/2026-08-10-wsl2/evidence/diagnostics/it-escalation-package.md`
 （配套三轮诊断报告 `2026-08-10-post-reboot-lag.md` / `-round2.md` / `-round3.md`、探针清理记录 `cleanup-probes.md`）。
 
