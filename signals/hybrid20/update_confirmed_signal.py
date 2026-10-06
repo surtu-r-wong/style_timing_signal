@@ -117,6 +117,24 @@ for n in N_LIST:
 # ════════════════════════════════════════
 # 确认过滤: 主信号与金融因子矛盾时降为中性
 # ════════════════════════════════════════
+# 两次 PG 读取各自裁尾后，主信号与金融确认仍可能截止于不同日期。
+# 只裁共同有效区间的边界；内部缺口仍由后续转换报错，不能静默跳过。
+valid_confirm = pd.concat(confirm_signals, axis=1).dropna()
+if valid_confirm.empty:
+    raise ValueError("金融确认信号无有效数据（需满足 20/60 日因子预热窗口）")
+aligned_orig = orig.loc[
+    (orig.index >= valid_confirm.index.min()) & (orig.index <= valid_confirm.index.max())
+]
+if aligned_orig.empty:
+    raise ValueError("主信号与金融确认信号没有共同有效区间")
+if len(aligned_orig) != len(orig):
+    print(
+        f"警告: 主信号与金融确认已对齐，保留共同有效区间 "
+        f"{aligned_orig.index.min().date()}..{aligned_orig.index.max().date()}"
+        f"（剔除 {len(orig) - len(aligned_orig)} 行）",
+        file=sys.stderr,
+    )
+orig = aligned_orig
 out = orig.copy()
 
 for n in N_LIST:

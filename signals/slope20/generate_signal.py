@@ -4,6 +4,7 @@
   每腿 20 日对数价格 OLS 斜率 → 成长减价值（config_4pairs 四对）→ 120 日 z → tanh(z/2) → 四对等权 → 不平滑。
   = momentum_scan.momentum_factor_fn()(family="slope", length=20, skip=0, z_window=120, smoothing=0)
 输出 output/slope20/slope20_signal_L20zw120.csv（date, factor_value），全量重算覆写。
+输入尾部参差时裁到八条指数共同有效末日，不将晚到配对当作零信号。
 CLI: python3 signals/slope20/generate_signal.py [--output PATH] [--start YYYY-MM-DD]
 """
 from __future__ import annotations
@@ -21,7 +22,9 @@ OUTPUT = ROOT / "output" / "slope20" / "slope20_signal_L20zw120.csv"
 
 def build(start=None):
     from backtest.momentum_scan import momentum_factor_fn
-    return momentum_factor_fn(start)(family=FAMILY, length=LENGTH, skip=SKIP, z_window=Z_WINDOW, smoothing=SMOOTHING)
+    return momentum_factor_fn(start, trim_ragged_tail=True)(
+        family=FAMILY, length=LENGTH, skip=SKIP, z_window=Z_WINDOW, smoothing=SMOOTHING,
+    )
 
 
 def main(argv=None) -> int:

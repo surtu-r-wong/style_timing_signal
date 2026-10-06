@@ -168,16 +168,17 @@ PAIR_NAMES = ["沪深300成长", "沪深300价值", "中证500成长", "中证50
               "中证1000成长", "中证1000价值", "中证2000成长", "中证2000价值"]
 
 
-def momentum_factor_fn(start=None):
+def momentum_factor_fn(start=None, *, trim_ragged_tail=False):
     """返回 fn(family, length, skip, z_window, smoothing) → factor_value。
 
     PG 8 列一次加载,配对沿用生产 config_4pairs(含 direction),
-    equal_weight_factor_fn 同款接线。
+    equal_weight_factor_fn 同款接线。生产调用可启用 trim_ragged_tail，
+    将晚到的输入裁到共同有效末日；研究调用默认保持原口径。
     """
     from signals.common.data_source import load_pg_closes
     from signals.equal_weight.generate_signal import load_pair_configs
 
-    prices = load_pg_closes(PAIR_NAMES, start=start)
+    prices = load_pg_closes(PAIR_NAMES, start=start, trim_ragged_tail=trim_ragged_tail)
     configs = load_pair_configs(ROOT / "signals/equal_weight/config_4pairs.csv")
     pairs = [cfg.effective_columns() for cfg in configs]
 
