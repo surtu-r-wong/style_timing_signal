@@ -1,0 +1,28 @@
+# impl vs qa 逐叶比对记录（2026-10-09；工作目录 ~/claude-code/.openexec，比较脚本 compare2.py / 本记录内联同款逻辑）
+
+## 1. 母规格主读数：impl/key_numbers.json vs qa/key_numbers.json（QA 主表=spec 口径，impl 主表=lit 口径）
+```
+leaves compared: 93; mismatches: 8
+  MISMATCH ('F/policies_full/E1/ann', 0.37478715826050474, 0.37490535130473146)
+  MISMATCH ('F/policies_full/E1/sharpe', 1.2912250049033727, 1.2943016673965622)
+  MISMATCH ('F/policies_full/E1/maxdd', -0.38778056795447113, -0.3906944023449096)
+  MISMATCH ('F/sharpe_by_window/2015-2020/E1', 1.3294468996884066, 1.3292349107435322)
+  MISMATCH ('F/sharpe_by_window/2021-2023/E1', 0.9375084144615382, 0.9522073058267004)
+  MISMATCH ('F/sharpe_by_window/2024-2026/E1', 1.5788589344557582, 1.5833489129819123)
+  MISMATCH ('F/sharpe_by_window/dual_listed/E1', 1.432618961815735, 1.443282733841951)
+  MISMATCH ('F/sharpe_by_window/ex2015/E1', 1.3729950362766428, 1.3790720601238915)
+```
+已知差异：8 处 MISMATCH 全部是 F 池 E1 行 —— impl 用乘积式（lit）、QA 主表用分段式（spec/ev）口径不同所致；
+口径对齐后见第 2 条。
+
+## 2. 口径对齐：impl/key_numbers.json vs qa/key_numbers_variant_lit.json（两边都用乘积式）
+```
+leaves compared: 93; mismatches: 0
+```
+
+## 3. 追加 S-exact：impl/key_numbers_s_exact.json vs qa/key_numbers_s_exact.json
+```
+leaves compared: 76; mismatches: 0
+```
+（S 是 long-flat，spec/lit/ev 三口径在非事件日恒等，无口径分歧。）
+

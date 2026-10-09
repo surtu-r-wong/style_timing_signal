@@ -1,0 +1,5 @@
+path	bytes	sha256
+backtest/output/runs/20261009-open-vs-close-exec/inputs/futures.csv	1432982	9a8b9aadd3f408de8ff3c43d487b40c866f8fdbe7b3f9bf432c52b3b7618a4e5
+backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_F.csv	1594246	561b6789017edc28aa8708677287e591dedc1a88cc93b4185083372e3fddae49
+backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_S.csv	1070948	ffedfdf33caf0d0b175d457e7a57d9c9f1d063a71a936368602eabb10c78f0eb
+backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_S_exact.csv	1236683	91b2f71f2446bc51dcef83361f6cafc122c5ce57a562ee0a3ad0df1dc421a00c

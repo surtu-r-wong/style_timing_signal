@@ -1,0 +1,16 @@
+{
+  "transaction_timestamp": "2026-10-09 08:41:34.744625+08",
+  "end": "2026-10-08",
+  "futures_rows": 15232,
+  "spot_rows": 6202,
+  "spot_open_valid": 132,
+  "note": "position/signal CSVs copied from working tree (uncommitted daily updates through 2026-10-08)",
+  "sha256": {
+    "equal_weight_signal_20d40z.csv": "10e698594b14a62f1cdcbf54e2f1c3e45e6431e009eb7c5f5d407d3dec4e36f7",
+    "equal_weight_symmetric.csv": "8aefcdde0f445e82859c90759f8dc9c3aaf574ba230ea0ff5932edd690e54634",
+    "futures.csv": "9a8b9aadd3f408de8ff3c43d487b40c866f8fdbe7b3f9bf432c52b3b7618a4e5",
+    "slope20_longflat.csv": "b27d044c39185291244abbf6bdde692246741b7ff83042c697cd488921b8065b",
+    "slope20_signal_L20zw120.csv": "c1f854e2d917c58447b365276925b17b396437199d1a954253040400920373dc",
+    "spot.csv": "eca1d665786c62f17e74bed274e3f9b59a400c497f37e2295821ce502b410cb8"
+  }
+}

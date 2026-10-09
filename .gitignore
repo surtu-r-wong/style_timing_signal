@@ -149,3 +149,10 @@ backtest/output/*.log
 /backtest/output/runs/20260917-ew-oi-research-r2/outputs/ledgers_common_close_10bps.csv.gz
 /backtest/output/runs/20260917-ew-oi-research-r2/outputs/ledgers_common_close_3bps.csv.gz
 /backtest/output/runs/20260917-ew-oi-research-r2/outputs/ledgers_common_second_close_3bps.csv.gz
+
+# 2026-10-09 开盘 vs 收盘执行检验 run：单文件 >1 MiB 的 4 个大文件（期货输入快照 + 三个逐日收益表）
+# 不入库，原件保留在本机；路径、字节数与 SHA-256 见 backtest/output/LOCAL_ONLY_LARGE_FILES_20261009.tsv（run manifest 亦有哈希）。
+/backtest/output/runs/20261009-open-vs-close-exec/inputs/futures.csv
+/backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_F.csv
+/backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_S.csv
+/backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_S_exact.csv

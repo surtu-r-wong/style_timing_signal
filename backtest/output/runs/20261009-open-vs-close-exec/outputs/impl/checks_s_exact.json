@@ -1,0 +1,270 @@
+{
+  "data": {
+    "rows": 6602,
+    "first_date": "2013-03-06",
+    "last_date": "2026-10-08",
+    "close_equal_to_inputs_spot_on_all_6202_rows": true,
+    "original_132_opens_unchanged": true,
+    "n_original_opens": 132,
+    "calendar_equals_position_calendar_2014-01-02_to_end": true,
+    "ext_window_open_close_complete": true,
+    "n_open_equal_prev_close(stale 嫌疑)": {
+      "000852.SH": 0,
+      "000905.SH": 0
+    },
+    "n_open_equal_close": {
+      "000852.SH": 0,
+      "000905.SH": 0
+    },
+    "gap_mean_bp_ext": {
+      "000852.SH": -8.692527175639675,
+      "000905.SH": -6.3825019088810775
+    },
+    "days_abs_gap_gt_7pct": {
+      "2015-08-25": {
+        "000852.SH": -0.07252381013677012,
+        "000905.SH": -0.07280449277092682
+      },
+      "2020-02-03": {
+        "000852.SH": -0.09096696700722484,
+        "000905.SH": -0.08941423379418545
+      },
+      "2024-10-08": {
+        "000852.SH": 0.12757215327887583,
+        "000905.SH": 0.11745981389872617
+      }
+    }
+  },
+  "inputs_v2_sha256": "2d42212e923b8473f82f9f6725ac34cc8f4a252579afda476390cba93aeeefe6",
+  "E0_vs_engine_run_strategy_full_series": {
+    "max_abs_diff_by_window": {
+      "main": 0.0,
+      "ext": 0.0,
+      "2014-2015": 0.0,
+      "2016-2020": 0.0,
+      "2021-2023": 0.0,
+      "2024-2026": 0.0
+    },
+    "pass": true
+  },
+  "E1_equals_p_old_cc(long-flat 恒等)": {
+    "max_abs_diff": 2.220446049250313e-16,
+    "pass": true
+  },
+  "additivity": {
+    "main": {
+      "E2": {
+        "sum_diff_pp": 21.443933942521298,
+        "sum_e_pp": 21.51861330271892,
+        "residual_pp": -0.07467936019762145,
+        "analytic_second_order_pp": -0.07467936019758911,
+        "residual_minus_analytic": -3.233090878351774e-16
+      },
+      "M_开多": {
+        "sum_diff_pp": 14.795008262924087,
+        "sum_e_pp": 14.795008262924087,
+        "residual_pp": 0.0,
+        "analytic_second_order_pp": 0.0,
+        "residual_minus_analytic": 0.0
+      },
+      "M_平多": {
+        "sum_diff_pp": 6.648925679597212,
+        "sum_e_pp": 6.723605039794833,
+        "residual_pp": -0.07467936019762145,
+        "analytic_second_order_pp": -0.07467936019758911,
+        "residual_minus_analytic": -3.233090878351774e-16
+      }
+    },
+    "ext": {
+      "E2": {
+        "sum_diff_pp": 29.29714303921913,
+        "sum_e_pp": 29.420531039227143,
+        "residual_pp": -0.12338800000801231,
+        "analytic_second_order_pp": -0.1233880000079827,
+        "residual_minus_analytic": -2.962040335230398e-16
+      },
+      "M_开多": {
+        "sum_diff_pp": 25.85820003013269,
+        "sum_e_pp": 25.85820003013269,
+        "residual_pp": 0.0,
+        "analytic_second_order_pp": 0.0,
+        "residual_minus_analytic": 0.0
+      },
+      "M_平多": {
+        "sum_diff_pp": 3.438943009086443,
+        "sum_e_pp": 3.562331009094455,
+        "residual_pp": -0.12338800000801231,
+        "analytic_second_order_pp": -0.1233880000079827,
+        "residual_minus_analytic": -2.962040335230398e-16
+      }
+    },
+    "2014-2015": {
+      "E2": {
+        "sum_diff_pp": 7.853209096697833,
+        "sum_e_pp": 7.901917736508224,
+        "residual_pp": -0.048708639810390864,
+        "analytic_second_order_pp": -0.04870863981039355,
+        "residual_minus_analytic": 2.6834003769016235e-17
+      },
+      "M_开多": {
+        "sum_diff_pp": 11.063191767208602,
+        "sum_e_pp": 11.063191767208602,
+        "residual_pp": 0.0,
+        "analytic_second_order_pp": 0.0,
+        "residual_minus_analytic": 0.0
+      },
+      "M_平多": {
+        "sum_diff_pp": -3.2099826705107692,
+        "sum_e_pp": -3.1612740307003784,
+        "residual_pp": -0.048708639810390864,
+        "analytic_second_order_pp": -0.04870863981039355,
+        "residual_minus_analytic": 2.6834003769016235e-17
+      }
+    },
+    "2016-2020": {
+      "E2": {
+        "sum_diff_pp": 8.209309248971252,
+        "sum_e_pp": 8.207328968871158,
+        "residual_pp": 0.0019802801000945447,
+        "analytic_second_order_pp": 0.001980280100118408,
+        "residual_minus_analytic": -2.3863289816405953e-16
+      },
+      "M_开多": {
+        "sum_diff_pp": 13.58757035098574,
+        "sum_e_pp": 13.58757035098574,
+        "residual_pp": 0.0,
+        "analytic_second_order_pp": 0.0,
+        "residual_minus_analytic": 0.0
+      },
+      "M_平多": {
+        "sum_diff_pp": -5.378261102014487,
+        "sum_e_pp": -5.380241382114582,
+        "residual_pp": 0.0019802801000945447,
+        "analytic_second_order_pp": 0.001980280100118408,
+        "residual_minus_analytic": -2.3863289816405953e-16
+      }
+    },
+    "2021-2023": {
+      "E2": {
+        "sum_diff_pp": 14.314422455970877,
+        "sum_e_pp": 14.341926505577629,
+        "residual_pp": -0.027504049606752456,
+        "analytic_second_order_pp": -0.027504049606747037,
+        "residual_minus_analytic": -5.421010862427522e-17
+      },
+      "M_开多": {
+        "sum_diff_pp": 3.82865752073428,
+        "sum_e_pp": 3.82865752073428,
+        "residual_pp": 0.0,
+        "analytic_second_order_pp": 0.0,
+        "residual_minus_analytic": 0.0
+      },
+      "M_平多": {
+        "sum_diff_pp": 10.485764935236597,
+        "sum_e_pp": 10.51326898484335,
+        "residual_pp": -0.027504049606752456,
+        "analytic_second_order_pp": -0.027504049606747037,
+        "residual_minus_analytic": -5.421010862427522e-17
+      }
+    },
+    "2024-2026": {
+      "E2": {
+        "sum_diff_pp": -1.079797762420831,
+        "sum_e_pp": -1.0306421717298675,
+        "residual_pp": -0.049155590690963535,
+        "analytic_second_order_pp": -0.04915559069096049,
+        "residual_minus_analytic": -3.0466081046842675e-17
+      },
+      "M_开多": {
+        "sum_diff_pp": -2.6212196087959327,
+        "sum_e_pp": -2.6212196087959327,
+        "residual_pp": 0.0,
+        "analytic_second_order_pp": 0.0,
+        "residual_minus_analytic": 0.0
+      },
+      "M_平多": {
+        "sum_diff_pp": 1.5414218463751017,
+        "sum_e_pp": 1.5905774370660652,
+        "residual_pp": -0.049155590690963535,
+        "analytic_second_order_pp": -0.04915559069096049,
+        "residual_minus_analytic": -3.0466081046842675e-17
+      }
+    },
+    "max_abs_residual_minus_analytic": 3.233090878351774e-16,
+    "pass": true
+  },
+  "proxy_reproduces_mother_S_proxy_legs": {
+    "legs": {
+      "开多": {
+        "n": 58,
+        "sum_e_proxy_pp": 12.323828924568724,
+        "mother_n": 58,
+        "mother_sum_e_pp": 12.323828924568724
+      },
+      "平多": {
+        "n": 58,
+        "sum_e_proxy_pp": 11.981370751976012,
+        "mother_n": 58,
+        "mother_sum_e_pp": 11.981370751976012
+      }
+    },
+    "pass": true
+  },
+  "matches_mother_S_exact_66day_events": {
+    "mother": {
+      "2026-07-09平多": -212.46525411530493,
+      "2026-08-14开多": 12.574890782065529,
+      "2026-09-01平多": 106.52975982421987,
+      "2026-09-22开多": -91.00509362924447
+    },
+    "here": {
+      "2026-07-09平多": -212.46525411530493,
+      "2026-08-14开多": 12.574890782065529,
+      "2026-09-01平多": 106.52975982421987,
+      "2026-09-22开多": -91.00509362924447
+    },
+    "pass": true
+  },
+  "same_event_set_as_proxy_in_main": true,
+  "verdict_inputs": {
+    "same_direction": true,
+    "ratios_exact_over_proxy": {
+      "ΔSharpe": 0.9050746382679016,
+      "开多": 1.2032374969847175,
+      "平多": 0.5600204097780138
+    },
+    "magnitude_within_0.5_2": true
+  },
+  "proxy_error": {
+    "开多": {
+      "n": 58,
+      "mean_bp": 4.260654031647174,
+      "t": 0.7208578377659067,
+      "p": 0.4739432072312708,
+      "median_bp": 6.781414731646674,
+      "std_bp": 45.01327819112441,
+      "sum_pp": 2.4711793383553617,
+      "mean_e_exact_bp": 25.50863493607601,
+      "mean_e_proxy_bp": 21.247980904428836,
+      "corr_e_exact_vs_proxy": 0.9401575365870164,
+      "sign_agree": 0.8448275862068966
+    },
+    "平多": {
+      "n": 58,
+      "mean_bp": -9.0651132968641,
+      "t": -1.4793097457837756,
+      "p": 0.14456329895809955,
+      "median_bp": -2.983394403318629,
+      "std_bp": 46.66895911734087,
+      "sum_pp": -5.257765712181178,
+      "mean_e_exact_bp": 11.592422482404885,
+      "mean_e_proxy_bp": 20.657535779268986,
+      "corr_e_exact_vs_proxy": 0.9382609680516198,
+      "sign_agree": 0.896551724137931
+    },
+    "_两腿合计(规格外附带)": {
+      "n": 116,
+      "sum_pp": -2.7865863738258168
+    }
+  }
+}

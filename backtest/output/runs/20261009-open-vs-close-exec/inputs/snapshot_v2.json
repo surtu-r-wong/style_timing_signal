@@ -1,0 +1,6 @@
+{
+  "transaction_timestamp": "2026-10-09 10:42:48.690683+08",
+  "rows": 6602,
+  "note": "post office fill_nulls 2026-10-09 10:37; close verified bitwise vs inputs/spot.csv",
+  "sha256": "2d42212e923b8473f82f9f6725ac34cc8f4a252579afda476390cba93aeeefe6"
+}

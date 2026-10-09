@@ -1,0 +1,815 @@
+{
+  "1_ledger": {
+    "ledger_index_start": "2015-04-16",
+    "compare_window": [
+      "2015-04-17",
+      "2026-10-08"
+    ],
+    "E1_vs_ledger_close": {
+      "model": "E1",
+      "ledger_fill": "close",
+      "model_full": {
+        "ann": 0.37478715826050474,
+        "sharpe": 1.2912250049033727,
+        "maxdd": -0.38778056795447113,
+        "n_days": 2788
+      },
+      "ledger_full": {
+        "ann": 0.3708007292071606,
+        "sharpe": 1.2824563289903375,
+        "maxdd": -0.3960896457890256,
+        "n_days": 2788
+      },
+      "d_ann_pp": 0.39864290533441205,
+      "d_sharpe": 0.008768675913035207,
+      "d_maxdd_pp": 0.8309077834554479,
+      "daily_corr": 0.9988680117794163,
+      "ledger_rolls": 157,
+      "model_roll_days_IC_plus_IM": 157,
+      "ledger_cost_ann_pp": 1.4008896414923255,
+      "model_cost_ann_pp": 1.323421807747489,
+      "decomp_ann_pp": {
+        "total_diff": 0.39864290533440927,
+        "contract_or_weight_mismatch_days(换月时点/IM 入场/首日)": 0.33090937624836164,
+        "of_which_roll_timing_days": 0.3829263897487535,
+        "of_which_IM_entry_day_2022-07-25": 0.0026559302015235716,
+        "of_which_first_day": -0.054672943701915416,
+        "cost_diff_on_other_days(再平衡/换月/成交成本口径)": 0.08884783007451211,
+        "residual_on_other_days": -0.021114300988464462,
+        "of_which_rebalance_point_term": -0.01997414785062873,
+        "residual_after_rebalance_term": -0.0011401531378357713
+      },
+      "n_mismatch_days": 153,
+      "n_roll_timing_days": 151,
+      "max_abs_daily_diff_bp_mismatch_days": 176.35869094720854,
+      "max_abs_daily_diff_bp_other_days": 183.32018302049113,
+      "max_abs_daily_diff_other_days_date": "2015-07-06",
+      "rebalance_term_bp_on_that_date": -183.34971100541497,
+      "cost_diff_bp_on_that_date": 0.028582289174462535,
+      "max_abs_residual_bp_other_days": 183.3487653096656,
+      "max_abs_residual_after_rebalance_term_bp": 0.5550264892019268,
+      "corr_residual_vs_rebalance_term": 0.9999853040332863,
+      "rebalance_point_term_definition": "本模型逐组乘积式 − close ledger 的 p_old·cc（空头日 = 2·gap·intra）"
+    },
+    "E2_vs_ledger_open": {
+      "model": "E2",
+      "ledger_fill": "open",
+      "model_full": {
+        "ann": 0.36054372398180085,
+        "sharpe": 1.2404585531573964,
+        "maxdd": -0.3058447705093851,
+        "n_days": 2788
+      },
+      "ledger_full": {
+        "ann": 0.3633583763878625,
+        "sharpe": 1.2518983392600307,
+        "maxdd": -0.3072027179302378,
+        "n_days": 2788
+      },
+      "d_ann_pp": -0.28146524060616573,
+      "d_sharpe": -0.011439786102634297,
+      "d_maxdd_pp": 0.1357947420852712,
+      "daily_corr": 0.9989870118000026,
+      "ledger_rolls": 157,
+      "model_roll_days_IC_plus_IM": 157,
+      "ledger_cost_ann_pp": 1.400695747501042,
+      "model_cost_ann_pp": 1.323421807747489,
+      "decomp_ann_pp": {
+        "total_diff": -0.281465240606171,
+        "contract_or_weight_mismatch_days(换月时点/IM 入场/首日)": -0.35119576480262965,
+        "of_which_roll_timing_days": -0.3267104402443897,
+        "of_which_IM_entry_day_2022-07-25": -0.011008099957352175,
+        "of_which_first_day": -0.013477224600887764,
+        "cost_diff_on_other_days(再平衡/换月/成交成本口径)": 0.0898661525496017,
+        "residual_on_other_days": -0.020135628353143014,
+        "of_which_rebalance_point_term": -0.020142322783446527,
+        "residual_after_rebalance_term": 6.694430303500332e-06
+      },
+      "n_mismatch_days": 153,
+      "n_roll_timing_days": 151,
+      "max_abs_daily_diff_bp_mismatch_days": 178.3231520091617,
+      "max_abs_daily_diff_bp_other_days": 111.7061510226347,
+      "max_abs_daily_diff_other_days_date": "2015-07-10",
+      "rebalance_term_bp_on_that_date": 110.64148714896804,
+      "cost_diff_bp_on_that_date": 1.0492352766420634,
+      "max_abs_residual_bp_other_days": 110.65691574599265,
+      "max_abs_residual_after_rebalance_term_bp": 0.1901490940836758,
+      "corr_residual_vs_rebalance_term": 0.9999982930241897,
+      "rebalance_point_term_definition": "本模型逐组乘积式 − open ledger 同构式 (1+x)(1+Σp_new·w·intra)−1，x 含前一日日内漂移（空头日 ≈ 2·intra_{t−1}·gap_t）"
+    },
+    "open_minus_close": {
+      "model_E2_minus_E1_ann_pp": -1.4243434278703893,
+      "ledger_open_minus_close_ann_pp": -0.7442352819298115,
+      "model_E2_minus_E1_sharpe": -0.05076645174597627,
+      "ledger_open_minus_close_sharpe": -0.030557989730306767,
+      "gap_explained_by_roll_timing_days_pp": -0.7096368299931433,
+      "gap_explained_by_IM_entry_and_first_day_pp": 0.027531688942151904,
+      "note": "规格模型里 E1、E2 在同一天持有同一张合约（换月都在前一收盘），E2−E1 只含信号交易的成交时点；ledger 的换月与信号交易同时成交（开盘口径在开盘换月、收盘口径在收盘换月），其 open−close 还含换月时点差。"
+    },
+    "run_20260914_r2_reference(信号文件版本不同，不要求一致)": {
+      "futures_close_3bps": {
+        "start": "2015-04-16",
+        "end": "2026-09-11",
+        "n": 2776,
+        "ann": 0.3747223549230143,
+        "sharpe": 1.2953257035821082,
+        "maxdd": -0.3960896457890256,
+        "rolls": 155.0
+      },
+      "futures_open_3bps": {
+        "start": "2015-04-16",
+        "end": "2026-09-11",
+        "n": 2776,
+        "ann": 0.367221625136213,
+        "sharpe": 1.2645116367555036,
+        "maxdd": -0.3072027179302378,
+        "rolls": 155.0
+      }
+    },
+    "pass": true,
+    "criterion": "（实现正确性判据，我设定，非规格给定）日收益相关 > 0.99；剔除合约/权重不一致日（换月时点、IM 入场、首日）、扣除成本口径差、再扣再平衡时点二阶项之后，剩余 |年化| < 0.05pp 且单日 < 2bp",
+    "verdict": "E1 vs close ledger：总差 0.399 = 换月时点 0.383 + IM 入场日 0.003 + 首日 -0.055 + 成本口径 0.089 + 再平衡时点二阶项 -0.020 + 剩余 -0.0011；E2 vs open ledger：总差 -0.281 = 换月时点 -0.327 + IM 入场日 -0.011 + 首日 -0.013 + 成本口径 0.090 + 再平衡时点二阶项 -0.020 + 剩余 0.0000（pp/年）。"
+  },
+  "2_engine_S": {
+    "full": {
+      "n_days": 2612,
+      "max_abs_diff_vs_full_series_run": 0.0,
+      "n_days_diff_vs_full_series_run(>1e-12)": 0,
+      "windowed_run_n_days_diff(>1e-12)": 2,
+      "windowed_run_diff_days": [
+        "2016-01-04",
+        "2016-01-05"
+      ],
+      "windowed_run_diff_only_first_two_days": true
+    },
+    "2016-2020": {
+      "n_days": 1218,
+      "max_abs_diff_vs_full_series_run": 0.0,
+      "n_days_diff_vs_full_series_run(>1e-12)": 0,
+      "windowed_run_n_days_diff(>1e-12)": 2,
+      "windowed_run_diff_days": [
+        "2016-01-04",
+        "2016-01-05"
+      ],
+      "windowed_run_diff_only_first_two_days": true
+    },
+    "2021-2023": {
+      "n_days": 727,
+      "max_abs_diff_vs_full_series_run": 0.0,
+      "n_days_diff_vs_full_series_run(>1e-12)": 0,
+      "windowed_run_n_days_diff(>1e-12)": 2,
+      "windowed_run_diff_days": [
+        "2021-01-04",
+        "2021-01-05"
+      ],
+      "windowed_run_diff_only_first_two_days": true
+    },
+    "2024-2026": {
+      "n_days": 667,
+      "max_abs_diff_vs_full_series_run": 0.0,
+      "n_days_diff_vs_full_series_run(>1e-12)": 0,
+      "windowed_run_n_days_diff(>1e-12)": 2,
+      "windowed_run_diff_days": [
+        "2024-01-02",
+        "2024-01-03"
+      ],
+      "windowed_run_diff_only_first_two_days": true
+    },
+    "pass": true
+  },
+  "3_additivity": {
+    "F": {
+      "full": {
+        "E2": {
+          "sum_diff_pp": -16.208446844500596,
+          "sum_e_pp": -16.323628447095338,
+          "residual_pp": 0.11518160259474386,
+          "analytic_second_order_pp": 0.11518160259475592,
+          "residual_minus_analytic": -1.205632815803881e-16
+        },
+        "M_开多": {
+          "sum_diff_pp": 4.070162213023138,
+          "sum_e_pp": 4.0100066055529515,
+          "residual_pp": 0.06015560747018589,
+          "analytic_second_order_pp": 0.060155607470191136,
+          "residual_minus_analytic": -5.2475385148298415e-17
+        },
+        "M_平多": {
+          "sum_diff_pp": -12.92456371938145,
+          "sum_e_pp": -12.921998913208654,
+          "residual_pp": -0.0025648061727945315,
+          "analytic_second_order_pp": -0.002564806172813177,
+          "residual_minus_analytic": 1.8645566861319463e-16
+        },
+        "M_开空": {
+          "sum_diff_pp": -11.424207551165383,
+          "sum_e_pp": -11.421642744992589,
+          "residual_pp": -0.0025648061727945315,
+          "analytic_second_order_pp": -0.002564806172813177,
+          "residual_minus_analytic": 1.8645566861319463e-16
+        },
+        "M_平空": {
+          "sum_diff_pp": 4.070162213023138,
+          "sum_e_pp": 4.0100066055529515,
+          "residual_pp": 0.06015560747018589,
+          "analytic_second_order_pp": 0.060155607470191136,
+          "residual_minus_analytic": -5.2475385148298415e-17
+        },
+        "M_平多开空": {
+          "sum_diff_pp": -24.34877127054686,
+          "sum_e_pp": -24.343641658201243,
+          "residual_pp": -0.0051296123456168186,
+          "analytic_second_order_pp": -0.005129612345626354,
+          "residual_minus_analytic": 9.535558107010011e-17
+        },
+        "M_平空开多": {
+          "sum_diff_pp": 8.140324426046263,
+          "sum_e_pp": 8.020013211105903,
+          "residual_pp": 0.12031121494036068,
+          "analytic_second_order_pp": 0.12031121494038227,
+          "residual_minus_analytic": -2.1597307275911248e-16
+        }
+      },
+      "2015-2020": {
+        "E2": {
+          "sum_diff_pp": -19.715373580639216,
+          "sum_e_pp": -19.72891331926201,
+          "residual_pp": 0.013539738622792008,
+          "analytic_second_order_pp": 0.013539738622762951,
+          "residual_minus_analytic": 2.905661822261152e-16
+        },
+        "M_开多": {
+          "sum_diff_pp": -1.8814872525805493,
+          "sum_e_pp": -1.9127692901782178,
+          "residual_pp": 0.031282037597668566,
+          "analytic_second_order_pp": 0.031282037597661995,
+          "residual_minus_analytic": 6.570265165262157e-17
+        },
+        "M_平多": {
+          "sum_diff_pp": -8.726377621847092,
+          "sum_e_pp": -8.70186545356082,
+          "residual_pp": -0.024512168286272562,
+          "analytic_second_order_pp": -0.02451216828628051,
+          "residual_minus_analytic": 7.947201924318748e-17
+        },
+        "M_开空": {
+          "sum_diff_pp": -7.226021453631026,
+          "sum_e_pp": -7.201509285344754,
+          "residual_pp": -0.024512168286272562,
+          "analytic_second_order_pp": -0.02451216828628051,
+          "residual_minus_analytic": 7.947201924318748e-17
+        },
+        "M_平空": {
+          "sum_diff_pp": -1.8814872525805493,
+          "sum_e_pp": -1.9127692901782178,
+          "residual_pp": 0.031282037597668566,
+          "analytic_second_order_pp": 0.031282037597661995,
+          "residual_minus_analytic": 6.570265165262157e-17
+        },
+        "M_平多开空": {
+          "sum_diff_pp": -15.95239907547813,
+          "sum_e_pp": -15.903374738905573,
+          "residual_pp": -0.049024336572556226,
+          "analytic_second_order_pp": -0.04902433657256102,
+          "residual_minus_analytic": 4.7921736023859296e-17
+        },
+        "M_平空开多": {
+          "sum_diff_pp": -3.7629745051610874,
+          "sum_e_pp": -3.8255385803564357,
+          "residual_pp": 0.06256407519534823,
+          "analytic_second_order_pp": 0.06256407519532399,
+          "residual_minus_analytic": 2.424276057677588e-16
+        }
+      },
+      "2021-2023": {
+        "E2": {
+          "sum_diff_pp": 15.607388792997213,
+          "sum_e_pp": 15.506289345677748,
+          "residual_pp": 0.10109944731946374,
+          "analytic_second_order_pp": 0.10109944731956867,
+          "residual_minus_analytic": -1.0492908625314712e-15
+        },
+        "M_开多": {
+          "sum_diff_pp": 5.941974864988758,
+          "sum_e_pp": 5.896933613094224,
+          "residual_pp": 0.04504125189453423,
+          "analytic_second_order_pp": 0.045041251894569714,
+          "residual_minus_analytic": -3.548593710545056e-16
+        },
+        "M_平多": {
+          "sum_diff_pp": 1.8617195315098645,
+          "sum_e_pp": 1.8562110597446502,
+          "residual_pp": 0.005508471765214296,
+          "analytic_second_order_pp": 0.00550847176521462,
+          "residual_minus_analytic": -3.245830253878479e-18
+        },
+        "M_开空": {
+          "sum_diff_pp": 1.8617195315098645,
+          "sum_e_pp": 1.8562110597446502,
+          "residual_pp": 0.005508471765214296,
+          "analytic_second_order_pp": 0.00550847176521462,
+          "residual_minus_analytic": -3.245830253878479e-18
+        },
+        "M_平空": {
+          "sum_diff_pp": 5.941974864988758,
+          "sum_e_pp": 5.896933613094224,
+          "residual_pp": 0.04504125189453423,
+          "analytic_second_order_pp": 0.045041251894569714,
+          "residual_minus_analytic": -3.548593710545056e-16
+        },
+        "M_平多开空": {
+          "sum_diff_pp": 3.72343906301969,
+          "sum_e_pp": 3.7124221194893003,
+          "residual_pp": 0.011016943530389733,
+          "analytic_second_order_pp": 0.01101694353042924,
+          "residual_minus_analytic": -3.9506971912656175e-16
+        },
+        "M_平空开多": {
+          "sum_diff_pp": 11.883949729977521,
+          "sum_e_pp": 11.793867226188448,
+          "residual_pp": 0.09008250378907401,
+          "analytic_second_order_pp": 0.09008250378913943,
+          "residual_minus_analytic": -6.542075908777534e-16
+        }
+      },
+      "2024-2026": {
+        "E2": {
+          "sum_diff_pp": -12.100462056858591,
+          "sum_e_pp": -12.101004473511079,
+          "residual_pp": 0.0005424166524881091,
+          "analytic_second_order_pp": 0.000542416652424274,
+          "residual_minus_analytic": 6.383511341051529e-16
+        },
+        "M_开多": {
+          "sum_diff_pp": 0.00967460061492842,
+          "sum_e_pp": 0.025842282636945324,
+          "residual_pp": -0.016167682022016905,
+          "analytic_second_order_pp": -0.016167682022040573,
+          "residual_minus_analytic": 2.366813342535856e-16
+        },
+        "M_平多": {
+          "sum_diff_pp": -6.059905629044221,
+          "sum_e_pp": -6.076344519392485,
+          "residual_pp": 0.016438890348263735,
+          "analytic_second_order_pp": 0.016438890348252713,
+          "residual_minus_analytic": 1.1023625588746366e-16
+        },
+        "M_开空": {
+          "sum_diff_pp": -6.059905629044221,
+          "sum_e_pp": -6.076344519392485,
+          "residual_pp": 0.016438890348263735,
+          "analytic_second_order_pp": 0.016438890348252713,
+          "residual_minus_analytic": 1.1023625588746366e-16
+        },
+        "M_平空": {
+          "sum_diff_pp": 0.00967460061492842,
+          "sum_e_pp": 0.025842282636945324,
+          "residual_pp": -0.016167682022016905,
+          "analytic_second_order_pp": -0.016167682022040573,
+          "residual_minus_analytic": 2.366813342535856e-16
+        },
+        "M_平多开空": {
+          "sum_diff_pp": -12.11981125808842,
+          "sum_e_pp": -12.15268903878497,
+          "residual_pp": 0.032877780696549674,
+          "analytic_second_order_pp": 0.032877780696505425,
+          "residual_minus_analytic": 4.4251711669995863e-16
+        },
+        "M_平空开多": {
+          "sum_diff_pp": 0.019349201229829083,
+          "sum_e_pp": 0.05168456527389065,
+          "residual_pp": -0.032335364044061565,
+          "analytic_second_order_pp": -0.03233536404408115,
+          "residual_minus_analytic": 1.958069123508821e-16
+        }
+      },
+      "dual_listed": {
+        "E2": {
+          "sum_diff_pp": -6.839582675216044,
+          "sum_e_pp": -6.863323832893564,
+          "residual_pp": 0.023741157677520386,
+          "analytic_second_order_pp": 0.023741157677479443,
+          "residual_minus_analytic": 4.094218453848386e-16
+        },
+        "M_开多": {
+          "sum_diff_pp": 2.0416118616515098,
+          "sum_e_pp": 2.051848109917942,
+          "residual_pp": -0.010236248266431991,
+          "analytic_second_order_pp": -0.01023624826644714,
+          "residual_minus_analytic": 1.514901485505371e-16
+        },
+        "M_平多": {
+          "sum_diff_pp": -5.461403199259523,
+          "sum_e_pp": -5.4835100263647245,
+          "residual_pp": 0.02210682710520051,
+          "analytic_second_order_pp": 0.02210682710518686,
+          "residual_minus_analytic": 1.3647394846161287e-16
+        },
+        "M_开空": {
+          "sum_diff_pp": -5.461403199259523,
+          "sum_e_pp": -5.4835100263647245,
+          "residual_pp": 0.02210682710520051,
+          "analytic_second_order_pp": 0.02210682710518686,
+          "residual_minus_analytic": 1.3647394846161287e-16
+        },
+        "M_平空": {
+          "sum_diff_pp": 2.0416118616515098,
+          "sum_e_pp": 2.051848109917942,
+          "residual_pp": -0.010236248266431991,
+          "analytic_second_order_pp": -0.01023624826644714,
+          "residual_minus_analytic": 1.514901485505371e-16
+        },
+        "M_平多开空": {
+          "sum_diff_pp": -10.922806398519041,
+          "sum_e_pp": -10.967020052729449,
+          "residual_pp": 0.04421365421040657,
+          "analytic_second_order_pp": 0.04421365421037372,
+          "residual_minus_analytic": 3.2845904815448357e-16
+        },
+        "M_平空开多": {
+          "sum_diff_pp": 4.083223723302998,
+          "sum_e_pp": 4.103696219835884,
+          "residual_pp": -0.020472496532886186,
+          "analytic_second_order_pp": -0.02047249653289428,
+          "residual_minus_analytic": 8.09356921760429e-17
+        }
+      },
+      "ex2015": {
+        "E2": {
+          "sum_diff_pp": -19.137599754154106,
+          "sum_e_pp": -19.174030004808664,
+          "residual_pp": 0.03643025065455663,
+          "analytic_second_order_pp": 0.03643025065458076,
+          "residual_minus_analytic": -2.413434035952733e-16
+        },
+        "M_开多": {
+          "sum_diff_pp": -1.5341565677853997,
+          "sum_e_pp": -1.560276989840892,
+          "residual_pp": 0.026120422055492254,
+          "analytic_second_order_pp": 0.026120422055516703,
+          "residual_minus_analytic": -2.4448758989548125e-16
+        },
+        "M_平多": {
+          "sum_diff_pp": -8.784821393399673,
+          "sum_e_pp": -8.776916096671473,
+          "residual_pp": -0.007905296728200062,
+          "analytic_second_order_pp": -0.00790529672822631,
+          "residual_minus_analytic": 2.624853459587406e-16
+        },
+        "M_开空": {
+          "sum_diff_pp": -7.284465225183606,
+          "sum_e_pp": -7.276559928455406,
+          "residual_pp": -0.007905296728200062,
+          "analytic_second_order_pp": -0.00790529672822631,
+          "residual_minus_analytic": 2.624853459587406e-16
+        },
+        "M_平空": {
+          "sum_diff_pp": -1.5341565677853997,
+          "sum_e_pp": -1.560276989840892,
+          "residual_pp": 0.026120422055492254,
+          "analytic_second_order_pp": 0.026120422055516703,
+          "residual_minus_analytic": -2.4448758989548125e-16
+        },
+        "M_平多开空": {
+          "sum_diff_pp": -16.069286618583305,
+          "sum_e_pp": -16.053476025126876,
+          "residual_pp": -0.01581059345642788,
+          "analytic_second_order_pp": -0.01581059345645262,
+          "residual_minus_analytic": 2.474149357611921e-16
+        },
+        "M_平空开多": {
+          "sum_diff_pp": -3.0683131355707993,
+          "sum_e_pp": -3.120553979681784,
+          "residual_pp": 0.05224084411098451,
+          "analytic_second_order_pp": 0.052240844111033406,
+          "residual_minus_analytic": -4.889751797909625e-16
+        }
+      },
+      "max_abs_residual_minus_analytic": 1.0492908625314712e-15,
+      "pass": true
+    },
+    "S": {
+      "full": {
+        "E2": {
+          "sum_diff_pp": 24.366128564945928,
+          "sum_e_pp": 24.305199676544735,
+          "residual_pp": 0.060928888401190484,
+          "analytic_second_order_pp": 0.06092888840121735,
+          "residual_minus_analytic": -2.68665298341908e-16
+        },
+        "M_开多": {
+          "sum_diff_pp": 12.323828924568724,
+          "sum_e_pp": 12.323828924568724,
+          "residual_pp": 0.0,
+          "analytic_second_order_pp": 0.0,
+          "residual_minus_analytic": 0.0
+        },
+        "M_平多": {
+          "sum_diff_pp": 12.042299640377202,
+          "sum_e_pp": 11.981370751976012,
+          "residual_pp": 0.060928888401190484,
+          "analytic_second_order_pp": 0.06092888840121735,
+          "residual_minus_analytic": -2.68665298341908e-16
+        }
+      },
+      "2016-2020": {
+        "E2": {
+          "sum_diff_pp": 9.379825356977156,
+          "sum_e_pp": 9.38706149950571,
+          "residual_pp": -0.0072361425285549785,
+          "analytic_second_order_pp": -0.007236142528540677,
+          "residual_minus_analytic": -1.430198190779941e-16
+        },
+        "M_开多": {
+          "sum_diff_pp": 11.343910623747744,
+          "sum_e_pp": 11.343910623747744,
+          "residual_pp": 0.0,
+          "analytic_second_order_pp": 0.0,
+          "residual_minus_analytic": 0.0
+        },
+        "M_平多": {
+          "sum_diff_pp": -1.9640852667705877,
+          "sum_e_pp": -1.9568491242420327,
+          "residual_pp": -0.0072361425285549785,
+          "analytic_second_order_pp": -0.007236142528540677,
+          "residual_minus_analytic": -1.430198190779941e-16
+        }
+      },
+      "2021-2023": {
+        "E2": {
+          "sum_diff_pp": 16.108717330546195,
+          "sum_e_pp": 16.03180147931257,
+          "residual_pp": 0.07691585123362765,
+          "analytic_second_order_pp": 0.07691585123363444,
+          "residual_minus_analytic": -6.787105599759258e-17
+        },
+        "M_开多": {
+          "sum_diff_pp": 5.0718871587956516,
+          "sum_e_pp": 5.0718871587956516,
+          "residual_pp": 0.0,
+          "analytic_second_order_pp": 0.0,
+          "residual_minus_analytic": 0.0
+        },
+        "M_平多": {
+          "sum_diff_pp": 11.036830171750545,
+          "sum_e_pp": 10.959914320516917,
+          "residual_pp": 0.07691585123362765,
+          "analytic_second_order_pp": 0.07691585123363444,
+          "residual_minus_analytic": -6.787105599759258e-17
+        }
+      },
+      "2024-2026": {
+        "E2": {
+          "sum_diff_pp": -1.1224141225774253,
+          "sum_e_pp": -1.1136633022735432,
+          "residual_pp": -0.00875082030388219,
+          "analytic_second_order_pp": -0.008750820303876422,
+          "residual_minus_analytic": -5.767955557622884e-17
+        },
+        "M_开多": {
+          "sum_diff_pp": -4.0919688579746705,
+          "sum_e_pp": -4.0919688579746705,
+          "residual_pp": 0.0,
+          "analytic_second_order_pp": 0.0,
+          "residual_minus_analytic": 0.0
+        },
+        "M_平多": {
+          "sum_diff_pp": 2.969554735397245,
+          "sum_e_pp": 2.9783055557011275,
+          "residual_pp": -0.00875082030388219,
+          "analytic_second_order_pp": -0.008750820303876422,
+          "residual_minus_analytic": -5.767955557622884e-17
+        }
+      },
+      "max_abs_residual_minus_analytic": 2.68665298341908e-16,
+      "pass": true
+    },
+    "pass": true
+  },
+  "4_timing": {
+    "ann_full": {
+      "main": {
+        "E0": 0.3604372192961206,
+        "E1": 0.37478715826050474,
+        "E2": 0.36054372398180085
+      },
+      "advance_1d(d_T←d_{T+1})": {
+        "E0": 0.383031189072537,
+        "E1": 0.3603765985178999,
+        "E2": 0.38592419010382506
+      },
+      "delay_1d(d_T←d_{T−1})": {
+        "E0": 0.37490535130473146,
+        "E1": 0.37048638033083553,
+        "E2": 0.3665599583485431
+      }
+    },
+    "diff_vs_main_pp": {
+      "advance_1d(d_T←d_{T+1})": {
+        "E1": -1.4410559742604856,
+        "E2": 2.5380466122024217
+      },
+      "delay_1d(d_T←d_{T−1})": {
+        "E1": -0.43007779296692084,
+        "E2": 0.6016234366742257
+      }
+    },
+    "consistency(应近似相等，只差成本落日/二阶项)": {
+      "advance_E1_minus_main_E0_pp": -0.006062077822072132,
+      "delay_E0_minus_main_E1_pp": 0.011819304422672205
+    },
+    "pass": true
+  },
+  "5_limit": {
+    "threshold": 0.095,
+    "n_exec_day_contract_rows": 165,
+    "n_flagged_rows": 0,
+    "n_flagged_days": 0,
+    "n_flagged_events": 0,
+    "n_flag_limit_9_5pct": 0,
+    "n_flag_O_eq_H_eq_L": 0,
+    "pre_settle_fallback_rows_on_exec_days": 7,
+    "pre_settle_check_rows": 14613,
+    "max_abs_open_vs_pre_settle_on_exec_days": 0.015875462392108464,
+    "max_on_date": "2024-02-29",
+    "F_sample_held_open_ge_9_5pct_all_days(含非执行日，描述)": [
+      {
+        "date": "2015-07-06",
+        "group": "IC",
+        "symbol": "IC1507.CFE",
+        "open_vs_pre_settle": 0.09998922529899801,
+        "is_exec_day": false
+      },
+      {
+        "date": "2020-02-03",
+        "group": "IC",
+        "symbol": "IC2002.CFE",
+        "open_vs_pre_settle": -0.09997752472280497,
+        "is_exec_day": false
+      },
+      {
+        "date": "2024-10-08",
+        "group": "IC",
+        "symbol": "IC2412.CFE",
+        "open_vs_pre_settle": 0.09997282424077714,
+        "is_exec_day": false
+      },
+      {
+        "date": "2022-11-08",
+        "group": "IM",
+        "symbol": "IM2211.CFE",
+        "open_vs_pre_settle": -0.09998511240136976,
+        "is_exec_day": false
+      },
+      {
+        "date": "2024-10-08",
+        "group": "IM",
+        "symbol": "IM2412.CFE",
+        "open_vs_pre_settle": 0.09998264792642719,
+        "is_exec_day": false
+      }
+    ],
+    "pre_settle_equals_prev_settle_max_abs_diff": 0.0,
+    "list": [],
+    "pass": true,
+    "note": "标记本身是描述性清单，不设通过门槛；剔除版主表见 legs_F.csv variant=ex_limit"
+  },
+  "0_data": {
+    "sha256_verified": true,
+    "F_position_equals_sign_factor": true,
+    "F_position_mismatch_days": 0,
+    "F_in_sample_zero_position_days": [
+      "2017-01-03"
+    ],
+    "F_factor_value_on_zero_days": {
+      "2017-01-03": -0.0
+    },
+    "F_spec_claim_always_pm1": false,
+    "F_split_leg_events(非同日翻转)": [
+      {
+        "date": "2017-01-04",
+        "leg": "平多",
+        "e_bp": -145.32011855062254,
+        "o_bp": -0.0
+      },
+      {
+        "date": "2017-01-05",
+        "leg": "开空",
+        "e_bp": 4.715498270984053,
+        "o_bp": 7.852991989948377
+      }
+    ],
+    "S_longflat_equals_factor_gt0_mismatch_days(规格外附带)": 0,
+    "futures_calendar_equals_signal_calendar_in_range": true,
+    "F_first_day": "2015-04-17",
+    "F_last_day": "2026-10-08",
+    "F_first_day_p_old_from(信号日历，早于期货日历首日)": "2015-04-15",
+    "IM_first_quote_day": "2022-07-22",
+    "IM_first_quote_day_as_expected": true,
+    "oi_tie_days": {
+      "IC": 0,
+      "IM": 0
+    },
+    "held_fallback_days": {
+      "IC": [],
+      "IM": []
+    },
+    "held_frame_equals_repo_held_contract_frame": {
+      "IC": true,
+      "IM": true
+    },
+    "weights_equal_futures_weights": true,
+    "S_first_day": "2016-01-04",
+    "S_last_day": "2026-10-08",
+    "S_852_proxy_uses_IM_from": "2022-07-25",
+    "summary": {
+      "sha256": "6 个 CSV 全部一致",
+      "仓位=sign(因子)": "是（0 日不一致）",
+      "样本内 0 仓位日": "2017-01-03",
+      "F 样本": "2015-04-17~2026-10-08（2788 日）",
+      "IM 首个报价日": "2022-07-22",
+      "OI 平局日": "IC 0 / IM 0",
+      "held 退化为 main(t) 的日数": "IC 0 / IM 0",
+      "与 held_contract_frame 逐位一致": "IC True / IM True",
+      "换月日": "IC 124 / IM 33",
+      "S-proxy 样本": "2016-01-04~2026-10-08（2612 日），000852 代理自 2022-07-25 起用 IM"
+    },
+    "pass": true
+  },
+  "diag_E1_as_p_old_cc(规格外)": {
+    "note": "规格 §2 写「E1 = M_∅（r_t = p_old·cc）」，但乘积式在 p_old=−1 时 = −gap−intra+gap·intra ≠ −cc（差 2·gap·intra）。主口径取 E1 = M_∅（乘积式），此处给出 E1 = p_old·cc 的读数作对照。",
+    "E1_cc_full": {
+      "ann": 0.37490535130473146,
+      "sharpe": 1.2943016673965622,
+      "maxdd": -0.3906944023449096,
+      "cagr": 0.3949566483314725,
+      "vol": 0.2896584009343348
+    },
+    "E1_formula_minus_E1_cc_sum_pp": -0.1344988601241548,
+    "E1_formula_minus_E1_cc_ann_pp": -0.011819304422675009,
+    "E2_minus_E1cc_sharpe_bootstrap": {
+      "diff_sharpe": -0.05384311423916577,
+      "ci_lo": -0.3064391290812105,
+      "ci_hi": 0.18293533931798797,
+      "p_value": 0.6696651674162919
+    }
+  },
+  "hand_example": {
+    "date": "2022-08-15",
+    "prev_day": "2022-08-12",
+    "p_old": 1.0,
+    "p_new": -1.0,
+    "groups": [
+      {
+        "group": "IC",
+        "held(t)=main(t−1)": "IC2209.CFE",
+        "oi(t−1)": 129685,
+        "C_{t−1}": 6386.6,
+        "O_t": 6374.0,
+        "C_t": 6398.4,
+        "gap": -0.0019728807190054765,
+        "intra": 0.003828051459052295,
+        "cc": 0.001847618451132016,
+        "rolled_today": false
+      },
+      {
+        "group": "IM",
+        "held(t)=main(t−1)": "IM2208.CFE",
+        "oi(t−1)": 23573,
+        "C_{t−1}": 7222.4,
+        "O_t": 7210.0,
+        "C_t": 7266.0,
+        "gap": -0.0017168808152414616,
+        "intra": 0.007766990291262044,
+        "cc": 0.006036774479397433,
+        "rolled_today": false
+      }
+    ],
+    "intra_blend": 0.005797520875157169,
+    "gap_blend": -0.001844880767123469,
+    "e_平多": -0.005797520875157169,
+    "e_开空": -0.005797520875157169,
+    "e_多翻空": -0.011595041750314339,
+    "o_多翻空": 0.003689761534246938,
+    "E1_gross": 0.0039421964652646135,
+    "E2_gross": -0.007631957999511552,
+    "trade_cost": 0.0006,
+    "roll_cost": 0.0,
+    "E1_net": 0.0033421964652646137,
+    "E2_net": -0.008231957999511551,
+    "pipeline": {
+      "e_legs": [
+        -0.005797520875157169,
+        -0.005797520875157169
+      ],
+      "E1": 0.0033421964652646137,
+      "E2": -0.008231957999511551
+    },
+    "match": true
+  },
+  "crosscheck_independent_path(规格外)": {
+    "returncode": 0,
+    "output": "41 项比对；最大绝对差 F E0 ann = 0.000e+00\n超过 1e-9 的项： 无",
+    "pass": true
+  }
+}
