@@ -138,10 +138,26 @@ def _short(day: str, ref: str) -> str:
     return day[5:] if day[:4] == ref[:4] else day
 
 
+def _action_label(prev: float, pos: float) -> str:
+    """换仓首日的动词按动作分档（2026-10-12 修正：此前一律打「翻仓」）。
+
+    凭手机推送做次日动作的人会把字面当指令：开仓/平仓被标成「翻仓」
+    会误读为需要反向建仓。分档：真反向=翻仓、离场=平仓、建仓=开仓、
+    同向调整（含分数档变化）=调仓。
+    """
+    if prev * pos < 0:
+        return "翻仓"
+    if pos == 0:
+        return "平仓"
+    if prev == 0:
+        return "开仓"
+    return "调仓"
+
+
 def describe(line: Line, as_of: str) -> str:
     pos = position_label(line.position)
     if line.run_days == 1 and line.prev is not None:
-        body = f"⚡翻仓 {position_label(line.prev)} → {pos}"
+        body = f"⚡{_action_label(line.prev, line.position)} {position_label(line.prev)} → {pos}"
     else:
         body = f"{pos}（{_short(line.run_start, as_of)} 起第 {line.run_days} 日）"
     lag = f"（末行 {_short(line.last_date, as_of)}）" if line.last_date != as_of else ""

@@ -122,7 +122,7 @@ def test_two_pools_come_first_with_run_and_value(tmp_path):
     assert as_of == "2026-09-22"
     assert lines[0] == "风格择时 信号日 2026-09-22｜链路 OK"
     assert lines[1] == "【期货池】equal_weight 对称：持多 +1（09-17 起第 4 日）信号值 0.2784"
-    assert lines[2] == "【现货池】slope20 long-flat：⚡翻仓 空仓 0 → 持多 +1 信号值 0.0461"
+    assert lines[2] == "【现货池】slope20 long-flat：⚡开仓 空仓 0 → 持多 +1 信号值 0.0461"
 
 
 def test_other_production_lines_listed_once_as_reference(tmp_path):
@@ -133,6 +133,25 @@ def test_other_production_lines_listed_once_as_reference(tmp_path):
     assert "  citic40d long-flat：持多 +1（09-16 起第 5 日）信号值 0.4318" in ref
     assert text.count("equal_weight") == 1          # 期货池已置顶，参考区不重复
     assert "equal_weight long-flat" not in text     # 参照口径不推
+
+
+def test_first_day_position_change_verb_matches_action(tmp_path, monkeypatch):
+    """⚡ 标签按动作分档：真反向=翻仓、离场=平仓、建仓=开仓、同向调整=调仓。
+
+    2026-10-12 修正前 run_days==1 一律打「翻仓」：开仓（0→+1）也被标翻仓，
+    按字面做次日动作会误读为需要反向建仓。
+    """
+    positions = dict(POSITIONS)
+    positions[("hybrid20", "longflat")] = [1, 1, 1, 1, 0]      # 平仓
+    positions[("citic40d", "longflat")] = [0, 0, 0, 0, 1]      # 开仓
+    positions[("equal_weight", "symmetric")] = [0.5, 0.5, 0.5, 0.5, 1]  # 同向调仓
+    monkeypatch.setattr(sys.modules[__name__], "POSITIONS", positions)
+    _, _, lines = compose(tmp_path)
+    assert "【期货池】equal_weight 对称：⚡调仓 持多 +0.5 → 持多 +1 信号值 0.2784" in lines
+    ref = lines[lines.index("【其余生产线·参考】") + 1:]
+    assert "  slope20 对称：⚡翻仓 持空 -1 → 持多 +1 信号值 0.0461" in ref
+    assert "  hybrid20 long-flat：⚡平仓 持多 +1 → 空仓 0 信号值 0" in ref
+    assert "  citic40d long-flat：⚡开仓 空仓 0 → 持多 +1 信号值 0.4318" in ref
 
 
 def test_header_says_today_when_signal_day_differs(tmp_path):
