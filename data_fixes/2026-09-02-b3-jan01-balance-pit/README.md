@@ -1,7 +1,7 @@
 # B3: exclude CSMAR Jan-01 balance events (PIT correction)
 
 Date: 2026-09-02 (Asia/Shanghai). Branch `fix/b3-jan1-pit-correction`.
-Handoff source: `HANDOFF_JAN01_PIT_FIX.md` (repo root, commit `c3fafa3`).
+Handoff source: `archive/HANDOFF_JAN01_PIT_FIX.md` (repo root at the time, commit `c3fafa3`; 2026-10-12 归档进 archive/).
 
 ## Problem
 

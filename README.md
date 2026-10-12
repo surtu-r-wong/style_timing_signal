@@ -64,23 +64,26 @@ python3 -m dashboard.app        # → http://127.0.0.1:8060
 
 ### 日更自动化（2026-08-12 起）⭐
 
-上面这些命令**不再需要人手跑**：`deploy/daily_signals/` 把输入 → 各信号线 → 推荐持仓 → 护栏 → 企业微信推送
-串成一条链，由 systemd user timer 在**工作日 20:30**（Asia/Shanghai；2026-09-23 前是 18:30）自动触发，
-`Persistent=true` 会补跑关机错过的触发。输入指数 2026-09-23 起由 data_manager 办公室的夜间作业（20:00 起跑、
-约 20:02 结束）写 `index_daily`，链路第一步只读等当日 15 码到齐（最迟等到 21:30，没齐就用库内已有数据照算、
-推送里标明）；此前由链路第一步 topup 自己经 Wind 网关取（stock_selector 17:30 的 daily_index 自 2026-08-14 起
-改手动），topup 留作回退。
-链路末尾有**新鲜度护栏**：各生产信号与推荐持仓（含现货池文件）落后 `index_daily` 最新交易日
-超过 1 个交易日即失败退出并打 `STALE`
+上面这些命令**不再需要人手跑**：`deploy/daily_signals/` 把输入 → 各信号线 → 推荐持仓 → 合并快照 → 护栏 →
+企业微信推送串成一条链，**工作日 20:30**（Asia/Shanghai）自动触发，`Persistent=true` 会补跑关机错过的触发。
+**2026-09-29 起生产链路跑在 Debian（100.65.111.79）的系统级 systemd timer 上**（布局与部署步骤见
+`deploy/daily_signals/README.md`「生产宿主与部署」）；开发机本仓的 user timer 已停用，`output/`、`logs/`
+是每小时由 market-monitor cron 从 Debian 拉回的**只读镜像**——日更数据提交（`data(signals): 日更 …`）
+在开发机做，本地改动 `output/` 会被下一次回拉覆写。输入指数 2026-09-23 起由 data_manager 办公室的夜间作业
+（20:00 起跑、约 20:02 结束）写 `index_daily`，链路第一步只读等当日 15 码到齐（最迟等到 21:30，没齐就用库内
+已有数据照算、推送里标明）；此前由链路第一步 topup 自己经 Wind 网关取，topup 留作回退。
+链路末尾有**新鲜度护栏**：各生产信号、推荐持仓（含现货池文件）与合并快照 `combined_signals.csv`
+（2026-10-12 起由步骤 6b 日更并入护栏）落后 `index_daily` 最新交易日超过 1 个交易日即失败退出并打 `STALE`
 （本仓库此前零自动化、停更 35 天无人发现，见 `docs/plans/2026-08-12-project-review-and-priorities.md`）。
 
 ```bash
-systemctl --user list-timers style-signals-daily.timer   # 下次触发时间
-systemctl --user start style-signals-daily.service       # 立即跑一次
-cat logs/daily_signals_status.json                       # 最近一次运行的结果与各产出末日
+# Debian（生产）：
+systemctl list-timers style-signals-daily.timer          # 下次触发时间
+systemctl start style-signals-daily.service              # 立即跑一次
+cat ~/jobs/style-signals/state/logs/daily_signals_status.json   # 最近一次运行的结果与各产出末日
 ```
 
-安装步骤、环境变量与护栏演示见 `deploy/daily_signals/README.md`。
+安装步骤（开发机回退/调试用）、环境变量与护栏演示见 `deploy/daily_signals/README.md`。
 
 ## 风格仪表盘（dashboard/）
 

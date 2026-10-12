@@ -1,0 +1,11 @@
+# style_timing_signal 日更链路（deploy/daily_signals/run_daily_signals.sh 可达的 22 个文件）的直接依赖。
+# 用途：Debian 生产机 ~/jobs/style-signals/releases/<sha>/.venv 的安装清单（部署步骤见
+# deploy/daily_signals/README.md「生产宿主与部署」）；2026-10-12 从 release 收进版本库。
+# 下面的版本说明是 2026-09-29 迁移时写的：
+# 版本取自本机 conda base 里实际 import 到的版本（numpy 的 metadata 残留着 2.4.2 的 dist-info，实际跑的是 2.3.4）。
+# 工具推出来的另外 7 个包（dash matplotlib openpyxl plotly psutil pytest scipy）来自研究 / 归档 / 探针脚本，日更用不到，不装。
+numpy==2.3.4
+pandas==2.3.3
+psycopg2-binary==2.9.11
+PyYAML==6.0.3
+requests==2.32.5

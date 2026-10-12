@@ -34,6 +34,7 @@ signals/equal_weight/generate_signal.py        # 步骤 4（变体A / 生产口�
 signals/equal_weight/generate_signal.py …5d20z # 步骤 5（变体B / 参考口径）
 signals/slope20/generate_signal.py             # 步骤 5b（2026-09-09 第四条生产线 → slope20_signal_L20zw120.csv）
 python -m backtest.production                  # 步骤 6 → output/recommended/（equal_weight 自 2026-09-09 起对称 → equal_weight_symmetric.csv；long-flat 文件作参照并行产出；slope20 对称 → slope20_symmetric.csv，另出 slope20_longflat.csv = 现货池）
+tools/export_combined_signals.py               # 步骤 6b（2026-10-12 起）→ output/recommended/combined_signals.csv 合并快照（此前手动维护，Debian 侧冻结被回拉镜像成截尾版两次，见「生产宿主与部署」）
 deploy/daily_signals/check_freshness.py        # 步骤 7 护栏
 deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（护栏通过才推）
 ```
@@ -45,6 +46,11 @@ deploy/daily_signals/notify_wechat.py          # 步骤 8 企业微信推送（�
 输入尾部参差时，slope20 与 equal_weight 都裁到八条指数共同有效末日；hybrid20 在主信号与金融确认
 各自计算后，再裁到双方共同有效区间。晚到数据不补零、不沿用旧确认值。若无共同有效区间，则在覆写
 确认信号前报错；若只是末日落后，则由步骤 7 新鲜度护栏判断是否允许继续推送。
+
+输入**头部**参差时（某条腿晚发布，2026-10-12 补的对称面）：四条生产线的 PG 入口都裁到各输入
+共同有效首日（`load_pg_closes(..., trim_ragged_head=True)`，stderr 响亮警告）。此前头部是静默失败：
+citic40d 会把晚到腿的 NaN 当缺因子、均值静默退化成 3-4 因子；equal_weight / slope20 会把晚启动
+的对以硬 0 稀释均值。研究调用（`momentum_factor_fn` 等）默认不裁，保持原口径。
 
 ## 输入指数：办公室模式（2026-09-23 起）
 
@@ -438,7 +444,38 @@ python3 deploy/daily_signals/notify_wechat.py --alert --dry-run \
 
 `logs/` 已在 `.gitignore` 中，不入库。
 
-## 安装（本机，无需 sudo）
+## 生产宿主与部署（Debian，2026-09-29 起）
+
+**生产链路跑在 Debian（100.65.111.79，Market Monitor 机），不在这台开发机。**
+
+| 事项 | 现状 |
+|---|---|
+| 调度 | 系统级 systemd：`/etc/systemd/system/style-signals-daily.{service,timer}`，工作日 20:30 Asia/Shanghai（`Persistent=true`、`MemoryMax=2G`、`SuccessExitStatus=75`；单元里 `ExecStart` 走 `current` 软链，换版本不动单元） |
+| 布局 | `~/jobs/style-signals/releases/<短sha>/`（`git archive` 导出的仓树）+ `current → releases/<短sha>` + `state/`（跨版本共享：`output`、`logs`、`config/settings.yaml`）。release 内 `output`/`logs` 是软链 `../../state/{output,logs}`，`config/settings.yaml` 软链 `../../../state/config/settings.yaml`，每个 release 自带 `.venv`（依赖见仓根 `requirements-debian.txt`） |
+| 开发机（ThinkPad） | 本仓 timer 已 `disabled`（`systemctl --user is-enabled` 应显示 disabled），只做开发与数据提交。`output/`、`logs/` 是**只读镜像**：market-monitor 的 cron（`41 * * * * …/pull_daily_job_outputs.sh`）每小时 `rsync -a` 从 Debian `jobs/style-signals/state/output/` 拉回，无 `--delete` |
+| ⚠ 镜像陷阱 | 本地改 `output/` 下的文件会被下一次回拉**覆写**（rsync 不比较新旧、只看差异）。2026-09-23、2026-10-12 两次把 `combined_signals.csv` 打回 Debian 侧的冻结快照（截尾 7 个交易日）——根修 = 让链路日更该文件（2026-10-12 步骤 6b + 护栏收编），回拉随之自动带回新鲜版 |
+| 数据提交 | 日更数据提交（`data(signals): 日更 …`）在开发机本仓做：等回拉把 Debian 产出的 CSV 镜像回来后 `git add output/ …` 提交；`combined_signals.csv` 由步骤 6b 在 Debian 侧日更，无需手动刷新 |
+
+**部署新版本**（改了链路代码后；以 `<sha>` 为例）：
+
+```bash
+# 开发机：先在本仓跑测试与本地回归（生成器 --output 到临时目录与 committed CSV 逐字节比对）
+git archive <sha> | ssh 100.65.111.79 'mkdir -p ~/jobs/style-signals/releases/<短sha> && tar -x -C ~/jobs/style-signals/releases/<短sha>'
+ssh 100.65.111.79 '
+  cd ~/jobs/style-signals/releases/<短sha>
+  ln -s ../../state/output output; ln -s ../../state/logs logs
+  ln -s ../../../state/config/settings.yaml config/settings.yaml
+  python3 -m venv .venv && .venv/bin/pip install -r requirements-debian.txt
+  # 冒烟：新 release 直接跑生成器，与 current 产出逐字节比对（全量重算覆写，历史零变化）
+  .venv/bin/python3 signals/hybrid20/update_growth_stability.py --output /tmp/smoke-growth.csv
+  # ……对四条线同法比对，全一致后切链：
+  ln -sfn releases/<短sha> ~/jobs/style-signals/current
+'
+```
+
+回退 = `ln -sfn releases/<旧短sha> ~/jobs/style-signals/current`。旧 release 目录保留作回退点。
+
+## 安装（开发机本地跑，无需 sudo；2026-09-29 起仅作回退/调试用）
 
 ```bash
 cd /home/elfbob/claude-code/style_timing_signal
