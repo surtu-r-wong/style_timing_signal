@@ -1,10 +1,13 @@
 # style_timing_signal 开发机依赖声明（C5 欠账，2026-10-12 评审提出后补齐）。
-# 口径：2026-10-12 pip list 实测的开发机（miniconda base）版本。开发机要跑的东西 =
-# 全量测试套件（pytest / scipy / psutil）、风格仪表盘（dash / plotly / matplotlib）、
-# 研究/归档/探针脚本（openpyxl 等）。
+# 口径：2026-10-12 开发机（miniconda base）**运行时**版本（import 后读 __version__，
+# 不是 pip list）。⚠ numpy 的 pip metadata 残留 2.4.2 的 dist-info、pip list 显示
+# 2.4.2，实际 import 到 2.3.4——与 requirements-debian.txt 头注同源同坑，钉 2.3.4
+# 才能复现已验证环境（10-12 评审纠出；另 11 包两口径一致）。
+# 开发机要跑的东西 = 全量测试套件（pytest / scipy / psutil）、风格仪表盘
+# （dash / plotly / matplotlib）、研究/归档/探针脚本（openpyxl 等）。
 # 生产日更链路只需要前 5 个包：Debian release 的安装清单见 requirements-debian.txt，
 # 两个文件独立维护——生产侧钉在 Debian 实测版本，开发侧跟 conda base 走，不求一致。
-numpy==2.4.2
+numpy==2.3.4
 pandas==2.3.3
 psycopg2-binary==2.9.11
 PyYAML==6.0.3
