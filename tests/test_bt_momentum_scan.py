@@ -280,7 +280,8 @@ def test_momentum_factor_fn_wires_pg_panel_and_pair_configs(monkeypatch):
         index=idx,
     )
 
-    def fake_load(got_names, start=None, end=None, trim_ragged_tail=False):
+    def fake_load(got_names, start=None, end=None,
+                  trim_ragged_tail=False, trim_ragged_head=False):
         assert got_names == names
         return panel[got_names].copy()
 
