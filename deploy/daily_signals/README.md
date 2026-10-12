@@ -471,9 +471,15 @@ ssh 100.65.111.79 'set -e
   ln -sfn ../../state/output output
   ln -sfn ../../state/logs logs
   ln -sfn ../../../state/config/settings.yaml config/settings.yaml
-  # 接线验证：软链在，且能顺着摸到 state 里的真实文件
-  test -L output && test -L logs && test -f output/recommended/combined_signals.csv
-  python3 -m venv .venv && .venv/bin/pip install -r requirements-debian.txt
+  # 接线验证：软链在，且能顺着摸到 state 里的真实文件。
+  # 必须一条一行独立命令——set -e 对 AND-OR 链的非末位失败是盲的：
+  # 写成 test && test && test 或 venv && pip 时，前面的命令失败不会中止，
+  # 后面照样冒烟、切链（10-12 评审复现）
+  test -L output
+  test -L logs
+  test -f output/recommended/combined_signals.csv
+  python3 -m venv .venv
+  .venv/bin/pip install -r requirements-debian.txt
   # 冒烟：六条线 + 合并导出在新 release 重算（全量重算覆写，历史零变化），与 current 的产出
   # （state/output/）逐字节比对。set -e 下任一步失败（含 cmp）即中止，切链命令不会执行。
   # 前提：PG 数据与昨晚链路运行时一致——白天（20:00 夜间作业写入前）成立；避开 20:00~21:30 部署。
