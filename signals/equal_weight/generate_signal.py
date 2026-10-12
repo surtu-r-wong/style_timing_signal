@@ -308,7 +308,10 @@ def main() -> int:
         sys.path.insert(0, str(ROOT))
         from signals.common.data_source import load_pg_closes
 
-        prices = load_pg_closes(needed, start=args.start, end=args.end, trim_ragged_tail=True)
+        prices = load_pg_closes(
+            needed, start=args.start, end=args.end,
+            trim_ragged_tail=True, trim_ragged_head=True,
+        )
     else:
         prices = load_price_data(args.input)
 

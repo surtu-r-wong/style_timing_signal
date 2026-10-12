@@ -70,15 +70,45 @@ def _trim_ragged_tail(wide: pd.DataFrame) -> pd.DataFrame:
     return wide.loc[:min_last]
 
 
+def _trim_ragged_head(wide: pd.DataFrame) -> pd.DataFrame:
+    """头部参差时裁到各列 first_valid 的最大值；对齐或全 NaN 时原样返回。
+
+    尾部参差（f402b5e）的对称面：某条腿晚发布时，下游等权/归一不许把它的
+    头部空洞当 0 参与平均（citic40d 会静默退化成少数因子均值、equal_weight
+    会被硬 0 稀释）。与尾部同款语义：
+    - 任一列整列 NaN（first_valid 为 None）：不裁剪，交回 _check_nan_policy 处置。
+    - max_first > 帧首日：裁到 wide.loc[max_first:]，并向 stderr 警告
+      （点名各列首个有效日 + 保留起点），保持 stdout 干净。
+    - max_first == 帧首日：静默 no-op。
+    """
+    first_valid = {col: wide[col].first_valid_index() for col in wide.columns}
+    if any(v is None for v in first_valid.values()):
+        return wide
+    max_first = max(first_valid.values())
+    frame_first = wide.index.min()
+    if max_first <= frame_first:
+        return wide
+    detail = ", ".join(f"{c}:{d.strftime('%Y-%m-%d')}" for c, d in first_valid.items())
+    kept = max_first.strftime("%Y-%m-%d")
+    print(
+        f"警告: 头部参差已裁剪，保留自各列首个有效日的最大值 {kept}"
+        f"（各列首个有效日: {detail}；剔除 {kept} 之前的行）",
+        file=sys.stderr,
+    )
+    return wide.loc[max_first:]
+
+
 def rows_to_frame(
-    rows, name_by_code: dict[str, str], trim_ragged_tail: bool = False
+    rows, name_by_code: dict[str, str], trim_ragged_tail: bool = False,
+    trim_ragged_head: bool = False,
 ) -> pd.DataFrame:
     """(index_code, trade_date, close) 行集 → date 索引 × 中文列名宽表。
 
     列顺序跟随 name_by_code 的插入顺序；任一代码零行则报错列出。
     NaN 三级策略：列内部缺口 ValueError；尾部参差 stderr 警告；起始缺失放行。
-    trim_ragged_tail=True：先裁到各列 last_valid 最小值（尾部参差场景），
-    再跑 NaN 策略——内部缺口/起始缺失语义不变，仅去掉最新一行被稀释/污染的风险。
+    trim_ragged_head/tail=True：先裁头部参差、再裁尾部参差（先头后尾互不影响），
+    再跑 NaN 策略——内部缺口语义不变；起始缺失在裁头后不再出现，
+    仅去掉晚发布腿被当 0 参与平均的风险。
     """
     df = pd.DataFrame(rows, columns=["index_code", "trade_date", "close"])
     codes_present = set(df["index_code"])
@@ -92,6 +122,8 @@ def rows_to_frame(
     wide.index.name = "date"
     wide.columns.name = None
     wide = wide.astype(float)
+    if trim_ragged_head:
+        wide = _trim_ragged_head(wide)
     if trim_ragged_tail:
         wide = _trim_ragged_tail(wide)
     _check_nan_policy(wide)
@@ -104,10 +136,12 @@ def load_pg_closes(
     end=None,
     db: dict | None = None,
     trim_ragged_tail: bool = False,
+    trim_ragged_head: bool = False,
 ) -> pd.DataFrame:
     """按中文名列表读收盘价宽表。start/end 为 'YYYY-MM-DD' 或 None（全历史）。
 
-    trim_ragged_tail 透传给 rows_to_frame（True 时裁掉尾部参差的最新一行）。
+    trim_ragged_tail / trim_ragged_head 透传给 rows_to_frame
+    （True 时分别裁掉尾部/头部参差的行；生产入口两者都开，研究调用默认保持原口径）。
     """
     import psycopg2
     from psycopg2 import sql
@@ -137,4 +171,7 @@ def load_pg_closes(
             rows = cur.fetchall()
     finally:
         conn.close()
-    return rows_to_frame(rows, dict(zip(codes, names)), trim_ragged_tail=trim_ragged_tail)
+    return rows_to_frame(
+        rows, dict(zip(codes, names)),
+        trim_ragged_tail=trim_ragged_tail, trim_ragged_head=trim_ragged_head,
+    )

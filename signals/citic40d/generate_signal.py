@@ -137,7 +137,7 @@ def main() -> int:
 
         style = load_pg_closes(
             ["稳定", "成长", "金融", "周期", "消费"],
-            start=args.start, end=args.end, trim_ragged_tail=True,
+            start=args.start, end=args.end, trim_ragged_tail=True, trim_ragged_head=True,
         ).rename(
             columns={"稳定": "stability", "成长": "growth", "金融": "finance",
                      "周期": "cycle", "消费": "consumption"}

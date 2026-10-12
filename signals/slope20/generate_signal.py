@@ -22,7 +22,7 @@ OUTPUT = ROOT / "output" / "slope20" / "slope20_signal_L20zw120.csv"
 
 def build(start=None):
     from backtest.momentum_scan import momentum_factor_fn
-    return momentum_factor_fn(start, trim_ragged_tail=True)(
+    return momentum_factor_fn(start, trim_ragged_tail=True, trim_ragged_head=True)(
         family=FAMILY, length=LENGTH, skip=SKIP, z_window=Z_WINDOW, smoothing=SMOOTHING,
     )
 

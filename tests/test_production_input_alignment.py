@@ -25,13 +25,93 @@ def _prices(columns):
 
 
 def _mock_pg(monkeypatch, prices):
-    def load(names, start=None, end=None, trim_ragged_tail=False):
+    def load(names, start=None, end=None, trim_ragged_tail=False, trim_ragged_head=False):
         selected = prices.loc[start:end, names]
         rows = [(c, d, v) for c in names for d, v in selected[c].dropna().items()]
         return data_source.rows_to_frame(
             rows, {c: c for c in names}, trim_ragged_tail=trim_ragged_tail,
+            trim_ragged_head=trim_ragged_head,
         )
     monkeypatch.setattr(data_source, "load_pg_closes", load)
+
+
+# ── 头部参差：晚发布的腿不许静默稀释均值（f402b5e 修了尾部，这里补头部的对称面）──
+
+
+def test_rows_to_frame_trims_ragged_head_only_when_asked(capsys):
+    idx = pd.bdate_range("2025-01-01", periods=10, name="date")
+    rows = [("A", d, float(i + 1)) for i, d in enumerate(idx)]
+    rows += [("B", d, float(i + 1)) for i, d in enumerate(idx[3:])]
+
+    frame = data_source.rows_to_frame(rows, {"A": "甲", "B": "乙"})
+    assert frame.index[0] == idx[0]            # 默认（研究口径）：起始缺失放行
+    assert frame["乙"].isna().sum() == 3
+
+    trimmed = data_source.rows_to_frame(
+        rows, {"A": "甲", "B": "乙"}, trim_ragged_head=True,
+    )
+    assert trimmed.index[0] == idx[3]          # 生产口径：裁到各列共同首日
+    assert not trimmed.isna().any().any()
+    err = capsys.readouterr().err
+    assert "头部参差" in err and "甲" in err and "乙" in err
+    assert idx[3].strftime("%Y-%m-%d") in err  # 警告点名保留起点
+
+
+def _citic_expected(prices):
+    from signals.citic40d.generate_signal import build_output
+    cn2en = {"稳定": "stability", "成长": "growth", "金融": "finance",
+             "周期": "cycle", "消费": "consumption"}
+    return build_output(prices.rename(columns=cn2en).dropna())["factor_20"]
+
+
+def test_citic_head_ragged_starts_at_common_start(tmp_path, monkeypatch):
+    # 成长晚 5 个交易日发布：不许退化成「晚到腿缺位的 3-4 因子均值」，
+    # 输出必须等于用对齐后帧完整 5 因子算出的结果。
+    prices = _prices(["稳定", "成长", "金融", "周期", "消费"])
+    prices.loc[prices.index[:5], "成长"] = np.nan
+    _mock_pg(monkeypatch, prices)
+    output = tmp_path / "citic.csv"
+    monkeypatch.setattr(sys, "argv", ["generate_signal.py", "--output", str(output)])
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_path(str(ROOT / "signals/citic40d/generate_signal.py"), run_name="__main__")
+    assert exc.value.code == 0
+    actual = pd.read_csv(output, index_col="date", parse_dates=["date"])["factor_20"]
+    pd.testing.assert_series_equal(actual, _citic_expected(prices), check_freq=False)
+
+
+def test_equal_weight_head_ragged_not_diluted_by_zero(tmp_path, monkeypatch):
+    # 一条腿晚 8 个交易日启动：早期不许被硬 0 稀释成四分之一均值。
+    from signals.equal_weight.generate_signal import (
+        calculate_contrast_equal_weight_signal, load_pair_configs,
+    )
+    prices = _prices(PAIR_NAMES)
+    prices.loc[prices.index[:8], "中证2000成长"] = np.nan
+    _mock_pg(monkeypatch, prices)
+    output = tmp_path / "ew.csv"
+    monkeypatch.setattr(sys, "argv", ["generate_signal.py", "--output", str(output)])
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_path(str(ROOT / "signals/equal_weight/generate_signal.py"), run_name="__main__")
+    assert exc.value.code == 0
+    actual = pd.read_csv(output, index_col="date", parse_dates=["date"])["factor_value"]
+    configs = load_pair_configs(ROOT / "signals/equal_weight/config_4pairs.csv")
+    expected = calculate_contrast_equal_weight_signal(
+        prices.dropna(), lookback=20, z_window=40, smoothing_window=5, pair_configs=configs,
+    )["factor_value"].round(4)
+    pd.testing.assert_series_equal(actual, expected, check_freq=False)
+
+
+def test_slope_head_ragged_trims_to_common_start(tmp_path, monkeypatch):
+    prices = _prices(PAIR_NAMES)
+    prices.loc[prices.index[:4], PAIR_NAMES[6]] = np.nan
+    _mock_pg(monkeypatch, prices)
+    output = tmp_path / "slope.csv"
+    assert slope.main(["--output", str(output)]) == 0
+    actual = pd.read_csv(output, index_col="date", parse_dates=["date"])["factor_value"]
+    pairs = list(zip(PAIR_NAMES[::2], PAIR_NAMES[1::2]))
+    expected = momentum_pair_factor(
+        prices.dropna(), pairs, family="slope", length=20, skip=0, z_window=120, smoothing=0,
+    ).rename("factor_value").round(4)
+    pd.testing.assert_series_equal(actual, expected, check_freq=False)
 
 
 @pytest.mark.parametrize("missing_leg", [None, *PAIR_NAMES])
