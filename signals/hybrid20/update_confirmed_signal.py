@@ -15,7 +15,6 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 
 # ════════════════════════════════════════
 # 参数 (与原始脚本一致)
@@ -25,14 +24,11 @@ STYLE_FILE = ROOT / "data" / "中信风格合并.csv"
 ORIG_SIGNAL_FILE = ROOT / "output" / "hybrid20" / "growth_stability_signal.csv"
 OUTPUT_FILE = ROOT / "output" / "hybrid20" / "confirmed_signal.csv"
 
-N_LIST = [20, 60]
-M = 250
-
-# 金融/稳定因子使用与主因子相同的阈值
-OPEN_LONG = 0.35
-CLOSE_LONG = 0.1
-OPEN_SHORT = -0.15
-CLOSE_SHORT = -0.1
+sys.path.insert(0, str(ROOT))
+# 阈值/窗口/状态机与 update_growth_stability.py 共享同一份（2026-10-12 收敛，防两层失同步）
+from signals.hybrid20.common import (  # noqa: E402
+    N_LIST, make_signal, relative_factor,
+)
 
 
 # ════════════════════════════════════════
@@ -53,12 +49,12 @@ if args.source == "csv" and (args.start is not None or args.end is not None):
 
 # 稳定 & 金融指数
 if args.source == "pg":
-    sys.path.insert(0, str(ROOT))
     from signals.common.data_source import load_pg_closes
 
-    df = load_pg_closes(["稳定", "金融"], start=args.start, end=args.end, trim_ragged_tail=True).rename(
-        columns={"稳定": "stability", "金融": "finance"}
-    )
+    df = load_pg_closes(
+        ["稳定", "金融"], start=args.start, end=args.end,
+        trim_ragged_tail=True, trim_ragged_head=True,
+    ).rename(columns={"稳定": "stability", "金融": "finance"})
 else:
     df = pd.read_csv(
         STYLE_FILE, skiprows=5, usecols=[0, 1, 3],
@@ -75,41 +71,10 @@ orig = pd.read_csv(args.orig_signal, parse_dates=["date"], index_col="date")
 # ════════════════════════════════════════
 # 构建金融/稳定确认因子
 # ════════════════════════════════════════
-def make_signal(factor: pd.Series) -> pd.Series:
-    """状态机: 非对称阈值 + 状态保持"""
-    signal = pd.Series(np.nan, index=factor.index)
-    state = 0
-    for i, v in enumerate(factor.values):
-        if np.isnan(v):
-            continue
-        if state == 0:
-            if v > OPEN_LONG:
-                state = 1
-            elif v < OPEN_SHORT:
-                state = -1
-        elif state == 1:
-            if v < CLOSE_LONG:
-                state = 0
-                if v < OPEN_SHORT:
-                    state = -1
-        elif state == -1:
-            if v > CLOSE_SHORT:
-                state = 0
-                if v > OPEN_LONG:
-                    state = 1
-        signal.iloc[i] = state
-    return signal
-
-
 confirm_factors = {}
 confirm_signals = {}
 for n in N_LIST:
-    spread = np.log(df["finance"] / df["finance"].shift(n)) - \
-             np.log(df["stability"] / df["stability"].shift(n))
-    roll_mean = spread.rolling(M, min_periods=M).mean()
-    roll_std = spread.rolling(M, min_periods=M).std()
-    z = (spread - roll_mean) / roll_std
-    factor = np.tanh(z)
+    factor = relative_factor(df, "finance", "stability", n)
     confirm_factors[n] = factor
     confirm_signals[n] = make_signal(factor)
 

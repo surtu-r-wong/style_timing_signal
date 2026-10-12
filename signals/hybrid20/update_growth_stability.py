@@ -24,7 +24,6 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 
 # ════════════════════════════════════════
 # 参数
@@ -33,13 +32,11 @@ ROOT = Path(__file__).resolve().parents[2]
 INPUT_FILE = ROOT / "data" / "中信风格合并.csv"
 OUTPUT_FILE = ROOT / "output" / "hybrid20" / "growth_stability_signal.csv"
 
-N_LIST = [20, 60]       # 收益率回看窗口
-M = 250                 # z-score标准化滚动窗口
-
-OPEN_LONG = 0.35        # 开多阈值
-CLOSE_LONG = 0.1        # 平多阈值
-OPEN_SHORT = -0.15      # 开空阈值
-CLOSE_SHORT = -0.1      # 平空阈值
+sys.path.insert(0, str(ROOT))
+# 阈值/窗口/状态机与 update_confirmed_signal.py 共享同一份（2026-10-12 收敛，防两层失同步）
+from signals.hybrid20.common import (  # noqa: E402
+    CLOSE_LONG, CLOSE_SHORT, N_LIST, OPEN_LONG, OPEN_SHORT, make_signal, relative_factor,
+)
 
 
 # ════════════════════════════════════════
@@ -57,12 +54,12 @@ if args.source == "csv" and (args.start is not None or args.end is not None):
     parser.error("--start/--end 仅在 --source pg 模式下有效")
 
 if args.source == "pg":
-    sys.path.insert(0, str(ROOT))
     from signals.common.data_source import load_pg_closes
 
-    df = load_pg_closes(["稳定", "成长"], start=args.start, end=args.end, trim_ragged_tail=True).rename(
-        columns={"稳定": "stability", "成长": "growth"}
-    )
+    df = load_pg_closes(
+        ["稳定", "成长"], start=args.start, end=args.end,
+        trim_ragged_tail=True, trim_ragged_head=True,
+    ).rename(columns={"稳定": "stability", "成长": "growth"})
 else:
     df = pd.read_csv(
         INPUT_FILE,
@@ -79,42 +76,11 @@ else:
 # ════════════════════════════════════════
 # 信号生成
 # ════════════════════════════════════════
-def make_signal(factor: pd.Series) -> pd.Series:
-    """状态机: 非对称阈值 + 状态保持"""
-    signal = pd.Series(np.nan, index=factor.index)
-    state = 0
-    for i, v in enumerate(factor):
-        if np.isnan(v):
-            continue
-        if state == 0:
-            if v > OPEN_LONG:
-                state = 1
-            elif v < OPEN_SHORT:
-                state = -1
-        elif state == 1:
-            if v < CLOSE_LONG:
-                state = 0
-                if v < OPEN_SHORT:
-                    state = -1
-        elif state == -1:
-            if v > CLOSE_SHORT:
-                state = 0
-                if v > OPEN_LONG:
-                    state = 1
-        signal.iloc[i] = state
-    return signal
-
 
 out = pd.DataFrame(index=df.index)
 
 for n in N_LIST:
-    spread = np.log(df["growth"] / df["growth"].shift(n)) - \
-             np.log(df["stability"] / df["stability"].shift(n))
-
-    roll_mean = spread.rolling(M, min_periods=M).mean()
-    roll_std = spread.rolling(M, min_periods=M).std()
-    z = (spread - roll_mean) / roll_std
-    factor = np.tanh(z)
+    factor = relative_factor(df, "growth", "stability", n)
 
     out[f"factor_{n}"] = factor.round(4)
     out[f"signal_{n}"] = make_signal(factor)
