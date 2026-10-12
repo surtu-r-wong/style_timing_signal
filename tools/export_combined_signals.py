@@ -5,9 +5,10 @@
 信号列、按 `backtest.production.RECOMMENDED_FILES`（口径见 `PRODUCTION_MAPPING`）取持仓列，
 outer join 成一张宽表。列顺序见下方 `ORDER`，来历写在它的注释里。
 
-**这是快照，不是日更产物**：日更链路（`deploy/daily_signals/run_daily_signals.sh`）
-不生成它，所以信号更新后它会过时。刷新就是重跑本脚本——纯本地读 committed CSV，
-不连库、不调 Wind、零额度。
+**2026-10-12 起由日更链路生成**（runner 步骤 6b，护栏 GATED 收编）：此前是纯手动快照，
+日更链路不生成它——Debian 侧那份冻结在 2026-09-22，本机每小时回拉 cron 把截尾版反复
+镜像回来，两次把工作区打回缺 7 个交易日的旧件（09-23、10-12）。手动刷新照旧可用：
+纯本地读 committed CSV，不连库、不调 Wind、零额度。
 
     python3 tools/export_combined_signals.py
     python3 tools/export_combined_signals.py --output /path/to/somewhere.csv
@@ -117,7 +118,7 @@ def build_combined() -> pd.DataFrame:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="导出合并的信号文件（快照，非日更产物）")
+    ap = argparse.ArgumentParser(description="导出合并的信号文件（日更链路步骤 6b 生成；也可手动刷新）")
     ap.add_argument("--output", default=str(DEFAULT_OUTPUT), help=f"默认 {DEFAULT_OUTPUT}")
     args = ap.parse_args()
 

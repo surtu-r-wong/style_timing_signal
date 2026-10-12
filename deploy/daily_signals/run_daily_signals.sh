@@ -26,6 +26,8 @@
 #   5. signals/equal_weight/generate_signal.py --lookback 5 …     （变体B / 参考口径）
 #   5b. signals/slope20/generate_signal.py                        （2026-09-09 第四条生产线）
 #   6. python -m backtest.production        —— 各生产线推荐持仓（口径见 PRODUCTION_MAPPING）+ 参照/现货池文件
+#   6b. tools/export_combined_signals.py    —— 合并快照 combined_signals.csv（2026-10-12 起链路日更：
+#        此前是手动快照，Debian 侧冻结在 09-22，被本机回拉 cron 反复镜像成截尾版两次）
 #   7. deploy/daily_signals/check_freshness.py —— 新鲜度护栏 + 状态文件
 #   8. deploy/daily_signals/notify_wechat.py   —— 企业微信推送（护栏通过才推；失败 → 非零退出）
 #
@@ -358,6 +360,8 @@ run_step "slope20_L20zw120" \
   "${PYTHON}" signals/slope20/generate_signal.py
 run_step "recommended_positions" \
   "${PYTHON}" -m backtest.production
+run_step "export_combined_signals" \
+  "${PYTHON}" tools/export_combined_signals.py
 
 # ── 步骤 7：新鲜度护栏 + 状态文件 ────────────────────────────────────────────
 log "▶ freshness_guard: check_freshness.py --max-lag ${MAX_LAG}"

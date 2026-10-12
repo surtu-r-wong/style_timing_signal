@@ -69,6 +69,7 @@ GATED = {
     "recommended_equal_weight": "output/recommended/equal_weight_symmetric.csv",   # 2026-09-09 切对称
     "recommended_slope20": "output/recommended/slope20_symmetric.csv",
     "recommended_slope20_longflat": "output/recommended/slope20_longflat.csv",   # 现货池；2026-09-23 推送上线由「参考」升护栏
+    "combined_signals": "output/recommended/combined_signals.csv",   # 2026-10-12 收编：曾不在护栏内，本地镜像被回拉 cron 用 Debian 侧冻结快照打回截尾版两次（09-23、10-12）全程绿灯；同日起由链路步骤 6b 日更生成
 }
 # 只报告不拦截：中间产物与非生产口径的参数变体。
 INFORMATIONAL = {

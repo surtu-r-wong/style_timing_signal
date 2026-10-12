@@ -117,6 +117,16 @@ def test_stale_gated_file_is_reported(tmp_path):
     assert "equal_weight_20d40z" in breaches[0]
 
 
+def test_stale_combined_signals_snapshot_is_reported(tmp_path):
+    # combined_signals.csv 曾不在 GATED：本地镜像被回拉 cron 用 Debian 侧冻结快照
+    # 打回截尾版（09-23、10-12 两次），截尾 21 天护栏全程绿灯。2026-10-12 收编。
+    _write_tree(tmp_path, DAYS[0], only="combined_signals")
+    _, breaches, worst = guard.evaluate(DAYS, tmp_path, max_lag=1)
+    assert worst == 6
+    assert len(breaches) == 1
+    assert "combined_signals" in breaches[0]
+
+
 def test_informational_file_never_breaches(tmp_path):
     # 参考口径的 5d20z 停更 6 个交易日也不拦截（只报告）。
     _write_tree(tmp_path, DAYS[0], only="equal_weight_5d20z")
