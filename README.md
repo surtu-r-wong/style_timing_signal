@@ -67,9 +67,10 @@ python3 -m dashboard.app        # → http://127.0.0.1:8060
 上面这些命令**不再需要人手跑**：`deploy/daily_signals/` 把输入 → 各信号线 → 推荐持仓 → 合并快照 → 护栏 →
 企业微信推送串成一条链，**工作日 20:30**（Asia/Shanghai）自动触发，`Persistent=true` 会补跑关机错过的触发。
 **2026-09-29 起生产链路跑在 Debian（100.65.111.79）的系统级 systemd timer 上**（布局与部署步骤见
-`deploy/daily_signals/README.md`「生产宿主与部署」）；开发机本仓的 user timer 已停用，`output/`、`logs/`
-是每小时由 market-monitor cron 从 Debian 拉回的**只读镜像**——日更数据提交（`data(signals): 日更 …`）
-在开发机做，本地改动 `output/` 会被下一次回拉覆写。输入指数 2026-09-23 起由 data_manager 办公室的夜间作业
+`deploy/daily_signals/README.md`「生产宿主与部署」）；开发机本仓的 user timer 已停用，`output/` 是每小时由
+market-monitor cron 从 Debian 拉回的**只读镜像**（回拉**只拉 `output/`，不含 `logs/`**——生产最新日志与
+状态文件只在 Debian `~/jobs/style-signals/state/logs/`，本地 `logs/` 是迁移前的本地旧运行）——日更数据提交
+（`data(signals): 日更 …`）在开发机做，本地改动 `output/` 会被下一次回拉覆写。输入指数 2026-09-23 起由 data_manager 办公室的夜间作业
 （20:00 起跑、约 20:02 结束）写 `index_daily`，链路第一步只读等当日 15 码到齐（最迟等到 21:30，没齐就用库内
 已有数据照算、推送里标明）；此前由链路第一步 topup 自己经 Wind 网关取，topup 留作回退。
 链路末尾有**新鲜度护栏**：各生产信号、推荐持仓（含现货池文件）与合并快照 `combined_signals.csv`

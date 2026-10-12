@@ -452,7 +452,7 @@ python3 deploy/daily_signals/notify_wechat.py --alert --dry-run \
 |---|---|
 | 调度 | 系统级 systemd：`/etc/systemd/system/style-signals-daily.{service,timer}`，工作日 20:30 Asia/Shanghai（`Persistent=true`、`MemoryMax=2G`、`SuccessExitStatus=75`；单元里 `ExecStart` 走 `current` 软链，换版本不动单元） |
 | 布局 | `~/jobs/style-signals/releases/<短sha>/`（`git archive` 导出的仓树）+ `current → releases/<短sha>` + `state/`（跨版本共享：`output`、`logs`、`config/settings.yaml`）。release 内 `output`/`logs` 是软链 `../../state/{output,logs}`，`config/settings.yaml` 软链 `../../../state/config/settings.yaml`，每个 release 自带 `.venv`（依赖见仓根 `requirements-debian.txt`） |
-| 开发机（ThinkPad） | 本仓 timer 已 `disabled`（`systemctl --user is-enabled` 应显示 disabled），只做开发与数据提交。`output/`、`logs/` 是**只读镜像**：market-monitor 的 cron（`41 * * * * …/pull_daily_job_outputs.sh`）每小时 `rsync -a` 从 Debian `jobs/style-signals/state/output/` 拉回，无 `--delete` |
+| 开发机（ThinkPad） | 本仓 timer 已 `disabled`（`systemctl --user is-enabled` 应显示 disabled），只做开发与数据提交。`output/` 是**只读镜像**：market-monitor 的 cron（`41 * * * * …/pull_daily_job_outputs.sh`）每小时 `rsync -a` 从 Debian `jobs/style-signals/state/output/` 拉回，无 `--delete`。**`logs/` 不在回拉里**（脚本第二条拉的是 bs-toolkit 的 logs）：生产最新日志与状态文件只在 Debian `state/logs/`，本地 `logs/` 是迁移前的本地旧运行，不能当生产状态看 |
 | ⚠ 镜像陷阱 | 本地改 `output/` 下的文件会被下一次回拉**覆写**（rsync 不比较新旧、只看差异）。2026-09-23、2026-10-12 两次把 `combined_signals.csv` 打回 Debian 侧的冻结快照（截尾 7 个交易日）——根修 = 让链路日更该文件（2026-10-12 步骤 6b + 护栏收编），回拉随之自动带回新鲜版 |
 | 数据提交 | 日更数据提交（`data(signals): 日更 …`）在开发机本仓做：等回拉把 Debian 产出的 CSV 镜像回来后 `git add output/ …` 提交；`combined_signals.csv` 由步骤 6b 在 Debian 侧日更，无需手动刷新 |
 
@@ -461,17 +461,42 @@ python3 deploy/daily_signals/notify_wechat.py --alert --dry-run \
 ```bash
 # 开发机：先在本仓跑测试与本地回归（生成器 --output 到临时目录与 committed CSV 逐字节比对）
 git archive <sha> | ssh 100.65.111.79 'mkdir -p ~/jobs/style-signals/releases/<短sha> && tar -x -C ~/jobs/style-signals/releases/<短sha>'
-ssh 100.65.111.79 '
+ssh 100.65.111.79 'set -e
   cd ~/jobs/style-signals/releases/<短sha>
-  ln -s ../../state/output output; ln -s ../../state/logs logs
-  ln -s ../../../state/config/settings.yaml config/settings.yaml
+  # git archive 自带 output/ 实体目录（committed CSV）。不先删掉它，ln 会把软链建进目录里面，
+  # 得到悬空的 output/output：日更写进 release 自己的目录，state/output（回拉源）继续陈旧
+  # ——2026-10-12 部署 5766980 时实踩。logs/ 与 config/settings.yaml 无此问题（不在 archive 里）。
+  rm -rf output
+  # 三条软链都用 -sfn：重跑幂等（装依赖失败修复后原样重跑，不撞 EEXIST）
+  ln -sfn ../../state/output output
+  ln -sfn ../../state/logs logs
+  ln -sfn ../../../state/config/settings.yaml config/settings.yaml
+  # 接线验证：软链在，且能顺着摸到 state 里的真实文件
+  test -L output && test -L logs && test -f output/recommended/combined_signals.csv
   python3 -m venv .venv && .venv/bin/pip install -r requirements-debian.txt
-  # 冒烟：新 release 直接跑生成器，与 current 产出逐字节比对（全量重算覆写，历史零变化）
-  .venv/bin/python3 signals/hybrid20/update_growth_stability.py --output /tmp/smoke-growth.csv
-  # ……对四条线同法比对，全一致后切链：
-  ln -sfn releases/<短sha> ~/jobs/style-signals/current
-'
+  # 冒烟：六条线 + 合并导出在新 release 重算（全量重算覆写，历史零变化），与 current 的产出
+  # （state/output/）逐字节比对。set -e 下任一步失败（含 cmp）即中止，切链命令不会执行。
+  # 前提：PG 数据与昨晚链路运行时一致——白天（20:00 夜间作业写入前）成立；避开 20:00~21:30 部署。
+  S=~/jobs/style-signals/state/output
+  .venv/bin/python3 signals/hybrid20/update_growth_stability.py --output /tmp/smoke1.csv
+  .venv/bin/python3 signals/hybrid20/update_confirmed_signal.py --output /tmp/smoke2.csv
+  .venv/bin/python3 signals/citic40d/generate_signal.py --output /tmp/smoke3.csv
+  .venv/bin/python3 signals/equal_weight/generate_signal.py --output /tmp/smoke4.csv
+  .venv/bin/python3 signals/equal_weight/generate_signal.py --lookback 5 --z-window 20 --smoothing 0 --output /tmp/smoke5.csv
+  .venv/bin/python3 signals/slope20/generate_signal.py --output /tmp/smoke6.csv
+  .venv/bin/python3 tools/export_combined_signals.py --output /tmp/smoke7.csv
+  cmp /tmp/smoke1.csv $S/hybrid20/growth_stability_signal.csv
+  cmp /tmp/smoke2.csv $S/hybrid20/confirmed_signal.csv
+  cmp /tmp/smoke3.csv $S/citic40d/citic_style_signal_40d.csv
+  cmp /tmp/smoke4.csv $S/equal_weight/equal_weight_signal_20d40z.csv
+  cmp /tmp/smoke5.csv $S/equal_weight/equal_weight_signal_5d20z.csv
+  cmp /tmp/smoke6.csv $S/slope20/slope20_signal_L20zw120.csv
+  cmp /tmp/smoke7.csv $S/recommended/combined_signals.csv
+  ln -sfn releases/<短sha> ~/jobs/style-signals/current'
 ```
+
+（`combined_signals.csv` 自 `5766980` 起由链路日更，冒烟可直接与 state 版比对；`5766980` 首次部署时它还
+冻结在 2026-09-22，当时比的是开发机 HEAD 提交版。）
 
 回退 = `ln -sfn releases/<旧短sha> ~/jobs/style-signals/current`。旧 release 目录保留作回退点。
 
