@@ -94,6 +94,12 @@ FIXED_HOLIDAY_WINDOWS = [
     ((5, 1), (5, 6)),      # 劳动节
     ((10, 1), (10, 9)),    # 国庆（含中秋叠加年份）
 ]
+# 钉年份的农历/调休日期（逐年变，官宣并核实后逐年登记；与上面按 (月,日) 年年
+# 重复的固定长假不同）。未登记的仍可用 --holiday-window / STYLE_SIGNALS_HOLIDAY_WINDOWS
+# 临时消音。登记前先核实（办公室日历 data_manager.business_calendar 或官方放假安排）。
+DATED_HOLIDAY_WINDOWS = [
+    ("2026-09-25", "2026-09-25"),   # 中秋（周五休市；2026-10-13 起此前被按工作日推算误报缺口）
+]
 
 
 def dates_of(csv_path: Path) -> list[str]:
@@ -190,8 +196,11 @@ def parse_holiday_windows(raw: str | None) -> list[tuple[str, str]]:
 
 
 def in_holiday_window(day: str, extra: list[tuple[str, str]] | None = None) -> bool:
-    """day 是否落在已知假期窗口内（固定日期长假 + 显式传入的农历假期窗口）。"""
+    """day 是否落在已知假期窗口内（固定日期长假 + 钉年份农历日期表 + 显式传入的窗口）。"""
     for start, end in extra or []:
+        if start <= day <= end:
+            return True
+    for start, end in DATED_HOLIDAY_WINDOWS:
         if start <= day <= end:
             return True
     d = date.fromisoformat(day)
@@ -375,7 +384,8 @@ def print_report(report: dict, ok: bool) -> None:
         print("  UPSTREAM_GAP  只 WARN 不参与退出码（本项目对上游缺口无处置权）。"
               "\n  UPSTREAM_GAP  〔2026-09-23 起〕19 码全部由 data_manager 夜间作业写入（每晚回看 11 天补缺），"
               "本链路只读——缺口归办公室补。")
-        print("  UPSTREAM_GAP  若确属调休/农历假期 → --holiday-window 登记该日消音；")
+        print("  UPSTREAM_GAP  若确属调休/农历假期 → 核实后登记进 DATED_HOLIDAY_WINDOWS（钉年份，随代码部署）")
+        print("  UPSTREAM_GAP  或临时用 --holiday-window 消音；")
         print("  UPSTREAM_GAP  若确属上游漏采 → 看 data_manager 状态（办公室会收到它自己的告警）；"
               "上游补齐后本链路下次重算即自动补上产出，")
         print("  UPSTREAM_GAP  在此之前产出会一直缺这几天（2026-08-12/13 就是这个剧本）。")

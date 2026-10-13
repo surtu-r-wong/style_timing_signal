@@ -161,6 +161,13 @@ citic40d 会把晚到腿的 NaN 当缺因子、均值静默退化成 3-4 因子�
 
   宁可长假多报一次假警（一条窗口登记即可消音），也不要在上游真冻结时保持沉默。
 
+  **已核实的农历/调休日期逐年登记进 `check_freshness.py::DATED_HOLIDAY_WINDOWS`**
+  （钉年份、不跨年重复；与年年重复的固定长假表分开）。先核实再登记——办公室日历
+  `data_manager.business_calendar`（`is_business_day`）或官方放假安排。首个登记：
+  2026-09-25 中秋（2026-10-13 前按工作日推算把它误报成「上游缺 1 天」，每晚安推 ⚠ 行）。
+  `--holiday-window` / 环境变量留给**未核实/临时**的窗口——钉年份表要随代码部署生效，
+  远水救不了当晚的火。
+
   **「上游」的写入方**：护栏日历 = `signals/common/index_codes.csv` 全部 19 码在 `index_daily` 里的
   distinct trade_date（`check_freshness.py` 的 `load_calendar()`）。**2026-09-23 起是单一写入方**：19 码全部由
   数据管理办公室 20:00 夜间作业（stock_selector `scripts/relay_backfill/nightly_wss.sh`）写入——932400~932403

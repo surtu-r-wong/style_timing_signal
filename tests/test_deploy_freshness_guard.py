@@ -430,3 +430,19 @@ def test_gated_set_matches_production_signals():
     from backtest.production import POOL_FILES
     for pool, path in POOL_FILES.items():
         assert path in gated_paths, f"{pool} 文件 {path} 不在护栏清单里"
+
+
+def test_upstream_gaps_silenced_by_dated_mid_autumn_2026():
+    """2026-09-25 中秋（农历、逐年变）：钉年份登记后库内缺它不报（2026-10-13
+    核实办公室日历判非交易日；未登记时它作为周五被按工作日推算误报了缺口）。"""
+    days = ["2026-09-23", "2026-09-24", "2026-09-28", "2026-09-29"]
+    assert guard.upstream_calendar_gaps(days, "2026-09-29", lookback_workdays=5) == []
+    assert guard.in_holiday_window("2026-09-25") is True
+
+
+def test_dated_holiday_windows_do_not_recurrence_next_year():
+    """钉年份 ≠ 固定假期：2027-09-24（周五）没登记，缺了照报。"""
+    days = ["2027-09-23", "2027-09-27", "2027-09-28"]
+    gaps = guard.upstream_calendar_gaps(days, "2027-09-28", lookback_workdays=5)
+    assert "2027-09-24" in gaps
+    assert guard.in_holiday_window("2027-09-24") is False
