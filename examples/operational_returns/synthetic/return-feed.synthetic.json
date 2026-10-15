@@ -1,0 +1,44 @@
+{
+  "generated_at": "2026-10-14T16:02:00+08:00",
+  "schema_version": 1,
+  "series": [
+    {
+      "calendar_id": "SYNTHETIC-CN",
+      "currency": "CNY",
+      "fee_model": "{\"cash_rules\":{\"credit_rate\":0,\"day_count\":\"ACT/365\",\"debit_rate\":0,\"external_flows\":\"reject\",\"short_borrow_rate\":0},\"fees\":{\"commission_bps\":10,\"description\":\"SYNTHETIC: 10bp commission, explicit zero tax/per-unit; no other fees\",\"per_unit\":0,\"sell_tax_bps\":0},\"slippage_bps\":0}",
+      "inception_date": "2026-10-13",
+      "kind": "strategy",
+      "label": "SYNTHETIC / SYNTHETIC-demo",
+      "mode": "paper",
+      "return_basis": "net_nav_time_weighted",
+      "rows": [
+        {
+          "available_at": "2026-10-13T16:01:00+08:00",
+          "daily_return": 0.09899999999999998,
+          "gross_ratio": 1.0009099181073704,
+          "margin_ratio": null,
+          "period_end_at": "2026-10-13T15:00:00+08:00",
+          "period_start_at": "2026-10-12T15:00:00+08:00",
+          "trade_date": "2026-10-13",
+          "unit_nav": 1.099
+        },
+        {
+          "available_at": "2026-10-14T16:01:00+08:00",
+          "daily_return": 0.08989990900818912,
+          "gross_ratio": 0.0,
+          "margin_ratio": null,
+          "period_end_at": "2026-10-14T15:00:00+08:00",
+          "period_start_at": "2026-10-13T15:00:00+08:00",
+          "trade_date": "2026-10-14",
+          "unit_nav": 1.1978
+        }
+      ],
+      "strategy": {
+        "source_project": "style_timing_signal",
+        "strategy_id": "equal_weight",
+        "version": "test-20-40-5/symmetric/SYNTHETIC-demo/d5d6c0a948862066f81a9f5724c70310b0e538ca10a22c373f7e8280f1c9be22"
+      }
+    }
+  ],
+  "source_project": "style_timing_signal"
+}

@@ -1,0 +1,22 @@
+{
+  "synthetic": true,
+  "test_result": "123 passed in 6.61s",
+  "test_files": [
+    "tests/test_operational_returns.py",
+    "tests/test_execution_ledger.py",
+    "tests/test_bt_production.py",
+    "tests/test_bt_positions.py",
+    "tests/test_deploy_daily_wiring.py"
+  ],
+  "schema_validation": "Draft202012Validator + FormatChecker: passed",
+  "two_cli_runs": "identical ledger and generated_at; duplicate unchanged",
+  "expected_nav": [
+    1099,
+    1197.8
+  ],
+  "accepted_response_sha256": "9fb392899aea78064995c4ce66364b4e85273e938b22b11254f32178f2a99e0d",
+  "artifacts": {
+    "ledger.synthetic.json": "11af2289f86fd0c51576fed24daeb3452a19c7a55d23c845ea8df6675f82885b",
+    "return-feed.synthetic.json": "2e030fa1bf4e478cb6fdc1d73e1ff1599a1eae7e64ea7257be4c878f34141f50"
+  }
+}

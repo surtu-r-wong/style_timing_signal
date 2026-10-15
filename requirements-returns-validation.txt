@@ -1,0 +1,3 @@
+# Offline ReturnFeed schema acceptance only; runtime accounting uses stdlib.
+# Debian system Python already supplies 4.10.3 in the current workstation.
+jsonschema==4.10.3

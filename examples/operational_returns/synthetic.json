@@ -1,0 +1,124 @@
+{
+  "synthetic": true,
+  "description": "SYNTHETIC ONLY. Not production parameters or actual returns.",
+  "config": {
+    "account_id": "SYNTHETIC-demo",
+    "synthetic": true,
+    "mode": "paper",
+    "strategy_id": "equal_weight",
+    "strategy_version": "test-20-40-5",
+    "mapping": "symmetric",
+    "currency": "CNY",
+    "initial_cash": 1000,
+    "instrument": {
+      "symbol": "SYNTHETIC",
+      "kind": "cash_security",
+      "currency": "CNY",
+      "multiplier": 1,
+      "lot_size": 1,
+      "margin_rate": null,
+      "settlement_rule": "cash_trade_date"
+    },
+    "execution": {
+      "rule": "next_session_fixed_time",
+      "rebalance": "each_session",
+      "gross_leverage": 1,
+      "slippage_bps": 0,
+      "shorting": "allowed",
+      "short_proceeds": "available",
+      "short_collateral_ratio": 1
+    },
+    "fees": {
+      "commission_bps": 10,
+      "sell_tax_bps": 0,
+      "per_unit": 0,
+      "description": "SYNTHETIC: 10bp commission, explicit zero tax/per-unit; no other fees"
+    },
+    "cash_rules": {
+      "credit_rate": 0,
+      "debit_rate": 0,
+      "short_borrow_rate": 0,
+      "day_count": "ACT/365",
+      "external_flows": "reject"
+    },
+    "calendar": {
+      "id": "SYNTHETIC-CN",
+      "timezone": "Asia/Shanghai",
+      "source": "SYNTHETIC complete test calendar",
+      "coverage_start": "2026-10-12",
+      "coverage_end": "2026-10-14",
+      "days": [
+        {
+          "date": "2026-10-12",
+          "is_open": true,
+          "execution_at": "2026-10-12T09:30:00+08:00",
+          "valuation_at": "2026-10-12T15:00:00+08:00"
+        },
+        {
+          "date": "2026-10-13",
+          "is_open": true,
+          "execution_at": "2026-10-13T09:30:00+08:00",
+          "valuation_at": "2026-10-13T15:00:00+08:00"
+        },
+        {
+          "date": "2026-10-14",
+          "is_open": true,
+          "execution_at": "2026-10-14T09:30:00+08:00",
+          "valuation_at": "2026-10-14T15:00:00+08:00"
+        }
+      ]
+    }
+  },
+  "initialized_at": "2026-10-12T14:59:00+08:00",
+  "baseline_date": "2026-10-12",
+  "baseline_available_at": "2026-10-12T16:00:00+08:00",
+  "events": [
+    {
+      "input": {
+        "trade_date": "2026-10-13",
+        "symbol": "SYNTHETIC",
+        "execution_price": 100,
+        "valuation_price": 110,
+        "available_at": "2026-10-13T16:00:00+08:00",
+        "source": "SYNTHETIC price fixture",
+        "executable": true,
+        "external_flow": 0,
+        "corporate_actions": [],
+        "signal": {
+          "strategy_id": "equal_weight",
+          "mapping": "symmetric",
+          "trade_date": "2026-10-12",
+          "direction": 1,
+          "available_at": "2026-10-12T20:31:00+08:00",
+          "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "synthetic": true
+        }
+      },
+      "observed_at": "2026-10-13T16:01:00+08:00"
+    },
+    {
+      "input": {
+        "trade_date": "2026-10-14",
+        "symbol": "SYNTHETIC",
+        "execution_price": 120,
+        "valuation_price": 125,
+        "available_at": "2026-10-14T16:00:00+08:00",
+        "source": "SYNTHETIC price fixture",
+        "executable": true,
+        "external_flow": 0,
+        "corporate_actions": [],
+        "signal": {
+          "strategy_id": "equal_weight",
+          "mapping": "symmetric",
+          "trade_date": "2026-10-13",
+          "direction": 0,
+          "available_at": "2026-10-13T20:31:00+08:00",
+          "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "synthetic": true
+        }
+      },
+      "observed_at": "2026-10-14T16:01:00+08:00"
+    }
+  ],
+  "published_at": "2026-10-14T16:02:00+08:00"
+}

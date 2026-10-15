@@ -1,0 +1,51 @@
+{
+  "synthetic": true,
+  "rows": [
+    {
+      "available_at": "2026-10-13T16:01:00+08:00",
+      "borrow_cost": 0.0,
+      "cash": -1.0,
+      "daily_return": 0.09899999999999998,
+      "execution_price": 100.0,
+      "fees": 1.0,
+      "gross_pnl": 100.0,
+      "gross_ratio": 1.0009099181073704,
+      "interest": 0.0,
+      "margin_ratio": null,
+      "nav": 1099.0,
+      "period_end_at": "2026-10-13T15:00:00+08:00",
+      "period_start_at": "2026-10-12T15:00:00+08:00",
+      "prior_nav": 1000.0,
+      "quantity": 10.0,
+      "revision": 1,
+      "settled_cash_at_execution": -1.0,
+      "slippage": 0.0,
+      "trade_date": "2026-10-13",
+      "trade_quantity": 10.0,
+      "unit_nav": 1.099
+    },
+    {
+      "available_at": "2026-10-14T16:01:00+08:00",
+      "borrow_cost": 0.0,
+      "cash": 1197.8,
+      "daily_return": 0.08989990900818912,
+      "execution_price": 120.0,
+      "fees": 1.2,
+      "gross_pnl": 100.0,
+      "gross_ratio": 0.0,
+      "interest": 0.0,
+      "margin_ratio": null,
+      "nav": 1197.8,
+      "period_end_at": "2026-10-14T15:00:00+08:00",
+      "period_start_at": "2026-10-13T15:00:00+08:00",
+      "prior_nav": 1099.0,
+      "quantity": 0.0,
+      "revision": 1,
+      "settled_cash_at_execution": 1197.8,
+      "slippage": -0.0,
+      "trade_date": "2026-10-14",
+      "trade_quantity": -10.0,
+      "unit_nav": 1.1978
+    }
+  ]
+}

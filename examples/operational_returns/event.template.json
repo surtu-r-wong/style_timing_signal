@@ -1,0 +1,20 @@
+{
+  "trade_date": null,
+  "symbol": null,
+  "execution_price": null,
+  "valuation_price": null,
+  "available_at": null,
+  "source": null,
+  "executable": null,
+  "external_flow": null,
+  "corporate_actions": null,
+  "signal": {
+    "strategy_id": null,
+    "mapping": null,
+    "trade_date": null,
+    "direction": null,
+    "available_at": null,
+    "source_sha256": null,
+    "synthetic": null
+  }
+}
