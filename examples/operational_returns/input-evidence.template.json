@@ -1,0 +1,31 @@
+{
+  "strategy_id": null,
+  "mapping": null,
+  "symbol": null,
+  "kind": null,
+  "trade_date": null,
+  "authority": null,
+  "reference": null,
+  "execution_basis": null,
+  "valuation_basis": null,
+  "calendar_complete": null,
+  "session_complete": null,
+  "execution_verified": null,
+  "corporate_actions_complete": null,
+  "external_flows_complete": null,
+  "executable": null,
+  "external_flow": null,
+  "corporate_actions": null,
+  "checked_at": null,
+  "execution_at": null,
+  "valuation_at": null,
+  "fixed_contract": null,
+  "requires_roll": null,
+  "expires_at": null,
+  "synthetic": false,
+  "input_sha256": {
+    "signal": null,
+    "calendar": null,
+    "prices": null
+  }
+}

@@ -143,7 +143,12 @@ def validate_config(cfg):
         raise ValueError("only ACT/365 and no external flows supported")
     if ins["kind"] == "linear_future" and cash["short_borrow_rate"] != 0:
         raise ValueError("linear_future has no securities borrow; short_borrow_rate must be explicit zero")
-    cal = cfg["calendar"]
+    validate_calendar(cfg["calendar"])
+    return cfg
+
+
+def validate_calendar(cal):
+    """Validate complete sessions independently of account economic parameters."""
     keys(cal, "id timezone source coverage_start coverage_end days", "calendar")
     text_field(cal["id"], "calendar.id"); text_field(cal["source"], "calendar.source")
     zone = ZoneInfo(cal["timezone"])
@@ -170,7 +175,7 @@ def validate_config(cfg):
             previous = valuation
     if previous is None:
         raise ValueError("calendar has no open sessions")
-    return cfg
+    return cal
 
 
 def atomic_json(path, value, *, replace=True):

@@ -1,0 +1,132 @@
+{
+  "status": "inspection_only",
+  "event_ready": false,
+  "project": "style_timing_signal",
+  "host": "debian-server",
+  "root": "/home/elfbob/jobs/style-signals/current",
+  "resolved_root": "/home/elfbob/jobs/style-signals/releases/2d22e57",
+  "observed_at": "2026-10-15T10:43:14.268047+00:00",
+  "retrieved_at": "2026-10-15T10:43:14.287068+00:00",
+  "production": {
+    "result": "OK",
+    "topup": "OFFICE_LATE",
+    "started_at": "2026-10-14T20:30:31+08:00",
+    "finished_at": "2026-10-14T21:30:03+08:00"
+  },
+  "files": [
+    {
+      "path": "output/recommended/hybrid20_longflat.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "status_date": "2026-10-13",
+      "data_date": "2026-10-13"
+    },
+    {
+      "path": "output/recommended/citic40d_longflat.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "status_date": "2026-10-13",
+      "data_date": "2026-10-13"
+    },
+    {
+      "path": "output/recommended/equal_weight_symmetric.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "status_date": "2026-10-13",
+      "data_date": "2026-10-13"
+    },
+    {
+      "path": "output/recommended/slope20_symmetric.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "status_date": "2026-10-13",
+      "data_date": "2026-10-13"
+    },
+    {
+      "path": "output/recommended/slope20_longflat.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "status_date": "2026-10-13",
+      "data_date": "2026-10-13"
+    },
+    {
+      "path": "output/recommended/combined_signals.csv",
+      "columns": [
+        "date",
+        "equal_weight_signal",
+        "equal_weight_signal_raw",
+        "equal_weight_position",
+        "slope20_signal",
+        "slope20_position",
+        "hybrid20_signal",
+        "hybrid20_factor",
+        "hybrid20_position",
+        "citic40d_signal",
+        "citic40d_position"
+      ],
+      "status_date": "2026-10-13",
+      "data_date": "2026-10-13"
+    },
+    {
+      "path": "output/recommended/equal_weight_longflat.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "status_date": "2026-10-13",
+      "data_date": "2026-10-13"
+    }
+  ],
+  "sources": [
+    {
+      "path": "/home/elfbob/jobs/style-signals/current/logs/daily_signals_status.json",
+      "sha256": "a04ed5dc1d8660e8f99458545ac231a180cea246fd34ba5c252b198044ddabc4",
+      "bytes": 6490
+    },
+    {
+      "path": "/home/elfbob/jobs/style-signals/current/output/recommended/hybrid20_longflat.csv",
+      "sha256": "d23c0cd4d4c92c646d9a1c9344e34d5634668ed2d26a3413f19ce94f7485a859",
+      "bytes": 48920
+    },
+    {
+      "path": "/home/elfbob/jobs/style-signals/current/output/recommended/citic40d_longflat.csv",
+      "sha256": "cf3db6c7ba0977c6f0f95399d501d4bf08f5392f2e8f9d470c03454f3f685b23",
+      "bytes": 52170
+    },
+    {
+      "path": "/home/elfbob/jobs/style-signals/current/output/recommended/equal_weight_symmetric.csv",
+      "sha256": "6914b3f75ff68c8fd943b20bec02a06073f1a4c8aeb255d57498defad78203bf",
+      "bytes": 41895
+    },
+    {
+      "path": "/home/elfbob/jobs/style-signals/current/output/recommended/slope20_symmetric.csv",
+      "sha256": "fd1c19b84172adf672c92274047960db314d1d6cf3a7dfdeab0e26caa2db55fd",
+      "bytes": 41799
+    },
+    {
+      "path": "/home/elfbob/jobs/style-signals/current/output/recommended/slope20_longflat.csv",
+      "sha256": "06451a5acdd5e3f380ac0fc913d0ef3449e533d3834bfed22f891dcbb71fe773",
+      "bytes": 40366
+    },
+    {
+      "path": "/home/elfbob/jobs/style-signals/current/output/recommended/combined_signals.csv",
+      "sha256": "6b6477861f4878d972d375e2e90bcdf64a81c66cd3bd09d7fa9a0921040fd674",
+      "bytes": 217009
+    },
+    {
+      "path": "/home/elfbob/jobs/style-signals/current/output/recommended/equal_weight_longflat.csv",
+      "sha256": "94ecb2bd2d8b765f6ce345c42fc1216e89a909d256e54941736cdc567237cead",
+      "bytes": 40366
+    }
+  ]
+}

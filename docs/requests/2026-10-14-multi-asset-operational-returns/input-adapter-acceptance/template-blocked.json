@@ -1,0 +1,16 @@
+{
+  "observed_at": "2026-10-15T18:45:46.832852+08:00",
+  "observer_host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+  "status": "blocked",
+  "reason": "SYMBOL_REQUIRED",
+  "sources": [
+    {
+      "project": "style_timing_signal",
+      "host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+      "path": "/home/elfbob/claude-code/style_timing_signal/examples/operational_returns/input-adapter.template.json",
+      "sha256": "1b0c3bfd7fd5dbd22d6fd75f52980303f751477c69c0ce11e1c94f009a1c7da3",
+      "bytes": 706,
+      "retrieved_at": "2026-10-15T18:45:46.832996+08:00"
+    }
+  ]
+}

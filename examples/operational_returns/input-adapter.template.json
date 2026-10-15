@@ -1,0 +1,41 @@
+{
+  "strategy_id": null,
+  "mapping": null,
+  "symbol": null,
+  "kind": null,
+  "trade_date": null,
+  "synthetic": false,
+  "signal": {
+    "path": null,
+    "sha256": null,
+    "project": null,
+    "host": null
+  },
+  "calendar": {
+    "path": null,
+    "sha256": null,
+    "project": null,
+    "host": null
+  },
+  "prices": {
+    "path": null,
+    "sha256": null,
+    "project": null,
+    "host": null
+  },
+  "evidence": {
+    "path": null,
+    "sha256": null,
+    "project": null,
+    "host": null
+  },
+  "columns": {
+    "trade_date": null,
+    "symbol": null,
+    "execution_price": null,
+    "valuation_price": null,
+    "execution_at": null,
+    "valuation_at": null,
+    "available_at": null
+  }
+}

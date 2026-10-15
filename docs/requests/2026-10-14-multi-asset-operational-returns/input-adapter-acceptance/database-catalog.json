@@ -1,0 +1,179 @@
+{
+  "observed_at": "2026-10-15T18:41:29.511192+08:00",
+  "observer_host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+  "status": "inspection_only",
+  "event_ready": false,
+  "source_project": "market-monitor",
+  "connection_profile": "signals.common.config.load_db_config",
+  "transaction_at": "2026-10-15 18:41:29.65296+08",
+  "retrieved_at": "2026-10-15T18:41:29.803142+08:00",
+  "tables": [
+    {
+      "table": "public.futures_daily",
+      "columns": [
+        [
+          "id",
+          "bigint"
+        ],
+        [
+          "symbol",
+          "character varying"
+        ],
+        [
+          "trade_date",
+          "date"
+        ],
+        [
+          "open",
+          "numeric"
+        ],
+        [
+          "high",
+          "numeric"
+        ],
+        [
+          "low",
+          "numeric"
+        ],
+        [
+          "close",
+          "numeric"
+        ],
+        [
+          "volume",
+          "bigint"
+        ],
+        [
+          "oi",
+          "bigint"
+        ],
+        [
+          "turnover",
+          "numeric"
+        ],
+        [
+          "settle",
+          "numeric"
+        ],
+        [
+          "created_at",
+          "timestamp without time zone"
+        ],
+        [
+          "updated_at",
+          "timestamp without time zone"
+        ],
+        [
+          "source",
+          "character varying"
+        ],
+        [
+          "source_detail",
+          "jsonb"
+        ],
+        [
+          "pre_settle",
+          "numeric"
+        ],
+        [
+          "oi_chg",
+          "bigint"
+        ],
+        [
+          "pre_close",
+          "numeric"
+        ],
+        [
+          "delivery_settle",
+          "numeric"
+        ],
+        [
+          "exch_symbol",
+          "text"
+        ]
+      ]
+    },
+    {
+      "table": "stock_selector.index_daily",
+      "columns": [
+        [
+          "index_code",
+          "text"
+        ],
+        [
+          "trade_date",
+          "date"
+        ],
+        [
+          "open",
+          "numeric"
+        ],
+        [
+          "high",
+          "numeric"
+        ],
+        [
+          "low",
+          "numeric"
+        ],
+        [
+          "close",
+          "numeric"
+        ],
+        [
+          "volume",
+          "bigint"
+        ],
+        [
+          "amount",
+          "numeric"
+        ],
+        [
+          "updated_at",
+          "timestamp with time zone"
+        ]
+      ]
+    },
+    {
+      "table": "stock_selector.stock_status",
+      "columns": [
+        [
+          "ts_code",
+          "text"
+        ],
+        [
+          "trade_date",
+          "date"
+        ],
+        [
+          "is_st",
+          "boolean"
+        ],
+        [
+          "is_suspended",
+          "boolean"
+        ],
+        [
+          "limit_up",
+          "boolean"
+        ],
+        [
+          "limit_down",
+          "boolean"
+        ],
+        [
+          "is_new",
+          "boolean"
+        ],
+        [
+          "updated_at",
+          "timestamp with time zone"
+        ]
+      ]
+    }
+  ],
+  "sha256": "cbbe223ab0bf89684dfee6419298abeda85762a3e3b7659a40dd43d03c6dc8fe",
+  "data_date": null,
+  "reason": "SCHEMA_ONLY_NO_INSTRUMENT_SELECTED",
+  "sources": []
+}
