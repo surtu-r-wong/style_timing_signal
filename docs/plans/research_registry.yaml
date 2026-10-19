@@ -22,6 +22,7 @@ inventory:
     - {path: docs/plans/2026-09-23-post-takeover-readonly-mode.md, reason: "日更链路输入移交办公室后的只读模式运维计划，不形成研究裁决。"}
     - {path: docs/plans/2026-09-23-wechat-signal-push-design.md, reason: "企业微信推送运维设计，不形成研究裁决。"}
     - {path: docs/plans/2026-09-23-wechat-signal-push.md, reason: "企业微信推送实施计划，不形成研究裁决。"}
+    - {path: docs/plans/2026-10-15-forward-account-implementation.md, reason: "前瞻纸面账户核算与收益接口工程实施计划，仅含软件及合成验收，不形成信号研究裁决。"}
 
 studies:
   - id: production-equal-weight-symmetric
@@ -1876,3 +1877,72 @@ studies:
       evidence: [backtest/output/runs/20261009-open-vs-close-exec/manifest.json, backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/key_numbers.json, backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/key_numbers_s_exact.json, backtest/output/runs/20261009-open-vs-close-exec/outputs/compare/compare_results.txt]
     supersedes: []
     depends_on: [production-equal-weight-symmetric, production-slope20-fourth-line]
+
+  - id: equity-bond-crossing-2026-10-19
+    title: 沪深300全收益与二级债基指数交点审计
+    family: equity-bond-relative-value
+    status: research_only
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: H00300.CSI与885007.WI的Wind日线，2004-12-31至2026-10-16共5290个共同交易日；检验原始点位下穿、重定基敏感性、后续收益及对现役两池的代理增量。
+    claim: 原始点位下穿36次，按60交易日冷却合并为15个事件；20日后上涨8/15、245日后上涨13/15，60日内仍下跌超过5%的有6/15。2022年没有严格交点，重定基会改变交点年份；不能把两线重合视为可靠止跌规则。
+    non_claims:
+    - 不把指数原始点位相等视为具有不变经济含义的估值底，也不保证交点后立即止跌。
+    - 两池代理增量不是实际期货账户收益，不构成生产过滤器的采用依据。
+    caveats:
+    - 全部为事后历史研究，没有未使用确认窗；事件期限重叠，冷却合并不产生独立市场周期。
+    - 债基指数历史成分、回溯编制及逐日首次公布时刻尚未核实；收盘价不能代表日内最低点。
+    - 两池比较以现货指数收益代理，未包含期货基差、换月和真实现货持仓；bootstrap未校正候选选择。
+    - 源快照、结果和脚本哈希已冻结；3项测试及独立CSV核对通过。大明细按本机保留清单追溯。
+    reopen_condition: 新机制或实际可得性证据具备时，先冻结交点定义、基期、执行时点及比较对象；与现役的增量须以实际执行口径和新观察检验，不在同历史追选基期或阈值。
+    production: {affects: false, role: research_evidence}
+    documents:
+      spec:
+      - backtest/output/runs/20261019-equity-bond-crossing-r1/protocol.json
+      report:
+      - backtest/output/runs/20261019-equity-bond-crossing-r1/report.html
+      evidence:
+      - backtest/output/runs/20261019-equity-bond-crossing-r1/manifest.json
+      - backtest/output/runs/20261019-equity-bond-crossing-r1/summary.json
+      - backtest/output/runs/20261019-equity-bond-crossing-r1/event_summary.csv
+      - backtest/output/runs/20261019-equity-bond-crossing-r1/rebasing.csv
+      - backtest/output/runs/20261019-equity-bond-crossing-r1/verification.json
+      - backtest/output/LOCAL_ONLY_LARGE_FILES_20261019.tsv
+    supersedes: []
+    depends_on: [production-equal-weight-symmetric, production-slope20-fourth-line]
+
+  - id: equity-bond-short-2026-10-19
+    title: 股债比值纯空头与equal_weight空头过滤研究
+    family: equity-bond-relative-value
+    status: research_only
+    outcome: descriptive
+    evidence_level: exploratory
+    scope: 2015-04-16至2026-10-16共2795日，以真实IF及IC/IM合约检验27个趋势阈值规格和对照；主规则为R>1.05且R<MA60且20日动量为负时做空，R=H00300.CSI/885007.WI。结果后另冻结7个持有至低位或比值止损的周期版本，明确属于事后扩展。
+    claim: IC/IM次日收盘、单边3bp口径下，主纯空头年化−1.07%、Sharpe0.041、最大回撤−50.66%，27格年化均负，未形成稳健独立空头信号。原EW空头年化8.90%、Sharpe0.493；仅在R>1时保留EW空头为12.23%、0.650，但约75%的逐日收益增量来自2015—2016，额外执行延迟削弱改善，仅保留研究候选。
+    non_claims:
+    - 不将过滤候选、1.05敏感阈值或事后周期赢家视为已确认最优或可部署规则。
+    - 实际合约历史账本仍是模型成交，不是纸面账户前瞻记录或实盘收益。
+    caveats:
+    - 历史已被多轮研究复用；2015—2020选择、2021年后评价不等于未触碰样本外；bootstrap未校正多候选选择。
+    - 前日OI选约、显式换月双边成本、次日/次二日收盘及3/10bp均已检查，但小数合约和固定成本不证明可成交性。
+    - 7个周期版本在看过主结果后提出，不与原27格混作事前确认；比值止损不保证账户损失上限。
+    - 债基指数首次公布时刻与后续修订未验证，进入持续观察前须核实可用时点。
+    - 6项测试通过，4个代表账本各2795日与既有执行引擎逐日误差0；独立指标及候选2795行公式核对通过。大明细按本机保留清单追溯。
+    reopen_condition: 保留R>1的EW空头过滤为研究观察项；后续先确认数据可得时刻并冻结前瞻记录规格、成本与比较对象，再评价增量。新机制另立研究，不自动替换现役或继续同样本搜阈值。
+    production: {affects: false, role: research_candidate_not_deployed}
+    documents:
+      spec:
+      - backtest/output/runs/20261019-equity-bond-short-r1/inputs/protocol.json
+      - backtest/output/runs/20261019-equity-bond-short-r1/inputs/cycle_extension_protocol.json
+      report:
+      - backtest/output/runs/20261019-equity-bond-short-r1/outputs/report.html
+      evidence:
+      - backtest/output/runs/20261019-equity-bond-short-r1/manifest.json
+      - backtest/output/runs/20261019-equity-bond-short-r1/outputs/metrics.csv
+      - backtest/output/runs/20261019-equity-bond-short-r1/outputs/candidate_spec.json
+      - backtest/output/runs/20261019-equity-bond-short-r1/outputs/ew_short_bond_guard.csv
+      - backtest/output/runs/20261019-equity-bond-short-r1/outputs/ledger_crosscheck.json
+      - backtest/output/runs/20261019-equity-bond-short-r1/outputs/verification.json
+      - backtest/output/LOCAL_ONLY_LARGE_FILES_20261019.tsv
+    supersedes: []
+    depends_on: [equity-bond-crossing-2026-10-19, production-equal-weight-symmetric]
