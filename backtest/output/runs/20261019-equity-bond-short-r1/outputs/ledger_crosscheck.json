@@ -1,0 +1,22 @@
+[
+  {
+    "market": "IC_IM",
+    "signal": "primary",
+    "max_daily_return_error": 0.0
+  },
+  {
+    "market": "IC_IM",
+    "signal": "ew_short",
+    "max_daily_return_error": 0.0
+  },
+  {
+    "market": "IF",
+    "signal": "primary",
+    "max_daily_return_error": 0.0
+  },
+  {
+    "market": "IF",
+    "signal": "ew_short",
+    "max_daily_return_error": 0.0
+  }
+]

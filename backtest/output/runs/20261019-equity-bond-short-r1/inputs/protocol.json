@@ -1,0 +1,75 @@
+{
+  "created_on": "2026-10-19",
+  "research_only": true,
+  "input_codes": [
+    "H00300.CSI",
+    "885007.WI"
+  ],
+  "primary": "R=TR300/bond. position=-1 iff R>1.05 AND R<MA60(R) AND R/R.shift(20)-1<0, else 0",
+  "execution": "day t information; t+1 close fill; t+2 close sensitivity; prior-day OI picks main; expiry excluded; explicit rolls; daily 1x equity target; fractional contracts",
+  "market": "primary IC then IC/IM 50:50 after IM listing; IF diagnostic on same dates",
+  "cost_bps_per_side": [
+    3,
+    10
+  ],
+  "range": [
+    "2015-04-16",
+    "2026-10-16"
+  ],
+  "sensitivity_grid": {
+    "floor": [
+      1.0,
+      1.05,
+      1.1
+    ],
+    "ma": [
+      40,
+      60,
+      120
+    ],
+    "momentum": [
+      10,
+      20,
+      40
+    ]
+  },
+  "controls": [
+    "cash",
+    "always_short",
+    "ew_short",
+    "level120",
+    "ratio_trend_no_floor",
+    "equity_trend",
+    "equity_trend_floor105",
+    "high120_turn_exit103",
+    "ew_floor100",
+    "ew_floor105",
+    "ew_and_primary",
+    "ew_or_primary",
+    "half_ew_primary"
+  ],
+  "fixed_splits": {
+    "development": [
+      "2015-04-16",
+      "2020-12-31"
+    ],
+    "validation1": [
+      "2021-01-01",
+      "2023-12-31"
+    ],
+    "validation2": [
+      "2024-01-01",
+      "2026-10-16"
+    ]
+  },
+  "selection_diagnostic": "choose best grid Sharpe in 2015-20 on primary market only, freeze rule for 2021+; all dates previously seen in other research, not virgin OOS",
+  "bootstrap": {
+    "blocks": [
+      60,
+      245
+    ],
+    "draws": 2000,
+    "seed": 20261019
+  },
+  "limits": "No claims of live tradability, initial release timing, integer-lot execution, margin, limit-lock fill or market impact. All historical data reused. No thresholds optimized after primary results."
+}

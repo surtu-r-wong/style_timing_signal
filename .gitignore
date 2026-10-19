@@ -156,3 +156,16 @@ backtest/output/*.log
 /backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_F.csv
 /backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_S.csv
 /backtest/output/runs/20261009-open-vs-close-exec/outputs/impl/daily_S_exact.csv
+
+# 2026-10-19 股债交点与纯空头研究：10 个 >1 MiB 的输入/逐日收益明细保留本机。
+# 路径、字节数及 SHA-256 见 backtest/output/LOCAL_ONLY_LARGE_FILES_20261019.tsv；各 run manifest 同时记录哈希。
+/backtest/output/runs/20261019-equity-bond-crossing-r1/strategy_daily_returns.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/inputs/futures.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IC_IM_delay1_10bps.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IC_IM_delay1_3bps.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IC_IM_delay2_10bps.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IC_IM_delay2_3bps.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IF_delay1_10bps.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IF_delay1_3bps.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IF_delay2_10bps.csv
+/backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IF_delay2_3bps.csv

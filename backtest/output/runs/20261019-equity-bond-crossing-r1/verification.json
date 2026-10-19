@@ -1,0 +1,13 @@
+{
+  "independent_csv_check": {
+    "common_days": 5290,
+    "raw_crossings": 36,
+    "events": 15,
+    "positive_20d": 8,
+    "positive_245d": 13,
+    "adverse_over_5pct_60d": 6
+  },
+  "bond_annual_public_crosscheck_2014_2022": "all within 1bp of published rounded returns",
+  "local_report_links": "all exist",
+  "unit_tests": "3 passed"
+}

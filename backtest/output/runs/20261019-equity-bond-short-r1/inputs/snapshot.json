@@ -1,0 +1,6 @@
+{
+  "transaction_timestamp": "2026-10-19 14:26:37.549423+08",
+  "source": "PG public.futures_daily readonly",
+  "rows": 26460,
+  "index_source": "frozen earlier Wind snapshot; no new Wind requests"
+}

@@ -1,0 +1,36 @@
+{
+  "coverage": {
+    "885007.WI": {
+      "valid": 5532,
+      "missing": 0,
+      "first_valid": "2004-01-02",
+      "last_valid": "2026-10-16"
+    },
+    "H00300.CSI": {
+      "valid": 5290,
+      "missing": 242,
+      "first_valid": "2004-12-31",
+      "last_valid": "2026-10-16"
+    }
+  },
+  "common_rows": 5290,
+  "common_start": "2004-12-31",
+  "common_end": "2026-10-16",
+  "latest_ratio": 1.2143442940904732,
+  "raw_downcrossings": 36,
+  "primary_events": 15,
+  "correlations": {
+    "slope20_longflat": 0.06091023192203474,
+    "equal_weight_symmetric": -0.016264938715343596,
+    "ratio_vs_245d_drawdown_spearman": 0.5582836956059888
+  },
+  "limitations": [
+    "retrospective full sample; no untouched holdout",
+    "fund-index point-in-time historical composition and publication timestamp not verified",
+    "pre-release history may be backfilled",
+    "event horizons overlap and cooldown does not create independent cycles",
+    "all returns use close prices; intraday lows may be lower",
+    "proxy strategies omit futures basis/carry/roll and actual stock holdings",
+    "bootstrap intervals are exploratory and unadjusted for candidate selection"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "days": 2795,
+  "primary_short_days": 894,
+  "ew_short_days": 1394,
+  "joint_short_days": 497,
+  "primary_only_days": 397,
+  "primary_vs_gated_equity_signal_corr": 0.8931366153525466,
+  "latest_date": "2026-10-16",
+  "latest_ratio": 1.2143442940904732,
+  "latest_signals": {
+    "primary": -1.0,
+    "ew_short": -1.0,
+    "ew_floor100": -1.0,
+    "ew_floor105": -1.0,
+    "equity_trend_floor105": -1.0
+  },
+  "training_selected": "grid_f1.05_ma60_mom20"
+}
