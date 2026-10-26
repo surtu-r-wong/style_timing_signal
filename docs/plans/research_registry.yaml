@@ -1946,3 +1946,32 @@ studies:
       - backtest/output/LOCAL_ONLY_LARGE_FILES_20261019.tsv
     supersedes: []
     depends_on: [equity-bond-crossing-2026-10-19, production-equal-weight-symmetric]
+
+  - id: ew-ml-pilot-2026-10-26
+    title: EW机器学习首轮：条件仓位与OI增量
+    family: machine-learning-sizing
+    status: research_only
+    outcome: stop
+    evidence_level: immutable_formal_run
+    scope: 14列价格风格及加入2列滞后OI的两组输入，Ridge与浅层梯度提升树各一条；2019-2026逐年向前预测，内层时间验证选参、标签成熟隔离，保持EW方向并将仓位限制在50%-100%，实际IC/IM合约及3/10bp和额外延迟评价。
+    claim: 四条模型均未通过事前经济筛选。2019-01-02至2026-09-16共1871日，主口径模型Sharpe1.428-1.441、CAGR29.33%-29.79%，原EW为1.385/35.51%；固定半空1.600/32.52%、简单波动控制1.489/33.00%。树价格风格对训练均值预测的MSE改善2.04%，但交易增量有限，加入OI未改善交易表现。
+    non_claims:
+    - 不证明机器学习、OI或联合特征无效；只关闭本轮模型、目标与映射的替换主张。
+    - 经济筛选不是显著性；历史已复用，逐年滚动预测不是未触碰确认样本，不发统计GO。
+    caveats:
+    - OI额外滞后一日不构成历史逐日发布时间及修订的PIT证明；标签重叠，不能按1871个独立事件推断。
+    - 5日风险标准化持有收益代理与实际逐日仓位损益不是同一目标；本轮未事后优化映射。
+    - 小数合约账本未模拟保证金、整数手、涨跌停可成交性和市场冲击，不能当实盘账户收益。
+    - 37项相关测试通过，6本代表账与原执行引擎最大误差4.45e-16；独立重算全部特征、标签、32次训练边界、目标及396行指标通过。
+    reopen_condition: 以新机制、目标或决策映射另立有限规格并披露样本复用；不在本轮扩搜参数直到通过。进入前瞻需另冻结记录方案，不自动部署。
+    production: {affects: false, role: research_evidence}
+    documents:
+      spec: [docs/plans/2026-10-26-ew-ml-pilot-prereg.md]
+      report: [docs/plans/2026-10-26-ew-ml-pilot-results.md]
+      evidence:
+      - backtest/output/runs/20261026-ew-ml-r1/manifest.json
+      - backtest/output/runs/20261026-ew-ml-r1/outputs/metrics.csv
+      - backtest/output/runs/20261026-ew-ml-r1/outputs/economic_screen.json
+      - backtest/output/ew_ml_verification_20261026.json
+    supersedes: []
+    depends_on: [production-equal-weight-symmetric, statistical-dependency-audit-2026-09-14]

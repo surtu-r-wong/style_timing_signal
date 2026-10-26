@@ -1,0 +1,189 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/calendar.csv",
+      "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983",
+      "size": 69872
+    },
+    {
+      "path": "inputs/code__backtest__data.py",
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5",
+      "size": 5137
+    },
+    {
+      "path": "inputs/code__backtest__ew_ml.py",
+      "sha256": "e70353ed94fbad14fe57f10d60d5c5e1ea528e2694e69948af94f12139070eab",
+      "size": 6670
+    },
+    {
+      "path": "inputs/code__backtest__execution_ledger.py",
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c",
+      "size": 6035
+    },
+    {
+      "path": "inputs/code__backtest__intraday_flow_pilot.py",
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26",
+      "size": 9792
+    },
+    {
+      "path": "inputs/code__backtest__metrics.py",
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b",
+      "size": 1501
+    },
+    {
+      "path": "inputs/code__backtest__run_ew_ml.py",
+      "sha256": "8f6e48db746c947c6f919cb2e963d17c440cb7ed8f737f11305d2c4492d99a2c",
+      "size": 19304
+    },
+    {
+      "path": "inputs/code__backtest__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/code__requirements-ml-research.txt",
+      "sha256": "9059551cf97c843027f2e5320d4c23838f08304a37c3c94a76c569cf1081ae81",
+      "size": 163
+    },
+    {
+      "path": "inputs/code__tests__test_ew_ml.py",
+      "sha256": "2dffc4a6109e7351c4cfb15b9299b507b65971dd6b485c67e4dbc5db62b02f88",
+      "size": 4432
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "sha256": "d04eb53702bcfa16af61e03a4272bb07bc4c5abd1a4dece4238621ec8b14805d",
+      "size": 193047
+    },
+    {
+      "path": "inputs/freeze.json",
+      "sha256": "95f63a8ed104d81463f1cf0d241e64991a9c3b54ff419d476ba45b61c0670446",
+      "size": 4754
+    },
+    {
+      "path": "inputs/futures.csv",
+      "sha256": "31aa2d003a564f66941952e4fd1ddc0b810578504c325e330bdf79c80d7694cd",
+      "size": 959379
+    },
+    {
+      "path": "inputs/index.csv",
+      "sha256": "af6165258e593684f38cf56cba52ed81d3ac86ee5301efc144b7dfbbe7ca7497",
+      "size": 176581
+    },
+    {
+      "path": "inputs/oi_features.csv",
+      "sha256": "4000330904f75e4cea19a015521f0efafe110d2ccd4216bff1390f66b91793e6",
+      "size": 572206
+    },
+    {
+      "path": "inputs/prereg.md",
+      "sha256": "9943115a6171026d7a1a925da5da432c14fad88717c2e9181ca0691557bedb3e",
+      "size": 6183
+    },
+    {
+      "path": "inputs/source_manifest.json",
+      "sha256": "854bc11fa6489270b0c86c506c4fea4c97f509aa01fc8409e5fb869bf8c422e1",
+      "size": 18248
+    },
+    {
+      "path": "inputs/source_receipts.json",
+      "sha256": "1e204f1341b4124e5c75f1b006449f20f50b316ca086302480788128d8638f3a",
+      "size": 1177
+    },
+    {
+      "path": "outputs/REPORT.md",
+      "sha256": "e7f1330dc5176fe287226f5a11edaeddc80c4cadcdd7b1415e85327608aae598",
+      "size": 1673
+    },
+    {
+      "path": "outputs/comparisons.csv",
+      "sha256": "47499faec85a551c02706e74809592e32820e16ebc47d1e98c447fb1d160fb52",
+      "size": 66452
+    },
+    {
+      "path": "outputs/economic_screen.json",
+      "sha256": "bd96d8ef922725b165b6d8aa6556ff5c0f9a3b6422c3b02e2cd5cb59bab8c230",
+      "size": 1618
+    },
+    {
+      "path": "outputs/features.csv",
+      "sha256": "5d5a1341a5ee468c7e340e242a7dd5a7bd0a26bb54fdb5d34e0df01db6ee074e",
+      "size": 676631
+    },
+    {
+      "path": "outputs/input_acceptance.json",
+      "sha256": "25fe3c1bba866457a47dd30e0cd1d71d8684f2255bdc65698f741192194724b8",
+      "size": 576
+    },
+    {
+      "path": "outputs/labels.csv",
+      "sha256": "609394cd1d87e749393eae80de6abccc2dc3f591f96538da90cf2828ac1e631d",
+      "size": 115162
+    },
+    {
+      "path": "outputs/ledger_verification.json",
+      "sha256": "663f9d46039465c13d59cc9a9b847a8d8a19e1676ed3265e53e569ceb661881b",
+      "size": 846
+    },
+    {
+      "path": "outputs/ledgers_close_10bps.csv.gz",
+      "sha256": "aa41407d769f091d0e9ad9b367f89bdfdbc8efa115afa15727d97ed29639d428",
+      "size": 1817797
+    },
+    {
+      "path": "outputs/ledgers_close_3bps.csv.gz",
+      "sha256": "affd23dd5bbc7e2b9b9114948846ab70b1c35d649a6edd80a8e99b7cfd1d68c4",
+      "size": 2024206
+    },
+    {
+      "path": "outputs/ledgers_second_close_3bps.csv.gz",
+      "sha256": "af685ee8fccf7065f9606967c69cffb1d08774a3803bcb894780d44d5c17b8f6",
+      "size": 2024770
+    },
+    {
+      "path": "outputs/leg_attribution.csv",
+      "sha256": "55b7cb6ae198cc2aab1f25062ec46be22f8395468cc806c159db7c33c1805af4",
+      "size": 3714
+    },
+    {
+      "path": "outputs/metrics.csv",
+      "sha256": "e38ae945acd6c12732ab4faa5a928bd1991b5e58e0c92756f549062b794f25db",
+      "size": 66674
+    },
+    {
+      "path": "outputs/prediction_errors.csv",
+      "sha256": "754715f8aa18c79dc5ebb09998ad86da6539d22a626c65b8e1179f06d328d432",
+      "size": 772064
+    },
+    {
+      "path": "outputs/prediction_metrics_yearly.csv",
+      "sha256": "e7628fe8f3beb09d53ae2988170978b75ebcbb1a2d70ba536fdf140fca974bf9",
+      "size": 2406
+    },
+    {
+      "path": "outputs/predictions.csv",
+      "sha256": "ab2239606dd323569f2f2260ab0cd35340b68cd37cdfda1df75ae02c6907502a",
+      "size": 167700
+    },
+    {
+      "path": "outputs/stress.csv",
+      "sha256": "869578066dbc583df9ebe867a7b58b9ae9201694371b68145feba17dee016afa",
+      "size": 8988
+    },
+    {
+      "path": "outputs/targets.csv",
+      "sha256": "95ae83b87637da4ffa6651418a2a2112ba42990971c8fdf43c864fd67b14b87c",
+      "size": 355328
+    },
+    {
+      "path": "outputs/training_audit.json",
+      "sha256": "a53f5b3c71d834fc5226be916c01d6aecbdd1051e32e09b8eaa2c51ff3a6f884",
+      "size": 52775
+    }
+  ],
+  "finished_at": "2026-10-26T06:21:16.337566+00:00",
+  "frozen_at": "2026-10-26T06:20:29.596418+00:00",
+  "run_id": "20261026-ew-ml-r1",
+  "started_at": "2026-10-26T06:20:29.585510+00:00",
+  "status": "complete"
+}

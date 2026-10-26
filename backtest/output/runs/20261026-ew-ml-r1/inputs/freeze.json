@@ -1,0 +1,137 @@
+{
+  "frozen_at": "2026-10-26T06:20:29.596418+00:00",
+  "spec": {
+    "path": "inputs/prereg.md",
+    "size": 6183,
+    "sha256": "9943115a6171026d7a1a925da5da432c14fad88717c2e9181ca0691557bedb3e"
+  },
+  "inputs": [
+    {
+      "path": "inputs/calendar.csv",
+      "size": 69872,
+      "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983"
+    },
+    {
+      "path": "inputs/code__backtest__data.py",
+      "size": 5137,
+      "sha256": "d1530442541ca8d3594135e2d91879079f07acb2370cedfb39393fd1653a88f5"
+    },
+    {
+      "path": "inputs/code__backtest__ew_ml.py",
+      "size": 6670,
+      "sha256": "e70353ed94fbad14fe57f10d60d5c5e1ea528e2694e69948af94f12139070eab"
+    },
+    {
+      "path": "inputs/code__backtest__execution_ledger.py",
+      "size": 6035,
+      "sha256": "5750fb090817c7a03e85330fce2256d85b62952531637c38732fef2a28672e5c"
+    },
+    {
+      "path": "inputs/code__backtest__intraday_flow_pilot.py",
+      "size": 9792,
+      "sha256": "6c9ba7ee354919ecdd3efc7bae1f60e0305e35c015e1a70f20ac354cf6678f26"
+    },
+    {
+      "path": "inputs/code__backtest__metrics.py",
+      "size": 1501,
+      "sha256": "a4d0682907a9247dc0bb8bdfa778a6c5b1318ca797d0ddd70ec638c0a6c7975b"
+    },
+    {
+      "path": "inputs/code__backtest__run_ew_ml.py",
+      "size": 19304,
+      "sha256": "8f6e48db746c947c6f919cb2e963d17c440cb7ed8f737f11305d2c4492d99a2c"
+    },
+    {
+      "path": "inputs/code__backtest__run_manifest.py",
+      "size": 6478,
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b"
+    },
+    {
+      "path": "inputs/code__requirements-ml-research.txt",
+      "size": 163,
+      "sha256": "9059551cf97c843027f2e5320d4c23838f08304a37c3c94a76c569cf1081ae81"
+    },
+    {
+      "path": "inputs/code__tests__test_ew_ml.py",
+      "size": 4432,
+      "sha256": "2dffc4a6109e7351c4cfb15b9299b507b65971dd6b485c67e4dbc5db62b02f88"
+    },
+    {
+      "path": "inputs/equal_weight.csv",
+      "size": 193047,
+      "sha256": "d04eb53702bcfa16af61e03a4272bb07bc4c5abd1a4dece4238621ec8b14805d"
+    },
+    {
+      "path": "inputs/futures.csv",
+      "size": 959379,
+      "sha256": "31aa2d003a564f66941952e4fd1ddc0b810578504c325e330bdf79c80d7694cd"
+    },
+    {
+      "path": "inputs/index.csv",
+      "size": 176581,
+      "sha256": "af6165258e593684f38cf56cba52ed81d3ac86ee5301efc144b7dfbbe7ca7497"
+    },
+    {
+      "path": "inputs/oi_features.csv",
+      "size": 572206,
+      "sha256": "4000330904f75e4cea19a015521f0efafe110d2ccd4216bff1390f66b91793e6"
+    },
+    {
+      "path": "inputs/prereg.md",
+      "size": 6183,
+      "sha256": "9943115a6171026d7a1a925da5da432c14fad88717c2e9181ca0691557bedb3e"
+    },
+    {
+      "path": "inputs/source_manifest.json",
+      "size": 18248,
+      "sha256": "854bc11fa6489270b0c86c506c4fea4c97f509aa01fc8409e5fb869bf8c422e1"
+    },
+    {
+      "path": "inputs/source_receipts.json",
+      "size": 1177,
+      "sha256": "1e204f1341b4124e5c75f1b006449f20f50b316ca086302480788128d8638f3a"
+    }
+  ],
+  "git": {
+    "commit": "2833bacd9447ffbd77dd3c9acd7dafbb59da22e2",
+    "dirty": true,
+    "tracked_dirty": true,
+    "porcelain": [
+      " M docs/plans/README.md",
+      " M output/citic40d/citic_style_signal_40d.csv",
+      " M output/equal_weight/equal_weight_signal_20d40z.csv",
+      " M output/equal_weight/equal_weight_signal_5d20z.csv",
+      " M output/hybrid20/confirmed_signal.csv",
+      " M output/hybrid20/growth_stability_signal.csv",
+      " M output/recommended/citic40d_longflat.csv",
+      " M output/recommended/combined_signals.csv",
+      " M output/recommended/equal_weight_longflat.csv",
+      " M output/recommended/equal_weight_symmetric.csv",
+      " M output/recommended/hybrid20_longflat.csv",
+      " M output/recommended/slope20_longflat.csv",
+      " M output/recommended/slope20_symmetric.csv",
+      " M output/slope20/slope20_signal_L20zw120.csv",
+      " M signals/style_basket/README.md",
+      "?? backtest/ew_ml.py",
+      "?? backtest/output/runs/20261023-index-replication-receipt-r1/",
+      "?? backtest/output/runs/20261026-ew-ml-r1/",
+      "?? backtest/output/runs/20261026-index-replication-office-receipt-r1/",
+      "?? backtest/run_ew_ml.py",
+      "?? docs/plans/2026-10-26-ew-ml-pilot-prereg.md",
+      "?? docs/requests/2026-10-23-index-replication-audit/",
+      "?? requirements-ml-research.txt",
+      "?? tests/test_ew_ml.py",
+      "?? tools/audit_pure_style_handoff.py",
+      "?? tools/audit_pure_style_office_delivery.py"
+    ]
+  },
+  "runtime": {
+    "python": "3.13.9",
+    "numpy": "2.3.4",
+    "pandas": "2.3.3",
+    "sklearn": "1.9.0"
+  },
+  "protocol": "2019-2026 annual expanding fits; purged inner 245-day validation",
+  "historical_reuse": true,
+  "production_modified": false
+}

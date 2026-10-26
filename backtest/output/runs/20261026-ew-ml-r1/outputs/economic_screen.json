@@ -1,0 +1,58 @@
+[
+  {
+    "strategy": "ridge_core",
+    "economic_screen_passed": false,
+    "checks": {
+      "sharpe_gain_at_least_010": false,
+      "beats_simple_and_past_controls": false,
+      "cagr_loss_at_most_2pp": false,
+      "drawdown_not_worse": true,
+      "both_subperiods_positive": true,
+      "high_cost_and_delay_positive": true,
+      "best5_zero_positive": true
+    },
+    "statistical_go": false
+  },
+  {
+    "strategy": "tree_core",
+    "economic_screen_passed": false,
+    "checks": {
+      "sharpe_gain_at_least_010": false,
+      "beats_simple_and_past_controls": false,
+      "cagr_loss_at_most_2pp": false,
+      "drawdown_not_worse": true,
+      "both_subperiods_positive": true,
+      "high_cost_and_delay_positive": true,
+      "best5_zero_positive": true
+    },
+    "statistical_go": false
+  },
+  {
+    "strategy": "ridge_oi",
+    "economic_screen_passed": false,
+    "checks": {
+      "sharpe_gain_at_least_010": false,
+      "beats_simple_and_past_controls": false,
+      "cagr_loss_at_most_2pp": false,
+      "drawdown_not_worse": true,
+      "both_subperiods_positive": true,
+      "high_cost_and_delay_positive": true,
+      "best5_zero_positive": true
+    },
+    "statistical_go": false
+  },
+  {
+    "strategy": "tree_oi",
+    "economic_screen_passed": false,
+    "checks": {
+      "sharpe_gain_at_least_010": false,
+      "beats_simple_and_past_controls": false,
+      "cagr_loss_at_most_2pp": false,
+      "drawdown_not_worse": true,
+      "both_subperiods_positive": false,
+      "high_cost_and_delay_positive": true,
+      "best5_zero_positive": true
+    },
+    "statistical_go": false
+  }
+]
