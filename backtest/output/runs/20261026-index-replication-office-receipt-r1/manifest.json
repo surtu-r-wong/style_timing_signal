@@ -1,0 +1,26 @@
+{
+  "status": "complete",
+  "scope": "offline_office_delivery_consumer_audit",
+  "overall_request_status": "OPEN",
+  "official_attribution_ready": false,
+  "created_at": "2026-10-26T02:19:36.691206+00:00",
+  "input_manifests": {
+    "office_20261023_a_v1": "e82a8ecb727b537b7390e88e3a7ddcc1b6f4277b323d6d69f2f6d01ab68ec412",
+    "office_20261023_a_v2": "ec6a4f261a383ff5a74b986bc826149e8849b11290f4c680bb6ae6bbb140488a",
+    "office_20261024_a_v3": "2a502793d00eaa1b814398c8b9f54052bebda784d3b7105934b5dfccba19f6ee"
+  },
+  "office_root": "/home/elfbob/claude-code/data_manager/state/index-replication",
+  "inputs_unchanged": true,
+  "shared_database_accessed": false,
+  "paid_calls": 0,
+  "production_changed": false,
+  "outputs_sha256": {
+    "audit_script.py": "7d98f5933a59a9480f427d9accdac1e1a89672bfe56c5f32ce00620897e45e21",
+    "indicator-snapshot-check.csv": "288611c80f4da59121eba59e0adb31ebea38a141e683ee4a4873277200a283fb",
+    "mother-observation-differences.csv": "7d0cc0ce012b6f9ed142d7d73df153c715f4d662c5420177f15628bf23ce9bde",
+    "price-state-anomalies.csv": "18a2544e1d1d0e365a60626de875d79d90d8529f58d71f1d6f830a6e4529dca7",
+    "verification.json": "d1c0e4416aef36eeeb9de057a84eaf8f726e694b7f0d700ec445e13f4953868e",
+    "weight-completeness.csv": "c8b6b1dd851c5566b3cf628aff0f3e3a5988f1989ee0979b8bc153ed920feb89",
+    "whole-leg-days.csv": "03b6cd04ed170132bd73d4b44dd90d6e3a83fda1a79c8e1b7436f27f5195bfe4"
+  }
+}

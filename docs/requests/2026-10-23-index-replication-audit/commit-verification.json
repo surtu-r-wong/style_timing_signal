@@ -1,0 +1,66 @@
+{
+  "status": "PASS",
+  "checked_at": "2026-10-27T05:44:46.869810+00:00",
+  "scope": "commit_archive_integrity_only",
+  "runs": [
+    {
+      "run": "backtest/output/runs/20261023-index-replication-receipt-r1",
+      "manifest": "manifest.json",
+      "manifest_sha256": "7021d59dea5a1921445405f7e5699f20037ff4b9289a4b14043856d102e28092",
+      "verified_artifacts": 9,
+      "existing_status": "complete"
+    },
+    {
+      "run": "backtest/output/runs/20261026-index-replication-office-receipt-r1",
+      "manifest": "manifest.json",
+      "manifest_sha256": "0fcefe685a802b2cfd0ef936a832fd8151cdb0c73f6e94e90c852392e4fd0428",
+      "verified_artifacts": 7,
+      "existing_status": "complete"
+    },
+    {
+      "run": "backtest/output/runs/20261026-derived-weight-reconstruction-r1",
+      "manifest": "run-manifest.json",
+      "manifest_sha256": "335e6efaecb22350e568e531353c11abf543064b9af90c3d0d0e537882d1d7f0",
+      "verified_artifacts": 6,
+      "existing_status": "legacy_run_manifest_without_status"
+    },
+    {
+      "run": "backtest/output/runs/20261026-derived-weight-reconstruction-v9-r1",
+      "manifest": "run-manifest.json",
+      "manifest_sha256": "756788293cb145be4392fd1a96555ac43677faaabcf403b69e74daf234600665",
+      "verified_artifacts": 6,
+      "existing_status": "legacy_run_manifest_without_status"
+    },
+    {
+      "run": "backtest/output/runs/20261026-index-boundary-realdata-r1",
+      "manifest": "manifest.json",
+      "manifest_sha256": "61bf3aea53188a05b524b432591e7eb395b27006696d60451100b7100858164b",
+      "verified_artifacts": 10,
+      "existing_status": "complete"
+    },
+    {
+      "run": "backtest/output/runs/20261026-index-replication-inputs-r2",
+      "manifest": "manifest.json",
+      "manifest_sha256": "f3968e7702b0b345f6a37c7af06e72e397d793b343c09f0d5623fdd7620df984",
+      "verified_artifacts": 3,
+      "existing_status": "complete"
+    }
+  ],
+  "verified_artifacts": 41,
+  "office_manifest_count": 9,
+  "current_tools_match_frozen_scripts": true,
+  "script_snapshot_comparisons": 6,
+  "scripts_compile": true,
+  "latest_computed_baskets": 16,
+  "local_only_file_count": 2,
+  "response_links_checked": 33,
+  "research_rerun": false,
+  "shared_database_accessed": false,
+  "paid_calls": 0,
+  "production_changed": false,
+  "limitations": [
+    "This is an archive consistency check; existing calculation and independent-verification evidence is reused.",
+    "Official exact replication remains uncertified.",
+    "Two large inputs remain local, and reproduction also needs the frozen office packages."
+  ]
+}

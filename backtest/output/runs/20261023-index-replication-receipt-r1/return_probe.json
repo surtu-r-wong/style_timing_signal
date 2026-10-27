@@ -1,0 +1,17 @@
+{
+  "evidence_kind": "synthetic_mechanism_only",
+  "effective_day": "2025-12-15",
+  "effective_day_current": -0.040000000000000036,
+  "effective_day_boundary_only": 0.3999999999999999,
+  "first_effective_day_missing_current": true,
+  "terminal_preserved": true,
+  "boundary_dates_unique": true,
+  "halt_and_missing_same_result": true,
+  "all_rows_missing_returns_empty": true,
+  "price_drift_checked": true,
+  "limits": [
+    "Artificial prices and one-stock period weights; no market attribution.",
+    "Boundary-only example holds input weights fixed, without verifying their official reference date.",
+    "No actual snapshot-age, suspension or corporate-action classification."
+  ]
+}

@@ -169,3 +169,8 @@ backtest/output/*.log
 /backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IF_delay1_3bps.csv
 /backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IF_delay2_10bps.csv
 /backtest/output/runs/20261019-equity-bond-short-r1/outputs/returns_IF_delay2_3bps.csv
+
+# 2026-10-27 指数复刻审计：>1 MiB 输入原件保留本机，路径/大小/SHA-256 见
+# backtest/output/LOCAL_ONLY_LARGE_FILES_20261027_INDEX_REPLICATION.tsv；原 run manifest 保持不变。
+/backtest/output/runs/20261026-index-boundary-realdata-r1/prices.csv
+/backtest/output/runs/20261026-index-replication-inputs-r2/research-inputs.sqlite

@@ -1,0 +1,17 @@
+effective_window,index_code,role,query_date,source,members,null_weights,nonnull_weight_sum_unscaled,official_weight_dates_verified
+2025-12-15,932409.CSI,old,2025-12-12,v3_raw_wset,252,0,99.996,False
+2025-12-15,932409.CSI,new,2025-12-15,v1_stored,238,135,46.704000,False
+2025-12-15,932408.CSI,old,2025-12-12,v3_raw_wset,274,0,99.996,False
+2025-12-15,932408.CSI,new,2025-12-15,v1_stored,297,133,60.387000,False
+2025-12-15,932403.CSI,old,2025-12-12,v3_raw_wset,127,0,100.003,False
+2025-12-15,932403.CSI,new,2025-12-15,v3_raw_wset,128,50,65.254,False
+2025-12-15,932402.CSI,old,2025-12-12,v3_raw_wset,181,0,99.999,False
+2025-12-15,932402.CSI,new,2025-12-15,v3_raw_wset,192,52,77.513,False
+2026-06-15,932409.CSI,old,2026-06-12,v3_raw_wset,232,0,100.001,False
+2026-06-15,932409.CSI,new,2026-06-15,v1_stored,207,106,0.459740,False
+2026-06-15,932408.CSI,old,2026-06-12,v3_raw_wset,292,0,99.989,False
+2026-06-15,932408.CSI,new,2026-06-15,v1_stored,307,148,0.526890,False
+2026-06-15,932403.CSI,old,2026-06-12,v3_raw_wset,128,0,99.996,False
+2026-06-15,932403.CSI,new,2026-06-15,v3_raw_wset,103,42,56.163,False
+2026-06-15,932402.CSI,old,2026-06-12,v3_raw_wset,191,0,99.997,False
+2026-06-15,932402.CSI,new,2026-06-15,v3_raw_wset,226,74,79.387,False

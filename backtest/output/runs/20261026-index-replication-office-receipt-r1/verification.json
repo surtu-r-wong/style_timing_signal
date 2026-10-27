@@ -1,0 +1,113 @@
+{
+  "status": "PASS",
+  "scope": "integrity_and_recomputed_coverage_only",
+  "packages": [
+    {
+      "version": "office_20261023_a_v1",
+      "manifest_sha256": "e82a8ecb727b537b7390e88e3a7ddcc1b6f4277b323d6d69f2f6d01ab68ec412",
+      "files": 130,
+      "bytes": 88253050,
+      "csv_tables": 83,
+      "csv_declared_keys_checked": 40,
+      "readonly": true
+    },
+    {
+      "version": "office_20261023_a_v2",
+      "manifest_sha256": "ec6a4f261a383ff5a74b986bc826149e8849b11290f4c680bb6ae6bbb140488a",
+      "files": 51,
+      "bytes": 10130066,
+      "csv_tables": 10,
+      "csv_declared_keys_checked": 10,
+      "readonly": true
+    },
+    {
+      "version": "office_20261024_a_v3",
+      "manifest_sha256": "2a502793d00eaa1b814398c8b9f54052bebda784d3b7105934b5dfccba19f6ee",
+      "files": 97,
+      "bytes": 5423539,
+      "csv_tables": 12,
+      "csv_declared_keys_checked": 12,
+      "readonly": true
+    }
+  ],
+  "wset": {
+    "rows_compared_to_raw": 5326,
+    "null_weights": 501,
+    "archived_calls": 15,
+    "archived_sdk_cells": 26630
+  },
+  "windows": [
+    {
+      "effective_window": "2025-12-15",
+      "dates": [
+        "2025-12-08",
+        "2025-12-09",
+        "2025-12-10",
+        "2025-12-11",
+        "2025-12-12",
+        "2025-12-15",
+        "2025-12-16",
+        "2025-12-17",
+        "2025-12-18",
+        "2025-12-19",
+        "2025-12-22"
+      ],
+      "v1_union": 2564,
+      "updated_union": 2597,
+      "added_to_v1": 34,
+      "removed_from_v1": 1,
+      "expected_security_days": 28567,
+      "price_rows": 28525,
+      "extra_price_rows": 374,
+      "index_price_rows": 66,
+      "price_missing": 42,
+      "suspension_record_present": 62,
+      "status_conflict": 42,
+      "missing_with_suspension": 42,
+      "zero_volume": 20
+    },
+    {
+      "effective_window": "2026-06-15",
+      "dates": [
+        "2026-06-08",
+        "2026-06-09",
+        "2026-06-10",
+        "2026-06-11",
+        "2026-06-12",
+        "2026-06-15",
+        "2026-06-16",
+        "2026-06-17",
+        "2026-06-18",
+        "2026-06-22",
+        "2026-06-23"
+      ],
+      "v1_union": 2573,
+      "updated_union": 2596,
+      "added_to_v1": 34,
+      "removed_from_v1": 11,
+      "expected_security_days": 28556,
+      "price_rows": 28556,
+      "extra_price_rows": 374,
+      "index_price_rows": 66,
+      "zero_volume": 20,
+      "suspension_record_present": 20,
+      "status_conflict": 20
+    }
+  ],
+  "old_v2_status_conflicts": 62,
+  "new_500_added_null_weights": 218,
+  "whole_leg_days_checked": 176,
+  "whole_leg_days_without_prices": 0,
+  "snapshot_rows_checked": 16,
+  "official_attribution_ready": false,
+  "blocked_by": [
+    "Official Q/L/A and historical vendor definitions unresolved",
+    "501 v3 NULL weights plus incomplete v1 new 2000 weights",
+    "Source dates, effective dates and weight reference prices unresolved",
+    "Pure-style seven-factor panel and added-security inputs not frozen",
+    "Company actions, pre_close semantics and return lineage unverified"
+  ],
+  "shared_database_accessed": false,
+  "paid_calls": 0,
+  "production_changed": false
+}

@@ -1,0 +1,58 @@
+{
+  "status": "complete",
+  "scope": "offline_fixed_model_boundary_diagnostic",
+  "official_attribution_ready": false,
+  "input_market_manifest_sha256": "db2958920a12707ad3bbf6aa5b10cc0a483e2e257205cc4daccd5310b9952da3",
+  "files": [
+    {
+      "path": "audit_script.py",
+      "bytes": 13031,
+      "sha256": "2ffb7e62e4834a5325dd0781af5d29e2fc58a942557847bbf241a9acf82698f4"
+    },
+    {
+      "path": "boundary-day-contributions.csv",
+      "bytes": 295488,
+      "sha256": "1aa3d32cba6d9bc0f490779f22e33efd5a6d04c19f7af39ec3f150cb1327cc7e"
+    },
+    {
+      "path": "daily-boundary-comparison.csv",
+      "bytes": 4164,
+      "sha256": "97cce51f3cfc07e5930862e76fd9ebb03f36007ed5669186e25f0f8250e0c3f9"
+    },
+    {
+      "path": "fixed-model-weights.csv",
+      "bytes": 151633,
+      "sha256": "c27d3d1f3bbcea50a5153420b9a1f487164036fba4c709c68b4579aeb17ba85b"
+    },
+    {
+      "path": "original-zero-imputation-exposure.csv",
+      "bytes": 362,
+      "sha256": "fc8ab4b90b4c6cbd9b99c44e02424ef6dad28938355ea9f90c813891b3b52e0f"
+    },
+    {
+      "path": "prices.csv",
+      "bytes": 20959554,
+      "sha256": "b257a69c40412236e4c010721977581f933bb95d27045fc9196c762b97cc6cf1"
+    },
+    {
+      "path": "status.csv",
+      "bytes": 877712,
+      "sha256": "3b83fc4095126c7989ee3e86b76b72b20a7c210a76cf45ef10243082eb0182fd"
+    },
+    {
+      "path": "summary.csv",
+      "bytes": 356,
+      "sha256": "28c48c0308478d8aba1679a21be1af95399233c9931c9cebad3f37d8b01687b0"
+    },
+    {
+      "path": "suspensions.csv",
+      "bytes": 233,
+      "sha256": "ea9c785117f06ff8e5815fd601e59f7495c31adb3007e2b8b3251a92e2bffd37"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 3312,
+      "sha256": "522305dd9a1a727eb3b5ec217fcef9daaadcb925748eb755de12f3d58fc6ab1d"
+    }
+  ]
+}

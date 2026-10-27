@@ -1,0 +1,63 @@
+{
+  "status": "complete",
+  "scope": "offline_research_input_preparation",
+  "input_packages": [
+    {
+      "version": "office_20261023_a_v1",
+      "files": 130,
+      "bytes": 88253050,
+      "manifest_sha256": "e82a8ecb727b537b7390e88e3a7ddcc1b6f4277b323d6d69f2f6d01ab68ec412"
+    },
+    {
+      "version": "office_20261023_a_v2",
+      "files": 51,
+      "bytes": 10130066,
+      "manifest_sha256": "ec6a4f261a383ff5a74b986bc826149e8849b11290f4c680bb6ae6bbb140488a"
+    },
+    {
+      "version": "office_20261024_a_v3",
+      "files": 97,
+      "bytes": 5423539,
+      "manifest_sha256": "2a502793d00eaa1b814398c8b9f54052bebda784d3b7105934b5dfccba19f6ee"
+    },
+    {
+      "version": "office_20261026_a_v4",
+      "files": 442,
+      "bytes": 426447303,
+      "manifest_sha256": "0d1fd655669213e793118bea3ccb2beeec6ddd35462aef16bf824328bb9fe1a4"
+    },
+    {
+      "version": "office_20261026_a_v5",
+      "files": 112,
+      "bytes": 7685579,
+      "manifest_sha256": "c5ba0f79d342b5c9faa817e3f8508de90b69957767bc80382812734bd853fd8a"
+    },
+    {
+      "version": "office_20261026_a_v6",
+      "files": 39,
+      "bytes": 3821289,
+      "manifest_sha256": "993d03e96ced49ef6ce1444a1dec8dd113c3ade2ee364c8a169d688d7de6b431"
+    },
+    {
+      "version": "office_20261026_a_v7",
+      "files": 88,
+      "bytes": 10315015,
+      "manifest_sha256": "dbca2b108f62169ae07bc0baa0e14ea3c009a48745da1d2260801bd77a9e926c"
+    }
+  ],
+  "official_attribution_ready": false,
+  "outputs": {
+    "readiness.json": {
+      "bytes": 1136,
+      "sha256": "dfb23749f93bb428bbfe6edf32d53edf9384f07d05e455e44617d24cf91d8726"
+    },
+    "research-inputs.sqlite": {
+      "bytes": 36462592,
+      "sha256": "71ce9d3656612cd8dbdc84f029bcbf0092f199a609cf23003ffe8701ee65d1b1"
+    },
+    "prepare_script.py": {
+      "bytes": 10826,
+      "sha256": "15a8bc02ffda8eadf492eb033433c4c1a570544ad06070bc586e84d969a3b4ec"
+    }
+  }
+}

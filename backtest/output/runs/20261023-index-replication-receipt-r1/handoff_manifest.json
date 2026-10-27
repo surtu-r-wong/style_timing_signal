@@ -1,0 +1,43 @@
+{
+  "status": "complete_readonly_audit",
+  "created_at": "2026-10-23T09:17:55.211064+00:00",
+  "project_commit": "f999ba6ff9c4cf6f7d871f3ebc684c20370ebd0d",
+  "project_worktree_status": "M AGENTS.md\n M README.md\n M docs/HANDOFF.md\n M docs/data_inventory.md\n M docs/research_agenda.md\n M research/national_team/README.md\n M research/national_team/templates/README.md\n?? docs/requests/\n?? research/index_float/\n?? research/national_team/evidence_basis_2026-10-23.md\n?? research/national_team/full_data_dictionary.md\n?? research/national_team/full_data_results_2026-10-23.md\n?? research/national_team/full_data_spec_2026-10-23.md\n?? research/national_team/full_delivery.py\n?? research/national_team/monitoring.py\n?? research/national_team/monitoring_method_v0.md\n?? research/national_team/monitoring_method_v0_1.md\n?? research/national_team/pilot_results_2026-10-23.md\n?? research/national_team/pilot_spec_2026-10-23.md\n?? research/national_team/reference_images_2026-10-23.md\n?? research/national_team/templates/daily_monitor.md\n?? research/national_team/templates/holdings.csv\n?? research/national_team/templates/monitoring_universe.csv\n?? tests/test_national_team_full_delivery.py\n?? tests/test_national_team_monitoring.py\n?? tools/audit_index_replication.py\n?? tools/build_national_team_calendar.py\n?? tools/collect_national_team_market.py\n?? tools/collect_national_team_shares.py\n?? tools/register_national_team_evidence.py\n?? tools/resume_national_team_collection.py\n?? tools/run_national_team_full.py\n?? tools/run_national_team_pilot.py",
+  "reference_commit": "2833bacd9447ffbd77dd3c9acd7dafbb59da22e2",
+  "reference_worktree_status_before": "M output/citic40d/citic_style_signal_40d.csv\n M output/equal_weight/equal_weight_signal_20d40z.csv\n M output/equal_weight/equal_weight_signal_5d20z.csv\n M output/hybrid20/confirmed_signal.csv\n M output/hybrid20/growth_stability_signal.csv\n M output/recommended/citic40d_longflat.csv\n M output/recommended/combined_signals.csv\n M output/recommended/equal_weight_longflat.csv\n M output/recommended/equal_weight_symmetric.csv\n M output/recommended/hybrid20_longflat.csv\n M output/recommended/slope20_longflat.csv\n M output/recommended/slope20_symmetric.csv\n M output/slope20/slope20_signal_L20zw120.csv",
+  "reference_worktree_status_after": "M output/citic40d/citic_style_signal_40d.csv\n M output/equal_weight/equal_weight_signal_20d40z.csv\n M output/equal_weight/equal_weight_signal_5d20z.csv\n M output/hybrid20/confirmed_signal.csv\n M output/hybrid20/growth_stability_signal.csv\n M output/recommended/citic40d_longflat.csv\n M output/recommended/combined_signals.csv\n M output/recommended/equal_weight_longflat.csv\n M output/recommended/equal_weight_symmetric.csv\n M output/recommended/hybrid20_longflat.csv\n M output/recommended/slope20_longflat.csv\n M output/recommended/slope20_symmetric.csv\n M output/slope20/slope20_signal_L20zw120.csv",
+  "python": "3.13.9",
+  "argv": [
+    "tools/audit_index_replication.py",
+    "--source-root",
+    "/home/elfbob/claude-code/style_timing_signal",
+    "--output-dir",
+    "output/index_float/20261023-replication-audit-r2"
+  ],
+  "input_sha256": {
+    "/home/elfbob/claude-code/style_timing_signal/backtest/pure_style_builder.py": "157e66562ad7d99177452df9b3c35219e7b24a12e439cd203a06ba882cd5964a",
+    "/home/elfbob/claude-code/style_timing_signal/signals/style_basket/scoring.py": "150e07a9a8b5d07d81355ab7986213e7acd9d90f4f10ef5ffd415cc06d1dda58",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/gate0_replication.json": "66cfd552baa222d14137bfc9ca5000f9be0e0ff343e92ffcaf0e2f8518ce1083",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v3.json": "6ff000658220ffe2151743b5394ee382b1cd991a7c65578c356c5f6a32c44342",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v4.json": "f303f516d995a408840d8046bc4571d55f2379b75eb83ccaed34a9039e313b3d",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v4_series.csv": "5ef8b4ce160de969a75193214df826c86ec40aa0a0c22593fe2362d096438212",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v5.json": "d8200de1e00511c8107489cc21055db694efebe60502cdddaacff568f0638895",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v5_series.csv": "b3ac9e3433db66b9c749bb565f8f306bb5a6914e637423ddfa81c8811c7d4342",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs/gate0r_result.json": "1797140ddac913a16104cccd48b84e7c8e7e608644e20a29897a87c23be815a0",
+    "/home/elfbob/claude-code/style_timing_signal/docs/plans/2026-08-19-replication-improvement-plan.md": "470eb2d37883f25e84c173cb197c9f9cab7e06c0f0c57b3c0bd235396bff4437",
+    "/home/elfbob/claude-code/style_timing_signal/docs/plans/2026-08-24-first-disclosure-pit-upgrade.md": "efea39ecc3cbca7937de4672dd3c0e846ecf3ecc8725e384edc5c031d1310fe1",
+    "/home/elfbob/exchange/20260702/指数编制方案/中证2000纯成长指数编制方案.pdf": "9436b10edc3f30eb5851e13d4fbc3474e234ea615798a9254e263304a2f4f98d"
+  },
+  "inputs_unchanged": true,
+  "outputs_sha256": {
+    "audit_script.py": "89df12d881e6124c7252fe2007095f9abcfbab17b3a5b316db1b17cae3ff4a50",
+    "metrics.json": "3768de98c67febdafa5bf2704c6ec24e0abe668abd90886ee9fcc8f17da08f31",
+    "synthetic_probe.json": "0b38e4a8ae0af8e951972d2aefce90a4e4c1f7d86d008c6f8c9f91f2d8240ce6"
+  },
+  "limits": [
+    "No stock-level official free-float ablation; attribution remains unquantified.",
+    "Synthetic probe establishes code sensitivity, not market evidence.",
+    "Historical CSV versions are not current production database results.",
+    "No database, network collection, or reference-project mutation."
+  ]
+}

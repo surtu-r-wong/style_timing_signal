@@ -1,0 +1,18 @@
+[
+  {
+    "path": "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v9/inputs/anchors.csv",
+    "sha256": "18d3248be9506d1f521b58ee387ec70369c6895a6d75afb5d0c058f1b3963684"
+  },
+  {
+    "path": "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v9/inputs/cases.csv",
+    "sha256": "bae616fdc1ca90bc6cbec6d9354cc83cc5a046c8ca942fcddefaa076154e6879"
+  },
+  {
+    "path": "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v9/inputs/official-levels.csv",
+    "sha256": "5ee6a62a67ee2524dc9a50ec47d1622385f019f5bf98c1674366d1b1f9f8f851"
+  },
+  {
+    "path": "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v9/growth/stock-growth-factors.csv",
+    "sha256": "523d8d595f4add2d9e0c4c6bfe37aa0fe7f4a394dad94fd20e3e9a37d3125601"
+  }
+]

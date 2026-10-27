@@ -1,0 +1,3 @@
+mother_index,side,arm,segment,ts_code,trade_date,starting_weight,price_row_present,status_is_suspended,suspension_record,original_return_imputation
+932000.CSI,growth,original,old,300831.SZ,2026-06-08,0.004178782170058106815235239438,True,False,True,0
+932000.CSI,growth,boundary_only,old,300831.SZ,2026-06-08,0.004178782170058106815235239438,True,False,True,0
