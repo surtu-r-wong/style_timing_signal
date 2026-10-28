@@ -1975,3 +1975,31 @@ studies:
       - backtest/output/ew_ml_verification_20261026.json
     supersedes: []
     depends_on: [production-equal-weight-symmetric, statistical-dependency-audit-2026-09-14]
+
+  - id: minute-ml-preparation-2026-10-26
+    title: 股票分钟结构与ML准备，等待清洗交付
+    family: minute-structure-machine-learning
+    status: open
+    outcome: pending
+    evidence_level: exploratory
+    scope: 用户要求先准备、清洗完成后正式研究；规范化5分钟数据按历史500/1000成员构建16列日内结构，与14列日频特征进行同日历模型比较。本轮只实现纯计算、交付契约、共同回退和合成演练。
+    claim: 准备阶段完成；20项合成测试通过，5日4只虚构股票演练验证14/30列输入及缺格、迟到、质量屏蔽时的对称回退。真实分钟读取、真实模型训练与正式回测均未开始。
+    non_claims:
+    - 合成验收不是分钟数据质量认证、预测力或经济收益证据，不表示清洗已经完成。
+    - 16个结构特征不代表主动买卖、主力流入或投资者身份；不从分钟OHLCV还原逐笔订单。
+    caveats:
+    - 48格、竞价、单位与历史可得性均为待交付方确认的消费契约，不猜当前供应商标签含义。
+    - 真实导出适配、有效版本/质量屏蔽、历史成分及完整成员数、共同研究窗口仍待验收。
+    - 历史样本已反复使用，后续滚动研究也不能自动称未触碰确认；无自动调度或正式运行入口。
+    reopen_condition: 清洗完成并有可消费的明确交付后，按准备规格验收版本与时间语义，先冻结真实共同窗口，再续接模型训练和合约回测；当前不提前读取分钟行情或选择收益赢家。
+    production: {affects: false, role: preparation_only}
+    documents:
+      spec: [docs/plans/2026-10-26-minute-ml-preparation.md]
+      report: [docs/plans/2026-10-26-minute-ml-readiness.md]
+      evidence:
+      - backtest/output/runs/20261026-minute-ml-preparation-r1/manifest.json
+      - backtest/output/runs/20261026-minute-ml-preparation-r1/outputs/verification.json
+      - examples/minute_ml/delivery.template.json
+      - docs/requests/2026-10-26-stock-minute-ml-preparation/request-draft.md
+    supersedes: []
+    depends_on: [ew-ml-pilot-2026-10-26, production-equal-weight-symmetric]

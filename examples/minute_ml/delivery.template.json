@@ -1,0 +1,22 @@
+{
+  "schema_version": "stock-minute-ml-input-v1",
+  "state": "awaiting_cleaning",
+  "dataset_version": null,
+  "cleaning_complete": false,
+  "cleaning_receipt": null,
+  "normalization_evidence": null,
+  "membership_source": null,
+  "quality_mask_version": null,
+  "start_date": null,
+  "end_date": null,
+  "timezone": "Asia/Shanghai",
+  "frequency_minutes": 5,
+  "session_grid": "cn_equity_48x5m_v1",
+  "auction_policy": "open_excluded_close_in_final_bar",
+  "price_basis": "unadjusted_intraday",
+  "volume_unit": "shares",
+  "amount_unit": "CNY",
+  "membership_basis": "historical_effective",
+  "availability_basis": "unknown",
+  "files": []
+}

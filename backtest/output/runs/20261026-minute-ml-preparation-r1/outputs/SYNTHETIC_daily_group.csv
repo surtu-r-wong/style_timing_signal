@@ -1,0 +1,6 @@
+date,synthetic_daily_00,synthetic_daily_01,synthetic_daily_02,synthetic_daily_03,synthetic_daily_04,synthetic_daily_05,synthetic_daily_06,synthetic_daily_07,synthetic_daily_08,synthetic_daily_09,synthetic_daily_10,synthetic_daily_11,synthetic_daily_12,synthetic_daily_13
+2020-01-02,0.0,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.11,0.12,0.13
+2020-01-03,,,,,,,,,,,,,,
+2020-01-06,,,,,,,,,,,,,,
+2020-01-07,,,,,,,,,,,,,,
+2020-01-08,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.11000000000000001,0.12,0.13,0.14,0.15,0.16,0.17

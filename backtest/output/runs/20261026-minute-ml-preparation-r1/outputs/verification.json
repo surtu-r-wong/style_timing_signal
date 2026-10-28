@@ -1,0 +1,40 @@
+{
+  "mode": "synthetic",
+  "research_stage": "preparation_only",
+  "real_minute_data_read": false,
+  "real_models_fitted": 0,
+  "returns_calculated": false,
+  "synthetic_sessions": 5,
+  "synthetic_stock_days": 20,
+  "valid_sessions": 2,
+  "fallback_sessions": 3,
+  "minute_features": 16,
+  "daily_feature_count": 14,
+  "augmented_feature_count": 30,
+  "complete_calendar_preserved": true,
+  "symmetric_fallback_checked": true,
+  "delivery_template_readiness": {
+    "ready": false,
+    "issues": [
+      "state: expected ready",
+      "cleaning_complete must be true",
+      "dataset_version: required",
+      "cleaning_receipt: required",
+      "normalization_evidence: required",
+      "membership_source: required",
+      "quality_mask_version: required",
+      "valid start_date and end_date required",
+      "availability_basis must be observed or documented_assumption",
+      "all four input roles required",
+      "calendar: no declared data rows",
+      "bars: no declared data rows",
+      "memberships: no declared data rows"
+    ],
+    "warnings": [
+      "Declarations only: source files and receipt evidence have not been verified."
+    ],
+    "files_verified": false,
+    "research_started": false
+  },
+  "next_step": "Wait for cleaning delivery; validate real input versions and canonical interval semantics before research."
+}
