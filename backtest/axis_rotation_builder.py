@@ -192,7 +192,7 @@ def build_period_band(band: str, cutoff: pd.Timestamp, eff: pd.Timestamp,
 
 def build(end: str | None = None, verbose: bool = True,
           axes: tuple[str, ...] = AXES) -> tuple[pd.DataFrame, dict]:
-    end = end or str(pd.Timestamp.today().date())
+    end = end or str(pd.Timestamp.now(tz="Asia/Shanghai").date())
     effs = rebalance_dates(START_EFF, end)
     bounds = list(zip(effs, effs[1:] + [pd.Timestamp(end)]))
     if verbose:

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 增量补齐 stock_selector.index_daily 的本项目指数到**闸门认可的最后一个交易日**。
 # 前置：Wind gateway 在线。用法：tools/topup_index_daily.sh [START_DATE]
-# START 缺省取 14 天前（upsert 幂等，重叠无害，顺带自愈短缺口）。
+# START 缺省取北京时间 14 天前（upsert 幂等，重叠无害，顺带自愈短缺口）。
 #
 # END 为什么不是 `date +%F`（2026-09-10 事故，判例 tests/test_tools_topup_index_daily.py）：
 # 那天 09:07 盘中日更链路跑起来，前置闸门按 15:30 正确判出「应有的最后交易日 = 09-09」
@@ -17,7 +17,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON="${STYLE_SIGNALS_PYTHON:-python3}"
 CODES="CI005917.WI,CI005918.WI,CI005919.WI,CI005920.WI,CI005921.WI,000918.CSI,000919.CSI,H30351.CSI,H30352.CSI,932406.CSI,932407.CSI,932408.CSI,932409.CSI,932000.CSI,000300.SH"
-START="${1:-$(date -d '14 days ago' +%F)}"
+START="${1:-$(TZ=Asia/Shanghai date -d '14 days ago' +%F)}"
 END="$("${PYTHON}" "${REPO}/deploy/daily_signals/topup_guard.py" --mode last-trading-day)"
 
 if [[ -n "${TOPUP_DRY_RUN:-}" ]]; then

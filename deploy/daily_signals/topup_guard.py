@@ -50,6 +50,7 @@ import math
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -61,6 +62,7 @@ EXIT_SKIP = 10
 
 SNAPSHOT_DAYS = 30          # 事后审计比对的历史窗口（交易日）
 MARKET_CLOSE_MINUTE = 15 * 60 + 30   # 15:30，收盘后才可能有当日数据
+SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
 # ─────────────────────────────── 纯函数（可单测，不连网不连库） ───────────────────────────────
@@ -95,9 +97,12 @@ def check_quota(quota: object, min_headroom: int = 1) -> str | None:
 def expected_last_trading_day(now: datetime) -> date:
     """「今天为止应该已经有数据的最后一个交易日」（只按工作日，不含节假日日历）。
 
-    收盘（15:30）之后当天才算数；否则回退到上一个工作日。节假日会高估一天——
+    北京时间收盘（15:30）之后当天才算数；否则回退到上一个工作日。节假日会高估一天——
     那天 topup 拿到空结果，空结果不写库，属无害误判。
+    带时区输入先转北京时间；无时区输入沿用历史接口约定，表示北京墙上时间。
     """
+    if now.tzinfo is not None:
+        now = now.astimezone(SHANGHAI)
     day = now.date()
     if now.weekday() < 5 and now.hour * 60 + now.minute >= MARKET_CLOSE_MINUTE:
         candidate = day
@@ -341,6 +346,8 @@ def run_preflight(snapshot_path: Path, now: datetime) -> int:
 
 
 def run_audit(snapshot_path: Path, now: datetime) -> int:
+    if now.tzinfo is not None:
+        now = now.astimezone(SHANGHAI)
     if not snapshot_path.exists():
         print(f"AUDIT_ERROR: 找不到调用前快照 {snapshot_path}")
         return EXIT_ERROR
@@ -367,7 +374,7 @@ def main() -> int:
     ap.add_argument("--snapshot", help="调用前快照 JSON 路径（preflight / audit 必需）")
     args = ap.parse_args()
 
-    now = datetime.now()
+    now = datetime.now(SHANGHAI)
     if args.mode == "last-trading-day":
         # 唯一真相源：topup 脚本的 END 取自这里，不再自己用 `date +%F` 另判一套。
         print(expected_last_trading_day(now).isoformat())

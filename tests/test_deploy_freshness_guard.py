@@ -6,7 +6,7 @@
 """
 import importlib.util
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -29,12 +29,12 @@ guard = _load_guard()
 @pytest.fixture(autouse=True)
 def _fixed_today(monkeypatch):
     """合成数据固定在 2026-08；报告测试不能随运行日期进入假期而变红。"""
-    class FixedDate(date):
+    class FixedDatetime(datetime):
         @classmethod
-        def today(cls):
-            return cls(2026, 8, 17)
+        def now(cls, tz=None):
+            return cls(2026, 8, 17, 18, 30, tzinfo=tz)
 
-    monkeypatch.setattr(guard, "date", FixedDate)
+    monkeypatch.setattr(guard, "datetime", FixedDatetime)
 
 
 # 合成交易日历：跨周末，验证「交易日距离」而非自然日距离。

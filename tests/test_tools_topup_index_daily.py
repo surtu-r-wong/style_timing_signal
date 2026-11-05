@@ -19,8 +19,11 @@ import os
 import re
 import subprocess
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "tools" / "topup_index_daily.sh"
@@ -72,9 +75,9 @@ def test_end_comes_from_the_gate_not_calendar_today():
     收盘前跑 → 闸门给昨天 → 脚本就只补到昨天，当天的行根本不去取。
     时刻在断言两侧各取一次，跨 15:30 的那一秒也不会 flaky。
     """
-    before = guard.expected_last_trading_day(datetime.now()).isoformat()
+    before = guard.expected_last_trading_day(datetime.now(ZoneInfo("Asia/Shanghai"))).isoformat()
     end = _parse(_dry_run(), "end")
-    after = guard.expected_last_trading_day(datetime.now()).isoformat()
+    after = guard.expected_last_trading_day(datetime.now(ZoneInfo("Asia/Shanghai"))).isoformat()
 
     assert end in {before, after}, f"END={end} 不是闸门口径（{before} / {after}）"
 
@@ -84,11 +87,11 @@ def test_end_is_not_today_when_run_before_market_close():
 
     只在收盘前运行时才有判别力；收盘后闸门给的就是今天，那时这条恒真。
     """
-    now = datetime.now()
+    now = datetime.now(ZoneInfo("Asia/Shanghai"))
     end = _parse(_dry_run(), "end")
 
     if now.weekday() < 5 and (now.hour * 60 + now.minute) < 15 * 60 + 30:
-        assert end != date.today().isoformat(), "收盘前仍取到当天 → 会取到盘中价/占位行"
+        assert end != now.date().isoformat(), "收盘前仍取到当天 → 会取到盘中价/占位行"
 
 
 def test_start_defaults_to_fourteen_days_before_and_is_overridable():
@@ -97,6 +100,25 @@ def test_start_defaults_to_fourteen_days_before_and_is_overridable():
     assert start < _parse(_dry_run(), "end")
 
     assert _parse(_dry_run("2026-01-05"), "start") == "2026-01-05"
+
+
+@pytest.mark.parametrize("instant,expected", [
+    ("2026-11-04T09:30:00+08:00", "2026-10-21"),
+    ("2026-07-01T00:05:00+08:00", "2026-06-17"),
+])
+def test_start_uses_shanghai_calendar_across_dst_and_month_end(tmp_path, instant, expected):
+    fake_date = tmp_path / "date"
+    fake_date.write_text(
+        f"#!{sys.executable}\n"
+        "import os\nfrom datetime import datetime, timedelta\nfrom zoneinfo import ZoneInfo\n"
+        f"now = datetime.fromisoformat({instant!r})\n"
+        "today = now.astimezone(ZoneInfo(os.environ['TZ'])).date()\n"
+        "print((today - timedelta(days=14)).isoformat())\n")
+    fake_date.chmod(0o755)
+    env = {**_fake_gate(tmp_path, "echo 2026-11-04"),
+           "PATH": f"{tmp_path}:{os.environ['PATH']}", "TZ": "America/New_York"}
+    assert _parse(_dry_run(env_extra=env), "start") == expected
+    assert _parse(_dry_run("2020-01-02", env_extra=env), "start") == "2020-01-02"
 
 
 def test_end_is_whatever_the_gate_says(tmp_path):

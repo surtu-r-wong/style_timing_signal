@@ -31,8 +31,9 @@ import traceback
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -46,6 +47,7 @@ DEFAULT_ENV_FILE = Path.home() / ".config" / "market-monitor" / "alert.env"
 SEND_TIMEOUT = 10.0
 RETRY_WAIT = 5.0
 DEFAULT_STATUS = ROOT / "logs" / "daily_signals_status.json"
+SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
 class Refused(RuntimeError):
@@ -365,12 +367,22 @@ def _status_is_stale(finished, now: str, run_started: float | None) -> bool:
     """状态文件是不是上一次运行留下的。
 
     给了 run_started：当且仅当 finished_at 能解析且早于本次 unit 启动才算陈旧，解析不了视为不陈旧；
-    没给：退回「finished_at 的日期 ≠ now 的日期」。finished_at 缺失时无从比较，一律不陈旧。
+    没给：退回北京时间日期比较，带偏移时间先转换；旧无时区文本保留原日期。
+    finished_at 缺失时无从比较，一律不陈旧。
     """
     if not finished:
         return False
     if run_started is None:
-        return str(finished)[:10] != now[:10]
+        def business_date(value: str) -> str:
+            try:
+                stamp = datetime.fromisoformat(value)
+            except ValueError:
+                return value[:10]  # 保留旧格式/无法解析状态的日期回退行为
+            if stamp.tzinfo is not None:
+                stamp = stamp.astimezone(SHANGHAI)
+            return stamp.date().isoformat()
+
+        return business_date(str(finished)) != business_date(now)
     try:
         return datetime.fromisoformat(str(finished)).timestamp() < run_started
     except (ValueError, OverflowError, OSError):
@@ -422,7 +434,7 @@ def run_alert(args, url: str) -> int:
     except Refused:
         status = None
     text = build_alert(status, systemd_result=args.systemd_result,
-                       now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                       now=datetime.now(SHANGHAI).isoformat(sep=" ", timespec="seconds"),
                        run_started=parse_run_started(args.run_started))
     print(text)
     if args.dry_run:
@@ -445,7 +457,7 @@ def run_push(args, url: str) -> int:
               "as_of": None, "bytes": None, "error": None}
     try:
         text, as_of = compose_message(Path(args.root), status,
-                                      today=args.today or date.today().isoformat())
+                                      today=args.today or datetime.now(SHANGHAI).date().isoformat())
         notify["as_of"], notify["bytes"] = as_of, len(text.encode("utf-8"))
         print(text)
         if args.dry_run:
@@ -480,7 +492,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="--alert 用：本次 unit 启动的 unix 秒，可带前导 @（即 systemctl show -p "
                          "ExecMainStartTimestamp --value --timestamp=unix 的输出）；用来判断状态文件"
                          "是不是本次运行写的，空串 = 没给（退回按日期判断）")
-    ap.add_argument("--today", default=None, help="YYYY-MM-DD，默认今天（测试用）")
+    ap.add_argument("--today", default=None, help="YYYY-MM-DD，默认北京时间今天（测试用）")
     return ap
 
 
