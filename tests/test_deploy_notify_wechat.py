@@ -933,3 +933,30 @@ def test_alert_mode_never_imports_pandas(tmp_path):
     proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
     assert proc.returncode == 0, proc.stderr
     assert "失败步骤 citic40d" in proc.stdout and "webhook 未配置" in proc.stdout
+
+
+def test_same_day_basis_is_reference_even_when_daily_score_opposes_last_sample(tmp_path):
+    from signals.basis_reference import REFERENCE_PATH
+    status = make_tree(tmp_path)
+    status["steps"] = [{"step": "basis_reference", "status": "OK"}]
+    header = ["date", "ew_score", "ew_direction"]
+    values = [DATES[-1], 0.2784, 1]
+    for key in ("T1", "T2", "T3"):
+        header += [key+"_score", key+"_direction", key+"_sample_date"]
+        values += [0.2, -1, DATES[0]]
+    _write_csv(tmp_path/REFERENCE_PATH, header, [values])
+    text, _, lines = compose(tmp_path, status)
+    assert lines[1].startswith("【期货池】") and lines[2].startswith("【现货池】")
+    for name in ("T1 期限斜率", "T2 远近差", "T3 斜率变化"):
+        assert f"{name} +0.2000｜偏空（09-16）｜反向" in text
+    assert len(text.encode()) <= nw.WECHAT_TEXT_LIMIT
+    for field, bad in (("date", DATES[-2]), ("ew_score", -0.1), ("T2_score", "nan"), ("T1_sample_date", "2099-12-31")):
+        corrupt = values.copy()
+        corrupt[header.index(field)] = bad
+        _write_csv(tmp_path/REFERENCE_PATH, header, [corrupt])
+        content, _, _ = compose(tmp_path, status)
+        assert "暂无当日读数" in content and "T1 期限斜率" not in content
+    _write_csv(tmp_path/REFERENCE_PATH, header, [values])
+    status["steps"] = [{"step": "basis_reference", "status": "UNAVAILABLE", "reason": "IM 有效月份 3/4"}]
+    content, _, _ = compose(tmp_path, status)
+    assert "暂无当日读数（IM 有效月份 3/4）" in content and "期限斜率" not in content

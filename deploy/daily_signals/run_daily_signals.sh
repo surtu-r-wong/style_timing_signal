@@ -105,8 +105,13 @@ TOPUP_REASON=""
 STEPS_JSON=""   # 逗号分隔的 JSON 对象串，收尾时包成数组
 
 record_step() {  # name status seconds
-  local entry
-  entry="{\"step\":\"$1\",\"status\":\"$2\",\"seconds\":$3}"
+  local entry detail=""
+  if [[ -n "${4:-}" ]]; then
+    local quoted
+    quoted="$("${PYTHON}" -c 'import json, sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "${4:0:120}")"
+    detail=",\"reason\":${quoted}"
+  fi
+  entry="{\"step\":\"$1\",\"status\":\"$2\",\"seconds\":$3${detail}}"
   STEPS_JSON="${STEPS_JSON:+${STEPS_JSON},}${entry}"
 }
 steps_json() { echo "[${STEPS_JSON}]"; }
@@ -353,6 +358,21 @@ run_step "recommended_positions" \
   "${PYTHON}" -m backtest.production
 run_step "export_combined_signals" \
   "${PYTHON}" tools/export_combined_signals.py
+
+# 研究参考计算独立于两池持仓。晚报只读取本轮成功且日期一致的文件。
+basis_t0=${SECONDS}; basis_rc=0
+basis_note="$(OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout -k 5 75 "${PYTHON}" -m signals.basis_reference)" || basis_rc=$?
+log "${basis_note}"
+if [[ ${basis_rc} -eq 0 ]]; then
+  record_step "basis_reference" "OK" "$((SECONDS - basis_t0))"
+else
+  basis_reason=""
+  if [[ "${basis_note}" == 期货基差参考待补齐：* ]]; then
+    basis_reason="${basis_note#期货基差参考待补齐：}"
+  fi
+  log "基差参考暂缺（exit ${basis_rc}）；继续核验两池与发送晚报"
+  record_step "basis_reference" "UNAVAILABLE" "$((SECONDS - basis_t0))" "${basis_reason}"
+fi
 
 # ── 步骤 7：新鲜度护栏 + 状态文件 ────────────────────────────────────────────
 log "▶ freshness_guard: check_freshness.py --max-lag ${MAX_LAG}"

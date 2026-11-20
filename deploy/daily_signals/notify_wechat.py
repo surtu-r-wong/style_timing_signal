@@ -231,6 +231,43 @@ def describe_pool(root: Path, line: Line, as_of: str) -> str:
             f"{position_label(pure_position)}｜{comparison}")
 
 
+def basis_reference_lines(root: Path, status: dict, as_of: str, ew: Line) -> list[str]:
+    step = next((s for s in (status.get("steps") or []) if isinstance(s, dict) and s.get("step") == "basis_reference"), None)
+    if step is None:  # Older runs have no reference calculation.
+        return []
+    unavailable = f"【期货基差参考】{as_of} 暂无当日读数"
+    if step.get("status") != "OK":
+        reason = step.get("reason")
+        return [unavailable + (f"（{reason}）" if reason else "")]
+    try:
+        from signals.basis_reference import REFERENCE_PATH
+
+        with (root / REFERENCE_PATH).open(encoding="utf-8", newline="") as stream:
+            row = None
+            for row in csv.DictReader(stream):
+                pass
+        if not row or row["date"] != as_of or ew.last_date != as_of:
+            return [unavailable + "（参考文件与期货池日期未对齐）"]
+        standard = float(ew.value)
+        ew_direction = int(standard > 0) - int(standard < 0)
+        if float(row["ew_score"]) != standard or float(row["ew_direction"]) != ew_direction:
+            return [unavailable + "（标准 EW 未对齐）"]
+        relation = {-1: "反向", 0: "EW中性" if ew_direction == 0 else "基差中性", 1: "同向"}
+        lines = ["【期货基差参考】日得分｜40日方向（取样日）｜与标准EW"]
+        for code, label in (("T1", "期限斜率"), ("T2", "远近差"), ("T3", "斜率变化")):
+            value = float(row[code + "_score"])
+            direction = float(row[code + "_direction"])
+            sample = row[code + "_sample_date"]
+            if (not -1 <= value <= 1 or direction not in (-1, 0, 1)
+                    or date.fromisoformat(sample) > date.fromisoformat(as_of)):
+                raise ValueError
+            view = {-1: "偏空", 0: "中性", 1: "偏多"}[direction]
+            lines.append(f"{code} {label} {value:+.4f}｜{view}（{_short(sample, as_of)}）｜{relation[direction * ew_direction]}")
+        return lines
+    except (OSError, ValueError, KeyError, TypeError, csv.Error, ImportError):
+        return [unavailable + "（参考文件未通过校验）"]
+
+
 def compose_message(root: Path, status: dict, *, today: str) -> tuple[str, str]:
     """-> (消息正文, 信号日)。推送对象未经护栏担保则 raise Refused。"""
     pools, others = collect_lines(root)
@@ -244,8 +281,16 @@ def compose_message(root: Path, status: dict, *, today: str) -> tuple[str, str]:
     lines.append("两池开平仓与连续天数按标准风格历史信号计算。")
     lines.append("【其余生产线·参考】")
     lines += [f"  {describe(line, as_of)}" for line in others]
-    lines += health_lines(status)
-    return truncate_text("\n".join(lines), limit=WECHAT_TEXT_LIMIT, note=LOG_NOTE), as_of
+    health = health_lines(status)
+    ew = next((line for pool, line in pools if pool == "期货池"), None)
+    reference = basis_reference_lines(root, status, as_of, ew) if ew else []
+    if reference:
+        # Preserve the holdings and all health warnings when the channel is near its byte limit.
+        for block in (reference, ["【期货基差参考】详见每日参考文件"]):
+            if len("\n".join(lines + block + health).encode("utf-8")) <= WECHAT_TEXT_LIMIT:
+                lines.extend(block)
+                break
+    return truncate_text("\n".join(lines + health), limit=WECHAT_TEXT_LIMIT, note=LOG_NOTE), as_of
 
 
 class SendError(RuntimeError):
