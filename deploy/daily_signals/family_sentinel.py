@@ -66,6 +66,8 @@ EXIT_ERROR = 2
 PAIRS = {
     "300pair": ("000918.CSI", "000919.CSI"),
     "500pair": ("H30351.CSI", "H30352.CSI"),
+    "1000standard": ("932393.CSI", "932392.CSI"),
+    "2000standard": ("932395.CSI", "932394.CSI"),
     "1000pair": ("932407.CSI", "932406.CSI"),
     "2000pair": ("932409.CSI", "932408.CSI"),
 }

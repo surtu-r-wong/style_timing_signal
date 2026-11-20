@@ -4,9 +4,9 @@
 #
 # 链路（顺序即 README「运行」段的顺序）：
 #   0. 输入指数 —— 两种模式，由标志文件 deploy/daily_signals/SKIP_TOPUP 切换：
-#      【办公室模式】标志文件在（2026-09-23 起的常态）：15 个输入指数由 data_manager 夜间作业
+#      【办公室模式】标志文件在（2026-09-23 起的常态）：19 个输入指数由 data_manager 夜间作业
 #        （WSL2 20:00 起跑，约 20:02 结束）写入，本链路**只读、零写入**。跑 wait_for_inputs.py 等
-#        期望信号日的 15 码到齐（每 5 分钟查一次，最迟等到 21:30），到齐后过同族共动性哨兵；结果记
+#        期望信号日的 19 码到齐（每 5 分钟查一次，最迟等到 21:30），到齐后过同族共动性哨兵；结果记
 #        OFFICE_OK / OFFICE_OK_WARN / OFFICE_UNCHECKED / OFFICE_LATE / OFFICE_CHECK_ERROR（照常往下走，新鲜度由
 #        步骤 7 护栏兜底），哨兵 CRITICAL 记 OFFICE_SUSPECT 并**在信号重算之前中止**（失败步骤
 #        inputs_check(OFFICE_SUSPECT)）；人工核实是真实行情后用
@@ -22,9 +22,7 @@
 #   1. signals/hybrid20/update_growth_stability.py
 #   2. signals/hybrid20/update_confirmed_signal.py
 #   3. signals/citic40d/generate_signal.py
-#   4. signals/equal_weight/generate_signal.py                    （变体A / 生产口径）
-#   5. signals/equal_weight/generate_signal.py --lookback 5 …     （变体B / 参考口径）
-#   5b. signals/slope20/generate_signal.py                        （2026-09-09 第四条生产线）
+#   4. python -m signals.style_family_daily：同一份输入生成双口径 EW（两种窗口）与 slope20
 #   6. python -m backtest.production        —— 各生产线推荐持仓（口径见 PRODUCTION_MAPPING）+ 参照/现货池文件
 #   6b. tools/export_combined_signals.py    —— 合并快照 combined_signals.csv（2026-10-12 起链路日更：
 #        此前是手动快照，Debian 侧冻结在 09-22，被本机回拉 cron 反复镜像成截尾版两次）
@@ -159,7 +157,7 @@ elif [[ "${STYLE_SIGNALS_SKIP_TOPUP:-0}" == "1" ]]; then
   TOPUP_REASON="环境变量 STYLE_SIGNALS_SKIP_TOPUP=1"
 fi
 
-# 办公室模式：15 个输入指数由 data_manager 夜间作业（WSL2 20:00 起跑，约 20:02 结束；补数前先重看
+# 办公室模式：19 个输入指数由 data_manager 夜间作业（WSL2 20:00 起跑，约 20:02 结束；补数前先重看
 # 前 5 个交易日纠错）写入，本链路零写入。wait_for_inputs.py 查期望信号日的 15 码是否到齐（判据 =
 # 办公室回函 01 §7.3：T 日 close 非空的行数 = 码数），没齐每 5 分钟再查、最迟等到 21:30（手工早跑时由
 # --max-wait 截住）；信号日不是今天（白天重跑、开机补跑、节假日）或已过截止只查一次。到齐后跑同族共动性
@@ -350,14 +348,7 @@ run_step "hybrid20_confirmed" \
   "${PYTHON}" signals/hybrid20/update_confirmed_signal.py
 run_step "citic40d" \
   "${PYTHON}" signals/citic40d/generate_signal.py
-run_step "equal_weight_20d40z" \
-  "${PYTHON}" signals/equal_weight/generate_signal.py
-run_step "equal_weight_5d20z" \
-  "${PYTHON}" signals/equal_weight/generate_signal.py \
-      --lookback 5 --z-window 20 --smoothing 0 \
-      --output output/equal_weight/equal_weight_signal_5d20z.csv
-run_step "slope20_L20zw120" \
-  "${PYTHON}" signals/slope20/generate_signal.py
+run_step "style_family_signals" "${PYTHON}" -m signals.style_family_daily
 run_step "recommended_positions" \
   "${PYTHON}" -m backtest.production
 run_step "export_combined_signals" \

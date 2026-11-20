@@ -53,6 +53,8 @@ CODES = [
     "932406.CSI", "932407.CSI", "932408.CSI", "932409.CSI", "932000.CSI", "000300.SH",
 ]
 ALL = set(CODES)
+STANDARD_SMALL = ["932392.CSI", "932393.CSI", "932394.CSI", "932395.CSI"]
+LIVE_ALL = ALL.union(STANDARD_SMALL)
 
 # CN 交易日历 2026-09-18..10-12：2026-09-23 对 data_manager.business_calendar（calendar_id='CN'）只读实查。
 # 09-25 中秋（周五）、10-01~10-07 国庆休市；周末休市（含 09-27 周日）。T = 交易日，. = 休市。
@@ -82,7 +84,7 @@ def test_defaults_follow_office_recommendation():
 
 def test_input_codes_file_is_the_default_and_matches_literal():
     assert wfi.CODES_FILE == ROOT / "deploy" / "daily_signals" / "input_codes.txt"
-    assert wfi.load_codes(wfi.CODES_FILE) == CODES
+    assert wfi.load_codes(wfi.CODES_FILE) == CODES + STANDARD_SMALL
 
 
 def test_input_codes_match_topup_script_codes():
@@ -844,23 +846,30 @@ def _main(argv, clock, fetch, calendar=None, check=None):
                     fetch_present=fetch, check_sentinel=check if check is not None else sentinel())
 
 
-def test_main_prints_contract_lines_last_and_exits_zero(capsys):
+def test_main_waits_for_standard_small_cap_inputs(capsys):
     rc = _main(["--once"], Clock("2026-09-23 20:31:17"), Seq(ALL))
+    got = _contract(capsys.readouterr().out.splitlines())
+    assert rc == 0 and got["INPUTS_STATUS"] == "LATE"
+    assert all(code in got["INPUTS_REASON"] for code in STANDARD_SMALL)
+
+
+def test_main_prints_contract_lines_last_and_exits_zero(capsys):
+    rc = _main(["--once"], Clock("2026-09-23 20:31:17"), Seq(LIVE_ALL))
     out = capsys.readouterr().out.splitlines()
     assert rc == 0 and len(out) > 5   # 人读的进度行在前
-    assert out[-5:] == ["INPUTS_STATUS=OK", "INPUTS_DAY=2026-09-23", "INPUTS_REASON=2026-09-23 15 码到齐（等 0 秒）",
+    assert out[-5:] == ["INPUTS_STATUS=OK", "INPUTS_DAY=2026-09-23", "INPUTS_REASON=2026-09-23 19 码到齐（等 0 秒）",
                         "INPUTS_SENTINEL=CLEAN", f"INPUTS_SENTINEL_DETAIL={CLEAN_DETAIL}"]
 
 
 def test_main_reports_sentinel_critical(capsys):
-    rc = _main(["--once"], Clock("2026-09-23 20:31:17"), Seq(ALL), check=sentinel(critical=[CRIT]))
+    rc = _main(["--once"], Clock("2026-09-23 20:31:17"), Seq(LIVE_ALL), check=sentinel(critical=[CRIT]))
     got = _contract(capsys.readouterr().out.splitlines())
     assert rc == 0 and (got["INPUTS_STATUS"], got["INPUTS_SENTINEL"]) == ("OK", "CRITICAL")
     assert got["INPUTS_SENTINEL_DETAIL"] == f"2026-09-23：{CRIT}"
 
 
 def test_main_passes_accept_sentinel_through(capsys):
-    rc = _main(["--once", "--accept-sentinel", "2026-09-23"], Clock("2026-09-23 22:10:00"), Seq(ALL),
+    rc = _main(["--once", "--accept-sentinel", "2026-09-23"], Clock("2026-09-23 22:10:00"), Seq(LIVE_ALL),
                check=sentinel(critical=[CRIT]))
     got = _contract(capsys.readouterr().out.splitlines())
     assert rc == 0 and (got["INPUTS_STATUS"], got["INPUTS_SENTINEL"]) == ("OK", "ACCEPTED")
@@ -890,7 +899,7 @@ def test_main_passes_max_wait_through(capsys):
     clock, fetch = Clock("2026-09-23 20:31:17"), Seq(set())
     _main(["--max-wait", "600"], clock, fetch)
     got = _contract(capsys.readouterr().out.splitlines())
-    assert got["INPUTS_REASON"].startswith("2026-09-23 截至 20:41 仍缺 15 码：")
+    assert got["INPUTS_REASON"].startswith("2026-09-23 截至 20:41 仍缺 19 码：")
     assert clock.slept == [300, 300]
 
 
@@ -905,7 +914,7 @@ def test_main_reads_codes_file_option(tmp_path, capsys):
 
 
 def test_main_turns_unexpected_errors_into_check_error(tmp_path, capsys):
-    rc = _main(["--codes-file", str(tmp_path / "missing.txt")], Clock("2026-09-23 20:31:17"), Seq(ALL))
+    rc = _main(["--codes-file", str(tmp_path / "missing.txt")], Clock("2026-09-23 20:31:17"), Seq(LIVE_ALL))
     got = _contract(capsys.readouterr().out.splitlines())
     assert rc == 0 and (got["INPUTS_STATUS"], got["INPUTS_DAY"]) == ("CHECK_ERROR", "2026-09-23")
     assert got["INPUTS_REASON"].startswith("2026-09-23：FileNotFoundError: ")
@@ -916,7 +925,7 @@ def test_main_turns_unexpected_errors_into_check_error(tmp_path, capsys):
 def test_main_turns_runtime_error_into_check_error(capsys):
     """日历有误到一年内找不到交易日：expected_signal_day 抛 RuntimeError，main 顶层兜住。"""
     all_closed = {date(2026, 9, 23) - timedelta(days=i): False for i in range(400)}
-    rc = _main(["--once"], Clock("2026-09-23 20:31:17"), Seq(ALL), calendar=Seq(all_closed))
+    rc = _main(["--once"], Clock("2026-09-23 20:31:17"), Seq(LIVE_ALL), calendar=Seq(all_closed))
     got = _contract(capsys.readouterr().out.splitlines())
     assert rc == 0 and got["INPUTS_STATUS"] == "CHECK_ERROR"
     assert got["INPUTS_REASON"].startswith("2026-09-23：RuntimeError: ") and "一年内找不到交易日" in got["INPUTS_REASON"]
@@ -927,7 +936,7 @@ def test_main_turns_runtime_error_into_check_error(capsys):
                                   ["--accept-sentinel", "2026/09/23"], ["--accept-sentinel", "yesterday"]])
 def test_main_turns_bad_arguments_into_check_error(capsys, argv):
     """透传参数写错（STYLE_SIGNALS_INPUTS_ARGS）也照打五行、退出码 0：链路照常往下走。"""
-    rc = _main(argv, Clock("2026-09-23 20:31:17"), Seq(ALL))
+    rc = _main(argv, Clock("2026-09-23 20:31:17"), Seq(LIVE_ALL))
     captured = capsys.readouterr()
     got = _contract(captured.out.splitlines())
     assert rc == 0 and got["INPUTS_STATUS"] == "CHECK_ERROR" and "参数错误" in got["INPUTS_REASON"]

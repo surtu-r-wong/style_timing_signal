@@ -215,6 +215,24 @@ def truncate_text(text: str, *, limit: int, note: str = "") -> str:
     return f"…（超长，还有 {dropped} 行{'，' + note if note else ''}）"
 
 
+def describe_pool(root: Path, line: Line, as_of: str) -> str:
+    from backtest.baseline import SIGNALS
+
+    path, _ = SIGNALS[line.name]
+    try:
+        rows = _read_column(root / path, "factor_value_pure")
+        pure = float(dict(rows)[line.last_date])
+        standard = float(line.value)
+        if not math.isfinite(pure) or not math.isfinite(standard):
+            raise ValueError
+    except (KeyError, ValueError, TypeError) as exc:
+        raise Refused(f"{line.name} 在 {line.last_date} 缺少有效的标准或纯风格信号") from exc
+    pure_position = int(pure > 0) - int(line.mapping == "symmetric" and pure < 0)
+    comparison = "仓位一致" if pure_position == line.position else "仓位分歧"
+    return (f"{describe(line, as_of)}（标准基准）｜小盘纯风格 {pure:+.4f} "
+            f"{position_label(pure_position)}｜{comparison}")
+
+
 def compose_message(root: Path, status: dict, *, today: str) -> tuple[str, str]:
     """-> (消息正文, 信号日)。推送对象未经护栏担保则 raise Refused。"""
     pools, others = collect_lines(root)
@@ -224,7 +242,8 @@ def compose_message(root: Path, status: dict, *, today: str) -> tuple[str, str]:
     if as_of != today:
         head += f"（今天 {_short(today, as_of)}）"
     lines = [head + "｜链路 OK"]
-    lines += [f"【{pool}】{describe(line, as_of)}" for pool, line in pools]
+    lines += [f"【{pool}】{describe_pool(root, line, as_of)}" for pool, line in pools]
+    lines.append("两池开平仓与连续天数按标准风格历史信号计算。")
     lines.append("【其余生产线·参考】")
     lines += [f"  {describe(line, as_of)}" for line in others]
     lines += health_lines(status)
