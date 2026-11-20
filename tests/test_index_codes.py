@@ -14,7 +14,8 @@ def test_code_map_contains_citic_and_gv_pairs():
     assert m["稳定"] == "CI005921.WI"
     assert m["成长"] == "CI005920.WI"
     assert m["中证500成长"] == "H30351.CSI"
-    assert m["中证1000价值"] == "932406.CSI"
+    assert m["中证1000价值"] == "932392.CSI"
+    assert m["中证1000纯价值"] == "932406.CSI"
     assert m["沪深300"] == "000300.SH"
 
 
