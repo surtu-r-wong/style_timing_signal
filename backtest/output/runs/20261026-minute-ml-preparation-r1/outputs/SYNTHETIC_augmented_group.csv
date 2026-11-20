@@ -1,0 +1,6 @@
+date,synthetic_daily_00,synthetic_daily_01,synthetic_daily_02,synthetic_daily_03,synthetic_daily_04,synthetic_daily_05,synthetic_daily_06,synthetic_daily_07,synthetic_daily_08,synthetic_daily_09,synthetic_daily_10,synthetic_daily_11,synthetic_daily_12,synthetic_daily_13,m500_up_breadth,m500_late_up_breadth,m500_early_up_late_down,m500_return_dispersion,m500_path_efficiency,m500_downside_variance_share,m500_late_volume_share,m500_close_location,m1000_up_breadth,m1000_late_up_breadth,m1000_early_up_late_down,m1000_return_dispersion,m1000_path_efficiency,m1000_downside_variance_share,m1000_late_volume_share,m1000_close_location
+2020-01-02,0.0,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.11,0.12,0.13,0.5,0.5,0.5,0.04765508990216247,0.5,0.3333333333333331,0.125,0.5,0.0,0.0,0.0,0.05268025782891314,-0.5,1.0,0.125,0.25
+2020-01-03,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+2020-01-06,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+2020-01-07,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+2020-01-08,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.11000000000000001,0.12,0.13,0.14,0.15,0.16,0.17,0.5,0.5,0.5,0.04765508990216247,0.5,0.3333333333333331,0.125,0.5,0.0,0.0,0.0,0.05268025782891314,-0.5,1.0,0.125,0.25

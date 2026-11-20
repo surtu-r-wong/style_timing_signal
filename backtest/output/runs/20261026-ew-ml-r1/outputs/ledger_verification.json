@@ -1,0 +1,38 @@
+{
+  "crosschecks": [
+    {
+      "scenario": "close_3bps",
+      "strategy": "ridge_core",
+      "max_error": 2.220446049250313e-16
+    },
+    {
+      "scenario": "close_3bps",
+      "strategy": "tree_oi",
+      "max_error": 4.440892098500626e-16
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "ridge_core",
+      "max_error": 4.440892098500626e-16
+    },
+    {
+      "scenario": "close_10bps",
+      "strategy": "tree_oi",
+      "max_error": 4.440892098500626e-16
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "ridge_core",
+      "max_error": 2.220446049250313e-16
+    },
+    {
+      "scenario": "second_close_3bps",
+      "strategy": "tree_oi",
+      "max_error": 4.440892098500626e-16
+    }
+  ],
+  "ledger_count": 36,
+  "pnl_identity": true,
+  "decision_lag": true,
+  "arithmetic_leg_identity": true
+}

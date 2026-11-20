@@ -27,8 +27,8 @@
 ⓪ 机器 `rotation` / `min_shift=60` / `n_perm=1000` / `seed=0`；
 统计量 = 配对 Sharpe 差（候选 − 现役），full 窗，同一置换同时作用于两条仓位序列。
 
-⚠️ **命名陷阱**：`index_codes.csv` 里的"中证1000成长"→`932407` 实为**中证1000纯成长**
-（老命名，早于 932393 真·中证1000成长的发布）。本模块沿用该映射不改，但引用时以代码为准。
+2026-08-18 的两组实验共用四条小盘纯风格代码。2026-11-20 修复前，这些代码的早段存有普通版收盘。
+现在重跑读取连续纯风格，结果另存，8 月原结果仍保留在 family_unification_verdict.json。
 
 ## 用法
 
@@ -64,10 +64,10 @@ GATE_ALPHA = 0.05
 GATE2_TOLERANCE = 0.02                  # 关2：worst_tv ≥ 现役 − 0.02
 
 INCUMBENT_NAMES = ["沪深300成长", "沪深300价值", "中证500成长", "中证500价值",
-                   "中证1000成长", "中证1000价值", "中证2000成长", "中证2000价值"]
+                   "中证1000纯成长", "中证1000纯价值", "中证2000纯成长", "中证2000纯价值"]
 CANDIDATE_NAMES = ["沪深300纯成长", "沪深300纯价值", "中证500纯成长", "中证500纯价值",
-                   "中证1000成长", "中证1000价值", "中证2000成长", "中证2000价值"]
-OUT = ROOT / "backtest" / "output" / "family_unification_verdict.json"
+                   "中证1000纯成长", "中证1000纯价值", "中证2000纯成长", "中证2000纯价值"]
+OUT = ROOT / "backtest" / "output" / "family_unification_verdict_continuous_pure_small.json"
 
 
 def build_factor(names: list[str]) -> pd.Series:

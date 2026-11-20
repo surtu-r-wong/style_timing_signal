@@ -1,0 +1,26 @@
+{
+  "input_preparation_ready": true,
+  "official_attribution_ready": false,
+  "ready_tasks": [
+    "Read and audit frozen original / supplemented factor panels and mother scores",
+    "Compare official price / total-return / net-return benchmarks in the two fixed windows",
+    "Inspect observed company-action evidence and repaired suspension state"
+  ],
+  "blocked_tasks": {
+    "official_free_float_attribution": "Official unbanded Q, separate S/L/A and price/date definitions unavailable",
+    "official_weight_boundary_experiment": "740 new-leg / 283 mother weights and reference/effective-date contract unresolved",
+    "full_replication_acceptance": "Official industry / financial vintage and complete corporate-action / divisor treatment unverified"
+  },
+  "stock_day_rows": 57123,
+  "status_repair_rows_applied": 62,
+  "remaining_status_conflicts": 0,
+  "observed_reference_changes_explained": 508,
+  "missing_prices_preserved": 42,
+  "factor_rows": 20772,
+  "mother_score_rows": 20000,
+  "official_index_rows": 432,
+  "database_accessed": false,
+  "network_accessed": false,
+  "paid_calls": 0,
+  "production_changed": false
+}

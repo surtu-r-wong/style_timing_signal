@@ -1,0 +1,34 @@
+{
+  "tests": "6 passed",
+  "independent_metric_checks": [
+    {
+      "signal": "primary",
+      "cagr": -0.010720048023321493,
+      "sharpe": 0.04097608159823043,
+      "maxdd": -0.5066292460309358
+    },
+    {
+      "signal": "ew_short",
+      "cagr": 0.08896819038363257,
+      "sharpe": 0.49267965552428766,
+      "maxdd": -0.3639135563477083
+    },
+    {
+      "signal": "ew_floor100",
+      "cagr": 0.12234880108037682,
+      "sharpe": 0.650424469279323,
+      "maxdd": -0.3639135563477083
+    },
+    {
+      "signal": "ew_floor105",
+      "cagr": 0.11824462345518527,
+      "sharpe": 0.6620373229240171,
+      "maxdd": -0.3639135563477083
+    }
+  ],
+  "candidate_rows": 2795,
+  "candidate_formula": "all 2795 rows exact; positions only -1 or 0",
+  "source_snapshot_checks": "4 files byte-identical to previous frozen study",
+  "report_local_links": "all exist",
+  "reference_ledger": "4 cases, each 2795 daily returns, max error 0; see ledger_crosscheck.json"
+}

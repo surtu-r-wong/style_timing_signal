@@ -1,0 +1,105 @@
+{
+  "artifacts": [
+    {
+      "path": "inputs/SYNTHETIC_bars.csv",
+      "sha256": "5954a304420ffd8fcedf19524812bb8d59d9426771fd6909c9c4143a9ab8a621",
+      "size": 97661
+    },
+    {
+      "path": "inputs/SYNTHETIC_memberships.csv",
+      "sha256": "3a43129a172ba6a1385b3904138cd64c81e74c5591063b9a9e578aaca4bb4359",
+      "size": 1405
+    },
+    {
+      "path": "inputs/snapshot__backtest__minute_ml.py",
+      "sha256": "198b63bc3e3546984246c4238cd3dffe302b536b196babd662712b0fc51e2c54",
+      "size": 15590
+    },
+    {
+      "path": "inputs/snapshot__backtest__prepare_minute_ml.py",
+      "sha256": "ada0b97d7c4422be639512234221b09c3e3a8a55db0761d095f92c4fe26e5821",
+      "size": 8235
+    },
+    {
+      "path": "inputs/snapshot__backtest__run_manifest.py",
+      "sha256": "77e5a1afa41877fcb54754bdac3cf28fec7dfc5b5b2b0131f7ec6b0f4488707b",
+      "size": 6478
+    },
+    {
+      "path": "inputs/snapshot__docs__plans__2026-10-26-minute-ml-preparation.md",
+      "sha256": "d3d6130713f3825ef23024fec0bcf1b8729c751bbe380098036531e53b4727f5",
+      "size": 9390
+    },
+    {
+      "path": "inputs/snapshot__docs__requests__2026-10-26-stock-minute-ml-preparation__request-draft.md",
+      "sha256": "e3bfe23c1bc3e5ce6fa6e3086875545bb405fc64969ab82bbbcae59cea8ebf4b",
+      "size": 1448
+    },
+    {
+      "path": "inputs/snapshot__examples__minute_ml__delivery.template.json",
+      "sha256": "c6328f160c930c23cf0a02c6fdfa33afccb5c23bb5191a2c2d8c1417aeda3b93",
+      "size": 645
+    },
+    {
+      "path": "inputs/snapshot__tests__test_minute_ml.py",
+      "sha256": "0b0931eecbc31f444aa61a2efd7b82c82e70fe92de5e65323a07c6a20b69834b",
+      "size": 10271
+    },
+    {
+      "path": "outputs/README.md",
+      "sha256": "f9ff068609b6e7e13a6c5521c71d90bc47e4ffa001fd66bcb8081cda2aa4107b",
+      "size": 398
+    },
+    {
+      "path": "outputs/SYNTHETIC_augmented_group.csv",
+      "sha256": "56b10a5a6c2eb86a95a9e0336f63bf14586784e25a59b233d002948fbf8dda0f",
+      "size": 1164
+    },
+    {
+      "path": "outputs/SYNTHETIC_calendar.csv",
+      "sha256": "38c4a25d61aac7972a7ea0bb77d76f54ed8c5864f00fc600dc718f2987f3e1a3",
+      "size": 160
+    },
+    {
+      "path": "outputs/SYNTHETIC_coverage.csv",
+      "sha256": "2f154d837e398366d7f1c136e4dcdb398ec79b2ca8436291755f16b2a95aa4f4",
+      "size": 487
+    },
+    {
+      "path": "outputs/SYNTHETIC_daily_group.csv",
+      "sha256": "5833cd2b9839f452f5db0f33042faebcb5302ff4754cf783fe55c02aa18c6756",
+      "size": 520
+    },
+    {
+      "path": "outputs/SYNTHETIC_illustrative_scores.csv",
+      "sha256": "4dfc46ab959851f5898746cb818c1871e2399e680f794383835c2b25afdbda00",
+      "size": 123
+    },
+    {
+      "path": "outputs/SYNTHETIC_minute_features.csv",
+      "sha256": "2dee21403e406c13e462f2f520caeec5423d1563d6499ef2d34962db3c555e76",
+      "size": 704
+    },
+    {
+      "path": "outputs/SYNTHETIC_stock_audit.csv",
+      "sha256": "e381989c92b05bb5df5888d1afe9ae751de37f0e545976db15363a65c012f635",
+      "size": 1043
+    },
+    {
+      "path": "outputs/SYNTHETIC_targets.csv",
+      "sha256": "a0083d9e869e07060c9eff1bb1c4592e0c9470497f509285bb6c49f51bc84ee4",
+      "size": 361
+    },
+    {
+      "path": "outputs/verification.json",
+      "sha256": "54aae8b45f0dffeff06e9238866ac55117cac7d1d5b5c52ded27813a10a3d39d",
+      "size": 1344
+    }
+  ],
+  "finished_at": "2026-10-26T08:13:36.740995+00:00",
+  "mode": "synthetic",
+  "research_stage": "preparation_only",
+  "run_id": "20261026-minute-ml-preparation-r1",
+  "started_at": "2026-10-26T08:13:36.391837+00:00",
+  "status": "complete"
+}

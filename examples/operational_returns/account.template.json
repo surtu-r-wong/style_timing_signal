@@ -1,0 +1,49 @@
+{
+  "account_id": null,
+  "synthetic": false,
+  "mode": null,
+  "strategy_id": null,
+  "strategy_version": null,
+  "mapping": null,
+  "currency": null,
+  "initial_cash": null,
+  "instrument": {
+    "symbol": null,
+    "kind": null,
+    "currency": null,
+    "multiplier": null,
+    "lot_size": null,
+    "margin_rate": null,
+    "settlement_rule": null
+  },
+  "execution": {
+    "rule": null,
+    "rebalance": null,
+    "gross_leverage": null,
+    "slippage_bps": null,
+    "shorting": null,
+    "short_proceeds": null,
+    "short_collateral_ratio": null
+  },
+  "fees": {
+    "commission_bps": null,
+    "sell_tax_bps": null,
+    "per_unit": null,
+    "description": null
+  },
+  "cash_rules": {
+    "credit_rate": null,
+    "debit_rate": null,
+    "short_borrow_rate": null,
+    "day_count": null,
+    "external_flows": null
+  },
+  "calendar": {
+    "id": null,
+    "timezone": null,
+    "source": null,
+    "coverage_start": null,
+    "coverage_end": null,
+    "days": []
+  }
+}

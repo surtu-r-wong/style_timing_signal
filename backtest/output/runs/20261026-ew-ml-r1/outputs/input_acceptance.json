@@ -1,0 +1,29 @@
+{
+  "source_hashes_passed": true,
+  "features": [
+    "pair_01_factor_20",
+    "pair_02_factor_20",
+    "pair_03_factor_20",
+    "pair_04_factor_20",
+    "ew",
+    "ew_change5",
+    "pair_dispersion",
+    "direction",
+    "log_age",
+    "r5",
+    "r20",
+    "rv20",
+    "vol_ratio",
+    "drawdown60",
+    "oi_g5",
+    "oi_v5"
+  ],
+  "feature_rows": 2773,
+  "feature_start": "2015-04-24",
+  "end": "2026-09-16",
+  "execution_rows": 15152,
+  "execution_calendar_rows": 2779,
+  "oi_lag_sessions": 1,
+  "historical_publication_times_proven": false,
+  "internal_feature_gaps": 0
+}

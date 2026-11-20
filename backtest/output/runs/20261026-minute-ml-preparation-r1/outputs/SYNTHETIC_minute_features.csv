@@ -1,0 +1,6 @@
+date,m500_up_breadth,m500_late_up_breadth,m500_early_up_late_down,m500_return_dispersion,m500_path_efficiency,m500_downside_variance_share,m500_late_volume_share,m500_close_location,m1000_up_breadth,m1000_late_up_breadth,m1000_early_up_late_down,m1000_return_dispersion,m1000_path_efficiency,m1000_downside_variance_share,m1000_late_volume_share,m1000_close_location
+2020-01-02,0.5,0.5,0.5,0.04765508990216247,0.5,0.3333333333333331,0.125,0.5,0.0,0.0,0.0,0.05268025782891314,-0.5,1.0,0.125,0.25
+2020-01-03,,,,,,,,,,,,,,,,
+2020-01-06,,,,,,,,,,,,,,,,
+2020-01-07,,,,,,,,,,,,,,,,
+2020-01-08,0.5,0.5,0.5,0.04765508990216247,0.5,0.3333333333333331,0.125,0.5,0.0,0.0,0.0,0.05268025782891314,-0.5,1.0,0.125,0.25

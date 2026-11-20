@@ -1,0 +1,139 @@
+{
+  "observed_at": "2026-10-15T18:41:29.921651+08:00",
+  "observer_host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+  "status": "inspection_only",
+  "event_ready": false,
+  "production": {
+    "result": "OK",
+    "topup": "OFFICE_CHECK_ERROR",
+    "started_at": "2026-09-29T21:52:32+08:00",
+    "finished_at": "2026-09-29T21:56:06+08:00"
+  },
+  "files": [
+    {
+      "path": "output/recommended/hybrid20_longflat.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "data_date": "2026-10-13",
+      "status_dates": [
+        "2026-09-29"
+      ]
+    },
+    {
+      "path": "output/recommended/citic40d_longflat.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "data_date": "2026-10-13",
+      "status_dates": [
+        "2026-09-29"
+      ]
+    },
+    {
+      "path": "output/recommended/equal_weight_longflat.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "data_date": "2026-10-13",
+      "status_dates": [
+        "2026-09-29"
+      ]
+    },
+    {
+      "path": "output/recommended/equal_weight_symmetric.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "data_date": "2026-10-13",
+      "status_dates": [
+        "2026-09-29"
+      ]
+    },
+    {
+      "path": "output/recommended/slope20_longflat.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "data_date": "2026-10-13",
+      "status_dates": [
+        "2026-09-29"
+      ]
+    },
+    {
+      "path": "output/recommended/slope20_symmetric.csv",
+      "columns": [
+        "date",
+        "position"
+      ],
+      "data_date": "2026-10-13",
+      "status_dates": [
+        "2026-09-29"
+      ]
+    }
+  ],
+  "reason": "EXPLICIT_CONFIGURATION_AND_COMPLETE_EVIDENCE_REQUIRED",
+  "sources": [
+    {
+      "project": "style_timing_signal",
+      "host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+      "path": "/home/elfbob/claude-code/style_timing_signal/logs/daily_signals_status.json",
+      "sha256": "acb7301e11c5f0930493f6f6666abb3206de870bbb19e7f62e8095bdc4cb279d",
+      "bytes": 6082,
+      "retrieved_at": "2026-10-15T18:41:29.923158+08:00"
+    },
+    {
+      "project": "style_timing_signal",
+      "host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+      "path": "/home/elfbob/claude-code/style_timing_signal/output/recommended/hybrid20_longflat.csv",
+      "sha256": "d23c0cd4d4c92c646d9a1c9344e34d5634668ed2d26a3413f19ce94f7485a859",
+      "bytes": 48920,
+      "retrieved_at": "2026-10-15T18:41:29.934999+08:00"
+    },
+    {
+      "project": "style_timing_signal",
+      "host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+      "path": "/home/elfbob/claude-code/style_timing_signal/output/recommended/citic40d_longflat.csv",
+      "sha256": "cf3db6c7ba0977c6f0f95399d501d4bf08f5392f2e8f9d470c03454f3f685b23",
+      "bytes": 52170,
+      "retrieved_at": "2026-10-15T18:41:29.945781+08:00"
+    },
+    {
+      "project": "style_timing_signal",
+      "host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+      "path": "/home/elfbob/claude-code/style_timing_signal/output/recommended/equal_weight_longflat.csv",
+      "sha256": "94ecb2bd2d8b765f6ce345c42fc1216e89a909d256e54941736cdc567237cead",
+      "bytes": 40366,
+      "retrieved_at": "2026-10-15T18:41:29.957877+08:00"
+    },
+    {
+      "project": "style_timing_signal",
+      "host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+      "path": "/home/elfbob/claude-code/style_timing_signal/output/recommended/equal_weight_symmetric.csv",
+      "sha256": "6914b3f75ff68c8fd943b20bec02a06073f1a4c8aeb255d57498defad78203bf",
+      "bytes": 41895,
+      "retrieved_at": "2026-10-15T18:41:29.963900+08:00"
+    },
+    {
+      "project": "style_timing_signal",
+      "host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+      "path": "/home/elfbob/claude-code/style_timing_signal/output/recommended/slope20_longflat.csv",
+      "sha256": "06451a5acdd5e3f380ac0fc913d0ef3449e533d3834bfed22f891dcbb71fe773",
+      "bytes": 40366,
+      "retrieved_at": "2026-10-15T18:41:29.970421+08:00"
+    },
+    {
+      "project": "style_timing_signal",
+      "host": "elfbob-ThinkPad-X1-Carbon-Gen-8",
+      "path": "/home/elfbob/claude-code/style_timing_signal/output/recommended/slope20_symmetric.csv",
+      "sha256": "fd1c19b84172adf672c92274047960db314d1d6cf3a7dfdeab0e26caa2db55fd",
+      "bytes": 41799,
+      "retrieved_at": "2026-10-15T18:41:29.976822+08:00"
+    }
+  ]
+}

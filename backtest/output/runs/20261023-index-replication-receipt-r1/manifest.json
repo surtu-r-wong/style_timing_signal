@@ -1,0 +1,60 @@
+{
+  "status": "complete",
+  "scope": "offline_handoff_receipt_only",
+  "overall_replication_status": "pending_official_data_and_validation",
+  "created_at": "2026-10-23T10:02:21.923028+00:00",
+  "commit": "2833bacd9447ffbd77dd3c9acd7dafbb59da22e2",
+  "python": "3.13.9",
+  "numpy": "2.3.4",
+  "pandas": "2.3.3",
+  "argv": [
+    "tools/audit_pure_style_handoff.py",
+    "--handoff-manifest",
+    "/home/elfbob/claude-code/liquidity_behavior/output/index_float/20261023-replication-audit-r2/manifest.json",
+    "--output-dir",
+    "backtest/output/runs/20261023-index-replication-receipt-r1"
+  ],
+  "input_sha256": {
+    "/home/elfbob/claude-code/style_timing_signal/backtest/pure_style_builder.py": "157e66562ad7d99177452df9b3c35219e7b24a12e439cd203a06ba882cd5964a",
+    "/home/elfbob/claude-code/style_timing_signal/signals/style_basket/scoring.py": "150e07a9a8b5d07d81355ab7986213e7acd9d90f4f10ef5ffd415cc06d1dda58",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/gate0_replication.json": "66cfd552baa222d14137bfc9ca5000f9be0e0ff343e92ffcaf0e2f8518ce1083",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v3.json": "6ff000658220ffe2151743b5394ee382b1cd991a7c65578c356c5f6a32c44342",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v4.json": "f303f516d995a408840d8046bc4571d55f2379b75eb83ccaed34a9039e313b3d",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v4_series.csv": "5ef8b4ce160de969a75193214df826c86ec40aa0a0c22593fe2362d096438212",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v5.json": "d8200de1e00511c8107489cc21055db694efebe60502cdddaacff568f0638895",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/replication_dev_v5_series.csv": "b3ac9e3433db66b9c749bb565f8f306bb5a6914e637423ddfa81c8811c7d4342",
+    "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20260826T183948-p0-revalidation-ac11b3c/outputs/gate0r_result.json": "1797140ddac913a16104cccd48b84e7c8e7e608644e20a29897a87c23be815a0",
+    "/home/elfbob/claude-code/style_timing_signal/docs/plans/2026-08-19-replication-improvement-plan.md": "470eb2d37883f25e84c173cb197c9f9cab7e06c0f0c57b3c0bd235396bff4437",
+    "/home/elfbob/claude-code/style_timing_signal/docs/plans/2026-08-24-first-disclosure-pit-upgrade.md": "efea39ecc3cbca7937de4672dd3c0e846ecf3ecc8725e384edc5c031d1310fe1",
+    "/home/elfbob/exchange/20260702/指数编制方案/中证2000纯成长指数编制方案.pdf": "9436b10edc3f30eb5851e13d4fbc3474e234ea615798a9254e263304a2f4f98d",
+    "/home/elfbob/claude-code/liquidity_behavior/output/index_float/20261023-replication-audit-r2/manifest.json": "20ea91ca500c26f74446ed4d7d394a65af7323e3d56435bbe709956b7fbe4adf",
+    "/home/elfbob/claude-code/style_timing_signal/tools/audit_pure_style_handoff.py": "9130a78dff5b2977b481c7af3d6027727f63466a3a62142d490bea3995df91b7",
+    "/home/elfbob/claude-code/liquidity_behavior/output/index_float/20261023-replication-audit-r2/audit_script.py": "89df12d881e6124c7252fe2007095f9abcfbab17b3a5b316db1b17cae3ff4a50",
+    "/home/elfbob/claude-code/liquidity_behavior/output/index_float/20261023-replication-audit-r2/metrics.json": "3768de98c67febdafa5bf2704c6ec24e0abe668abd90886ee9fcc8f17da08f31",
+    "/home/elfbob/claude-code/liquidity_behavior/output/index_float/20261023-replication-audit-r2/synthetic_probe.json": "0b38e4a8ae0af8e951972d2aefce90a4e4c1f7d86d008c6f8c9f91f2d8240ce6"
+  },
+  "inputs_unchanged": true,
+  "reused_evidence": [
+    "handoff_metrics.json",
+    "handoff_synthetic_probe.json"
+  ],
+  "new_evidence": [
+    "return_probe.json",
+    "synthetic_prices.csv",
+    "synthetic_timing.csv",
+    "fixture_queries.json"
+  ],
+  "outputs_sha256": {
+    "audit_script.py": "9130a78dff5b2977b481c7af3d6027727f63466a3a62142d490bea3995df91b7",
+    "fixture_queries.json": "23a3da3e2fc0c9a1bc773a14f0e5b61818902ce692ab0d5055c223b0874747a6",
+    "handoff_manifest.json": "20ea91ca500c26f74446ed4d7d394a65af7323e3d56435bbe709956b7fbe4adf",
+    "handoff_metrics.json": "3768de98c67febdafa5bf2704c6ec24e0abe668abd90886ee9fcc8f17da08f31",
+    "handoff_synthetic_probe.json": "0b38e4a8ae0af8e951972d2aefce90a4e4c1f7d86d008c6f8c9f91f2d8240ce6",
+    "pure_style_builder_source.py": "157e66562ad7d99177452df9b3c35219e7b24a12e439cd203a06ba882cd5964a",
+    "return_probe.json": "29e3176c62a93e8cc33ba7b3a919a05cb3327ba45270d38b182fe528a7ee33c4",
+    "synthetic_prices.csv": "40ee0d66eeaf245136a895af3acdec09f5c825d3cd380d2533fae4968a13d19b",
+    "synthetic_timing.csv": "bfee87648c7a5ca24fdb29c72c9cfd663b586d897c45a361c7396db79cf11dcf"
+  },
+  "shared_database_accessed": false,
+  "production_changed": false
+}

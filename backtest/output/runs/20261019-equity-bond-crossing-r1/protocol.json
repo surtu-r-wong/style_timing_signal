@@ -1,0 +1,36 @@
+{
+  "scope": "exploratory historical diagnostic; no production adoption",
+  "codes": [
+    "H00300.CSI",
+    "885007.WI"
+  ],
+  "range": [
+    "2004-01-01",
+    "2026-10-16"
+  ],
+  "primary": "raw close ratio <=1; entry from above; 60-trading-day refractory period",
+  "bands": [
+    0.97,
+    1.0,
+    1.03,
+    1.05
+  ],
+  "horizons": [
+    20,
+    60,
+    120,
+    245
+  ],
+  "rebase": [
+    "2004-12-31",
+    "2005-01-04",
+    "2010-01-04",
+    "2014-01-02"
+  ],
+  "increment": "2015 onward; incumbent slope20 long-flat and EW symmetric; veto short only, force spot long only, both; 500/1000 50:50 price proxy; shift(2); 3bps/side; no carry",
+  "notes": "All years are retrospective; 2024-26 was reused before. No untouched test set. Delay assumes fund index observable by next close; publication time not verified.",
+  "budget": {
+    "probe_cells": 12,
+    "history_calendar_cells": 99900
+  }
+}

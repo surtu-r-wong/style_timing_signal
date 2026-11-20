@@ -420,7 +420,8 @@ runner 对推送调用限时 120 秒、再宽限 10 秒强杀（`timeout -k 10 1
 **陈旧告警句**：失败通知第二行若是「状态文件停在 …，不是本次运行写的——本次在写状态前就死了
 （看 systemd Result）」，说明本次运行在写状态文件之前就被杀了（超时、OOM 等），文件里还是上一次的
 内容。判据是告警器传入的 `--run-started`（主 service 本次的 `ExecMainStartTimestamp`，`@unix 秒`）：
-`finished_at` 早于它即陈旧；取不到时退回「`finished_at` 的日期 ≠ 今天」。这时通知只说这一句加
+`finished_at` 早于它即陈旧；取不到时退回「`finished_at` 的北京时间日期 ≠ 北京时间今天」
+（带偏移时间先转换，旧无时区文本保留原日期）。这时通知只说这一句加
 systemd `Result`，**不引用**文件里旧的 result / topup / breaches——免得把上一次的原因安到这次头上。
 同类兜底句还有「状态文件缺失或无法解析」，以及结果是 `OK` 却触发了告警、又没有推送错误记录时的
 「状态文件没记下失败原因——可能在写状态前就被杀了」。
@@ -457,6 +458,40 @@ python3 deploy/daily_signals/notify_wechat.py --alert --dry-run \
 
 `logs/` 已在 `.gitignore` 中，不入库。
 
+## 美东主机时区核查与本地修复（2026-11-05，未部署）
+
+依据 `report_tools/docs/2026-11-04-cross-project-timezone-impact.md`；本次授权范围为本地核查、
+修复与离线验证。开发目录 `/home/elfbob/claude-code/style_timing_signal`，基线 commit `3a23cdc`。
+本机继续使用 `America/New_York`，中国市场业务日期及收盘判断明确采用 `Asia/Shanghai`。
+
+| 入口 | 核查与修改 |
+|---|---|
+| `topup_guard.py` | 原 CLI 用本机小时判 15:30，纽约运行时会推迟认可当天数据；改取北京时间。显式带时区的函数参数也先转换；原无时区参数继续表示北京墙上时间。事后审计的“未来日期”上限同样采用北京日期。 |
+| `check_freshness.py` | 上游落后天数、假期窗口和缺口检查的“今天”改用北京日期，避免北京已跨日时少算一天。 |
+| `notify_wechat.py` | 推送默认今天改用北京日期；失败通知显示北京时间与偏移。缺少 `run_started` 时，先转换带偏移时间再比较北京日期，避免把同一天的状态判成旧状态。显式 `--today` 保持有效。 |
+| `tools/topup_index_daily.sh` | 默认回看 14 天的起点改用北京自然日；结束日仍由 15:30 护栏提供。显式起点保持有效。 |
+| `deploy/failover/failover_legs.py`、`signals/style_basket/build.py`、`backtest/axis_rotation_builder.py` | 灾备、财务池、月末评分和轮动轴构建的默认结束日改用北京日期；显式历史区间保持有效。 |
+| 主 timer、`wait_for_inputs.py` | 原本已采用上海时区；定时表达式及等数规则保持不变，补充跨时区验证。 |
+
+离线验证：新增 29 个用例，覆盖北京跨日、纽约冬夏令时、15:30 前后、20:00 等数边界、周一、
+周末、月界及显式历史日期。原实现可复现其中 17 个失败场景，修复后受影响模块合计 **462 项通过**。
+运行命令（2 GB 虚拟内存上限，单线程数值计算）：
+
+```bash
+bash -c 'ulimit -v 2000000; OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 TZ=America/New_York python3 -m pytest tests/test_market_timezone.py tests/test_deploy_topup_guard.py tests/test_deploy_freshness_guard.py tests/test_deploy_notify_wechat.py tests/test_deploy_wait_for_inputs.py tests/test_deploy_daily_wiring.py tests/test_tools_topup_index_daily.py tests/test_deploy_failover_legs.py tests/test_style_basket.py tests/test_bt_axis_rotation.py -q --tb=short'
+```
+
+另用 `systemd-analyze calendar` 离线解析原 timer：以 2026-11-04 00:00 UTC 为基点，下一次为
+当天 07:30 EST；以 2026-07-06 00:00 UTC 为基点，下一次为当天 08:30 EDT，均为北京 20:30。
+测试没有运行真实采集、重建生产 CSV、写共享库或发送外部通知；通知测试只使用离线替身和本地 HTTP 桩。
+原有带偏移状态时间、UTC 留证时间、日志文件名及研究运行编号继续按各自用途保留。
+
+数据库与部署边界：本轮检查的日更查询以 `trade_date`、`calendar_date` 及显式日期参数取数，
+未发现用数据库 `CURRENT_DATE` 替代这些客户端业务日期。连接仍继承服务器时区配置，
+本次没有连接数据库，**尚未核实本机或 Debian 连接的实际 `SHOW TimeZone`**；北京时间会话要求仍适用。
+下节记载的 Debian `current`、release、实际单元和进程时区本轮也未现场核验，不能据此断言生产已经受影响。
+工作区 `output/` 原有数据差异保留。**仅本地修复，未部署；历史结果是否受影响尚待生产运行证据核对**。
+本次未做历史数据处理；若之后证实需要共享库修复或回填，须先向办公室提交请求。
 
 ### 期货基差日常参考
 

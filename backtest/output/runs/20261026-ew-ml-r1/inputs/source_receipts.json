@@ -1,0 +1,37 @@
+[
+  {
+    "source_run": "20260917-ew-oi-research-r2",
+    "destination": "equal_weight.csv",
+    "path": "inputs/equal_weight.csv",
+    "size": 193047,
+    "sha256": "d04eb53702bcfa16af61e03a4272bb07bc4c5abd1a4dece4238621ec8b14805d"
+  },
+  {
+    "source_run": "20260917-ew-oi-research-r2",
+    "destination": "futures.csv",
+    "path": "inputs/futures.csv",
+    "size": 959379,
+    "sha256": "31aa2d003a564f66941952e4fd1ddc0b810578504c325e330bdf79c80d7694cd"
+  },
+  {
+    "source_run": "20260917-ew-oi-research-r2",
+    "destination": "oi_features.csv",
+    "path": "inputs/office/features.csv",
+    "size": 572206,
+    "sha256": "4000330904f75e4cea19a015521f0efafe110d2ccd4216bff1390f66b91793e6"
+  },
+  {
+    "source_run": "20260917-ew-oi-research-r2",
+    "destination": "index.csv",
+    "path": "inputs/office/raw_inputs/index.csv",
+    "size": 176581,
+    "sha256": "af6165258e593684f38cf56cba52ed81d3ac86ee5301efc144b7dfbbe7ca7497"
+  },
+  {
+    "source_run": "20260917-ew-oi-research-r2",
+    "destination": "calendar.csv",
+    "path": "inputs/office/calendar.csv",
+    "size": 69872,
+    "sha256": "e71f1333cb557e02da23a592d3e0cd2e8993cffde4c1bb30bffa9db4d0a87983"
+  }
+]

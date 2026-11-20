@@ -1,0 +1,6 @@
+date,scenario,valid
+2020-01-02,complete,True
+2020-01-03,missing_bar,False
+2020-01-06,late_delivery,False
+2020-01-07,quality_mask,False
+2020-01-08,complete,True

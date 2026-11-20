@@ -54,6 +54,7 @@ import os
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -331,7 +332,7 @@ def build_report(max_lag: int, root: Path | None = None,
                  upstream_gap_lookback: int = UPSTREAM_GAP_LOOKBACK_WORKDAYS,
                  ) -> tuple[dict, bool]:
     days, upstream_max = load_calendar()
-    today = date.today().isoformat()
+    today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
     behind_today, upstream_breach = check_upstream_freeze(
         upstream_max, today, holiday_windows, max_days=upstream_max_days)
     upstream_gaps = upstream_calendar_gaps(

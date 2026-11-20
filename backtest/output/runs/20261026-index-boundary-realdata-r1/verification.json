@@ -1,0 +1,69 @@
+{
+  "status": "PASS",
+  "model_boundary_diagnostic_ready": true,
+  "official_attribution_ready": false,
+  "first_run": false,
+  "replay_of_frozen_first_run": true,
+  "market_manifest_sha256": "db2958920a12707ad3bbf6aa5b10cc0a483e2e257205cc4daccd5310b9952da3",
+  "fixed_weight_sha256": "c27d3d1f3bbcea50a5153420b9a1f487164036fba4c709c68b4579aeb17ba85b",
+  "source_hashes": {
+    "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v4/sources/style_timing_signal/backtest/pure_style_builder.py": "157e66562ad7d99177452df9b3c35219e7b24a12e439cd203a06ba882cd5964a",
+    "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v7/factor-freeze/2025-12-15-2025-10-31-original_inventory-932000.CSI-scores.csv": "801fc31782738ee68d7f83009b5f0bca9530c51af286bbf19cb6e3e119c88d93",
+    "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v7/factor-freeze/2026-06-15-2026-04-30-original_inventory-932000.CSI-scores.csv": "5acd77196f8c5e547f11f393f2ad92b921cfca668f332cf040f495ccfb8526ac",
+    "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v7/factor-freeze/2025-12-15-2025-10-31-original_inventory-000905.SH-scores.csv": "c2caf854bd3ebe9752ee02c44e602ae2f67dd3efef4afb470b14440a8ac455e8",
+    "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v7/factor-freeze/2026-06-15-2026-04-30-original_inventory-000905.SH-scores.csv": "3121c496284f3e149f9294679e426003f1925484bd13e8e580647c992db3333e"
+  },
+  "rows_compared": 44,
+  "contribution_rows": 2105,
+  "imputation_rows": 2,
+  "non_suspension_imputation_rows": 0,
+  "imputation_rows_with_status_false": 2,
+  "boundary_day_imputation_rows": 0,
+  "independent_decimal_verification": true,
+  "prefix_exactly_equal": true,
+  "terminal_included": true,
+  "shared_database_accessed": false,
+  "market_snapshot_recorded_readonly": true,
+  "paid_calls": 0,
+  "production_changed": false,
+  "limitations": [
+    "Model baskets and weights are reconstructed, not official weights.",
+    "Original close/pre_close formula and zero-imputation are held fixed; not certified economic returns.",
+    "Current frozen financial revisions and observed member lists are not certified ex-ante.",
+    "No full-window correlation or official Q attribution computed."
+  ],
+  "summary": [
+    {
+      "mother_index": "932000.CSI",
+      "side": "growth",
+      "old_model_members": 319,
+      "new_model_members": 318,
+      "boundary_day_delta_bp": -119.95512738551963,
+      "max_later_drift_delta_bp": 4.501189116606478
+    },
+    {
+      "mother_index": "932000.CSI",
+      "side": "value",
+      "old_model_members": 374,
+      "new_model_members": 383,
+      "boundary_day_delta_bp": -65.9988863635806,
+      "max_later_drift_delta_bp": 2.5563403831324605
+    },
+    {
+      "mother_index": "000905.SH",
+      "side": "growth",
+      "old_model_members": 152,
+      "new_model_members": 148,
+      "boundary_day_delta_bp": -11.394972222753472,
+      "max_later_drift_delta_bp": 9.774381271642971
+    },
+    {
+      "mother_index": "000905.SH",
+      "side": "value",
+      "old_model_members": 201,
+      "new_model_members": 210,
+      "boundary_day_delta_bp": -37.59809416908101,
+      "max_later_drift_delta_bp": 4.025538352590823
+    }
+  ]
+}

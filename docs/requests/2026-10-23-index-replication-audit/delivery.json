@@ -1,0 +1,140 @@
+{
+  "status": "reconstruction_complete_remaining_certification_deferred_by_user",
+  "created_at": "2026-10-23T10:07:20.614778+00:00",
+  "source": "/home/elfbob/claude-code/style_timing_signal/docs/requests/2026-10-23-index-replication-audit/data-request.md",
+  "destination": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/followup-02-style-timing-a-spec.md",
+  "sha256": "03b69be3df871e91ce3515b64cb1b16bd0e867c41955ef883af72dc831135545",
+  "byte_identical": true,
+  "office_accepted": true,
+  "scope": "A: 16 old/new baskets reconstructed and project-replayed; exact official attribution remains uncertified",
+  "shared_database_written": false,
+  "initial_dispatch_status": "delivered_pending_office_receipt",
+  "initial_office_accepted": false,
+  "updated_at": "2026-10-27T05:44:04.694538+00:00",
+  "overall_request_status": "DEFERRED_BY_USER",
+  "office_receipts": [
+    {
+      "path": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-delivery.md",
+      "sha256": "265efb307469685d817344a79a4e94c6ca7e4c0b6dcd16c7570e2c820cecfd93"
+    },
+    {
+      "path": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-v2-delivery.md",
+      "sha256": "903faadfe8ef5eeb74d4ad65cf59c86488ee5887f692e172fb21015bb96b0afd"
+    },
+    {
+      "path": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-v3-delivery.md",
+      "sha256": "ba36eb2f4f66060fb717b38566fc27c9eec35cd1c3aa9e83d41d3434fc042d47"
+    },
+    {
+      "path": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-v9-complete-baskets.md",
+      "sha256": "c0d120cff0b8116d15d997551dee36392ced5c1ee9b7e1e16b11234b9be2406c"
+    },
+    {
+      "path": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-deferred-issues-2026-10-27.md",
+      "sha256": "cbb0b1e75652a6b9daabf60c6909dedf579b545d03a05a824e234344cc343807"
+    }
+  ],
+  "consumer_receipt": {
+    "path": "/home/elfbob/claude-code/style_timing_signal/docs/requests/2026-10-23-index-replication-audit/response.md",
+    "scope": "Offline integrity, archived raw response and key coverage checks only",
+    "manifest": "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20261026-index-replication-office-receipt-r1/manifest.json",
+    "manifest_sha256": "0fcefe685a802b2cfd0ef936a832fd8151cdb0c73f6e94e90c852392e4fd0428",
+    "verification": "/home/elfbob/claude-code/style_timing_signal/backtest/output/runs/20261026-index-replication-office-receipt-r1/verification.json",
+    "status": "PASS",
+    "official_attribution_ready": false,
+    "shared_database_accessed": false,
+    "paid_calls": 0,
+    "production_changed": false,
+    "office_notified_in_this_run": false
+  },
+  "office_v7_input_preparation": {
+    "status": "executed_and_readonly_verified",
+    "run": "backtest/output/runs/20261026-index-replication-inputs-r2",
+    "manifest_sha256": "dbca2b108f62169ae07bc0baa0e14ea3c009a48745da1d2260801bd77a9e926c",
+    "official_attribution_ready": false,
+    "external_inquiry_route": "rejected_by_user_continue_self_service_sources"
+  },
+  "model_boundary_diagnostic": {
+    "status": "completed_and_reproduced_offline",
+    "model_boundary_diagnostic_ready": true,
+    "official_attribution_ready": false,
+    "run": "backtest/output/runs/20261026-index-boundary-realdata-r1",
+    "rows_compared": 44,
+    "independent_decimal_verified": true,
+    "core_files_equal_to_office_first_run": 8
+  },
+  "office_v8_derived_weights": {
+    "package": "office_20261026_a_v8",
+    "manifest_sha256": "ce03dc8e8261a5a63fa529a77879d29518659314c373b2694dccbe77568660e6",
+    "project_tool": "tools/reconstruct_pure_style_weights.py",
+    "project_run": "backtest/output/runs/20261026-derived-weight-reconstruction-r1",
+    "computed_cases": 13,
+    "requested_old_new_cases": 16,
+    "derived_weight_rows": 2648,
+    "daily_comparison_rows": 880,
+    "project_replay_byte_equal": true,
+    "independent_revaluation_passed": true,
+    "official_Q_certified": false,
+    "official_target_weights_certified": false,
+    "official_attribution_ready": false,
+    "remaining_december_new_baskets": [
+      "932402.CSI",
+      "932408.CSI",
+      "932409.CSI"
+    ],
+    "later_removed_constituents": 12,
+    "observed_max_absolute_daily_error_bp": 1.8593711491619263,
+    "receipt": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-v8-reconstructed-weights.md"
+  },
+  "latest_office_receipt": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-deferred-issues-2026-10-27.md",
+  "office_v9_derived_weights": {
+    "package": "office_20261026_a_v9",
+    "manifest_sha256": "ce72d08359df7f836749a891e8bc831372035855f72bb65140273f0bc23f6cba",
+    "project_tool": "tools/reconstruct_pure_style_weights.py",
+    "project_run": "backtest/output/runs/20261026-derived-weight-reconstruction-v9-r1",
+    "computed_cases": 16,
+    "requested_old_new_cases": 16,
+    "derived_weight_rows": 3375,
+    "daily_comparison_rows": 994,
+    "valid_official_comparison_rows": 898,
+    "effective_day_comparisons": 16,
+    "project_replay_byte_equal": true,
+    "independent_revaluation_passed": true,
+    "prior_13_cases_unchanged": true,
+    "remaining_december_new_baskets": [],
+    "research_reconstruction_ready": true,
+    "official_Q_certified": false,
+    "official_target_weights_certified": false,
+    "official_attribution_ready": false,
+    "observed_max_absolute_daily_error_bp": 1.8593711491619263,
+    "fee_calls": 3,
+    "returned_cells": 3635,
+    "execution_cap": 12500,
+    "unused_cap_reusable": false,
+    "accounting_status": "SOURCE_MATCHED_CENTRAL_IMPORT_CONFIRMED_20261027",
+    "shared_database_writes": 0,
+    "production_changed": false,
+    "receipt": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-v9-complete-baskets.md",
+    "replay_verification": "/home/elfbob/claude-code/data_manager/findings/2026-10-26-index-a-v9/project-replay-verification.json",
+    "central_import_confirmation": "/home/elfbob/claude-code/data_manager/findings/2026-10-27-index-a-deferred/central-import-confirmed-20261027.json"
+  },
+  "deferred_work": {
+    "decision_date": "2026-10-27",
+    "user_quote": "这部分问题暂时无法解决，先记录提交，后续再开展",
+    "status": "DEFERRED_BY_USER",
+    "issues": [
+      "A-D01",
+      "A-D02",
+      "A-D03",
+      "A-D04",
+      "A-D05",
+      "A-D06",
+      "A-D07"
+    ],
+    "record": "/home/elfbob/claude-code/data_manager/requests/2026-10-23-liquidity-behavior-index-float/office-a-deferred-issues-2026-10-27.md",
+    "resume_trigger": "explicit_user_instruction",
+    "automatic_continuation": false,
+    "completed_reconstruction_preserved": true,
+    "official_attribution_ready": false
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "run": "20261026-ew-ml-r1",
+  "source_manifest": {
+    "path": "backtest/output/runs/20261026-ew-ml-r1/manifest.json",
+    "size": 6078,
+    "sha256": "0a76e20521d0f97a71d335922e0fd92ff1a0f767755bbbfc324418d1a4f981ac"
+  },
+  "verifier": {
+    "path": "tools/verify_ew_ml.py",
+    "size": 8847,
+    "sha256": "b0221295576ad5e899ff5bb6e89c86bae3c127b6cedb3c76612968d67f3e6226"
+  },
+  "artifact_hashes_checked": 36,
+  "independent_feature_rows": 2773,
+  "independent_feature_columns": 16,
+  "independent_label_calendar_rows": 2779,
+  "training_boundaries_checked": 32,
+  "independent_target_columns": 12,
+  "outer_prediction_days": 1871,
+  "independent_metric_rows": 396,
+  "all_future_leakage_assertions_passed": true,
+  "interpretation": "Checks cover the stated timing and numerical invariants; not historical PIT proof or statistical validation."
+}

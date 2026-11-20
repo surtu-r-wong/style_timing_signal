@@ -1,0 +1,36 @@
+{
+  "source_manifest": "/home/elfbob/claude-code/data_manager/state/index-replication/office_20261026_a_v8/manifest.json",
+  "source_manifest_sha256": "ce03dc8e8261a5a63fa529a77879d29518659314c373b2694dccbe77568660e6",
+  "files": [
+    {
+      "path": "audit_script.py",
+      "bytes": 7618,
+      "sha256": "c3f3fbab04621b2fd829036ecc2f886d3de9b986141fb4560f283799f148682c"
+    },
+    {
+      "path": "daily-validation.csv",
+      "bytes": 159130,
+      "sha256": "a3316148a24a75ab8b86acd012babb3a663784f1dc81ce9a6f21169182ce8d12"
+    },
+    {
+      "path": "derived-opening-weights.csv",
+      "bytes": 622720,
+      "sha256": "30b888ffe0e74a8941b296158b3b21064e5eee4c511288cd62511440901e4206"
+    },
+    {
+      "path": "effective-day-effects.csv",
+      "bytes": 1824,
+      "sha256": "219524d1c89cd695eeac0d9f34d66d2f8b8e8244b545e58f750e1eba8beb33e5"
+    },
+    {
+      "path": "input-hashes.json",
+      "bytes": 850,
+      "sha256": "7e2a95e1ff83f8c25664a72ab29a7a4a55b2e0ffb10d92e750ab4a81eefcac92"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 6391,
+      "sha256": "b0d7fc277837c94d9830d2d5dfb082788bdbf411555b824fdd4a5d18276f4673"
+    }
+  ]
+}

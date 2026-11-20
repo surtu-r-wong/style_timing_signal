@@ -182,11 +182,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="自建腿灾备构建与演练验收")
     ap.add_argument("--bands", default="1000", help="逗号分隔，可选 300,500,1000,2000")
     ap.add_argument("--start", default="2024-01-01")
-    ap.add_argument("--end", default=None, help="缺省=今天")
+    ap.add_argument("--end", default=None, help="缺省=北京时间今天")
     ap.add_argument("--output-dir", default=str(OUTDIR))
     args = ap.parse_args(argv)
 
-    end = args.end or str(pd.Timestamp.today().date())
+    end = args.end or str(pd.Timestamp.now(tz="Asia/Shanghai").date())
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 

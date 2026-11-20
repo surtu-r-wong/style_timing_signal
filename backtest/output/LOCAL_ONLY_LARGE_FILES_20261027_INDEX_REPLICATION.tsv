@@ -1,0 +1,3 @@
+path	bytes	sha256
+backtest/output/runs/20261026-index-boundary-realdata-r1/prices.csv	20959554	b257a69c40412236e4c010721977581f933bb95d27045fc9196c762b97cc6cf1
+backtest/output/runs/20261026-index-replication-inputs-r2/research-inputs.sqlite	36462592	71ce9d3656612cd8dbdc84f029bcbf0092f199a609cf23003ffe8701ee65d1b1

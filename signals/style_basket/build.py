@@ -216,7 +216,7 @@ def build_pool(db=None, chunk: int = 400, start: str = "2003-01-01",
                end: str | None = None, growth_n: int = 12) -> None:
     """阶段 1：全市场财务池 → cache/pool_{ttm,slope,event}.csv。"""
     db = db or load_db_config()
-    end = end or str(pd.Timestamp.today().date())
+    end = end or str(pd.Timestamp.now(tz="Asia/Shanghai").date())
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     tickers = _all_tickers(db)
     print(f"[pool] {len(tickers)} tickers, chunk={chunk}, window={start}..{end}")
@@ -330,7 +330,7 @@ def _fetch_trading_days(db, start: str) -> pd.DatetimeIndex:
 def build_scores(db=None, start: str = "2013-05-01", end: str | None = None) -> None:
     """阶段 2：逐月末截面打分 → cache/scores.csv（长表：date × ts_code × 因子/分数/排名）。"""
     db = db or load_db_config()
-    end = end or str(pd.Timestamp.today().date())
+    end = end or str(pd.Timestamp.now(tz="Asia/Shanghai").date())
     pool_ttm = _read_pool("ttm")
     pool_slope = _read_pool("slope")
     pool_event = _read_pool("event")

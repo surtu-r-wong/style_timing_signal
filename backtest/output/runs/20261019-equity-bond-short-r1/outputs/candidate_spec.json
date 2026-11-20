@@ -1,0 +1,11 @@
+{
+  "status": "research_candidate_only_not_deployed",
+  "signal": "-1 iff original_equal_weight_position<0 and H00300.CSI_close/885007.WI_close>1.00; otherwise 0",
+  "timing": "signal date close information; next trading day close execution; vendor publication time must be verified before live use",
+  "source_files": [
+    "inputs/equal_weight_symmetric.csv",
+    "inputs/daily_ratio.csv"
+  ],
+  "sensitivity": "1.05 is a sensitivity threshold, not a selected optimum",
+  "constraints": "no positive position, no automatic production changes"
+}
