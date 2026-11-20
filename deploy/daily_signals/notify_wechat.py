@@ -241,6 +241,7 @@ def compose_message(root: Path, status: dict, *, today: str) -> tuple[str, str]:
         head += f"（今天 {_short(today, as_of)}）"
     lines = [head + "｜链路 OK"]
     lines += [f"【{pool}】{describe_pool(root, line, as_of)}" for pool, line in pools]
+    lines.append("两池开平仓与连续天数按标准风格历史信号计算。")
     lines.append("【其余生产线·参考】")
     lines += [f"  {describe(line, as_of)}" for line in others]
     lines += health_lines(status)
