@@ -84,9 +84,11 @@ UPSTREAM = {
 DEFAULT_OUTPUT = ROOT / "output" / "recommended" / "combined_signals.csv"
 
 
-def load_series(rel_path: str, column: str, name: str) -> pd.Series:
+def load_series(rel_path: str, column: str, name: str, *, optional: bool = False) -> pd.Series:
     df = pd.read_csv(ROOT / rel_path, parse_dates=["date"], index_col="date")
     if column not in df.columns:
+        if optional:  # Archives published before both scores were recorded.
+            return pd.Series(index=df.index, dtype=float, name=name)
         raise KeyError(f"{rel_path} 里没有列 {column!r}（实际列：{list(df.columns)}）")
     return df[column].rename(name)
 
@@ -106,6 +108,9 @@ def build_combined() -> pd.DataFrame:
             cols.append(load_series(up_rel, up_col, up_name))
         from backtest.production import RECOMMENDED_FILES
         cols.append(load_series(RECOMMENDED_FILES[name], "position", f"{name}_position"))
+    for name in ("equal_weight", "slope20"):
+        rel, _ = SIGNALS[name]
+        cols.append(load_series(rel, "factor_value_pure", f"{name}_pure_signal", optional=True))
     combined = pd.concat(cols, axis=1).sort_index()
     # 仓位是整数语义，outer join 会把有空洞的列变 float；空值保留为空，非空转 int。
     # hybrid20 的 signal 同样是整数（状态机三值），不转的话会被 float_format 印成
@@ -143,6 +148,10 @@ def main() -> int:
             up_name = UPSTREAM[name][2]
             label = up_name.removeprefix(f"{name}_")   # 别用 split('_',1)——线名自带下划线
             extra = f"  {label}={combined[up_name].iloc[-1]:+.4f}"
+        if name in ("equal_weight", "slope20"):
+            pure = combined[f"{name}_pure_signal"].iloc[-1]
+            if pd.notna(pure):
+                extra += f"  pure={pure:+.4f}"
         print(f"    {name:14s} signal={sig_s}{extra}  position={pos}")
     nonnull = combined.notna().sum()
     print("  各列非空行数（起点不同属正常，留空是事实不是缺失）：")

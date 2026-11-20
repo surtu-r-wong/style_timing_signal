@@ -110,10 +110,10 @@ def test_frozen_legs_silent_when_market_is_calm():
 
 def test_frozen_legs_reference_excludes_frozen_codes():
     """参照必须用非冻结子集：大批冻结时若把 0 计入中位会被拖到 0 而漏报。"""
-    day = {c: 0.0 for pair in S.PAIRS.values() for c in pair}   # 8 条腿全冻
+    day = {c: 0.0 for pair in S.PAIRS.values() for c in pair}   # 12 条腿全冻
     day.update({"000300.SH": 0.02, "932000.CSI": 0.018, "CI005917.WI": 0.021})
     found = S.frozen_leg_findings(day)
-    assert len(found) == 1 and "8 个代码" in found[0]
+    assert len(found) == 1 and "12 个代码" in found[0]
 
 
 def test_frozen_legs_needs_enough_reference_codes():

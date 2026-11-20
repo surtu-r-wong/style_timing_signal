@@ -290,7 +290,7 @@ def main() -> int:
         help="smoothing window for factor_value, 0 = no smoothing, default: 5",
     )
     parser.add_argument("--source", choices=["csv", "pg"], default="pg",
-                        help="数据源: pg=stock_selector.index_daily（默认）, csv=--input 文件（备份/审计）")
+                        help="数据源: pg=共享库标准／纯风格（默认）, csv=--input 文件（备份/审计）")
     parser.add_argument("--start", default=None, help="pg 模式起始日 YYYY-MM-DD（复现验证时传 CSV 首日）")
     parser.add_argument("--end", default=None, help="pg 模式截止日 YYYY-MM-DD（复现验证时对齐 CSV 尾日）")
     args = parser.parse_args()
@@ -299,32 +299,18 @@ def main() -> int:
         parser.error("--start/--end 仅在 --source pg 模式下有效")
 
     pair_configs = load_pair_configs(args.config)
-    needed = list(dict.fromkeys(
-        c for p in pair_configs for c in (p.left_column, p.right_column)
-    ))
-
     if args.source == "pg":
         import sys
         sys.path.insert(0, str(ROOT))
-        from signals.common.data_source import load_pg_closes
-
-        prices = load_pg_closes(
-            needed, start=args.start, end=args.end,
-            trim_ragged_tail=True, trim_ragged_head=True,
-        )
+        from signals.style_family_daily import ew_output, load_panels
+        panels = load_panels(pair_configs, args.start, args.end)
+        output = ew_output(panels, pair_configs, args.lookback, args.z_window, args.smoothing)
     else:
-        prices = load_price_data(args.input)
-
-    output = calculate_contrast_equal_weight_signal(
-        prices,
-        lookback=args.lookback,
-        z_window=args.z_window,
-        smoothing_window=args.smoothing,
-        pair_configs=pair_configs,
-    )
+        output = calculate_contrast_equal_weight_signal(
+            load_price_data(args.input), args.lookback, args.z_window, args.smoothing, pair_configs)
     output.round(4).to_csv(args.output, index_label="date")
 
-    src_desc = "pg:stock_selector.index_daily" if args.source == "pg" else f"csv:{args.input}"
+    src_desc = "PG 标准／纯风格" if args.source == "pg" else f"csv:{args.input}"
     print(f"Input: {src_desc}")
     print(f"Output: {args.output}")
     print(f"Config: {args.config}")

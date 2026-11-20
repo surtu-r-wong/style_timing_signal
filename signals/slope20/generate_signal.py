@@ -3,8 +3,8 @@
 定义（与 backtest.fusion_probe.build_factors 的 "slope20" 逐位相同）：
   每腿 20 日对数价格 OLS 斜率 → 成长减价值（config_4pairs 四对）→ 120 日 z → tanh(z/2) → 四对等权 → 不平滑。
   = momentum_scan.momentum_factor_fn()(family="slope", length=20, skip=0, z_window=120, smoothing=0)
-输出 output/slope20/slope20_signal_L20zw120.csv（date, factor_value），全量重算覆写。
-输入尾部参差时裁到八条指数共同有效末日，不将晚到配对当作零信号。
+输出 output/slope20/slope20_signal_L20zw120.csv（date, factor_value, factor_value_pure），全量重算覆写。
+输入尾部参差时裁到两种口径十二条指数共同有效末日，不将晚到配对当作零信号。
 CLI: python3 signals/slope20/generate_signal.py [--output PATH] [--start YYYY-MM-DD]
 """
 from __future__ import annotations
@@ -21,18 +21,21 @@ OUTPUT = ROOT / "output" / "slope20" / "slope20_signal_L20zw120.csv"
 
 
 def build(start=None):
-    from backtest.momentum_scan import momentum_factor_fn
-    return momentum_factor_fn(start, trim_ragged_tail=True, trim_ragged_head=True)(
-        family=FAMILY, length=LENGTH, skip=SKIP, z_window=Z_WINDOW, smoothing=SMOOTHING,
-    )
+    return build_output(start)["factor_value"]
+
+
+def build_output(start=None):
+    from signals.style_family_daily import CONFIG_FILE, load_pair_configs, load_panels, slope_output
+    configs = load_pair_configs(CONFIG_FILE)
+    return slope_output(load_panels(configs, start=start), configs)
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--output", default=str(OUTPUT)); ap.add_argument("--start", default=None); a = ap.parse_args(argv)
-    fac = build(a.start).rename("factor_value").dropna()
+    fac = build_output(a.start)
     out = Path(a.output); out.parent.mkdir(parents=True, exist_ok=True)
     fac.round(4).to_csv(out, index_label="date")
-    print(f"slope20 → {out}  {len(fac)} 行  {fac.index.min().date()}..{fac.index.max().date()}  末值 {fac.iloc[-1]:+.4f}")
+    print(f"slope20 → {out}  {len(fac)} 行  {fac.index.min().date()}..{fac.index.max().date()}  末值 {fac.factor_value.iloc[-1]:+.4f}")
     return 0
 
 

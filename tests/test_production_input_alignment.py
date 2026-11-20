@@ -26,7 +26,9 @@ def _prices(columns):
 
 def _mock_pg(monkeypatch, prices):
     def load(names, start=None, end=None, trim_ragged_tail=False, trim_ragged_head=False):
-        selected = prices.loc[start:end, names]
+        lookup = {n.replace("纯", ""): n for n in prices.columns}
+        selected = pd.concat([prices[lookup[n.replace("纯", "")]].rename(n)
+                              for n in names], axis=1).loc[start:end]
         rows = [(c, d, v) for c in names for d, v in selected[c].dropna().items()]
         return data_source.rows_to_frame(
             rows, {c: c for c in names}, trim_ragged_tail=trim_ragged_tail,

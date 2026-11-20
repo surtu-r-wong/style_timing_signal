@@ -101,7 +101,12 @@ def make_tree(root: Path, *, drop_last: tuple[str, str] | None = None) -> dict:
         files[f"{name}_{m}"] = {"path": rel, "last_date": rows[-1][0], "gated": True}
     for name, last in SIGNAL_LAST.items():
         rel, col = SIGNALS[name]
-        _write_csv(root / rel, ["date", col], [[d, "0.1"] for d in DATES[:-1]] + [[DATES[-1], last]])
+        rows = [[d, "0.1"] for d in DATES[:-1]] + [[DATES[-1], last]]
+        if name in ("equal_weight", "slope20"):
+            _write_csv(root / rel, ["date", col, "factor_value_pure"],
+                       [row + ["-0.0400"] for row in rows])
+        else:
+            _write_csv(root / rel, ["date", col], rows)
     return {
         "result": "OK", "failed_step": None, "finished_at": "2026-09-22T18:31:05+08:00",
         "topup": "OK", "topup_reason": None,
@@ -121,8 +126,29 @@ def test_two_pools_come_first_with_run_and_value(tmp_path):
     text, as_of, lines = compose(tmp_path)
     assert as_of == "2026-09-22"
     assert lines[0] == "风格择时 信号日 2026-09-22｜链路 OK"
-    assert lines[1] == "【期货池】equal_weight 对称：持多 +1（09-17 起第 4 日）信号值 0.2784"
-    assert lines[2] == "【现货池】slope20 long-flat：⚡开仓 空仓 0 → 持多 +1 信号值 0.0461"
+    assert lines[1] == "【期货池】equal_weight 对称：持多 +1（09-17 起第 4 日）信号值 0.2784（标准基准）｜小盘纯风格 -0.0400 持空 -1｜仓位分歧"
+    assert lines[2] == "【现货池】slope20 long-flat：⚡开仓 空仓 0 → 持多 +1 信号值 0.0461（标准基准）｜小盘纯风格 -0.0400 空仓 0｜仓位分歧"
+
+
+@pytest.mark.parametrize("pure", ["", "nan", "inf"])
+def test_invalid_pure_score_refuses_pool_message(tmp_path, pure):
+    from backtest.baseline import SIGNALS
+    status = make_tree(tmp_path)
+    path, column = SIGNALS["equal_weight"]
+    _write_csv(tmp_path / path, ["date", column, "factor_value_pure"], [[DATES[-1], 0.2, pure]])
+    with pytest.raises(nw.Refused, match="equal_weight"):
+        compose(tmp_path, status)
+
+
+def test_both_negative_cash_scores_agree_on_flat(tmp_path):
+    from backtest.baseline import SIGNALS
+    from backtest.production import recommended_file
+    status = make_tree(tmp_path)
+    path, column = SIGNALS["slope20"]
+    _write_csv(tmp_path / path, ["date", column, "factor_value_pure"], [[DATES[-1], -0.18, -0.16]])
+    _write_csv(tmp_path / recommended_file("slope20", "longflat"), ["date", "position"], [[DATES[-1], 0]])
+    _, _, lines = compose(tmp_path, status)
+    assert "空仓 0" in lines[2] and lines[2].endswith("小盘纯风格 -0.1600 空仓 0｜仓位一致")
 
 
 def test_other_production_lines_listed_once_as_reference(tmp_path):
@@ -147,7 +173,7 @@ def test_first_day_position_change_verb_matches_action(tmp_path, monkeypatch):
     positions[("equal_weight", "symmetric")] = [0.5, 0.5, 0.5, 0.5, 1]  # 同向调仓
     monkeypatch.setattr(sys.modules[__name__], "POSITIONS", positions)
     _, _, lines = compose(tmp_path)
-    assert "【期货池】equal_weight 对称：⚡调仓 持多 +0.5 → 持多 +1 信号值 0.2784" in lines
+    assert "【期货池】equal_weight 对称：⚡调仓 持多 +0.5 → 持多 +1 信号值 0.2784（标准基准）｜小盘纯风格 -0.0400 持空 -1｜仓位分歧" in lines
     ref = lines[lines.index("【其余生产线·参考】") + 1:]
     assert "  slope20 对称：⚡翻仓 持空 -1 → 持多 +1 信号值 0.0461" in ref
     assert "  hybrid20 long-flat：⚡平仓 持多 +1 → 空仓 0 信号值 0" in ref
@@ -285,7 +311,7 @@ def test_fractional_position_is_not_truncated(tmp_path):
     _write_csv(tmp_path / rel, ["date", "position"],
                [[d, p] for d, p in zip(DATES, [-1, 1, 1, -0.5, -0.5])])
     _, _, lines = compose(tmp_path, status=st)
-    assert lines[1] == "【期货池】equal_weight 对称：持空 -0.5（09-21 起第 2 日）信号值 0.2784"
+    assert lines[1] == "【期货池】equal_weight 对称：持空 -0.5（09-21 起第 2 日）信号值 0.2784（标准基准）｜小盘纯风格 -0.0400 持空 -1｜仓位分歧"
 
 
 def test_non_finite_position_is_refused(tmp_path):
@@ -334,7 +360,7 @@ def test_blank_trailing_rows_are_ignored(tmp_path):
         path = tmp_path / rel
         path.write_text(path.read_text(encoding="utf-8") + "\n   \n", encoding="utf-8")
     _, _, lines = compose(tmp_path, status=st)
-    assert lines[1] == "【期货池】equal_weight 对称：持多 +1（09-17 起第 4 日）信号值 0.2784"
+    assert lines[1] == "【期货池】equal_weight 对称：持多 +1（09-17 起第 4 日）信号值 0.2784（标准基准）｜小盘纯风格 -0.0400 持空 -1｜仓位分歧"
 
 
 def test_missing_status_fields_show_dash_not_none(tmp_path):

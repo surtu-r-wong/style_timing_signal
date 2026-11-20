@@ -1,9 +1,9 @@
 """等办公室把当日输入指数写齐、再过同族共动性哨兵（只读 PG）—— run_daily_signals.sh 第 0 步（办公室模式）。
 
-2026-09-23 起本项目 15 个输入指数（同目录 `input_codes.txt`）由 data_manager 夜间作业（WSL2
+本项目 19 个输入指数（同目录 `input_codes.txt`）由 data_manager 夜间作业（WSL2
 `dbm-daily-wss`，20:00 起跑、约 20:02 结束；补数前先重看前 5 个交易日纠错）写入
 `stock_selector.index_daily`，本链路只读。依据：`data_manager/requests/2026-09-23-style-timing-signal-
-index-daily-takeover/`（处置 + 回函 01 §7.3/§7.4）。本脚本回答两件事：**期望信号日 T 的 15 码到齐没有**；
+index-daily-takeover/`（处置 + 回函 01 §7.3/§7.4）。本脚本回答两件事：**期望信号日 T 的 19 码到齐没有**；
 到齐了，**T 这天的数过不过同族共动性哨兵**。
 
 **期望信号日 T**：今天是 CN 交易日、且已过 `--ready-from`（默认 20:00，夜间作业起跑）→ 今天；
@@ -13,7 +13,7 @@ index-daily-takeover/`（处置 + 回函 01 §7.3/§7.4）。本脚本回答两�
 （重试也不会好的错误就不再读）。不用 `topup_guard.expected_last_trading_day`：它只看工作日 + 15:30、
 不认节假日（docstring 自承「节假日会高估一天」），拿来等数会在国庆每晚白等到截止。
 
-**到齐判据**（回函 01 §7.3 原样）：T 日、这 15 码、`close` 非空的行数 = 码数。不看 `backfill_job`：
+**到齐判据**（回函 01 §7.3 原样）：T 日、清单内所有代码、`close` 非空的行数 = 码数。不看 `backfill_job`：
 码都已在库的那天补数整天跳过、不写 job 行；纠错那步的账挂在同一个表名下，`last_cursor` 记的是 T-1。
 纠错排在补数之前，所以 T 日一到齐，同一轮对 T-1..T-5 的改写也已做完。
 
@@ -29,10 +29,7 @@ keepalive），单次出错记下、下一轮再查，截止时仍出错 → CHE
 `family_sentinel.py`）：到齐后只读取 T 前 `SENTINEL_LOOKBACK_DAYS` 个自然日到 T 的收盘价，用
 `family_sentinel.scan_findings(..., only_days={T})` 只判 T。只有 CRITICAL（对内价差 ≥8pp / 序列冻结）
 算数——runner 记 OFFICE_SUSPECT、在信号重算之前中止；WARN 只提示不阻断（同旧口径，报 WARN，CLEAN 只留给
-零发现）。判定范围是这 15 个
-输入码：旧审计判新写入的那天时，纯风格 4 码要到 20:01 才由夜间作业写，审计时还不在库里，实际判的也是
-这 15 码；办公室处置 §2.1 还记着 932400.CSI 晚间会取到前一日值——把它纳入只会因为生产信号不用的码
-误拦生产。到齐后哨兵没判成（出错 / T 算不出日收益）→ 到齐照报 OK、哨兵报 SKIPPED 并写明原因，runner 记
+零发现）。判定范围为 input_codes.txt 中的 19 码，包含 11 月 20 日加入的四个小盘标准风格代码。到齐后哨兵没判成（出错 / T 算不出日收益）→ 到齐照报 OK、哨兵报 SKIPPED 并写明原因，runner 记
 OFFICE_UNCHECKED 照常往下走：本链路不写库，数据归办公室负责、它自有重看与覆盖检查，哨兵只是只读复查，复查设施
 故障不该让当晚没信号。CHECK_ERROR 只留给到齐检查本身出错。**不接回「历史被改写」审计**：办公室每晚重看会合法
 改写 T-1..T-5，那条规则会天天误报。人工核实是真实行情后，`--accept-sentinel T` 只放行那一天的 CRITICAL
