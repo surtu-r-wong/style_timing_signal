@@ -3,7 +3,7 @@
 **干什么用**：盘中收盘前想提前知道"今晚日更会不会翻仓/翻负"，不用等 20:30。
 拉 PG `stock_selector.index_daily` 里 8 个风格指数的最新收盘（数据基期 = 最后一个已收盘交易日），
 在末尾追加一个模拟交易日，按生产口径（`signals/equal_weight/generate_signal.py`，20/40/5，
-tanh(z/2)，四对等权）重跑整条管线，报出当天 raw、SMA5 平滑值、对称持仓、翻负阈值与反解。
+tanh(z/2)，四对等权）重跑整条管线，报出 SMA5 窗口滚动明细、模拟日 raw 和 SMA5、对称持仓、翻负阈值与反解。
 
 **用法**（本机已验证的解释器；任何带 psycopg2+pandas 的 python 均可）：
 
@@ -51,12 +51,13 @@ PAIRS = [
 SEGMENT = {"300": 0, "500": 2, "1000": 4, "2000": 6}  # 段名 -> PAIRS 下标（成长, 价值）
 COMMITTED = ROOT / "output" / "equal_weight" / "equal_weight_signal_20d40z.csv"
 PULL_DAYS = 180  # 日历天，约 120 个交易日，远够 20+40 窗口热身
+SMA_WINDOW = 5
 
 
 def run_pipeline(prices: pd.DataFrame) -> pd.DataFrame:
     cfgs = load_pair_configs(price_columns=list(prices.columns))
     return calculate_contrast_equal_weight_signal(
-        prices, lookback=20, z_window=40, smoothing_window=5, pair_configs=cfgs,
+        prices, lookback=20, z_window=40, smoothing_window=SMA_WINDOW, pair_configs=cfgs,
     )
 
 
@@ -91,7 +92,7 @@ def eval_scenario(prices: pd.DataFrame, base_g: float, base_v: float,
     sp, sim_dt = build_scenario_prices(prices, base_g, base_v, overrides)
     out = run_pipeline(sp)
     row = out.loc[sim_dt]
-    window = out["factor_value_raw"].iloc[-5:]
+    window = out["factor_value_raw"].tail(SMA_WINDOW)
     prior4 = window.iloc[:-1].sum()
     return {
         "sim_dt": sim_dt, "row": row,
@@ -186,13 +187,23 @@ def main() -> int:
 
     print(f"模拟日期: {sim_dt.date()}（下一交易日）")
     print(f"冲击明细: " + " | ".join(f"{n} 成长{g*100:+.2f}%/价值{v*100:+.2f}%" for n, g, v in res["shocks"]))
-    print(f"\n翻负阈值: raw_today < {thresh:+.4f} 则平滑值转负（前四天 raw 合计 {-thresh:+.4f}）")
+
+    base_window = base_out["factor_value_raw"].tail(SMA_WINDOW)
+    retained = base_window.tail(SMA_WINDOW - 1)
+    base_smoothed = base_out.loc[base_date, "factor_value"]
+    print(f"\n基期 SMA5（{base_date.date()}）= {base_smoothed:+.4f}")
+    if len(base_window) == SMA_WINDOW:
+        print(f"  移出 {base_window.index[0].date()} raw = {base_window.iloc[0]:+.4f}")
+    print(f"  保留 {retained.index[0].date()} 至 {base_date.date()} 共 {len(retained)} 个交易日，"
+          f"raw 合计 = {-thresh:+.4f}")
+    raw, sm = row["factor_value_raw"], row["factor_value"]
+    print(f"  加入 {sim_dt.date()} raw = {raw:+.4f}")
+    print(f"模拟日 SMA5 = {sm:+.4f}   -> 对称持仓 {pos:+d}")
+    print(f"模拟日 SMA5 为负的条件: 当天 raw < {thresh:+.4f}（距阈值 {raw - thresh:+.4f}）")
+
     pair_cells = " | ".join(
         f"{PAIRS[i*2].replace('成长','')} {row[f'pair_{i+1:02d}_factor_20']:+.3f}" for i in range(4))
     print(f"四对 factor: {pair_cells}")
-    raw, sm = row["factor_value_raw"], row["factor_value"]
-    print(f"raw 当天值   = {raw:+.4f}   距阈值 {raw - thresh:+.4f}")
-    print(f"平滑值 SMA5  = {sm:+.4f}   -> 对称持仓 {pos:+d}")
 
     if not overrides:  # 统一冲击模式下给反解
         gs = solve_growth(prices, args.value / 100.0, thresh)
